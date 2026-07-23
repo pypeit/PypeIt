@@ -13,24 +13,27 @@ up-the-ramp fitting
 +++++++++++++++++++
 
 MMIRS raw frames store the non-destructive reads of the HAWAII-2 detector as
-separate FITS extensions.  For frames with at least 3 reads, PypeIt performs
+separate FITS extensions.  For frames with at least 5 reads, PypeIt performs
 up-the-ramp fitting with likelihood-based jump (cosmic-ray) detection using
 the algorithm of `Brandt (2024) <https://arxiv.org/abs/2404.01326>`__,
 replacing the correlated double sampling (first minus last read) used
-previously.  Frames with 2 reads still use correlated double sampling.  Each
-read is reference-pixel corrected before fitting.  This implementation was
-inspired by the prototype at
+previously.  Frames with fewer reads still use correlated double sampling
+(fewer than 5 reads do not sample the ramp well enough to fit reliably).
+Each read is reference-pixel corrected before fitting.  This implementation
+was inspired by the prototype at
 `mmt-mmirs-up-the-ramp-pypeit
 <https://github.com/zhechenghu/mmt-mmirs-up-the-ramp-pypeit>`__.
 
 The single-read noise needed by the fit is calibrated from a dark frame
 listed in the :ref:`pypeit_file` when one with at least 10 reads is
 available (include darks in your raw-data directory when running
-:ref:`pypeit_setup` to enable this); otherwise it is self-calibrated from
-each frame by rescaling the fit chi-squared.  Both start from the measured
-per-read noise of 11 e- (at gain 1) reported on the `MMIRS instrument
-statistics page
-<https://lweb.cfa.harvard.edu/mmti/mmirs/instrstats.html>`__.  The effective read noise of
+:ref:`pypeit_setup` to enable this).  With no suitable dark, a frame with at
+least 10 reads self-calibrates its own noise by rescaling the fit
+chi-squared; a frame with fewer reads is too poorly constrained to
+self-calibrate and instead uses the measured per-read noise of 11 e- (at
+gain 1) reported on the `MMIRS instrument statistics page
+<https://lweb.cfa.harvard.edu/mmti/mmirs/instrstats.html>`__ (which is also
+the starting guess for the dark and self-calibrated fits).  The effective read noise of
 the fitted image, ``sigma * sqrt(12 (N-1) / (N (N+1)))`` for ``N`` reads, is
 propagated to the detector parameters.
 

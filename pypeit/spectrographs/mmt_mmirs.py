@@ -48,8 +48,15 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
     used by the fit is refined from darks or self-calibrated per frame."""
     ramp_sig_range = (3.0, 50.0)
     """Allowed range for the calibrated single-read noise (electrons)."""
-    ramp_min_dark_groups = 10
-    """Minimum number of reads for a dark to be usable for noise calibration."""
+    ramp_min_reads = 5
+    """Minimum number of reads for up-the-ramp fitting.  Frames with fewer
+    reads do not sample the ramp well enough to fit reliably and fall back to
+    correlated double sampling."""
+    ramp_min_cal_groups = 10
+    """Minimum number of reads for a frame (dark or science) to calibrate the
+    single-read noise.  A dark with fewer reads is not used; a science frame
+    with fewer reads falls back to the published guess
+    (:attr:`ramp_sig_guess`) instead of self-calibrating."""
     ramp_fit_workers = None
     """Number of worker threads for up-the-ramp fitting.  ``None`` selects
     ``min(6, os.cpu_count())``; set to ``1`` to disable threading.  The per-pixel
@@ -152,7 +159,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
 
         Returns:
             `Path`_: Path to the best dark, or None if no recorded dark
-            exists with at least :attr:`ramp_min_dark_groups` reads.
+            exists with at least :attr:`ramp_min_cal_groups` reads.
         """
         best, best_n = None, 0
         for f in self._ramp_dark_files or []:
@@ -163,7 +170,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
                 log.warning(f'Could not open recorded dark frame {f}; skipping it '
                             'for read-noise calibration.')
                 continue
-            if n >= self.ramp_min_dark_groups and n > best_n:
+            if n >= self.ramp_min_cal_groups and n > best_n:
                 best, best_n = f, n
         return best
 
@@ -173,9 +180,11 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
 
         Preferentially calibrates the noise from a dark frame recorded by
         :func:`cache_metadata` (the result is cached for the rest of the
-        run).  If no suitable dark is available, self-calibrates from the
-        provided ramp differences (not cached).  The result is clamped to
-        :attr:`ramp_sig_range` in both cases.
+        run).  If no suitable dark is available and the frame has at least
+        :attr:`ramp_min_cal_groups` reads, self-calibrates from the provided
+        ramp differences (not cached); with fewer reads the fit is too poorly
+        constrained, so the published guess (:attr:`ramp_sig_guess`) is used.
+        A calibrated result is clamped to :attr:`ramp_sig_range`.
 
         Args:
             diffs (`numpy.ndarray`_):
@@ -204,6 +213,12 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             self._ramp_sigma = float(np.clip(sig, *self.ramp_sig_range))
             log.info(f'Calibrated single-read noise: {self._ramp_sigma:.2f} e-')
             return self._ramp_sigma
+        ngroups = diffs.shape[0] + 1
+        if ngroups < self.ramp_min_cal_groups:
+            log.info(f'No suitable dark listed and only {ngroups} reads '
+                     f'(< {self.ramp_min_cal_groups}); using the published '
+                     f'single-read noise of {self.ramp_sig_guess:.2f} e-')
+            return self.ramp_sig_guess
         log.info('No suitable dark listed; self-calibrating MMIRS single-read '
                  'noise from the frame itself')
         sig = mmirs_calibrate_sigma(diffs, covar, sig_guess=self.ramp_sig_guess,
@@ -498,9 +513,9 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             (1-indexed) number of the amplifier used to read each detector
             pixel. Pixels unassociated with any amplifier are set to 0.
 
-        Frames with three or more non-destructive reads are combined using
-        up-the-ramp fitting (see :func:`_ramp_fit_image`); frames with two
-        (or one) reads use correlated double sampling, as before.
+        Frames with at least :attr:`ramp_min_reads` non-destructive reads are
+        combined using up-the-ramp fitting (see :func:`_ramp_fit_image`);
+        frames with fewer reads use correlated double sampling, as before.
 
         Fitted images are persisted as 2D count-rate files in the ``RampFit``
         directory inside the reduction directory (written on first load,
@@ -520,7 +535,8 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         redux_path = self._ramp_output_dir if self._ramp_output_dir is not None \
                 else Path.cwd()
 
-        if hdu[0].header.get('RAMPFIT') is None and mmirs_count_reads(hdu) >= 3:
+        if hdu[0].header.get('RAMPFIT') is None \
+                and mmirs_count_reads(hdu) >= self.ramp_min_reads:
             # Multi-read cube: swap in a fresh preprocessed 2D image if one
             # exists in the reduction directory
             rampfit_file = mmirs_rampfit_path(fil, redux_path)
@@ -545,7 +561,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             # Preprocessed 2D count-rate image (e-/s): convert to ADU
             array = hdu[1].data.astype(np.float64) * exptime / gain
             detector_par['ronoise'] = np.atleast_1d(hdu[0].header['RAMPRON'])
-        elif mmirs_count_reads(hdu) >= 3:
+        elif mmirs_count_reads(hdu) >= self.ramp_min_reads:
             # Up-the-ramp fitting with jump detection
             rate, sig, eff_ronoise = self._ramp_fit_image(hdu, detector_par)
             detector_par['ronoise'] = np.atleast_1d(eff_ronoise)
@@ -593,7 +609,8 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
 
         Args:
             hdu (`astropy.io.fits.HDUList`_):
-                Opened raw file with at least 3 non-destructive reads.
+                Opened raw file with at least :attr:`ramp_min_reads`
+                non-destructive reads.
             detector_par (:class:`~pypeit.images.detector_container.DetectorContainer`):
                 Detector parameters; provides the gain.
 

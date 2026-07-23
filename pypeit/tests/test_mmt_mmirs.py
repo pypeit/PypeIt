@@ -235,7 +235,7 @@ def test_ramp_sigma_from_dark_and_cached(tmp_path):
 
 
 def test_ramp_sigma_selfcal_fallback(tmp_path):
-    """No darks recorded (or too few groups) -> self-calibrate from the frame."""
+    """No darks recorded, but enough groups -> self-calibrate from the frame."""
     sig_true = 8.
     gain, grptime, ngroups = 0.95, 2., 15
     hdu = synth_ramp_hdulist(ngroups, rate=2., sig=sig_true, gain=gain,
@@ -248,6 +248,23 @@ def test_ramp_sigma_selfcal_fallback(tmp_path):
     sig = spec.get_ramp_sigma(diffs, covar)
     assert np.abs(sig - sig_true) < 1.5
     assert spec._ramp_sigma is None                # self-cal is not cached
+
+
+def test_ramp_sigma_few_groups_uses_published_guess(tmp_path):
+    """Too few reads to self-calibrate and no dark -> the published guess."""
+    gain, grptime = 0.95, 2.
+    ngroups = load_spectrograph('mmt_mmirs').ramp_min_cal_groups - 1
+    hdu = synth_ramp_hdulist(ngroups, rate=2., sig=8., gain=gain,
+                             grptime=grptime, seed=131)
+    reads, head1 = mmt_mmirs.mmirs_load_ramp(hdu)
+    covar = fitramp.Covar([grptime * (i + 1) for i in range(ngroups)])
+    diffs = mmt_mmirs.mmirs_ramp_diffs(reads * gain, covar)
+
+    spec = load_spectrograph('mmt_mmirs')          # fresh: no darks recorded
+    sig = spec.get_ramp_sigma(diffs, covar)
+    # No fit is attempted; the published per-read noise is returned verbatim.
+    assert sig == spec.ramp_sig_guess
+    assert spec._ramp_sigma is None                # not cached
 
 
 def test_ramp_sigma_missing_dark_falls_back(tmp_path):
@@ -293,11 +310,15 @@ def test_get_rawimage_ramp_path(tmp_path):
     assert np.abs(rate_meas - rate) < 1.5
 
 
-def test_get_rawimage_cds_path(tmp_path):
-    """2-read files must still use the unchanged CDS path."""
-    path = _write_synth(synth_ramp_hdulist(2, ny=64, nx=64, rate=20., seed=51),
-                        tmp_path / 'sci_cds.fits')
+@pytest.mark.parametrize('ngroups', [2, 4])
+def test_get_rawimage_cds_path(tmp_path, ngroups):
+    """Frames below ramp_min_reads (5) must use the unchanged CDS path; 4 reads
+    is above the old threshold of 3, so this guards the raised minimum."""
     spec = load_spectrograph('mmt_mmirs')
+    assert ngroups < spec.ramp_min_reads
+    path = _write_synth(synth_ramp_hdulist(ngroups, ny=64, nx=64, rate=20.,
+                                           seed=51),
+                        tmp_path / 'sci_cds.fits')
     spec._ramp_output_dir = tmp_path
     detpar, img, hdu, exp, rdsec, oscan = spec.get_rawimage(str(path), 1)
     assert img.shape == (56, 56)

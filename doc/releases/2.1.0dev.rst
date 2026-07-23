@@ -106,13 +106,15 @@ Instrument-specific Updates
   grating (``decker`` added to ``configuration_keys``), so frames taken with
   different masks no longer share calibrations.
 
-- MMT/MMIRS raw frames with at least 3 non-destructive reads are now
+- MMT/MMIRS raw frames with at least 5 non-destructive reads are now
   processed with up-the-ramp fitting and cosmic-ray (jump) detection
   (`Brandt 2024 <https://arxiv.org/abs/2404.01326>`__), replacing the
-  previous first-minus-last correlated double sampling.  The single-read
-  noise is calibrated from a dark frame listed in the pypeit file when
-  available (self-calibrated from each frame otherwise) and the effective
-  read noise is propagated to the detector parameters.  Default MMIRS
+  previous first-minus-last correlated double sampling (frames with fewer
+  reads continue to use it).  The single-read noise is calibrated from a
+  dark frame listed in the pypeit file when available, self-calibrated from
+  frames with at least 10 reads otherwise, and falls back to the published
+  per-read noise for frames with too few reads to self-calibrate; the
+  effective read noise is propagated to the detector parameters.  Default MMIRS
   object-tracing parameters were also adjusted (``trace_npoly = 1``,
   ``trace_maxdev = 50``, ``trace_maxshift = 20``) to improve tracing with
   the synthetic slit edges used for this detector-bounded longslit.

@@ -86,9 +86,9 @@ class FitRamp(scriptbase.ScriptBase):
             dark = Path(args.dark)
             with io.fits_open(dark) as dhdu:
                 n_dark_reads = mmt_mmirs.mmirs_count_reads(dhdu)
-            if n_dark_reads < spec.ramp_min_dark_groups:
+            if n_dark_reads < spec.ramp_min_cal_groups:
                 log.warning(f'{dark.name} has only {n_dark_reads} read(s), '
-                            f'fewer than the {spec.ramp_min_dark_groups} '
+                            f'fewer than the {spec.ramp_min_cal_groups} '
                             'required for read-noise calibration; '
                             'self-calibration will be used instead')
             # Reuse the reduction's dark-calibration path (calibrated on
@@ -109,10 +109,10 @@ class FitRamp(scriptbase.ScriptBase):
                                 'image; skipping')
                     continue
                 n_reads = mmt_mmirs.mmirs_count_reads(hdu)
-                if n_reads < 3:
+                if n_reads < spec.ramp_min_reads:
                     log.warning(f'{raw.name}: only {n_reads} read(s); '
-                                'up-the-ramp fitting requires at least 3. '
-                                'Skipping.')
+                                f'up-the-ramp fitting requires at least '
+                                f'{spec.ramp_min_reads}. Skipping.')
                     continue
                 log.info(f'{raw.name}: fitting {n_reads} reads')
                 detector_par = spec.get_detector_par(1, hdu=hdu)
