@@ -74,9 +74,8 @@ def test_skyregions_io():
 
 def _make_skyoptimal_inputs(npoly=1, use_spatial=False, seed=1234):
     """
-    Build small, deterministic, synthetic 2d inputs for comparing
-    :func:`~pypeit.core.skysub.skyoptimal` and
-    :func:`~pypeit.core.skysub.skyoptimal_refactor`.
+    Build small, deterministic, synthetic 2d inputs for
+    :func:`~pypeit.core.skysub.skyoptimal`.
 
     The ``localmask`` is deliberately irregular (not a simple rectangular
     sub-image) and some pixels inside it have ``ivar <= 0``, so that both the
@@ -127,65 +126,54 @@ def _make_skyoptimal_inputs(npoly=1, use_spatial=False, seed=1234):
     return piximg, data, ivar, oprof, (spatial_img if use_spatial else None), localmask, fullbkpt
 
 
-def test_skyoptimal_refactor_matches_skyoptimal():
+def test_skyoptimal():
     """
-    Compare :func:`~pypeit.core.skysub.skyoptimal_refactor` (native-shape
-    arrays + explicit boolean mask) against the existing
-    :func:`~pypeit.core.skysub.skyoptimal` (pre-flattened arrays, as done by
-    its caller ``local_skysub_extract``), on the same synthetic data.
+    Regression/sanity test for :func:`~pypeit.core.skysub.skyoptimal` on
+    synthetic 2d data with an irregular ``localmask`` and some ``ivar <= 0``
+    pixels inside it.
     """
     for npoly, use_spatial in [(1, False), (3, True)]:
         piximg, data, ivar, oprof, spatial_img, localmask, fullbkpt = \
                 _make_skyoptimal_inputs(npoly=npoly, use_spatial=use_spatial)
-        nspec, nspat, nobj = oprof.shape
 
-        # Old convention: caller pre-flattens everything using .flat/isub,
-        # as done today in local_skysub_extract.
-        isub, = np.where(localmask.flatten())
-        oprof_flat = oprof.reshape(nspec * nspat, nobj)
-        sky_old, obj_old, gpm_old = skysub.skyoptimal(
-                piximg.flat[isub], data.flat[isub], ivar.flat[isub], oprof_flat[isub, :],
-                spatial_img=None if spatial_img is None else spatial_img.flat[isub],
-                fullbkpt=fullbkpt, sigrej=3.0, npoly=npoly)
-
-        # New convention: native-shape arrays plus an explicit localmask.
-        sky_new, obj_new, gpm_new = skysub.skyoptimal_refactor(
+        sky_bmodel, obj_bmodel, gpm = skysub.skyoptimal(
                 piximg, data, ivar, oprof, localmask, spatial_img=spatial_img,
                 fullbkpt=fullbkpt, sigrej=3.0, npoly=npoly)
 
-        assert np.allclose(sky_old, sky_new[localmask]), 'sky_bmodel mismatch'
-        assert np.allclose(obj_old, obj_new[localmask]), 'obj_bmodel mismatch'
-        assert np.array_equal(gpm_old, gpm_new[localmask]), 'gpm mismatch'
+        assert sky_bmodel.shape == piximg.shape
+        assert obj_bmodel.shape == piximg.shape
+        assert gpm.shape == piximg.shape
 
-        # Outside localmask, the refactored outputs must be untouched
-        # (zero/False), since skyoptimal never had those pixels at all.
-        assert not np.any(sky_new[~localmask]), 'sky_bmodel populated outside localmask'
-        assert not np.any(obj_new[~localmask]), 'obj_bmodel populated outside localmask'
-        assert not np.any(gpm_new[~localmask]), 'gpm populated outside localmask'
+        # Outputs are only ever populated within localmask.
+        assert not np.any(sky_bmodel[~localmask]), 'sky_bmodel populated outside localmask'
+        assert not np.any(obj_bmodel[~localmask]), 'obj_bmodel populated outside localmask'
+        assert not np.any(gpm[~localmask]), 'gpm populated outside localmask'
+
+        # gpm can only be True where ivar>0 within localmask.
+        assert not np.any(gpm & ~(localmask & (ivar > 0))), 'gpm set for a masked/bad-ivar pixel'
+
+        # The recovered sky model should track the smooth, noise-free sky
+        # trend used to build the synthetic data.
+        sky_true = 4.0 + 0.03 * piximg
+        assert np.allclose(sky_bmodel[localmask], sky_true[localmask], atol=0.5)
 
 
-def test_skyoptimal_refactor_all_masked():
+def test_skyoptimal_all_masked():
     """
-    Both functions must degrade identically (all-zero models, all-False
-    gpm) when there are no good pixels to fit.
+    skyoptimal must degrade to all-zero models and an all-False gpm when
+    there are no good pixels to fit.
     """
     piximg, data, ivar, oprof, spatial_img, localmask, fullbkpt = \
             _make_skyoptimal_inputs(npoly=1, use_spatial=False)
-    nspec, nspat, nobj = oprof.shape
     ivar_all_bad = np.zeros_like(ivar)
 
-    isub, = np.where(localmask.flatten())
-    oprof_flat = oprof.reshape(nspec * nspat, nobj)
-    sky_old, obj_old, gpm_old = skysub.skyoptimal(
-            piximg.flat[isub], data.flat[isub], ivar_all_bad.flat[isub], oprof_flat[isub, :],
-            fullbkpt=fullbkpt, sigrej=3.0, npoly=1)
-    sky_new, obj_new, gpm_new = skysub.skyoptimal_refactor(
+    sky_bmodel, obj_bmodel, gpm = skysub.skyoptimal(
             piximg, data, ivar_all_bad, oprof, localmask, fullbkpt=fullbkpt, sigrej=3.0, npoly=1)
 
-    assert not np.any(sky_old) and not np.any(sky_new)
-    assert not np.any(obj_old) and not np.any(obj_new)
-    assert not np.any(gpm_old) and not np.any(gpm_new)
-    assert sky_new.shape == piximg.shape
-    assert gpm_new.shape == piximg.shape
+    assert not np.any(sky_bmodel)
+    assert not np.any(obj_bmodel)
+    assert not np.any(gpm)
+    assert sky_bmodel.shape == piximg.shape
+    assert gpm.shape == piximg.shape
 
 
