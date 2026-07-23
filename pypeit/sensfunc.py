@@ -228,7 +228,7 @@ class SensFunc(datamodel.DataContainer):
         # this is the array of spec1d that are used in the calculations
         self.spec1d_arr = np.array(spec1dfiles)
         self.extr = par['extr']
-        self.sensfile = sensfile
+        self.sensfile = Path(sensfile).absolute()
         self.par = par
         self.chk_version = chk_version
         self.write_qa = write_qa
@@ -248,9 +248,9 @@ class SensFunc(datamodel.DataContainer):
         self.algorithm = self.__class__._algorithm
 
         # QA and throughput plot filenames
-        self.qafile = sensfile.parent / f'{sensfile.stem}_QA.pdf'
-        self.thrufile = sensfile.parent / f'{sensfile.stem}_throughput.pdf'
-        self.fstdfile = sensfile.parent / f'{sensfile.stem}_fluxed_std.pdf'
+        self.qafile = self.sensfile.parent / f'{self.sensfile.stem}_QA.pdf'
+        self.thrufile = self.sensfile.parent / f'{self.sensfile.stem}_throughput.pdf'
+        self.fstdfile = self.sensfile.parent / f'{self.sensfile.stem}_fluxed_std.pdf'
 
         # Other
         self.debug = debug
