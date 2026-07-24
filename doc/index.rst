@@ -113,6 +113,7 @@ PypeIt BibTeX Entries
    frametype
    scripts
    bitmasks
+   bspline
 
 .. toctree::
    :caption: Project Information
