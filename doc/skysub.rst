@@ -154,9 +154,9 @@ The core fitting engine ``skyoptimal`` performs the coupled sky-object fit:
 
 2. **First B-spline Fit**: Initial fit with relatively loose rejection::
 
-       sset, gpm, yfit1, _, _ = fitting.bspline_profile(
-           piximg, data, ivar, profile_basis,
-           ingpm=mask, fullbkpt=fullbkpt, upper=sigrej, lower=sigrej)
+       sset1, gpm, yfit1, _, _ = fitting.iterative_bspline_fit(
+           piximg, data, ivar=ivar, gpm=mask, basis=profile_basis,
+           kwargs_knots={'full': fullbkpt}, upper=sigrej, lower=sigrej)
 
 3. **Chi-squared Rejection**: Compute chi-squared for each pixel and apply
    an additional rejection threshold based on Gaussian statistics::
@@ -166,9 +166,9 @@ The core fitting engine ``skyoptimal`` performs the coupled sky-object fit:
 
 4. **Second B-spline Fit**: Refit with tightened mask::
 
-       sset, gpm_good, yfit, _, _ = fitting.bspline_profile(
-           piximg, data, ivar, profile_basis,
-           ingpm=mask1, fullbkpt=fullbkpt, upper=sigrej, lower=sigrej,
+       sset, gpm_good, yfit, _, _ = fitting.iterative_bspline_fit(
+           piximg, data, ivar=ivar, gpm=mask1, basis=profile_basis,
+           kwargs_knots={'full': fullbkpt}, upper=sigrej, lower=sigrej,
            kwargs_reject={'groupbadpix': True, 'maxrej': 1})
 
 5. **Model Separation**: Extract the sky and object models from the fit
