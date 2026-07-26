@@ -116,6 +116,65 @@ corrections as part of the spec2d block, including:
     The required input file is the sensitivity function, which is generated with the ``pypeit_sensfunc`` script.
     For further details, see :ref:`coadd3d_fluxing`.
 
+.. _pypeit_setup_datacube:
+
+pypeit_setup_datacube
+---------------------
+
+The ``pypeit_setup_datacube`` script can be used to create the ``.coadd3d`` file used by
+``pypeit_coadd_datacube`` and the ``.extract`` file used by ``pypeit_extract_datacube``.
+The script reads a PypeIt file, finds the reduced ``spec2d`` files that already exist in the
+associated ``Science`` directory for the requested target, and writes the setup files to
+``sources/<target>/`` next to the PypeIt file.  For example:
+
+.. code-block:: console
+
+    pypeit_setup_datacube kcrm_jun10_hizqso.pypeit J0750+6927
+
+By default, no sensitivity function is included in the generated ``.coadd3d`` file, so
+``pypeit_coadd_datacube`` will produce an unfluxed cube in counts/s/Angstrom/arcsec^2.
+To flux calibrate the datacube, provide a sensitivity function using ``--sensfile``:
+
+.. code-block:: console
+
+    pypeit_setup_datacube kcrm_jun10_hizqso.pypeit J0750+6927 \
+        --sensfile /Users/joe/kcrm_observing_2024/dec2024/hiz_qso_dec2024/sens_gd71_000.fits
+
+The white-light wavelength range defaults to ``None,None``.  This means PypeIt will use the
+default cube range, which is the common wavelength overlap of the spaxels used to build the
+cube.  To set the range explicitly, use either ``--whitelight_range`` or ``--wl_range``:
+
+.. code-block:: console
+
+    pypeit_setup_datacube kcrm_jun10_hizqso.pypeit J0750+6927 \
+        --wl_range 9400,10000
+
+To manually set the extraction position, pass the white-light image coordinates to
+``--manual`` in ``x:y`` format:
+
+.. code-block:: console
+
+    pypeit_setup_datacube kcrm_jun10_hizqso.pypeit J0750+6927 \
+        --manual 9.8:13.6 -o
+
+Here ``x=9.8`` and ``y=13.6`` are the coordinates read from Ginga or DS9 when viewing the
+white-light image.  In numpy terms, if the image has shape ``(ny, nx)``, the position
+``(x, y)`` refers to ``image[y, x]``; ``x`` indexes the second array axis and ``y`` indexes
+the first.  The ``-o``/``--overwrite`` option is needed if the ``.extract`` file already exists
+and you want the script to replace it.  The generated ``.extract`` file will include:
+
+.. code-block:: ini
+
+    [reduce]
+        [[cube]]
+         [[[extraction]]]
+           opt_prof_method = user_gauss
+           manual = 9.8:13.6
+
+If you reduce additional exposures later, ``--append`` can be used to append any newly
+available ``spec2d`` files to the existing ``.coadd3d`` file without changing the existing
+``.extract`` file.
+
 run
 ---
 
