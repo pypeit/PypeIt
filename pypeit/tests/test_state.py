@@ -567,7 +567,7 @@ def test_get_science_status_table():
                                 'nobj', 'spec2d', 'spec1d']
     row = df[0]
     assert row['process'] == 'success'
-    assert row['findobj'] == 'undone'
+    assert row['findobj'] == 'pending'
 
 
 # -----------------------------------------------------------------------

@@ -1,9 +1,9 @@
 {
     "pypeit_file": "shane_kast_blue_A.pypeit",
-    "current_step": "slits",
+    "current_step": "flats",
     "current_det": 1,
     "current_calibID": 0,
-    "previous_step": "tiltimg",
+    "previous_step": "scattlight",
     "bias": [
         {
             "calib_id": 0,
@@ -28,7 +28,15 @@
             "std": 3.7
         }
     ],
-    "dark": [],
+    "dark": [
+        {
+            "calib_id": 0,
+            "det": 1,
+            "step": "dark",
+            "required": false,
+            "status": "pending"
+        }
+    ],
     "slits": [
         {
             "calib_id": 0,
@@ -51,7 +59,13 @@
             "output_file": "Slits_A_0_DET01.fits.gz",
             "status": "success",
             "nslits": 1,
-            "slits": {}
+            "slits": {
+                "175": {
+                    "status": "success",
+                    "center": 512.0,
+                    "slitord_id": 175
+                }
+            }
         }
     ],
     "arc": [
@@ -67,15 +81,36 @@
             "status": "success"
         }
     ],
-    "tiltimg": [],
+    "tiltimg": [
+        {
+            "calib_id": 0,
+            "det": 1,
+            "step": "tiltimg",
+            "required": true,
+            "input_files": [
+                "b1.fits.gz"
+            ],
+            "output_file": "Tiltimg_A_0_DET01.fits",
+            "status": "success"
+        }
+    ],
     "wv_calib": [
         {
             "calib_id": 0,
             "det": 1,
             "step": "wv_calib",
             "required": true,
-            "status": "undone",
-            "slits": {}
+            "input_files": [
+                "b1.fits.gz"
+            ],
+            "output_file": "WaveCalib_A_0_DET01.fits",
+            "status": "success",
+            "slits": {
+                "175": {
+                    "status": "success",
+                    "rms": 0.074
+                }
+            }
         }
     ],
     "tilts": [
@@ -84,18 +119,49 @@
             "det": 1,
             "step": "tilts",
             "required": true,
-            "status": "undone",
-            "slits": {}
+            "input_files": [
+                "b1.fits.gz"
+            ],
+            "output_file": "Tilts_A_0_DET01.fits.gz",
+            "status": "success",
+            "slits": {
+                "175": {
+                    "status": "success",
+                    "rms": 0.019
+                }
+            }
         }
     ],
-    "scattlight": [],
+    "scattlight": [
+        {
+            "calib_id": 0,
+            "det": 1,
+            "step": "scattlight",
+            "required": false,
+            "status": "pending"
+        }
+    ],
     "flats": [
         {
             "calib_id": 0,
             "det": 1,
             "step": "flats",
             "required": true,
-            "status": "undone",
+            "input_files": [
+                "b3.fits.gz",
+                "b4.fits.gz",
+                "b5.fits.gz",
+                "b6.fits.gz",
+                "b7.fits.gz",
+                "b8.fits.gz",
+                "b9.fits.gz",
+                "b10.fits.gz",
+                "b11.fits.gz",
+                "b12.fits.gz",
+                "b13.fits.gz"
+            ],
+            "output_file": "Flat_A_0_DET01.fits",
+            "status": "success",
             "corrections": [],
             "slits": {}
         }

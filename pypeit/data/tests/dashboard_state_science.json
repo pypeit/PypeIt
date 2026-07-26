@@ -38,7 +38,7 @@
       "input_files": null,
       "output_file": null,
       "qa_files": null,
-      "status": "undone"
+      "status": "pending"
     }
   ],
   "slits": [
@@ -150,7 +150,7 @@
       "input_files": null,
       "output_file": null,
       "qa_files": null,
-      "status": "undone"
+      "status": "pending"
     }
   ],
   "flats": [

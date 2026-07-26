@@ -387,7 +387,7 @@ class Calibrations:
             return
         # Created/loaded?
         if object is None:
-            self.state.update_calib(step, self.calib_ID, self.det, 'status', 'undone')
+            self.state.update_calib(step, self.calib_ID, self.det, 'status', 'pending')
             return
         # Success
         self.state.update_calib(step, self.calib_ID, self.det, 'status', 'success')
@@ -849,7 +849,7 @@ class Calibrations:
         if self.state is None:
             return
         if self.flatimages is None:
-            self.state.update_calib('flats', self.calib_ID, self.det, 'status', 'undone')
+            self.state.update_calib('flats', self.calib_ID, self.det, 'status', 'pending')
             return
         # Status, output file, input files, and pixel-flat provenance
         self._flats_state_files()
@@ -1697,12 +1697,12 @@ class Calibrations:
                     # failure (-> 'fail'), or — in reload/status-only mode — a
                     # calibration that simply has not been built yet (its file
                     # is missing; see process_load_selection).  The latter is
-                    # 'undone' (required-but-not-done in the Dashboard), not a
+                    # 'pending' (required-but-not-done in the Dashboard), not a
                     # failure.
                     # NOTE: must match the BaseCalibState.status Literal
-                    # ('fail'/'undone', not 'failed') or the file fails to
+                    # ('fail'/'pending', not 'failed') or the file fails to
                     # reload.
-                    missing_status = 'undone' if reload_only else 'fail'
+                    missing_status = 'pending' if reload_only else 'fail'
                     self.state.safe_update_calib(step, self.calib_ID,
                                                  self.det, 'status',
                                                  missing_status)

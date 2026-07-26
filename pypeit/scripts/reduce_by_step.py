@@ -138,9 +138,9 @@ class ReducebyStep(scriptbase.ScriptBase):
 
         # Preserve any existing reduction state — especially the calibration
         # statuses written by pypeit_run_to_calibstep.  PypeIt starts with a
-        # fresh run_state (calibrations 'undone', no science); without this,
+        # fresh run_state (calibrations 'pending', no science); without this,
         # writing the state after a science step would reset the calibrations
-        # to 'undone' and (in the Dashboard) disable every science (Re)Build.
+        # to 'pending' and (in the Dashboard) disable every science (Re)Build.
         pypeIt.run_state.merge_from_disk()
 
         # Record that this science step is starting, so the PypeIt Dashboard can

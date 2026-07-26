@@ -24,8 +24,10 @@ from pathlib import Path
 
 import pytest
 
+from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QLabel, QListWidget, QTableWidget
 
+from pypeit import dataPaths
 from pypeit.dashboard import inspect as dash_inspect
 from pypeit.dashboard import model as dash_model
 from pypeit.dashboard import palette
@@ -42,7 +44,7 @@ from pypeit.state.run_state import RunPypeItState
 
 def data_path(filename):
     """
-    Return the path to a file in the test ``files`` directory.
+    Return the path to a dashboard test fixture in ``pypeit/data/tests``.
 
     Parameters
     ----------
@@ -54,7 +56,7 @@ def data_path(filename):
     :obj:`str`
         The absolute path to the test file.
     """
-    return str(Path(__file__).parent / 'files' / filename)
+    return str(dataPaths.tests.get_file_path(filename))
 
 
 # -----------------------------------------------------------------------
@@ -349,11 +351,10 @@ def test_palette_categories():
     categories.
     """
     assert palette.classify(True, 'success', True) == palette.SUCCESS
-    assert palette.classify(True, 'complete', True) == palette.SUCCESS
     assert palette.classify(True, 'running', True) == palette.RUNNING
     assert palette.classify(True, 'fail', True) == palette.FAIL
-    assert palette.classify(True, 'undone', True) == palette.REQUIRED_UNDONE
-    assert palette.classify(False, 'undone', True) == palette.OPTIONAL
+    assert palette.classify(True, 'pending', True) == palette.REQUIRED_UNDONE
+    assert palette.classify(False, 'pending', True) == palette.OPTIONAL
     # Not in the spectrograph's pipeline -> dimmed, regardless of status.
     assert palette.classify(True, 'success', False) == palette.NOT_USED
 
@@ -366,8 +367,8 @@ def test_palette_colors_and_glyphs():
         (True, 'success', True): ('#2E7D32', '✓'),
         (True, 'running', True): ('#EF6C00', '⏳'),
         (True, 'fail', True): ('#C62828', '✗'),
-        (True, 'undone', True): ('#FFFFFF', '○'),
-        (False, 'undone', True): ('#9E9E9E', '–'),
+        (True, 'pending', True): ('#FFFFFF', '○'),
+        (False, 'pending', True): ('#9E9E9E', '–'),
         (True, 'success', False): ('#BDBDBD', '–'),
     }
     for (req, status, in_pipe), (hexcol, glyph) in expected.items():
@@ -1198,8 +1199,9 @@ def _stage_science_qa(model):
 
 def test_model_science_qa_files(tmp_path):
     """
-    The model globs the per-(frame, det) QA PNGs (all of them) and maps the
-    per-object obj_prof/obj_trace.
+    The model globs the per-(frame, det) QA PNGs (all of them) and returns
+    all of an object's figures by the slit naming convention — with no
+    fixed list of QA types, so new figures are discovered automatically.
     """
     m = _science_model(tmp_path)
     frame = _stage_science_qa(m)
@@ -1207,15 +1209,20 @@ def test_model_science_qa_files(tmp_path):
     assert len(files) == 3                        # b27's 3, not the b24 one
     assert all(frame in f.name for f in files)
     assert any('spec_flex' in f.name for f in files)   # flexure included
+    # All the figures carrying this object's slit tag (S0175) are returned:
+    # obj_prof, obj_trace, AND the per-slit flexure figure.
     objqa = m.science_object_qa_files(frame, 1, 175)
-    assert 'obj_prof' in objqa['obj_prof'].name
-    assert 'obj_trace' in objqa['obj_trace'].name
+    assert len(objqa) == 3
+    assert any('obj_prof' in f.name for f in objqa)
+    assert any('obj_trace' in f.name for f in objqa)
+    # No slit -> no figures.
+    assert m.science_object_qa_files(frame, 1, None) == []
 
 
 def test_science_view_qa_list_and_object_qa(tmp_path, qtbot):
     """
-    The Science detail panel exposes a QA list (all PNGs) and per-object
-    obj_prof/obj_trace columns.
+    The Science detail panel exposes a QA list (all PNGs) and a single
+    generic per-object QA column carrying the figure count.
     """
     model = _science_model(tmp_path)
     frame = _stage_science_qa(model)
@@ -1224,8 +1231,18 @@ def test_science_view_qa_list_and_object_qa(tmp_path, qtbot):
     view._select_pair((frame, 1))
     lists = view.findChildren(QListWidget)
     assert lists and lists[0].count() == 3        # all 3 QA PNGs listed
-    assert 'obj_prof' in view._obj_qa_cols
-    assert 'obj_trace' in view._obj_qa_cols
+    # The per-object table ends with one generic QA column (no per-QA-type
+    # columns), and its cell holds all of the object's figure paths.
+    tables = view.findChildren(QTableWidget)
+    obj_table = next(t for t in tables
+                     if t.horizontalHeaderItem(0) is not None
+                     and t.horizontalHeaderItem(0).text() == 'ObjID')
+    last_col = obj_table.columnCount() - 1
+    assert obj_table.horizontalHeaderItem(last_col).text() == 'QA'
+    assert view._obj_qa_col == last_col
+    cell = obj_table.item(0, last_col)
+    assert cell.text() == '🔍 3'
+    assert len(cell.data(Qt.UserRole)) == 3
 
 
 # -- Planned science frames + calibration-gated (Re)Build -----------------
@@ -1268,7 +1285,7 @@ def test_science_rebuild_gated_on_calibrations(tmp_path, qtbot):
 
 def test_seed_planned_science():
     """
-    Planned frames extracted from the metadata seed an undone entry per
+    Planned frames extracted from the metadata seed an pending entry per
     (frame, det), with raw files, for science and standard frames.
     """
     class _FakeFitstbl:
@@ -1305,8 +1322,8 @@ def test_seed_planned_science():
     tbl = rs.get_science_status()
     assert len(tbl) == 2
     assert set(tbl['objtype']) == {'science', 'standard'}
-    # Planned frames are all 'undone' with the raw frame recorded.
-    assert set(tbl['process']) == {'undone'}
+    # Planned frames are all 'pending' with the raw frame recorded.
+    assert set(tbl['process']) == {'pending'}
     sci = rs.science_entry('b27-sci', 1)
     assert sci.raw_files == ['b27.fits.gz'] and sci.calib_id == 0
 
@@ -1329,10 +1346,10 @@ def test_planned_science_persists_on_state_load(tmp_path):
         assert m.load_status == dash_model.LOAD_STATE_FILE
         sci = m.science_table()
         assert len(sci) > 0 and 'b188-sci' in set(sci['frame'])
-        # The planned frame is undone and carries its raw file (so it can be
+        # The planned frame is pending and carries its raw file (so it can be
         # (re)built once the calibrations are ready).
         row = sci[sci['frame'] == 'b188-sci'][0]
-        assert row['process'] == 'undone'
+        assert row['process'] == 'pending'
         entry = m.science_frame_entry('b188-sci', 1)
         assert entry.raw_files == ['b188.fits.gz']
     finally:

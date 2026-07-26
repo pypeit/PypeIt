@@ -59,7 +59,7 @@ DARK_COLORS = {
 }
 
 # Statuses (from ``pypeit.state``) that count as "generated successfully".
-_SUCCESS_STATUS = ('success', 'complete')
+_SUCCESS_STATUS = ('success',)
 
 # Distinct, bright control colors — deliberately **not** status colors (so a
 # button is never mistaken for a "success"/"fail" status).  The (Re)Build
@@ -168,8 +168,8 @@ def classify(required, status, in_pipeline):
         Whether the step is required.  May be ``None`` when unknown
         (treated as not required).
     status : :obj:`str`, optional
-        The step status from ``pypeit.state`` (``success``, ``complete``,
-        ``running``, ``fail``, ``undone``), or a not-present sentinel
+        The step status from ``pypeit.state`` (``success``,
+        ``running``, ``fail``, ``pending``), or a not-present sentinel
         (e.g. ``absent``/``None``).
     in_pipeline : :obj:`bool`
         Whether the step is part of the active spectrograph's
@@ -189,7 +189,7 @@ def classify(required, status, in_pipeline):
         return RUNNING
     if status == FAIL:
         return FAIL
-    # Not yet generated (undone / absent / None): required vs optional.
+    # Not yet generated (pending / absent / None): required vs optional.
     return REQUIRED_UNDONE if required else OPTIONAL
 
 
@@ -258,11 +258,10 @@ def step_style(required, status, in_pipeline, theme='light'):
 # no required/in_pipeline — and may be 'skip' (flats SKIPFLATCALIB).
 _SLIT_CATEGORY = {
     'success': SUCCESS,
-    'complete': SUCCESS,
     'running': RUNNING,
     'fail': FAIL,
     'skip': SKIP,
-    'undone': REQUIRED_UNDONE,
+    'pending': REQUIRED_UNDONE,
 }
 
 
@@ -273,8 +272,8 @@ def slit_style(status, theme='light'):
     Parameters
     ----------
     status : :obj:`str`
-        The per-slit status (``success``/``complete``/``running``/
-        ``fail``/``skip``/``undone``).
+        The per-slit status (``success``/``running``/
+        ``fail``/``skip``/``pending``).
     theme : :obj:`str`, optional
         ``'light'`` (default) or ``'dark'``.
 

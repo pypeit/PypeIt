@@ -542,7 +542,7 @@ def test_input_flux_file():
     cfg_lines += ['  extinct_correct = False # Set to True if your SENSFUNC derived with the UVIS algorithm\n']
     cfg_lines += ['# Please add your SENSFUNC file name below before running pypeit_flux_calib']
 
-    # These files need to be in tests/files/
+    # These files are served through the data cache (pypeit/data/tests)
     data = Table()
     data['filename'] = ['spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits',
                         'spec1d_cN20170331S0217-pisco_GNIRS_20170331T085933.097.fits']

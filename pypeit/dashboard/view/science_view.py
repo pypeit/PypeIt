@@ -83,8 +83,10 @@ class ScienceView(QWidget):
         # step -> (button, available) for the current detail panel, so the
         # lock can restyle without a full rebuild.
         self._rebuild_buttons = {}
-        # Column indices of the per-object QA cells (set per detail rebuild).
-        self._obj_qa_cols = {}
+        # Column index of the per-object QA-count cell (set per detail
+        # rebuild), and the frame QA-file list it cross-references.
+        self._obj_qa_col = None
+        self._qa_list = None
         # The view-level "Run PypeIt" button (full reduction).
         self._run_pypeit_button = None
         self._run_pypeit_available = False
@@ -282,6 +284,8 @@ class ScienceView(QWidget):
             return
         clear_layout(self._detail)
         self._rebuild_buttons = {}
+        self._obj_qa_col = None
+        self._qa_list = None
         entry = self._model.science_frame_entry(frame, det)
 
         heading = QLabel(f'{frame}  ({self._model.det_name(det)})')
@@ -293,9 +297,9 @@ class ScienceView(QWidget):
         # Per-slit table.
         self._add_slit_table(frame, det)
         # Per-object table (double-click a row to view its 1D spectrum; the
-        # obj_prof/obj_trace columns open that object's QA PNG instead).
+        # QA column opens/highlights that object's QA figures instead).
         self._add_object_table(frame, det, entry)
-        # All of the frame's QA PNGs (obj_prof/obj_trace + flexure), exposed
+        # All of the frame's QA PNGs (per-object + frame-level), exposed
         # like the Calibrations QA list.
         self._add_qa_files(frame, det)
 
@@ -652,14 +656,16 @@ class ScienceView(QWidget):
             return
         self._detail.addWidget(QLabel(
             f'Objects ({len(rows)}) — double-click a metric cell for the 1D '
-            f'spectrum, or an obj_prof/obj_trace cell for its QA:'))
-        # The obj_prof/obj_trace columns hold this object's per-object QA
-        # PNGs; the metric columns open the 1D spectrum.
+            f'spectrum, or the QA cell for the object\'s QA figures:'))
+        # The QA column holds the count of this object's QA figures (found
+        # by the QA naming convention — no fixed list of QA types, so new
+        # figures are picked up automatically); the metric columns open the
+        # 1D spectrum.
         cols = ['ObjID', 'Slit', 'Spat', 'FWHM', 'snr_find', 's2n', 'sign',
-                'extracted', 'obj_prof', 'obj_trace']
+                'extracted', 'QA']
         keys = ['objid', 'slitid', 'spat_pixpos', 'fwhm', 'snr_find', 's2n',
                 'sign', 'extracted']
-        self._obj_qa_cols = {'obj_prof': len(keys), 'obj_trace': len(keys) + 1}
+        self._obj_qa_col = len(keys)
         table = QTableWidget()
         table.setColumnCount(len(cols))
         table.setHorizontalHeaderLabels(cols)
@@ -683,19 +689,18 @@ class ScienceView(QWidget):
                         row.get('spat_pixpos'), row.get('slitid'), det_name)
                     cell.setData(Qt.UserRole, name)
                 table.setItem(r, c, cell)
-            # The per-object QA cells: a clickable "view" if the PNG exists.
-            qa = self._model.science_object_qa_files(
+            # The QA cell: the count of QA figures discovered for this
+            # object; the paths are stashed for the double-click handler.
+            qa_paths = self._model.science_object_qa_files(
                 frame, det, row.get('slitid'))
-            for kind in ('obj_prof', 'obj_trace'):
-                path = qa.get(kind)
-                cell = QTableWidgetItem('🔍 view' if path is not None
-                                        else '—')
-                cell.setTextAlignment(Qt.AlignCenter)
-                if path is not None:
-                    cell.setData(Qt.UserRole, str(path))
-                    cell.setForeground(
-                        QColor(palette.inspect_color(self._theme)))
-                table.setItem(r, self._obj_qa_cols[kind], cell)
+            cell = QTableWidgetItem(f'🔍 {len(qa_paths)}' if qa_paths
+                                    else '—')
+            cell.setTextAlignment(Qt.AlignCenter)
+            if qa_paths:
+                cell.setData(Qt.UserRole, [str(p) for p in qa_paths])
+                cell.setForeground(
+                    QColor(palette.inspect_color(self._theme)))
+            table.setItem(r, self._obj_qa_col, cell)
         table.setMinimumHeight(120)
         # Route a double-click to the QA PNG or the 1D-spectrum viewer,
         # binding the frame's spec1d product.
@@ -705,9 +710,10 @@ class ScienceView(QWidget):
 
     def _on_object_double_clicked(self, item, spec1d):
         """
-        Handle a double-click in the per-object table: an ``obj_prof`` /
-        ``obj_trace`` cell opens that object's QA PNG; any other cell opens
-        the object's 1D spectrum (``pypeit_show_1dspec --obj``).
+        Handle a double-click in the per-object table: the QA cell opens
+        that object's QA figure (or, if it has several, highlights them in
+        the frame's QA-file list); any other cell opens the object's 1D
+        spectrum (``pypeit_show_1dspec --obj``).
 
         Parameters
         ----------
@@ -716,11 +722,18 @@ class ScienceView(QWidget):
         spec1d : str or None
             The frame's ``spec1d`` product.
         """
-        # A QA cell (obj_prof/obj_trace) stashes its PNG path → open it.
-        if item.column() in self._obj_qa_cols.values():
-            png = item.data(Qt.UserRole)
-            if png is not None:
-                QaImageDialog(png, parent=self).show()
+        # The QA cell stashes the object's QA PNG paths → open/highlight.
+        if item.column() == self._obj_qa_col:
+            paths = item.data(Qt.UserRole)
+            if paths is None or len(paths) == 0:
+                return
+            if len(paths) == 1:
+                QaImageDialog(paths[0], parent=self).show()
+            else:
+                # Several figures: highlight them in the frame QA-file list
+                # below (which opens each on double-click) rather than
+                # opening a stack of windows.
+                self._highlight_qa_files(paths)
             return
         # Otherwise view the object's 1D spectrum (name stashed on column 0).
         if spec1d is None or spec1d == '':
@@ -753,6 +766,9 @@ class ScienceView(QWidget):
             QLabel(f'QA files ({len(qa_files)}) — double-click to open:'))
         listw = QListWidget()
         listw.setMaximumHeight(130)
+        # Multi-select so the per-object QA cell can highlight all of one
+        # object's figures at once.
+        listw.setSelectionMode(QAbstractItemView.ExtendedSelection)
         # Strip the (long) frame prefix so the list reads compactly.
         prefix = f'{frame}_'
         for path in qa_files:
@@ -766,6 +782,35 @@ class ScienceView(QWidget):
         listw.itemDoubleClicked.connect(
             lambda it: QaImageDialog(it.data(Qt.UserRole), parent=self).show())
         self._detail.addWidget(listw)
+        # Kept so the per-object QA cell can highlight an object's figures.
+        self._qa_list = listw
+
+    def _highlight_qa_files(self, paths):
+        """
+        Select (and scroll to) the given QA files in the frame's QA-file
+        list, so the user can open each with a double-click.
+
+        Parameters
+        ----------
+        paths : list
+            The QA PNG paths (str) to highlight.
+        """
+        if self._qa_list is None:
+            # No QA list built (should not happen if paths exist); fall
+            # back to opening the first figure directly.
+            QaImageDialog(paths[0], parent=self).show()
+            return
+        wanted = set(paths)
+        first = None
+        for i in range(self._qa_list.count()):
+            item = self._qa_list.item(i)
+            selected = item.data(Qt.UserRole) in wanted
+            item.setSelected(selected)
+            if selected and first is None:
+                first = item
+        if first is not None:
+            self._qa_list.scrollToItem(first)
+            self._qa_list.setFocus()
 
     def _launch(self, argv, description, hint='viewer window'):
         """
