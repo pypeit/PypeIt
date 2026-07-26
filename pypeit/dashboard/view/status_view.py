@@ -67,7 +67,7 @@ class ScienceNavCell(QFrame):
         self.setCursor(Qt.PointingHandCursor)
         self.setToolTip('\n'.join(
             [f'{frame} ({det_name}) — {objtype}']
-            + [f'  {s}: {statuses.get(s, "undone")}'
+            + [f'  {s}: {statuses.get(s, "pending")}'
                for s in self.STRIP_STEPS]))
 
         layout = QVBoxLayout(self)
@@ -78,12 +78,12 @@ class ScienceNavCell(QFrame):
         strip = QHBoxLayout()
         strip.setSpacing(1)
         for step in self.STRIP_STEPS:
-            style = palette.slit_style(statuses.get(step, 'undone'),
+            style = palette.slit_style(statuses.get(step, 'pending'),
                                        theme=theme)
             seg = QLabel(style.glyph)
             seg.setAlignment(Qt.AlignCenter)
             seg.setFixedSize(22, 20)
-            seg.setToolTip(f'{step}: {statuses.get(step, "undone")}')
+            seg.setToolTip(f'{step}: {statuses.get(step, "pending")}')
             seg.setStyleSheet(
                 f'background-color: {style.color}; '
                 f'color: {text_on(style.color)}; border: 1px solid #888;')
@@ -234,10 +234,10 @@ class StatusView(QWidget):
         req = [row for row in table
                if row['required'] is True and row['in_pipeline']]
         n_req = len(req)
-        n_ok = sum(row['status'] in ('success', 'complete') for row in req)
+        n_ok = sum(row['status'] == 'success' for row in req)
         n_fail = sum(status == 'fail' for status in table['status'])
         n_run = sum(status == 'running' for status in table['status'])
-        n_undone = sum(row['status'] in ('undone', 'absent') for row in req)
+        n_undone = sum(row['status'] in ('pending', 'absent') for row in req)
         text = (f'Calibrations: {n_ok}/{n_req} required succeeded'
                 f'   ·   {n_fail} failed   ·   {n_run} running'
                 f'   ·   {n_undone} to-do')
@@ -638,7 +638,7 @@ class StatusView(QWidget):
         out_item = QTableWidgetItem(out_text)
         out_item.setToolTip(out_text if out_text != '—' else '')
 
-        # Dim optional (not-required) rows so an undone optional never reads
+        # Dim optional (not-required) rows so a pending optional never reads
         # as a problem.
         if required is False:
             for it in (step_item, req_item):

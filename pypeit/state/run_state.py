@@ -97,7 +97,7 @@ class BaseCalibState(BaseModel):
     input_files: Optional[List[str]] = None
     output_file: Optional[str] = None
     qa_files: Optional[List[str]] = None
-    status: Literal["complete", "fail", "undone", "running", "success"] = "undone"
+    status: Literal["fail", "pending", "running", "success"] = "pending"
 
 class BiasCalibState(BaseCalibState):
     step: Literal["bias"] = "bias"
@@ -106,7 +106,7 @@ class BiasCalibState(BaseCalibState):
     std: Optional[float] = None
 
 class WvCalibSlit(BaseModel):
-    status: Literal["success", "fail", "undone", ] = "undone"
+    status: Literal["success", "fail", "pending", ] = "pending"
     # Metrics
     rms: Optional[float] = None
 
@@ -115,7 +115,7 @@ class WvCalibState(BaseCalibState):
     slits: Optional[Dict[int, WvCalibSlit]] = Field(default_factory=dict)
 
 class SlitEdges(BaseModel):
-    status: Literal["success", "fail", "undone", ] = "undone"
+    status: Literal["success", "fail", "pending", ] = "pending"
     # Metrics
     center: Optional[float] = None
     slitord_id: Optional[int] = None
@@ -126,7 +126,7 @@ class SlitEdgesState(BaseCalibState):
     slits: Optional[Dict[int, SlitEdges]] = Field(default_factory=dict)
 
 class TiltsSlit(BaseModel):
-    status: Literal["success", "fail", "undone", ] = "undone"
+    status: Literal["success", "fail", "pending", ] = "pending"
     # Metrics
     rms: Optional[float] = None
 
@@ -151,7 +151,7 @@ class FlatsSlit(BaseModel):
     """
     # 'skip' is flats-specific (SKIPFLATCALIB): the slit was intentionally
     # skipped, distinct from a generation failure ('fail').
-    status: Literal["success", "fail", "skip", "undone"] = "undone"
+    status: Literal["success", "fail", "skip", "pending"] = "pending"
     # Per-correction metrics, keyed by correction name
     # ('pixelflat', 'spat_illum', 'spec_illum')
     corrections: Optional[Dict[str, FlatCorrectionMetric]] = \
@@ -218,7 +218,7 @@ class ScienceSlit(BaseModel):
     Per-slit science status (from the slit bitmask).
     """
     # 'fail' = BADSKYSUB/BADEXTRACT flagged; 'skip' reserved for skipped slits
-    status: Literal["success", "fail", "skip", "undone"] = "undone"
+    status: Literal["success", "fail", "skip", "pending"] = "pending"
     nobj: Optional[int] = None              # objects found on this slit
 
 class ScienceStep(BaseModel):
@@ -226,7 +226,7 @@ class ScienceStep(BaseModel):
     Status of one macro-step (process/findobj/skysub/extract) of a science
     exposure.
     """
-    status: Literal["undone", "running", "success", "fail"] = "undone"
+    status: Literal["pending", "running", "success", "fail"] = "pending"
 
 class ScienceFrameState(BaseModel):
     """
@@ -376,7 +376,7 @@ class RunPypeItState(BaseModel):
 
         A step-runner script (``pypeit_run_to_calibstep`` /
         ``pypeit_reduce_by_step``) starts with a *fresh* state — its
-        calibrations are the required (``undone``) set and it has no science —
+        calibrations are the required (``pending``) set and it has no science —
         so writing it would **reset the other portion** of the shared
         ``*_state.json`` (e.g. a science step-build would blank out the
         calibration statuses a prior calibration build wrote, and vice versa).

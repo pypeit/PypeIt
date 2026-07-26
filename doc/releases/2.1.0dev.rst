@@ -188,7 +188,7 @@ Bug Fixes
   stale statuses after a (re)build.
 - The reduction-state derivation (``Calibrations.run_the_steps`` in reload/
   status-only mode) now records a calibration whose output file is simply
-  missing as ``undone`` (not yet built) rather than ``fail``; ``fail`` is
+  missing as ``pending`` (not yet built) rather than ``fail``; ``fail`` is
   reserved for genuine build failures.
 - ``Calibrations.run_the_steps`` now marks a calibration step ``fail`` (and
   persists it to ``*_state.json``) when the step **raises** mid-build, before
@@ -206,7 +206,7 @@ Bug Fixes
 - ``pypeit_reduce_by_step`` and ``pypeit_run_to_calibstep`` now **merge** the
   existing reduction state (``RunPypeItState.merge_from_disk``) before writing,
   rather than overwriting it from their fresh, single-purpose state.  Previously
-  a science step-build reset the calibration statuses to ``undone`` (and a
+  a science step-build reset the calibration statuses to ``pending`` (and a
   calibration build blanked the science entries), since each script only
   populates its own portion of the shared ``*_state.json``.
 - Fixes a bug in :class:`~pypeit.bspline.bspline.bspline` which was not

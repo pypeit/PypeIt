@@ -460,7 +460,7 @@ def seed_planned_science_entries(state, planned, group_dets):
     state file.
 
     One entry is created per ``(frame, detector)``, with all four macro-steps
-    left ``undone`` and the contributing raw frame(s) recorded (so the science
+    left ``pending`` and the contributing raw frame(s) recorded (so the science
     (Re)Build can launch ``pypeit_reduce_by_step``).  Existing entries (e.g.
     already reduced, or derived from products) are left untouched apart from
     backfilling ``raw_files``.  Mosaic detectors are skipped (the derive path
@@ -654,7 +654,7 @@ def derive_science_from_disk(state, redux_dir, fitstbl=None,
 
     # --- 3. process inference (later step done => process done) ---
     for entry in state.science:
-        if entry.process.status in ('undone', 'running') and any(
+        if entry.process.status in ('pending', 'running') and any(
                 getattr(entry, s).status == 'success'
                 for s in ('findobj', 'skysub', 'extract')):
             entry.process.status = 'success'
@@ -676,7 +676,7 @@ def _derive_from_intermediate(state, inter_dir, lookup, chk_version=False):
     Fill not-yet-covered steps from ``Intermediate/`` files written by
     ``pypeit_reduce_by_step``: ``sciImg`` -> ``process``,
     ``spec1d_*_all`` -> ``findobj``, ``Sky`` -> ``skysub``.  Science products
-    always win (only steps still ``undone``/``running`` are filled).
+    always win (only steps still ``pending``/``running`` are filled).
 
     Parameters
     ----------
@@ -699,7 +699,7 @@ def _derive_from_intermediate(state, inter_dir, lookup, chk_version=False):
         objtype, calib_id, comb_id = lookup.get(basename, ('science', -1, None))
         entry = state.add_or_get_science(basename, det, calib_id=calib_id,
                                          objtype=objtype, comb_id=comb_id)
-        if entry.process.status in ('undone', 'running'):
+        if entry.process.status in ('pending', 'running'):
             entry.process.status = 'success'
 
     # Sky_<basename>_<detname>.fits -> skysub
@@ -716,7 +716,7 @@ def _derive_from_intermediate(state, inter_dir, lookup, chk_version=False):
             entry = state.add_or_get_science(
                 basename, det, calib_id=calib_id, objtype=objtype,
                 comb_id=comb_id)
-        if entry.skysub.status in ('undone', 'running'):
+        if entry.skysub.status in ('pending', 'running'):
             entry.skysub.status = 'success'
 
     # spec1d_<basename>_all.fits -> findobj (objects found, not extracted)
@@ -739,7 +739,7 @@ def _derive_from_intermediate(state, inter_dir, lookup, chk_version=False):
             entry = state.add_or_get_science(
                 basename, det, calib_id=calib_id, objtype=objtype,
                 comb_id=comb_id)
-            if entry.findobj.status in ('undone', 'running'):
+            if entry.findobj.status in ('pending', 'running'):
                 entry.findobj.status = 'success'
                 # Only fill objects if extract has not already done so
                 if entry.objects is None or len(entry.objects) == 0:

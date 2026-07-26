@@ -105,7 +105,7 @@ without relying on color:
    * - Status
      - Glyph
      - Meaning
-   * - success / complete
+   * - success
      - ✓ (green)
      - generated successfully
    * - running
@@ -119,7 +119,7 @@ without relying on color:
      - required but not yet generated
    * - optional / not required
      - – (grey)
-     - not required (an undone optional step is not a problem)
+     - not required (a pending optional step is not a problem)
    * - not used / n/a
      - – (dim grey)
      - not part of this spectrograph's pipeline
@@ -351,7 +351,7 @@ It contains:
   the object count ``nobj``, and whether the ``spec2d`` / ``spec1d`` products
   exist.  It is scrollable for runs with many frames.  In a folder that has not
   been reduced yet, the table lists the **planned** science and standard frames
-  (read from the ``.pypeit`` file) with every step ``undone``, so you can see
+  (read from the ``.pypeit`` file) with every step ``pending``, so you can see
   what is coming — the science counterpart of the planned calibrations.
 - **Detail panel** for the selected frame:
 
@@ -370,10 +370,11 @@ It contains:
   - **Per-object table** — one row per detected object (``snr_find``, ``s2n``,
     spatial position, FWHM, sign, extracted); **double-click** a metric cell to
     view that object's 1D spectrum (``pypeit_show_1dspec`` on the selected
-    object).  The table also carries a column per per-object QA figure found
-    for the object (located by the QA file-naming convention — e.g. the object
-    profile and trace figures); double-click one of those cells to open that
-    figure.
+    object).  The table ends with a single generic **QA** column showing how
+    many QA figures were found for the object (located by the QA file-naming
+    convention, so newly added QA figure types are picked up automatically);
+    double-click it to open the figure (or, if the object has several, to
+    highlight them in the QA-files list below).
   - **QA files** — all of the frame's science QA PNGs, located by the QA
     naming convention (the per-object figures and the frame-level figures such
     as the flexure QA); double-click to open one full size, as in the

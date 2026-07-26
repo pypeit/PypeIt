@@ -118,7 +118,7 @@ class RunToCalibStep(scriptbase.ScriptBase):
         # after it (and any in other calibration groups) would otherwise be left
         # at their initial status even when their files exist on disk.  A
         # status-only reload pass re-derives every step's status from the
-        # Calibrations/ outputs (present -> success, missing -> undone); since
+        # Calibrations/ outputs (present -> success, missing -> pending); since
         # status_only does not auto-write per step, persist it explicitly.
         pypeIt.calib_all(status_only=True, reload_only=True)
         pypeIt.run_state.write()

@@ -56,10 +56,10 @@ Each step's ``status`` is one of a small, fixed vocabulary:
 
    * - Status
      - Meaning
-   * - ``undone``
-     - The step has not (yet) been run — i.e., it is pending/unprocessed.
-       This is the initial value, and the value a step is reset to when its
-       output is not found on disk during a status-only read.
+   * - ``pending``
+     - The step has not (yet) been run.  This is the initial value, and the
+       value a step is reset to when its output is not found on disk during
+       a status-only read.
    * - ``running``
      - The step is currently being built (set just before a build starts, so
        a live reader sees the step in progress).
@@ -68,11 +68,6 @@ Each step's ``status`` is one of a small, fixed vocabulary:
        an existing output was successfully reloaded).
    * - ``fail``
      - The step raised an error and its output was not produced.
-   * - ``complete``
-     - Accepted as a synonym of ``success``.  The current code only writes
-       ``success``; ``complete`` remains in the allowed vocabulary so state
-       files that contain it are still read, and every consumer (the
-       dashboard, ``pypeit_status``) treats it identically to ``success``.
 
 Per-slit/order entries use the same vocabulary, with one addition: ``skip``
 (currently used by ``flats``), meaning the slit was *intentionally* skipped
@@ -95,7 +90,7 @@ detector)`` entry the state records:
 - the ``objtype`` (``science`` or ``standard``) and the contributing raw
   frame(s);
 - the ``status`` of each of the four macro-steps (the same vocabulary as the
-  calibrations — see `Status values`_ — without ``complete``);
+  calibrations — see `Status values`_);
 - the data products — the ``spec2d`` and ``spec1d`` files — and the object count
   ``nobj``;
 - **per-slit** detail (a status from the ``BADSKYSUB`` / ``BADEXTRACT`` slit

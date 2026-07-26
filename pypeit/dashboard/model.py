@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from pydantic import ValidationError
 
 from pypeit import log, PypeItError
+from pypeit import pypeit
 from pypeit.calibrations import Calibrations, MultiSlitCalibrations, IFUCalibrations
 from pypeit.inputfiles import PypeItFile
 from pypeit.state import science_status
@@ -351,9 +352,6 @@ class DashboardModel:
         products (used when no state file exists).  Failures are reported
         via :attr:`load_status`, never raised.
         """
-        # Deferred import: pypeit.pypeit pulls in the full reduction
-        # machinery, which is only needed on this derive path.
-        from pypeit import pypeit
         try:
             pypeIt = pypeit.PypeIt(str(self.pypeit_file), reuse_calibs=True,
                                    calib_only=True)
@@ -427,9 +425,6 @@ class DashboardModel:
             # Cold cache + a build is allowed (e.g. relaunch with a state
             # file already present): build the metadata once to learn the
             # planned frames, then cache it for the rest of the session.
-            # Deferred import: pypeit.pypeit pulls in the full reduction
-            # machinery, which is only needed for this one-time build.
-            from pypeit import pypeit
             pypeIt = pypeit.PypeIt(str(self.pypeit_file), reuse_calibs=True,
                                    calib_only=True)
             planned = science_status.planned_science_from_fitstbl(
@@ -622,7 +617,7 @@ class DashboardModel:
                and row['required'] is True and row['in_pipeline']]
         if len(req) == 0:
             return False
-        return all(row['status'] in ('success', 'complete') for row in req)
+        return all(row['status'] == 'success' for row in req)
 
     def is_stale(self):
         """
@@ -1023,10 +1018,13 @@ class DashboardModel:
 
     def science_object_qa_files(self, frame, det, slitid):
         """
-        Return the per-object QA PNGs (``obj_prof`` / ``obj_trace``) for
-        one object's slit, so the per-object table can open them.  The
-        science QA PNGs encode the slit as ``S{spat_id:04d}``, matching
-        ``ScienceObj.slitid``.
+        Return **all** per-object QA PNGs for one object's slit, so the
+        per-object table can open them.  The science QA PNGs encode the
+        slit as ``S{spat_id:04d}``, matching ``ScienceObj.slitid``.
+
+        Discovery is purely by the QA file-naming convention (no fixed
+        list of QA types), so newly added per-object QA figures are picked
+        up with no dashboard change.
 
         Parameters
         ----------
@@ -1039,21 +1037,15 @@ class DashboardModel:
 
         Returns
         -------
-        :obj:`dict`
-            ``{'obj_prof': Path|None, 'obj_trace': Path|None}``.
+        :obj:`list`
+            Sorted :obj:`pathlib.Path` of the object's QA PNGs (empty if
+            none, or if ``slitid`` is None).
         """
-        out = {'obj_prof': None, 'obj_trace': None}
         if slitid is None:
-            return out
+            return []
         tag = f'S{int(slitid):04d}'
-        for path in self.science_qa_files(frame, det):
-            if tag not in path.name:
-                continue
-            if 'obj_prof' in path.name:
-                out['obj_prof'] = path
-            elif 'obj_trace' in path.name:
-                out['obj_trace'] = path
-        return out
+        return [path for path in self.science_qa_files(frame, det)
+                if tag in path.name]
 
 
 # Module-level aliases for the load-status values, kept so the view modules

@@ -87,7 +87,7 @@
             "det": 1,
             "step": "tilts",
             "required": true,
-            "status": "undone",
+            "status": "pending",
             "slits": {}
         }
     ],
@@ -98,7 +98,7 @@
             "det": 1,
             "step": "flats",
             "required": true,
-            "status": "undone",
+            "status": "pending",
             "corrections": [],
             "slits": {}
         }
