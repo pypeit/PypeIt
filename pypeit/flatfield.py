@@ -24,8 +24,8 @@ from IPython import embed
 from pypeit import log
 from pypeit import PypeItError, PypeItDataModelError
 from pypeit import utils
-
-
+from pypeit.core.fitting import iterative_bspline_fit
+from pypeit.containers.bspline import BSplineContainer
 from pypeit import datamodel
 from pypeit import calibframe
 from pypeit import edgetrace
@@ -33,11 +33,9 @@ from pypeit import io
 from pypeit import qa
 from pypeit.display import display
 from pypeit.images import buildimage
-from pypeit.core import bspline
 from pypeit.core import extract
 from pypeit.core import flat
 from pypeit.core import tracewave
-from pypeit.core import basis
 from pypeit.core import fitting
 from pypeit.core import parse
 from pypeit.core.mosaic import build_image_mosaic
@@ -73,9 +71,9 @@ class FlatImages(calibframe.CalibFrame):
                  'pixelflat_norm': dict(otype=np.ndarray, atype=np.floating,
                                         descr='Normalized pixel flat'),
                  'pixelflat_model': dict(otype=np.ndarray, atype=np.floating, descr='Model flat'),
-                 'pixelflat_spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline,
+                 'pixelflat_spat_bsplines': dict(otype=np.ndarray, atype=BSplineContainer,
                                                  descr='B-spline models for pixel flat; see '
-                                                       ':class:`~pypeit.core.bspline.bspline.bspline`'),
+                                                       ':class:`~pypeit.core.bspline.containers.BSplineContainer`'),
                  'pixelflat_finecorr': dict(otype=np.ndarray, atype=fitting.PypeItFit,
                                        descr='PypeIt 2D polynomial fits to the fine correction of '
                                              'the spatial illumination profile'),
@@ -87,9 +85,9 @@ class FlatImages(calibframe.CalibFrame):
                                            descr='Waveimage for pixel flat'),
                  'illumflat_raw': dict(otype=np.ndarray, atype=np.floating,
                                        descr='Processed, combined illum flats'),
-                 'illumflat_spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline,
+                 'illumflat_spat_bsplines': dict(otype=np.ndarray, atype=BSplineContainer,
                                                  descr='B-spline models for illum flat; see '
-                                                       ':class:`~pypeit.core.bspline.bspline.bspline`'),
+                                                       ':class:`~pypeit.core.bspline.containers.BSplineContainer`'),
                  'illumflat_finecorr': dict(otype=np.ndarray, atype=fitting.PypeItFit,
                                        descr='PypeIt 2D polynomial fits to the fine correction of '
                                              'the spatial illumination profile'),
@@ -210,14 +208,14 @@ class FlatImages(calibframe.CalibFrame):
             if np.all(indx):
                 key = '{0}_spat_bsplines'.format(flattype)
                 try:
-                    d[key] = np.array([bspline.bspline.from_hdu(hdu[k]) for k in ext_bspl])
+                    d[key] = np.array([BSplineContainer.from_hdu(hdu[k]) for k in ext_bspl])
                 except Exception as e:
                     log.warning('Error in bspline extension read:\n {0}: {1}'.format(
                                 e.__class__.__name__, str(e)))
                     # Assume this is because the type failed
                     type_passed = False
                 else:
-                    version_passed &= np.all([d[key][i].version == bspline.bspline.version
+                    version_passed &= np.all([d[key][i].version == BSplineContainer.version
                                               for i in range(nspat)])
                     parsed_hdus += ext_bspl
             # Parse the finecorr fits
@@ -1020,7 +1018,7 @@ class FlatField:
 
         # Initialise with a series of bad splines (for when slits go wrong)
         if self.list_of_spat_bsplines is None:
-            self.list_of_spat_bsplines = [bspline.bspline(None) for all in self.slits.spat_id]
+            self.list_of_spat_bsplines = [BSplineContainer(None) for all in self.slits.spat_id]
         if self.list_of_finecorr_fits is None:
             self.list_of_finecorr_fits = [fitting.PypeItFit(None) for all in self.slits.spat_id]
 
@@ -1228,14 +1226,11 @@ class FlatField:
             # Fit the spectral direction of the blaze.
             # TODO: Figure out how to deal with the fits going crazy at
             #  the edges of the chip in spec direction
-            # TODO: Can we add defaults to bspline_profile so that we
-            #  don't have to instantiate invvar and profile_basis
-            spec_bspl, spec_gpm_fit, spec_flat_fit, _, exit_status \
-                    = fitting.bspline_profile(spec_coo_data, spec_flat_data, spec_ivar_data,
-                                            np.ones_like(spec_coo_data), ingpm=spec_gpm_data,
-                                            nord=4, upper=logrej, lower=logrej,
-                                            kwargs_bspline={'bkspace': spec_samp_fine},
-                                            kwargs_reject={'groupbadpix': True, 'maxrej': 5})
+            spec_bspl, spec_gpm_fit, spec_flat_fit, _, exit_status = iterative_bspline_fit(
+                spec_coo_data, spec_flat_data, ivar=spec_ivar_data, gpm=spec_gpm_data, nord=4,
+                upper=logrej, lower=logrej, kwargs_knots={'spacing': spec_samp_fine},
+                kwargs_reject={'groupbadpix': True, 'maxrej': 5}
+            )
 
             if exit_status > 1:
                 # TODO -- MAKE A FUNCTION
@@ -1439,8 +1434,6 @@ class FlatField:
             twod_ivar_data = twod_gpm_data.astype(float)/(twod_sig**2)
             twod_sigrej = 4.0
 
-            poly_basis = basis.fpoly(2.0*twod_spat_coo_data - 1.0, npoly)
-
             if not np.any(twod_gpm_data):
                 log.warning('No valid data for 2D flat-field fit on slit {0}!  '
                           'Skipping 2D correction.'.format(slit_spat))
@@ -1449,12 +1442,13 @@ class FlatField:
                 continue
 
             # Perform the full 2d fit
-            twod_bspl, twod_gpm_fit, twod_flat_fit, _, exit_status \
-                    = fitting.bspline_profile(twod_spec_coo_data, twod_flat_data, twod_ivar_data,
-                                            poly_basis, ingpm=twod_gpm_data, nord=4,
-                                            upper=twod_sigrej, lower=twod_sigrej,
-                                            kwargs_bspline={'bkspace': spec_samp_coarse},
-                                            kwargs_reject={'groupbadpix': True, 'maxrej': 10})
+            twod_bspl, twod_gpm_fit, twod_flat_fit, _, exit_status = iterative_bspline_fit(
+                twod_spec_coo_data, twod_flat_data, ivar=twod_ivar_data, basis='poly',
+                basis_x=twod_spat_coo_data, npoly=npoly, xmin=0.0, xmax=1.0, gpm=twod_gpm_data,
+                nord=4, upper=twod_sigrej, lower=twod_sigrej,
+                kwargs_knots={'spacing': spec_samp_coarse},
+                kwargs_reject={'groupbadpix': True, 'maxrej': 10}
+            )
             if debug:
                 # TODO: Make a plot that shows the residuals in the 2D
                 # image
@@ -1598,7 +1592,7 @@ class FlatField:
                  - exit_status (int):
                  - spat_coo_data
                  - spat_flat_data
-                 - spat_bspl (:class:`~pypeit.bspline.bspline.bspline`): Bspline model of the spatial fit.  Used for illumflat
+                 - spat_bspl (:class:`~pypeit.containers.bspline.BSplineContainer`): Bspline model of the spatial fit.  Used for illumflat
                  - spat_gpm_fit
                  - spat_flat_fit
                  - spat_flat_data_raw
@@ -1624,32 +1618,28 @@ class FlatField:
         # Determine the breakpoint spacing from the sampling of the
         # spatial coordinates. Use breakpoints at a spacing of a
         # 1/10th of a pixel, but do not allow a bsp smaller than
-        # the typical sampling. Use the bspline class to determine
-        # the breakpoints:
-#        bkspace = np.fmax(1.0 / median_slit_width / 10.0, 1.2 * np.median(np.diff(spat_coo_data))))
+        # the typical sampling.
+#        bsp = np.fmax(1.0 / median_slit_width / 10.0, 1.2 * np.median(np.diff(spat_coo_data)))
         # UPDATE: For some datasets where a long-slit fills the detector, the
         # spat_coo array is effectively identical for each row because the slit
         # edges are exactly aligned with the pixel coordinates.  Choosing a
         # sampling following the original approach above was causing the bspline
         # fitting to mask nearly all of the breakpoints.  This is fixed by
         # increasing the bspline spacing.
-        bkspace = np.fmax(1.0 / median_slit_width, 1.2 * np.median(np.diff(spat_coo, axis=1)))
-        spat_bspl = bspline.bspline(spat_coo_data, nord=4, bkspace=bkspace)
-
-        # TODO: Can we add defaults to bspline_profile so that we
-        #  don't have to instantiate invvar and profile_basis
-        spat_bspl, spat_gpm_fit, spat_flat_fit, _, exit_status \
-            = fitting.bspline_profile(spat_coo_data, spat_flat_data,
-                                    np.ones_like(spat_flat_data),
-                                    np.ones_like(spat_flat_data), nord=4, upper=5.0,
-                                    lower=5.0, fullbkpt=spat_bspl.breakpoints)
+        bsp = np.fmax(1.0 / median_slit_width, 1.2 * np.median(np.diff(spat_coo, axis=1)))
+        spat_bspl, spat_gpm_fit, spat_flat_fit, _, exit_status = iterative_bspline_fit(
+            spat_coo_data, spat_flat_data, nord=4, upper=5.0, lower=5.0,
+            kwargs_knots={'spacing': bsp}
+        )
 
         # TODO: Add a QA plot that shows the illum_profile fit
 #        fitting.bspline_qa(spat_coo_data, spat_flat_data, spat_bspl, spat_gpm_fit, spat_flat_fit)
 
         # Return
-        return exit_status, spat_coo_data, spat_flat_data, spat_bspl, spat_gpm_fit, \
-               spat_flat_fit, spat_flat_data_raw
+        return (
+            exit_status, spat_coo_data, spat_flat_data, BSplineContainer.from_bspline(spat_bspl),
+            spat_gpm_fit, spat_flat_fit, spat_flat_data_raw
+        )
 
     def spatial_fit_finecorr(self, normed, onslit_tweak, slit_idx, slit_spat, gpm,
                              slit_trim=3, tolerance=0.1, doqa=False):
@@ -1795,7 +1785,7 @@ class FlatField:
         bpmflats = self.build_mask()
         # Initialise bad splines (for when the fit goes wrong)
         if self.list_of_spat_bsplines is None:
-            self.list_of_spat_bsplines = [bspline.bspline(None) for all in self.slits.spat_id]
+            self.list_of_spat_bsplines = [BSplineContainer(None) for all in self.slits.spat_id]
         if self.list_of_finecorr_fits is None:
             self.list_of_finecorr_fits = [fitting.PypeItFit(None) for all in self.slits.spat_id]
         # Generate a dummy FlatImages
@@ -2809,7 +2799,6 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
         if max(abs(1/minv), abs(maxv)) < 1.005:  # Relative accuracy of 0.5% is sufficient
             break
     if debug:
-        embed()
         ricp = rawimg.copy()
         for ss in range(slits.spat_id.size):
             onslit_ref_trim = (slitid_img_trim == slits.spat_id[ss]) & gpm & skymask_now

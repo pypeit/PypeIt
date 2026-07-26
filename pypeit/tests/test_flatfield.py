@@ -10,7 +10,8 @@ import numpy as np
 from astropy.io import fits
 
 from pypeit import flatfield
-from pypeit.core import bspline
+from pypeit.core.bspline import Knots
+from pypeit.containers.bspline import BSplineContainer
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.tests.tstutils import data_output_path
 
@@ -19,8 +20,9 @@ def test_flatimages():
     tmp = np.ones((1000, 100)) * 10.
     x = np.random.rand(500)
     # Create bspline
-    spat_bspline1 = bspline.bspline(x, bkspace=0.01*(np.max(x)-np.min(x)))
-    spat_bspline2 = bspline.bspline(x, bkspace=0.01*(np.max(x)-np.min(x)))
+    bsp = 0.01 * (np.max(x) - np.min(x))
+    spat_bspline1 = BSplineContainer(x=x, knots=Knots(spacing=bsp), nord=4)
+    spat_bspline2 = BSplineContainer(x=x, knots=Knots(spacing=bsp), nord=4)
     instant_dict = dict(pixelflat_raw=tmp,
                         pixelflat_norm=np.ones_like(tmp),
                         pixelflat_model=None,

@@ -153,7 +153,7 @@ Under-the-hood Improvements
   importing each module in the relevant ``__init__.py`` file, we now define
   ``__all__`` and import all the relevant classes where needed.
 - Moved code used to generate templates (``pypeit/core/wavecal/templates.py``
-  and ``pypeit/core/wavecal/spectrographs``) to the dev-suite.  These were
+  and ``pypeit/core/wavecal/spectrographs/``) to the dev-suite.  These were
   development-only files, not suited for the released package.
 - Restructuring of :mod:`~pypeit.core`.
 - Increase the breakpoint spacing when fitting the slit illumination profile.

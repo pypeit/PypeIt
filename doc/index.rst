@@ -113,6 +113,7 @@ PypeIt BibTeX Entries
    scripts
    bitmasks
    Reduction State <state>
+   bspline
 
 .. toctree::
    :caption: Project Information
