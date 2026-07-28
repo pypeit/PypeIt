@@ -89,3 +89,6 @@ notes
 doc/sphinx_warnings.out
 pypeit/tests/files/setup_files/*
 .DS_Store
+
+# Local Claude Code configuration
+.claude/

@@ -205,11 +205,26 @@ parameters used by many of the lower-level algorithms is enabled by
 :ref:`parameters` that can be changed via the :ref:`pypeit_file`.
 
 
+Step-by-step Processing and Monitoring
+======================================
+
+Beyond the end-to-end execution described above, PypeIt provides a script to
+run the reduction one step at a time and a GUI to monitor and inspect a
+reduction as it progresses:
+
+.. toctree::
+   :maxdepth: 1
+
+   Step-by-step Processing <reduce_by_step>
+   Dashboard <dashboard/dashboard>
+
 See also
 ========
 
  - :ref:`pypeit-run-to-calibstep`: Process the calibration step-by-step
  - :ref:`step-by-step-reductions`: Process the science frames step-by-step
+ - :ref:`dashboard`: Monitor and inspect a reduction in a GUI
+ - :ref:`state`: The on-disk record of a reduction's progress
 
 
 
