@@ -1,5 +1,5 @@
-pypeit.scripts.pypeit\_dashboard module
-=======================================
+pypeit.scripts.dashboard module
+===============================
 
 .. automodule:: pypeit.scripts.dashboard
    :members:

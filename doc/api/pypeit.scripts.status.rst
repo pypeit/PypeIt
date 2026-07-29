@@ -1,5 +1,5 @@
-pypeit.scripts.pypeit\_status module
-====================================
+pypeit.scripts.status module
+============================
 
 .. automodule:: pypeit.scripts.status
    :members:
