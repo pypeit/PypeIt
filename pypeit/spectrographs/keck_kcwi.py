@@ -652,8 +652,6 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         dec = self.compound_meta([hdr], 'dec')
 
         skypa = self.compound_meta([hdr], 'posang')
-        #rotoff = 180.0 if hdr['PYP_SPEC'] == 'keck_kcrm' else 0.0 
-        # JFH changed to line above after consulting with R. Cooke 2024-12-21
         rotoff = 0.0  # IFU-SKYPA offset (degrees)
         crota = np.radians(-(skypa + rotoff))
 
@@ -728,12 +726,13 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         Args:
             :obj:`tuple`: Three 1D `numpy.ndarray`_ providing the bins to use
             when constructing a histogram of the spec2d files. The elements
-            are :math:`(x,y,\lambda)`.
+            are :math:`(\lambda,y,x)`.
         """
+        # TODO :: Before merging note that this needs to be updated for all IFU spectrographs.
         xbins = np.arange(1 + 24) - 0.5
         ybins = np.linspace(np.min(minmax[:, 0]), np.max(minmax[:, 1]), 1+slitlength) - 0.5
         spec_bins = np.arange(1+num_wave) - 0.5
-        return xbins, ybins, spec_bins
+        return spec_bins, ybins, xbins
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """

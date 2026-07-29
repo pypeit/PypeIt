@@ -198,7 +198,7 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
                     sources[col].info.format = '%.2f'  # for consistent table output
             sources.pprint(max_width=76)
         if sources is None:
-            display.show_image((objfind_image*np.logical_not(totmask)*np.sqrt(ivar_objfind)).T, 
+            display.show_image((objfind_image*np.logical_not(totmask)*np.sqrt(ivar_objfind)),
                             chname='S/N objfind_image', cuts=(-2.0, 5.0))
             raise PypeItError(
                 "No sources found in the image. Try lowering the significance threshold, "
@@ -212,6 +212,7 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
     initial_guess = (1, _init_obj_position[0], _init_obj_position[1], fwhm*fwhm2sigma, fwhm*fwhm2sigma, 0, 0)
     bounds = ([0,      _init_obj_position[0]-fwhm/3.0, _init_obj_position[1]-fwhm/3.0, fwhm/6.0, fwhm/6.0, -np.pi, -np.inf],
               [np.inf, _init_obj_position[0]+fwhm/3.0, _init_obj_position[1]+fwhm/3.0, fwhm    , fwhm    , np.pi , np.inf])
+
     # Perform the fit
     # TODO :: May want to generate the image on a finer pixel scale first
     # TODO JFH: The 2D Gaussian fitting should be using the noise and the gpm. This should be
@@ -389,7 +390,7 @@ def extract_point_source(
         Number of pixels to subpixelate spectrum when creating mask
     boxcar_radius : float, optional
         Radius of the circular boxcar (in arcseconds) to use for the extraction.
-        If None None, the radius is set to 4 times the sigma of the 2D Gaussian
+        If None, the radius is set to 4 times the sigma of the 2D Gaussian
         fit to the whitelight image.
     fwhm : float, optional
         FWHM of the PSF in arcseconds. Use to determine the degree of smoothing
@@ -470,7 +471,7 @@ def extract_point_source(
     sobj.SLITID = 0
 
     # Convert from counts/s/Ang/arcsec**2 to counts. The sensitivity function expects counts as input
-    numxx, numyy, numwave = flxcube.shape
+    numwave, numyy, numxx = flxcube.shape
     dspat_x = np.abs(wcscube.wcs.cdelt[0] * wcscube.wcs.cunit[0].to(units.arcsec))
     dspat_y = np.abs(wcscube.wcs.cdelt[1] * wcscube.wcs.cunit[1].to(units.arcsec))
     arcsecSQ = dspat_x * dspat_y
@@ -508,14 +509,14 @@ def extract_point_source(
     
     # Object location for extraction 
     if manual_position is not None:
-        xobj, yobj = manual_position  
+        yobj, xobj = manual_position
     else: 
-        xobj, yobj = gaussian_position
+        yobj, xobj = gaussian_position
     
     # Setup the coordinates of the mask
-    x = np.linspace(0, numxx - 1, numxx * subpixel)
     y = np.linspace(0, numyy - 1, numyy * subpixel)
-    xx, yy = np.meshgrid(x, y, indexing='ij')
+    x = np.linspace(0, numxx - 1, numxx * subpixel)
+    yy, xx = np.meshgrid(y, x, indexing='ij')
     
     # Set the radius of the extraction boxcar for the sky determination
     if boxcar_radius is None:
@@ -530,19 +531,19 @@ def extract_point_source(
     
     # Generate a mask
     log.info("Generating an object mask")
-    newshape = (numxx * subpixel, numyy * subpixel)
+    newshape = (numyy * subpixel, numxx * subpixel)
     mask = np.zeros(newshape)
     ww = np.where((np.sqrt((xx - xobj) ** 2 + (yy - yobj) ** 2) < wid))
     mask[ww] = 1
-    mask = utils.rebinND(mask, (numxx, numyy)).reshape(numxx, numyy, 1)
+    mask = utils.rebinND(mask, (numyy, numxx)).reshape(1, numyy, numxx)
 
     # Generate a sky mask
     log.info("Generating a sky mask")
-    newshape = (numxx * subpixel, numyy * subpixel)
+    newshape = (numyy * subpixel, numxx * subpixel)
     smask = np.zeros(newshape)
     ww = np.where((np.sqrt((xx - xobj) ** 2 + (yy - yobj) ** 2) < widsky))
     smask[ww] = 1
-    smask = utils.rebinND(smask, (numxx, numyy)).reshape(numxx, numyy, 1)
+    smask = utils.rebinND(smask, (numyy, numxx)).reshape(1, numyy, numxx)
     # Subtract off the object mask region, so that we just have an annulus around the object
     smask -= mask
 
@@ -551,12 +552,12 @@ def extract_point_source(
         # Subtract the residual sky from the datacube
         skymask = np.logical_not(bpmcube) * smask
         skycube = _flxcube * skymask
-        skyspec = skycube.sum(axis=(0,1))
-        nrmsky = skymask.sum(axis=(0,1))
+        skyspec = skycube.sum(axis=(1,2))
+        nrmsky = skymask.sum(axis=(1,2))
         skyspec *= utils.inverse(nrmsky)
-        _flxcube -= skyspec.reshape((1, 1, numwave))
+        _flxcube -= skyspec.reshape((numwave, 1, 1))
         # Now subtract the residual sky from the white light image
-        sky_val = np.sum(wl_img[:, :, np.newaxis] * smask) / np.sum(smask)
+        sky_val = np.sum(wl_img[None, :, :] * smask) / np.sum(smask)
         wl_img -= sky_val
     else: 
         log.info("The residual sky will not be subtracted")
@@ -565,16 +566,16 @@ def extract_point_source(
     log.info("Extracting a boxcar spectrum of datacube")
     # Construct an image that contains the fraction of flux included in the
     # boxcar extraction at each wavelength interval
-    norm_flux = wl_img[:,:,np.newaxis] * mask
+    norm_flux = wl_img[None,:,:] * mask
     norm_flux /= np.sum(norm_flux)
     # Extract boxcar
     cntmask = np.logical_not(bpmcube) * mask  # Good pixels within the masked region around the standard star
-    flxscl = (norm_flux * cntmask).sum(axis=(0,1))  # This accounts for the flux that is missing due to masked pixels
+    flxscl = (norm_flux * cntmask).sum(axis=(1,2))  # This accounts for the flux that is missing due to masked pixels
     scimask = _flxcube * cntmask
     varmask = _varcube * cntmask**2
     nrmcnt = utils.inverse(flxscl)
-    box_flux = scimask.sum(axis=(0,1)) * nrmcnt
-    box_var = varmask.sum(axis=(0,1)) * nrmcnt**2
+    box_flux = scimask.sum(axis=(1,2)) * nrmcnt
+    box_var = varmask.sum(axis=(1,2)) * nrmcnt**2
     box_gpm = flxscl > 1/3  # Good pixels are those where at least one-third of the standard star flux is measured
 
     # Store the BOXCAR extraction information
@@ -617,7 +618,7 @@ def extract_point_source(
         sigma_x, sigma_y = fwhm_pix*fwhm2sigma, fwhm_pix*fwhm2sigma
         theta, offset, = 0.0, 0.0
         optkern = gaussian2D(
-            (xx, yy), intflux, xobj, yobj, sigma_x, sigma_y, theta, offset).reshape(wl_img.shape)
+            (yy, xx), intflux, xobj, yobj, sigma_x, sigma_y, theta, offset).reshape(wl_img.shape)
         # Normalise the kernel
         optkern /= np.sum(optkern)
     elif opt_prof_method == 'fit_gauss':
@@ -644,7 +645,7 @@ def extract_point_source(
         optkern = apo_smooth_wl_img/np.sum(apo_smooth_wl_img)
 
 
-    optkern_masked = optkern * mask[:,:,0]
+    optkern_masked = optkern * mask[0,:,:]
     # Normalise the white light image
     optkern_masked /= np.sum(optkern_masked)
     asrt = np.argsort(optkern_masked, axis=None)
@@ -659,14 +660,14 @@ def extract_point_source(
     objprof = optkern_masked[np.unravel_index(objprof_idx, optkern.shape)]
 
     # Now slice the datacube and inverse variance cube into a 2D array
-    spat, spec = np.meshgrid(objprof_idx, np.arange(numwave), indexing='ij')
+    spec, spat = np.meshgrid(np.arange(numwave), objprof_idx, indexing='ij')
     spatspl = np.apply_along_axis(np.unravel_index, 1, spat, optkern.shape)
     # Now slice the datacube and corresponding cubes/vectors into a series of 2D arrays
     numspat = objprof_idx.size
-    flxslice = (spatspl[:,0,:], spatspl[:,1,:], spec)
-    flxcube2d = _flxcube[flxslice].T
-    ivarcube2d = _ivarcube[flxslice].T
-    gpmcube2d = np.logical_not(bpmcube[flxslice].T)
+    flxslice = (spec, spatspl[:,0,:], spatspl[:,1,:])
+    flxcube2d = _flxcube[flxslice]
+    ivarcube2d = _ivarcube[flxslice]
+    gpmcube2d = np.logical_not(bpmcube[flxslice])
     waveimg = wave.reshape((numwave,1)).repeat(numspat, axis=1)
     skyimg = np.zeros((numwave, numspat))  # Note, the residual sky has already been subtracted off _flxcube
     oprof = objprof.reshape((1,numspat)).repeat(numwave, axis=0)
@@ -689,7 +690,7 @@ def extract_point_source(
     if fluxed:
         sobj.OPT_FLAM = sobj.OPT_COUNTS
         sobj.OPT_FLAM_SIG = sobj.OPT_COUNTS_SIG
-        sobj.OPT_FLAM_IVAR = sobj.OPT_COUNTS_IVAR
+        sobj.OPT_FLAM_IVAR = sobj.OPT_COUNTS_IVARf
 
     # Make a specobjs object
     sobjs = specobjs.SpecObjs()
@@ -714,7 +715,7 @@ def extract_point_source(
     bitmask = ImageBitMaskArray(flxcube2d.shape)
     bitmask.turn_on('BPM', select=np.logical_not(gpmcube2d))
 
-    # Make a psuedo spec2d object with these outputs.
+    # Make a pseudo spec2d object with these outputs.
     spec2d = spec2dobj.Spec2DObj(
         sciimg=flxcube2d, ivarraw=ivarcube2d, skymodel=skyimg, bkg_redux_skymodel=None,
         objmodel=skyimg, ivarmodel=ivarcube2d, scaleimg=np.array([1.0], dtype=float),
@@ -724,12 +725,12 @@ def extract_point_source(
     )
 
     if show_qa: 
-        #  Show object finding QA 
-        whitelight_objfind_qa(wl_img, wl_ivar, wl_gpm, model, gaussian_position, init_obj_position, 
+        #  Show object finding QA
+        whitelight_objfind_qa(wl_img, wl_ivar, wl_gpm, model, gaussian_position, init_obj_position,
                           manual_position=manual_position)
         # Show the extraction QA
         extract_chname = 'opt_prof_method:' + opt_prof_method
-        viewer, ch_model = display.show_image(optkern_masked.T, chname=extract_chname, wcs_match=True, 
+        viewer, ch_model = display.show_image(optkern_masked, chname=extract_chname, wcs_match=True,
                                                 cuts=(0.0, np.max(optkern_masked)))
 
     # Return the specobjs object and the spec2d object
@@ -764,41 +765,41 @@ def whitelight_objfind_qa(wl_img, wl_ivar, wl_gpm, gaussian_model, gaussian_posi
         The prefix to use for the channel name in ginga. Default is ''.
     """
 
-    x_max, y_max = wl_img.T.shape
+    x_max, y_max = wl_img.shape
     mean, med, sigma = sigma_clipped_stats(wl_img[wl_gpm], sigma_lower=5.0, sigma_upper=5.0)
     cut_min = mean - 1.0 * sigma
     cut_max = mean + 5.0 * sigma
     viewer, ch_wl = display.show_image(
-        wl_img.T, chname=channel_prefix + 'Whitelight', wcs_match=True, cuts=(cut_min, cut_max))
+        wl_img, chname=channel_prefix + 'Whitelight', wcs_match=True, cuts=(cut_min, cut_max))
     mean_snr, med_snr, sigma_snr = sigma_clipped_stats((wl_img*np.sqrt(wl_ivar))[wl_gpm], 
                                                        sigma_lower=5.0, sigma_upper=5.0)
     cut_min_snr = mean_snr - 1.0 * sigma_snr
     cut_max_snr = mean_snr + 5.0 * sigma_snr
     viewer, ch_snr = display.show_image(
-        wl_img.T*np.sqrt(wl_ivar.T), chname=channel_prefix + 'Whitelight S/N', wcs_match=True,
+        wl_img*np.sqrt(wl_ivar), chname=channel_prefix + 'Whitelight S/N', wcs_match=True,
         cuts=(cut_min_snr, cut_max_snr))
     viewer, ch_model = display.show_image(
-        gaussian_model.T, chname=channel_prefix + 'Gaussian Model', 
+        gaussian_model, chname=channel_prefix + 'Gaussian Model',
         wcs_match=True, cuts=(cut_min, cut_max))
 
     # TODO Add WCS
     ch_list = [ch_wl, ch_model, ch_snr]
     for ich, ch in enumerate(ch_list):
-        display.show_points(viewer, ch, [gaussian_position[1]], [gaussian_position[0]], 
+        display.show_points(viewer, ch, [gaussian_position[0]], [gaussian_position[1]],
                             color='red', 
-                            legend='Gaussian           ; x={:.2f}, y={:.2f}'.format(gaussian_position[0], 
-                                                                                     gaussian_position[1]),
+                            legend='Gaussian           ; x={:.2f}, y={:.2f}'.format(gaussian_position[1],
+                                                                                     gaussian_position[0]),
                             legend_spec=0.05*x_max, legend_spat=0.5*y_max)
-        display.show_points(viewer, ch, [init_obj_position[1]], [init_obj_position[0]], 
+        display.show_points(viewer, ch, [init_obj_position[0]], [init_obj_position[1]],
                             color='green', 
-                            legend='DAOStarFinder ; x={:.2f}, y={:.2f}'.format(init_obj_position[0], 
-                                                                               init_obj_position[1]),
+                            legend='DAOStarFinder ; x={:.2f}, y={:.2f}'.format(init_obj_position[1],
+                                                                               init_obj_position[0]),
                             legend_spec=0.10*x_max, legend_spat=0.5*y_max)
         if manual_position is not None:
-            display.show_points(viewer, ch, [manual_position[1]], [manual_position[0]], 
+            display.show_points(viewer, ch, [manual_position[0]], [manual_position[1]],
                             color='orange', 
-                            legend='Manual              ; x={:.2f}, y={:.2f}'.format(manual_position[0], 
-                                                                                     manual_position[1]),
+                            legend='Manual              ; x={:.2f}, y={:.2f}'.format(manual_position[1],
+                                                                                     manual_position[0]),
                             legend_spec=0.15*x_max, legend_spat=0.5*y_max)
     
 
@@ -1066,14 +1067,13 @@ def make_whitelight(
         wavemax=_whitelight_range[1]
     )
     log.info(f"Saving white light image as: {out_whitelight}")
-    # TODO: Address transpose issue.
-    primary_hdu = fits.PrimaryHDU(whitelight.T, header=whitelight_wcs.to_header())
+    primary_hdu = fits.PrimaryHDU(whitelight, header=whitelight_wcs.to_header())
     # TODO: Primary HDUs should *NOT* have an EXTNAME keyword.  You can set the
     # name of the primary extension, I think (`primary_hdu.name =
     # 'WHITELIGHT'`), but EXTNAME is for extensions.
 #    primary_hdu.header['EXTNAME'] = 'WHITELIGHT'
-    ivar_hdu = fits.ImageHDU(ivar_whitelight.T, name='IVAR')
-    gpm_hdu = fits.ImageHDU(gpm_whitelight.astype(np.uint8).T, name='GPM')
+    ivar_hdu = fits.ImageHDU(ivar_whitelight, name='IVAR')
+    gpm_hdu = fits.ImageHDU(gpm_whitelight.astype(np.uint8), name='GPM')
 
     hdul = fits.HDUList([primary_hdu, ivar_hdu, gpm_hdu])
     hdul.writeto(out_whitelight, overwrite=overwrite)
@@ -1087,12 +1087,11 @@ def make_whitelight_fromcube(cube, ivarcube, gpmcube, sigclip=5.0,
     Parameters
     ----------
     cube : :class:`numpy.ndarray`
-        3D datacube (the final element contains the wavelength dimension)
+        3D datacube (the first element contains the wavelength dimension)
     ivarcube : :class:`numpy.ndarray`
-        3D inverse variance cube (the final element contains the wavelength
-        dimension).
+        3D inverse variance cube (the first element contains the wavelength dimension).
     gpmcube : :class:`numpy.ndarray`, bool
-        3D good-pixel mask cube (the final element contains the wavelength
+        3D good-pixel mask cube (the first element contains the wavelength
         dimension).  A value of True indicates a good pixel.
     sigclip : float, optional
         Flag outliers using sigma-clipping based on this sigma value (both above
@@ -1127,7 +1126,7 @@ def make_whitelight_fromcube(cube, ivarcube, gpmcube, sigclip=5.0,
         if wave is None:
             raise PypeItError("wave variable must be supplied to create white light image with wavelength cuts")
         else:
-            if wave.size != cube.shape[2]:
+            if wave.size != cube.shape[0]:
                 raise PypeItError("wave variable should have the same length as the third axis of cube.")
         # assign wavemin & wavemax if one is not provided
         if wavemin is None:
@@ -1136,10 +1135,10 @@ def make_whitelight_fromcube(cube, ivarcube, gpmcube, sigclip=5.0,
             wavemax = np.max(wave)
         ww = np.where((wave >= wavemin) & (wave <= wavemax))[0]
         wmin, wmax = ww[0], ww[-1]+1
-        cutcube = cube[:, :, wmin:wmax]
-        cutivar = ivarcube[:, :, wmin:wmax]
+        cutcube = cube[wmin:wmax, :, :]
+        cutivar = ivarcube[wmin:wmax, :, :]
         # Cut the bad pixel mask and convert it to a good pixel mask
-        cutgpmcube = gpmcube[:, :, wmin:wmax]
+        cutgpmcube = gpmcube[wmin:wmax, :, :]
     else:
         cutcube = cube.copy()
         cutivar = ivarcube.copy()
@@ -1149,20 +1148,20 @@ def make_whitelight_fromcube(cube, ivarcube, gpmcube, sigclip=5.0,
     data = np.ma.MaskedArray(cutcube, mask=np.logical_not(cutgpmcube))
     if sigclip is not None:
         sc = SigmaClip(sigma=sigclip, maxiters=25, cenfunc='median', stdfunc=utils.nan_mad_std)
-        data_clipped, lower, upper = sc(data, axis=2, masked=True, return_bounds=True)
+        data_clipped, lower, upper = sc(data, axis=0, masked=True, return_bounds=True)
     gpm_sigclip = np.logical_not(data_clipped.mask)
 
     # Compute the average flux over the set of pixels that are not masked by gpm_sigclip
-    npix_whitelight = np.sum(gpm_sigclip, axis=2)
+    npix_whitelight = np.sum(gpm_sigclip, axis=0)
     inv_npix_whitelight = utils.inverse(npix_whitelight)
-    whitelight_sum = np.sum((cutcube*gpm_sigclip), axis=2)
+    whitelight_sum = np.sum((cutcube*gpm_sigclip), axis=0)
     gpm_whitelight = npix_whitelight > 0
     whitelight = whitelight_sum*gpm_whitelight * inv_npix_whitelight
 
     # Compute the formal corresponding variance over the set of pixels that are not masked by
     # gpm_sigclip
     cut_var = utils.inverse(cutivar)
-    var_sum_whitelight = np.sum((cut_var*gpm_sigclip), axis=2)
+    var_sum_whitelight = np.sum((cut_var*gpm_sigclip), axis=0)
     var_whitelight = var_sum_whitelight * inv_npix_whitelight**2
     ivar_whitelight = utils.inverse(var_whitelight)*gpm_whitelight
 
@@ -1185,7 +1184,7 @@ def load_imageWCS(filename, ext=0):
         `astropy.wcs.WCS`_ with the image WCS.
     """
     imghdu = fits.open(filename)
-    image = imghdu[ext].data.T
+    image = imghdu[ext].data
     imgwcs = wcs.WCS(imghdu[ext].header)
     # Return required info
     return image, imgwcs
@@ -1472,7 +1471,7 @@ def create_wcs(raImg, decImg, waveImg, slitid_img_gpm, dspat, dwave,
     cubewcs : `astropy.wcs.WCS`_
         astropy WCS to be used for the combined cube
     voxedges : tuple
-        A three element tuple containing the bin edges in the x, y (spatial) and
+        A three element tuple (z, y, x) containing the bin edges in the x, y (RA, Dec spatial) and
         z (wavelength) dimensions
     reference_image : `numpy.ndarray`_
         The reference image to be used for the cross-correlation. Can be None.
@@ -1508,7 +1507,7 @@ def create_wcs(raImg, decImg, waveImg, slitid_img_gpm, dspat, dwave,
         # Update the celestial WCS
         coord_min[:2] = imgwcs.wcs.crval
         coord_dlt[:2] = imgwcs.wcs.cdelt
-        numra, numdec = reference_image.shape
+        numdec, numra = reference_image.shape
 
     cubewcs = generate_WCS(coord_min, coord_dlt, numra, equinox=equinox, name=specname)
     log.info(
@@ -1526,7 +1525,7 @@ def create_wcs(raImg, decImg, waveImg, slitid_img_gpm, dspat, dwave,
     xbins = np.arange(1 + numra) - 0.5
     ybins = np.arange(1 + numdec) - 0.5
     spec_bins = np.arange(1 + numwav) - 0.5
-    voxedges = (xbins, ybins, spec_bins)
+    voxedges = (spec_bins, ybins, xbins)
     return cubewcs, voxedges, reference_image
 
 
@@ -1871,10 +1870,10 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
 
     # Make the bin edges to be at +/- 1 pixels around the maximum (i.e. summing 9 pixels total)
     numwav = int((_wave_max - _wave_min) / dwv)
-    xbins = np.array([gaussian_position[0]-1, gaussian_position[0]+2]) - 0.5
-    ybins = np.array([gaussian_position[1]-1, gaussian_position[1]+2]) - 0.5
+    xbins = np.array([gaussian_position[1]-1, gaussian_position[1]+2]) - 0.5
+    ybins = np.array([gaussian_position[0]-1, gaussian_position[0]+2]) - 0.5
     spec_bins = np.arange(1 + numwav) - 0.5
-    bins = (xbins, ybins, spec_bins)
+    bins = (spec_bins, ybins, xbins)
 
     # Grab cos(dec) for convenience. Use the average of the min and max dec.
     cosdec = np.cos(0.5 * (_dec_min + _dec_max) * np.pi / 180.0)
@@ -2026,11 +2025,11 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
     else:
         # Prepare the array of white light images to be stored
         numframes = len(_sciImg)
-        numra = bins[0].size - 1
+        numra = bins[2].size - 1
         numdec = bins[1].size - 1
-        all_wl_imgs = np.zeros((numra, numdec, numframes))
-        all_sig_imgs = np.zeros((numra, numdec, numframes))
-        all_bpm_imgs = np.zeros((numra, numdec, numframes), dtype=bool)
+        all_wl_imgs = np.zeros((numdec, numra, numframes))
+        all_sig_imgs = np.zeros((numdec, numra, numframes))
+        all_bpm_imgs = np.zeros((numdec, numra, numframes), dtype=bool)
         # Loop through all frames and generate white light images
         for fr in range(numframes):
             log.info(f"Creating image {fr + 1}/{numframes}")
@@ -2039,9 +2038,9 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
                                      _all_wcs[fr], _tilts[fr], _slits[fr], _astrom_trans[fr], _all_dar[fr], _ra_offset[fr], _dec_offset[fr],
                                      spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel,
                                      skip_subpix_weights=True, correct_dar=correct_dar)
-            all_wl_imgs[:, :, fr] = img[:, :, 0]
-            all_sig_imgs[:, :, fr] = sigimg[:, :, 0]
-            all_bpm_imgs[:, :, fr] = bpmimg[:, :, 0]
+            all_wl_imgs[:, :, fr] = img[0, :, :]
+            all_sig_imgs[:, :, fr] = sigimg[0, :, :]
+            all_bpm_imgs[:, :, fr] = bpmimg[0, :, :]
             
         # Return the constructed white light images
         return all_wl_imgs, all_sig_imgs, all_bpm_imgs
@@ -2062,7 +2061,7 @@ def generate_cube_subpixel(
     output_wcs : :class:`astropy.wcs.WCS`
         Output world coordinate system.
     bins : tuple
-        A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial and
+        A 3-tuple (z,y,x) containing the histogram bin edges in x,y spatial and
         z wavelength coordinates
     sciImg : :class:`numpy.ndarray`, list
         A list of 2D array containing the counts of each pixel. If a list, the
@@ -2158,12 +2157,11 @@ def generate_cube_subpixel(
     )
 
     # Get wavelength of each pixel
-    nspec = flxcube.shape[2]
+    nspec = flxcube.shape[0]
     wcs_scale = (1.0*output_wcs.spectral.wcs.cunit[0]).to(units.Angstrom).value  # Ensures the WCS is in Angstroms
     wave = wcs_scale * output_wcs.spectral.wcs_pix2world(np.arange(nspec), 0)[0]
 
-    # TODO :: Avoid transposing these large cubes
-    return flxcube.T, sigcube.T, bpmcube.T, normcube.T, wave
+    return flxcube, sigcube, bpmcube, normcube, wave
 
 
 
@@ -2194,7 +2192,7 @@ def subpixellate(
     output_wcs : :class:`astropy.wcs.WCS`
         Output world coordinate system.
     bins : tuple
-        A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial and
+        A 3-tuple (z,y,x) containing the histogram bin edges in x,y spatial and
         z wavelength coordinates
     sciImg : :class:`numpy.ndarray`, list
         A list of 2D array containing the counts of each pixel. The shape of
@@ -2336,7 +2334,7 @@ def subpixellate(
             ra_corr, dec_corr = 0.0, 0.0
             if correct_dar:
                 # NOTE :: This routine needs the wavelengths to be expressed in Angstroms
-                ra_corr, dec_corr = _all_dar[fr].correction( this_wave_subpix)
+                ra_corr, dec_corr = _all_dar[fr].correction(this_wave_subpix)
             # Calculate spatial and spectral positions of the subpixels
             spat_xx = np.add.outer(wpix[1], spat_x.flatten()).flatten()
             spec_yy = np.add.outer(wpix[0], spec_y.flatten()).flatten()
@@ -2375,7 +2373,7 @@ def subpixellate(
                 # Convert world coordinates to voxel coordinates, then histogram
                 sslo = ss * num_subpixels
                 sshi = (ss + 1) * num_subpixels
-                vox_coord[:,sslo:sshi,:] = output_wcs.wcs_world2pix(np.vstack((this_ra_int, this_dec_int, this_wave_subpix * 1.0E-10)).T, 0).reshape(numpix, num_subpixels, 3)
+                vox_coord[:,sslo:sshi,:] = output_wcs.wcs_world2pix(np.vstack((this_ra_int, this_dec_int, this_wave_subpix * 1.0E-10)).T, 0).reshape(numpix, num_subpixels, 3)[:,:,::-1]
             # Convert the voxel coordinates to a bin index
             if num_all_subpixels == 1 or skip_subpix_weights:
                 subpix_wght = 1.0

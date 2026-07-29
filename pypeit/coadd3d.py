@@ -267,9 +267,8 @@ class DataCube(datamodel.DataContainer):
 
         # Datacube's are counts/second, so set the exposure time to 1
         exptime = 1.0
-        # TODO :: Avoid transposing these large cubes
         sobjs, spec2d, wl_img, wl_ivar, wl_gpm = datacube.extract_point_source(
-            self.wave, self.flux.T, self.ivar.T, self.bpm.T, self._wcs, exptime, 
+            self.wave, self.flux, self.ivar, self.bpm, self._wcs, exptime,
             fluxed=self.fluxed, min_frac_use=parset['extraction']['min_frac_prof'],
             whitelight_range=parset['cube']['extraction']['whitelight_range'],
             fwhm=parset['cube']['extraction']['fwhm'],
@@ -289,11 +288,11 @@ class DataCube(datamodel.DataContainer):
         all_spec2d.write_to_fits(str(spec2d_filename), pri_hdr=fits.Header(), overwrite=overwrite)
         # Write out the white light image
         # TODO This is replicated code from datacube.make_whitelight, clean this up.
-        # TODO :: Note that this overwrites the whitelight generated from the main code.
+        # TODO : Note that this overwrites the whitelight generated from the main code.
         log.info(f"Saving white light image as: {out_whitelight}")
-        primary_hdu = fits.PrimaryHDU(wl_img.T, header=self._wcs.celestial.to_header())
-        ivar_hdu = fits.ImageHDU(wl_ivar.T, name='IVAR')
-        gpm_hdu = fits.ImageHDU(wl_gpm.astype(np.uint8).T, name='GPM')
+        primary_hdu = fits.PrimaryHDU(wl_img, header=self._wcs.celestial.to_header())
+        ivar_hdu = fits.ImageHDU(wl_ivar, name='IVAR')
+        gpm_hdu = fits.ImageHDU(wl_gpm.astype(np.uint8), name='GPM')
         hdul = fits.HDUList([primary_hdu, ivar_hdu, gpm_hdu])
         hdul.writeto(out_whitelight, overwrite=overwrite)
 
@@ -1557,7 +1556,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                     wave_min=self.cubepar['wave_min'], wave_max=self.cubepar['wave_max'],
                                     reference=self.cubepar['reference_image'], collapse=True, equinox=2000.0,
                                     specname=self.specname)
-            if voxedge[2].size != 2:
+            if voxedge[0].size != 2:
                 raise PypeItError("Spectral range for WCS is incorrect for white light image")
 
             wl_imgs, sig_imgs, bpm_imgs = datacube.generate_image_subpixel(
@@ -1683,11 +1682,10 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     hdr=hdr, overwrite=self.overwrite
                 )
 
-                # TODO fix this transpose issue
                 ivarcube = utils.inverse(np.square(sigcube))
                 if self.cubepar['save_whitelight']:
                     datacube.make_whitelight(
-                        self.all_wcs[ff], flxcube.T, ivarcube.T, np.logical_not(bpmcube.T),
+                        self.all_wcs[ff], flxcube, ivarcube, np.logical_not(bpmcube),
                         wave, self.scidir, outfile, whitelight_range=wl_wvrng, overwrite=self.overwrite)
 
     def compute_weights(self, show_qa=False):
@@ -1828,7 +1826,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         sensfunc = None
         if self.flux_spline is not None:
             # Get wavelength of each pixel
-            numwav = vox_edges[2].size - 1
+            numwav = vox_edges[0].size - 1
             wcs_scale = (1.0 * cube_wcs.spectral.wcs.cunit[0]).to(units.Angstrom).value  # Ensures the WCS is in Angstroms
             senswave = wcs_scale * cube_wcs.spectral.wcs_pix2world(np.arange(numwav), 0)[0]
             sensfunc = self.flux_spline(senswave)
@@ -1844,7 +1842,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
             for ff in range(self.numfiles):
                 outfile = datacube.get_output_filename(
-                    self.scidir, "", self.cubepar['output_filename'], False, idx=ff+1
+                    self.scidir, self.spec2d[ff], self.cubepar['output_filename'], False, idx=ff+1
                 )
                 # Generate the datacube       
                 
@@ -1895,11 +1893,10 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     str(self.scidir / outfile), primary_hdr=self.all_header[ff],
                     hdr=hdr, overwrite=self.overwrite
                 )
-                # TODO fix this transpose issue
                 ivarcube = final_cube.ivar
                 if self.cubepar['save_whitelight']:
                     datacube.make_whitelight(
-                        cube_wcs, flxcube.T, ivarcube.T, np.logical_not(bpmcube.T), wave,
+                        cube_wcs, flxcube, ivarcube, np.logical_not(bpmcube), wave,
                         self.scidir, outfile, whitelight_range=wl_wvrng,
                         overwrite=self.overwrite
                     )
@@ -1931,9 +1928,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 )
                 # Make combined white light image if whitelight is requested
                 if self.cubepar['save_whitelight']:                
-                    # TODO fix this transpose issue
                     datacube.make_whitelight(
-                        cube_wcs, combined_cube.T, combined_ivar.T, combined_gpm.T, wave,
+                        cube_wcs, combined_cube, combined_ivar, combined_gpm, wave,
                         self.scidir, combined_outfile, whitelight_range=wl_wvrng,
                         overwrite=self.overwrite
                     )
