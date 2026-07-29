@@ -6,17 +6,20 @@ Module containing routines used by 3D datacubes.
 
 import os
 # import line_profiler
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 from astropy import wcs, units
 from astropy.coordinates import AltAz, SkyCoord
 from astropy.io import fits
 from astropy.stats import sigma_clipped_stats, SigmaClip
-from IPython import embed
 from fast_histogram import histogramdd
-import numpy as np
+from IPython import embed
 import scipy.optimize as opt
 from scipy import signal, ndimage
-from scipy.interpolate import interp1d
+from scipy.interpolate import interp1d, griddata
+from scipy.spatial import QhullError
+import numpy as np
 
 # NOTE: photutils is an optional dependency
 try:
@@ -31,11 +34,704 @@ from pypeit import slittrace
 from pypeit import spec2dobj
 from pypeit import specobj
 from pypeit import specobjs
+from pypeit.core import coadd, sampling
 from pypeit.display import display
-from pypeit.core import coadd
-from pypeit.core import extract
 from pypeit.images.imagebitmask import ImageBitMaskArray
+from pypeit.onespec import OneSpec
 from pypeit.spectrographs.util import load_spectrograph
+
+if TYPE_CHECKING:
+    from pypeit.spectrographs.spectrograph import Spectrograph
+
+
+def resample_spec_to_grid(wave, flux, ivar, wave_grid, min_good=2, min_frac=0.5):
+    """
+    Resample one spectrum's flux and inverse variance onto a wavelength grid.
+
+    The flux and error are resampled with :class:`~pypeit.sampling.Resample`,
+    PypeIt's flux-conserving spectral resampler, rather than a plain linear
+    interpolation.  The error (``1/sqrt(ivar)``) is propagated by ``Resample``
+    in quadrature and converted back to inverse variance, and pixels whose
+    native coverage falls short of ``min_frac`` are masked.  Samples that fall
+    outside the spectrum's native wavelength coverage are left at zero.
+
+    Parameters
+    ----------
+    wave, flux, ivar : `numpy.ndarray`_
+        Native wavelength, flux, and inverse-variance arrays for a single
+        spectrum (e.g. one fiber).  ``ivar`` may be ``None``, in which case
+        the returned inverse variance is all zeros.
+    wave_grid : `numpy.ndarray`_
+        Monotonically increasing target wavelength grid.
+    min_good : :obj:`int`, optional
+        Minimum number of finite samples with positive wavelength required
+        for the spectrum to contribute; below this, all-zero arrays are
+        returned.
+    min_frac : :obj:`float`, optional
+        Minimum covering fraction (from ``Resample.outf``) for an output
+        pixel to be flagged as covered and retain its resampled values.
+
+    Returns
+    -------
+    flux_grid : `numpy.ndarray`_
+        Flux resampled onto ``wave_grid`` (zero outside native coverage).
+    ivar_grid : `numpy.ndarray`_
+        Inverse variance resampled onto ``wave_grid`` (zero outside coverage
+        or where the native inverse variance was non-positive).
+    covered : `numpy.ndarray`_
+        Boolean mask, ``True`` where ``wave_grid`` is covered by the
+        spectrum's native wavelength range.
+    """
+    wave_grid = np.asarray(wave_grid, dtype=float)
+    flux_grid = np.zeros(wave_grid.shape, dtype=float)
+    ivar_grid = np.zeros(wave_grid.shape, dtype=float)
+    covered = np.zeros(wave_grid.shape, dtype=bool)
+
+    wave = np.asarray(wave, dtype=float)
+    flux = np.asarray(flux, dtype=float)
+    good = (wave > 0) & np.isfinite(flux)
+    if np.count_nonzero(good) < min_good:
+        return flux_grid, ivar_grid, covered
+
+    srt = np.argsort(wave[good])
+    w_s = wave[good][srt]
+    f_s = flux[good][srt]
+    if ivar is not None:
+        iv_s = np.asarray(ivar, dtype=float)[good][srt]
+        err = np.sqrt(utils.inverse(iv_s))
+        # Mask native pixels with no inverse variance so they carry no weight.
+        mask = np.logical_not(iv_s > 0)
+    else:
+        err = None
+        mask = None
+
+    # newLog=False: the wavelength grid is linear, so output pixel borders are
+    # arithmetic (not geometric) midpoints of wave_grid.
+    r = sampling.Resample(f_s, e=err, mask=mask, x=w_s, newx=wave_grid,
+                          inLog=False, newLog=False, conserve=False, ext_value=0.0)
+
+    covered = r.outf > min_frac
+    flux_grid = np.where(covered, r.outy, 0.0)
+    if err is not None:
+        ivar_grid = np.where(covered, utils.inverse(r.oute)**2, 0.0)
+    return flux_grid, ivar_grid, covered
+
+
+def build_cube_from_spec1d(spec1d_file, spectrograph, targetx, targety,
+                           boxcar=False, spatial_scale=0.27, method='linear',
+                           output=None):
+    """Build a single fiber-IFU datacube from one spec1d file.
+
+    Reads the already-extracted 1D fiber spectra from a PypeIt spec1d file
+    and builds a datacube.  Uses OPT (optimal) extraction by default, or
+    BOX (boxcar) extraction if ``boxcar`` is True.  Sky is already
+    subtracted by the pipeline, so no additional sky subtraction is
+    performed here.
+
+    The spectrograph must implement :func:`get_fiber_metadata`,
+    :func:`get_science_fiber_layout_indices`, :func:`load_sky_layout`, and
+    :func:`ifu_sky_wcs` to map fibers to sky positions and build the WCS.
+
+    Parameters
+    ----------
+    spec1d_file : :obj:`str`
+        Path to the spec1d FITS file.
+    spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+        Spectrograph instance.
+    targetx : `numpy.ndarray`_
+        Fiber x positions on sky (arcsec).
+    targety : `numpy.ndarray`_
+        Fiber y positions on sky (arcsec).
+    boxcar : :obj:`bool`, optional
+        Use BOX (boxcar) extraction columns instead of OPT (optimal).
+    spatial_scale : :obj:`float`, optional
+        Output spatial pixel scale in arcsec.
+    method : :obj:`str`, optional
+        Spatial interpolation method (``'nearest'``, ``'linear'``, or
+        ``'cubic'``).
+    output : :obj:`str`, optional
+        Output FITS filename.  If None, a name is auto-generated from the
+        input file.
+    """
+    sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
+    if sobjs.nobj == 0:
+        log.warning(f"No objects in {Path(spec1d_file).name}, skipping")
+        return
+
+    # Choose extraction type
+    prefix = 'BOX' if boxcar else 'OPT'
+    log.info(f"  Using {prefix} extraction from spec1d")
+
+    # ------------------------------------------------------------------
+    # Step 1: Organize fiber spectra by detector
+    # ------------------------------------------------------------------
+    det_fiber_data = {}
+
+    # Process each detector present in the spec1d file.
+    for det_name in sorted(np.unique(sobjs.DET)):
+        det_sobjs = sobjs[sobjs.DET == det_name]
+        if len(det_sobjs) == 0:
+            log.warning(f"  No objects for {det_name}, skipping")
+            continue
+
+        nfibers = len(det_sobjs)
+        log.info(f"  {det_name}: {nfibers} fibers from spec1d")
+
+        # Read extracted spectra
+        wave_key = f'{prefix}_WAVE'
+        flux_key = f'{prefix}_COUNTS'
+        ivar_key = f'{prefix}_COUNTS_IVAR'
+
+        # Determine spectral length from first object
+        nspec = getattr(det_sobjs[0], wave_key).shape[0]
+
+        fiber_flux = np.zeros((nfibers, nspec))
+        fiber_ivar = np.zeros((nfibers, nspec))
+        fiber_wave = np.zeros((nfibers, nspec))
+        spat_ids = np.zeros(nfibers, dtype=int)
+        slit_centers = np.zeros(nfibers, dtype=float)
+
+        for i, sobj in enumerate(det_sobjs):
+            fiber_wave[i] = getattr(sobj, wave_key)
+            fiber_flux[i] = getattr(sobj, flux_key)
+            fiber_ivar[i] = getattr(sobj, ivar_key)
+            spat_ids[i] = sobj.SLITID
+            slit_centers[i] = sobj.SPAT_PIXPOS
+
+        # Get fiber metadata (pass float centers for sub-pixel accuracy)
+        fiber_meta = spectrograph.get_fiber_metadata(
+            int(det_name.replace('DET', '')), spat_ids,
+            slit_centers=slit_centers)
+        if fiber_meta is None:
+            raise PypeItError(
+                f"{spectrograph.name} does not implement get_fiber_metadata(); "
+                "it is required to map fibers to sky positions.")
+
+        det_fiber_data[det_name] = {
+            'flux': fiber_flux,
+            'ivar': fiber_ivar,
+            'wave': fiber_wave,
+            'fiber_meta': fiber_meta,
+        }
+
+    if len(det_fiber_data) == 0:
+        log.warning(f"No detector data from "
+                    f"{Path(spec1d_file).name}, skipping")
+        return
+
+    # ------------------------------------------------------------------
+    # Build the datacube
+    # ------------------------------------------------------------------
+    with fits.open(spec1d_file) as hdu:
+        raw_hdr = hdu[0].header
+
+    build_cube_common(det_fiber_data, spectrograph, targetx, targety,
+                      raw_hdr, spec1d_file, spatial_scale=spatial_scale,
+                      method=method, output=output)
+
+
+def build_cube_common(det_fiber_data, spectrograph, targetx, targety,
+                      raw_hdr, input_file, spatial_scale=0.27,
+                      method='linear', output=None):
+    """Shared steps for building a fiber-IFU datacube from fiber spectra.
+
+    The input fiber spectra are assumed to be already sky-subtracted
+    (as produced by the PypeIt pipeline in the spec1d files).
+
+    Parameters
+    ----------
+    det_fiber_data : :obj:`dict`
+        Per-detector fiber data. Keys are detector names (e.g. ``'DET01'``),
+        values are dicts with keys ``'flux'``, ``'ivar'``, ``'wave'``,
+        ``'fiber_meta'``.
+    spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+        Spectrograph instance.
+    targetx : `numpy.ndarray`_
+        Fiber x positions on sky (arcsec).
+    targety : `numpy.ndarray`_
+        Fiber y positions on sky (arcsec).
+    raw_hdr : `astropy.io.fits.Header`_
+        Primary header from the input file.
+    input_file : :obj:`str`
+        Path to the input file (for generating the output filename).
+    spatial_scale : :obj:`float`, optional
+        Output spatial pixel scale in arcsec.
+    method : :obj:`str`, optional
+        Spatial interpolation method (``'nearest'``, ``'linear'``, or
+        ``'cubic'``).
+    output : :obj:`str`, optional
+        Output FITS filename.  If None, a name is auto-generated from the
+        input file.
+    """
+    # ------------------------------------------------------------------
+    # Identify sky vs. science fibers (flux is already sky-subtracted)
+    # ------------------------------------------------------------------
+    for det_name, data in det_fiber_data.items():
+        fiber_meta = data['fiber_meta']
+        sky_mask = fiber_meta['fiber_type'] == 'SKY'
+        n_sky = np.sum(sky_mask)
+        n_sci = np.sum(~sky_mask)
+        log.info(f"  {det_name}: {n_sky} sky fibers, {n_sci} science fibers")
+
+        data['sky_mask'] = sky_mask
+        data['sci_mask'] = ~sky_mask
+
+    # ------------------------------------------------------------------
+    # Step 4: Wavelength linearization
+    # ------------------------------------------------------------------
+    # Find global wavelength range across all detectors
+    all_waves = []
+    for data in det_fiber_data.values():
+        wave = data['wave']
+        valid = wave > 0
+        if np.any(valid):
+            all_waves.extend([np.min(wave[valid]), np.max(wave[valid])])
+
+    if len(all_waves) == 0:
+        log.error("No valid wavelength data found. "
+                  "Check that input files contain extracted fiber spectra.")
+        return
+    wave_min = min(all_waves[::2])
+    wave_max = max(all_waves[1::2])
+
+    # Use median dispersion for wavelength step
+    dispersions = []
+    for data in det_fiber_data.values():
+        wave = data['wave']
+        for i in range(wave.shape[0]):
+            valid = wave[i] > 0
+            if np.sum(valid) > 10:
+                dw = np.diff(wave[i, valid])
+                dw = dw[dw > 0]
+                if len(dw) > 0:
+                    dispersions.append(np.median(dw))
+                break  # One fiber is enough per detector
+
+    dwv = np.median(dispersions)
+    n_wave = int(np.ceil((wave_max - wave_min) / dwv)) + 1
+    wave_grid = np.linspace(wave_min, wave_min + (n_wave - 1) * dwv, n_wave)
+    log.info(f"Wavelength grid: {wave_min:.1f} to {wave_grid[-1]:.1f} A, "
+              f"dw={dwv:.3f} A, {n_wave} pixels")
+
+    # Resample each fiber onto the common wavelength grid using the
+    # flux-conserving resampler (shared with the 1D fiber extractor).
+    for data in det_fiber_data.values():
+        nfibers = data['flux'].shape[0]
+        flux_resamp = np.zeros((nfibers, n_wave))
+        ivar_resamp = np.zeros((nfibers, n_wave))
+
+        for i in range(nfibers):
+            flux_resamp[i], ivar_resamp[i], _ = resample_spec_to_grid(
+                data['wave'][i], data['flux'][i], data['ivar'][i], wave_grid,
+                min_good=10)
+
+        data['flux_resamp'] = flux_resamp
+        data['ivar_resamp'] = ivar_resamp
+
+    # ------------------------------------------------------------------
+    # Step 5: Combine both detectors
+    # ------------------------------------------------------------------
+    # Map science fibers to layout file positions
+    sci_flux_list = []
+    sci_ivar_list = []
+    layout_idx_list = []
+
+    for det_name in sorted(det_fiber_data.keys()):
+        data = det_fiber_data[det_name]
+        det_num = int(det_name.replace('DET', ''))
+
+        sci_mask = data['sci_mask']
+        fiber_meta = data['fiber_meta']
+        layout_indices = spectrograph.get_science_fiber_layout_indices(
+            det_num, fiber_meta['fiber_id'], fiber_meta['fiber_type'])
+
+        sci_flux = data['flux_resamp'][sci_mask]
+        sci_ivar = data['ivar_resamp'][sci_mask]
+        sci_layout = layout_indices[sci_mask]
+
+        # Remove any fibers with invalid layout indices
+        valid = sci_layout >= 0
+        sci_flux_list.append(sci_flux[valid])
+        sci_ivar_list.append(sci_ivar[valid])
+        layout_idx_list.append(sci_layout[valid])
+
+    combined_flux = np.vstack(sci_flux_list)
+    combined_ivar = np.vstack(sci_ivar_list)
+    combined_layout = np.concatenate(layout_idx_list)
+
+    n_sci_fibers = combined_flux.shape[0]
+    log.info(f"Combined {n_sci_fibers} science fibers from "
+              f"{len(det_fiber_data)} detector(s)")
+
+    # Trim wavelength range to where a reasonable fraction of fibers
+    # have valid data (avoids degenerate interpolation at edges)
+    n_valid = np.sum((combined_flux != 0) | (combined_ivar > 0), axis=0)
+    min_fibers = max(10, int(0.10 * n_sci_fibers))
+    good_wave = n_valid >= min_fibers
+    if not np.all(good_wave):
+        first = np.argmax(good_wave)
+        last = n_wave - 1 - np.argmax(good_wave[::-1])
+        log.info(f"Trimming wavelength range: slices {first}-{last} of "
+                  f"{n_wave} (>={min_fibers} fibers required)")
+        wave_grid = wave_grid[first:last + 1]
+        combined_flux = combined_flux[:, first:last + 1]
+        combined_ivar = combined_ivar[:, first:last + 1]
+        n_wave = len(wave_grid)
+
+    # Load fiber sky positions
+    fiber_x = targetx[combined_layout]
+    fiber_y = targety[combined_layout]
+
+    # ------------------------------------------------------------------
+    # Step 6: Build datacube via spatial interpolation
+    # ------------------------------------------------------------------
+    # Fiber positions are in arcsec (from the spectrograph sky layout); the
+    # output grid and the WCS share the same arcsec spatial scale.
+    scl = spatial_scale
+
+    # Compute grid dimensions from the fiber positions
+    x_min, x_max = np.min(fiber_x), np.max(fiber_x)
+    y_min, y_max = np.min(fiber_y), np.max(fiber_y)
+
+    # Add small padding
+    pad = scl
+    x_min -= pad
+    x_max += pad
+    y_min -= pad
+    y_max += pad
+
+    nx = int(np.ceil((x_max - x_min) / scl)) + 1
+    ny = int(np.ceil((y_max - y_min) / scl)) + 1
+
+    log.info(f"Output cube dimensions: {nx} x {ny} x {n_wave}")
+
+    # Build regular grid
+    x_grid = np.linspace(x_min, x_min + (nx - 1) * scl, nx)
+    y_grid = np.linspace(y_min, y_min + (ny - 1) * scl, ny)
+    grid_x, grid_y = np.meshgrid(x_grid, y_grid, indexing='ij')
+
+    # Interpolate at each wavelength
+    points = np.column_stack([fiber_x, fiber_y])
+    cube = np.zeros((nx, ny, n_wave), dtype=np.float32)
+    var_cube = np.zeros((nx, ny, n_wave), dtype=np.float32)
+
+    log.info(f"Interpolating {n_wave} wavelength slices using "
+              f"method='{method}'...")
+    for k in range(n_wave):
+        if k % 500 == 0:
+            log.info(f"  Wavelength slice {k}/{n_wave}")
+
+        flux_slice = combined_flux[:, k]
+        ivar_slice = combined_ivar[:, k]
+
+        # Only interpolate fibers with valid data
+        good = (flux_slice != 0) | (ivar_slice > 0)
+        if np.sum(good) < 4:
+            continue
+
+        try:
+            cube[:, :, k] = griddata(
+                points[good], flux_slice[good], (grid_x, grid_y),
+                method=method, fill_value=0.0)
+        except QhullError:
+            # Fall back to nearest-neighbor when valid points are
+            # degenerate (e.g. collinear at spectral edges)
+            cube[:, :, k] = griddata(
+                points[good], flux_slice[good], (grid_x, grid_y),
+                method='nearest', fill_value=0.0)
+
+        # Interpolate variance
+        var_slice = np.where(ivar_slice > 0, 1.0 / ivar_slice, 0.0)
+        if np.any(var_slice[good] > 0):
+            try:
+                var_cube[:, :, k] = griddata(
+                    points[good], var_slice[good], (grid_x, grid_y),
+                    method=method, fill_value=0.0)
+            except QhullError:
+                var_cube[:, :, k] = griddata(
+                    points[good], var_slice[good], (grid_x, grid_y),
+                    method='nearest', fill_value=0.0)
+
+    # ------------------------------------------------------------------
+    # Step 7: Build WCS and write output
+    # ------------------------------------------------------------------
+    # Pointing and celestial CD matrix; the spectrograph owns the IFU sky
+    # convention (see Spectrograph.ifu_sky_wcs) and the IFU mode metadata.
+    coord, cd = spectrograph.ifu_sky_wcs(raw_hdr, scl)
+    (cd11, cd12), (cd21, cd22) = cd
+    ifu_meta = spectrograph.get_ifu_datacube_meta(raw_hdr)
+
+    w = wcs.WCS(naxis=3)
+    w.wcs.equinox = raw_hdr.get('EQUINOX', 2000.0)
+    w.wcs.name = ifu_meta['name']
+    w.wcs.radesys = 'ICRS'
+    w.wcs.cname = ['RA', 'DEC', 'Wavelength']
+    w.wcs.cunit = [units.degree, units.degree, units.Angstrom]
+    w.wcs.ctype = ['RA---TAN', 'DEC--TAN', 'WAVE']
+    w.wcs.crval = [coord.ra.degree, coord.dec.degree, wave_grid[0]]
+    w.wcs.crpix = [nx / 2.0, ny / 2.0, 1.0]
+    w.wcs.cd = np.array([[cd11, cd12, 0.0],
+                         [cd21, cd22, 0.0],
+                         [0.0, 0.0, dwv]])
+    w.wcs.lonpole = 180.0
+    w.wcs.latpole = 0.0
+
+    # Build output FITS.  Instrument identity comes from the spectrograph.
+    hdr = w.to_header()
+    hdr['INSTRUME'] = (spectrograph.camera, 'Instrument')
+    hdr['TELESCOP'] = (spectrograph.telescope['name'], 'Telescope')
+    hdr['IFUMODE'] = (ifu_meta['mode'], 'IFU mode')
+    hdr['NFIBERS'] = (n_sci_fibers, 'Number of science fibers')
+    hdr['SPATSCL'] = (scl, 'Spatial pixel scale [arcsec]')
+    hdr['WAVEMIN'] = (wave_grid[0], 'Minimum wavelength [Angstrom]')
+    hdr['WAVEMAX'] = (wave_grid[-1], 'Maximum wavelength [Angstrom]')
+    hdr['WAVESTP'] = (dwv, 'Wavelength step [Angstrom]')
+    hdr['INTERP'] = (method, 'Spatial interpolation method')
+
+    # Copy useful keywords from raw header
+    for key in ['OBJECT', 'EXPTIME', 'DATE-OBS', 'DISPERSE', 'FILTER']:
+        if key in raw_hdr:
+            hdr[key] = raw_hdr[key]
+
+    # Output filename
+    if output is not None:
+        outfile = output
+    else:
+        base = Path(input_file).stem
+        if 'spec1d_' in base:
+            base = base.replace('spec1d_', 'cube_')
+        outfile = base + '.fits'
+
+    # Transpose from numpy (nx, ny, n_wave) to FITS order (n_wave, ny, nx)
+    # so that NAXIS1=nx(RA), NAXIS2=ny(DEC), NAXIS3=n_wave(WAVE)
+    cube = np.transpose(cube, (2, 1, 0))
+    var_cube = np.transpose(var_cube, (2, 1, 0))
+
+    primary = fits.PrimaryHDU(header=fits.Header())
+    primary.header['AUTHOR'] = 'PypeIt'
+    flux_hdu = fits.ImageHDU(data=cube, header=hdr, name='FLUX')
+    var_hdu = fits.ImageHDU(data=var_cube, header=hdr, name='VAR')
+
+    hdulist = fits.HDUList([primary, flux_hdu, var_hdu])
+    hdulist.writeto(outfile, overwrite=True)
+    log.info(f"Wrote datacube to {outfile}")
+    log.info(f"Cube shape: {cube.shape}")
+
+
+def project_to_sky(x_arcsec, y_arcsec, raw_hdr, spectrograph):
+    """Project instrument-frame fiber offsets to sky coordinates.
+
+    Uses the spectrograph's shared TAN/POSANG WCS convention
+    (:meth:`~pypeit.spectrographs.spectrograph.Spectrograph.ifu_sky_wcs`) so
+    that the extracted hex view aligns with the matching datacube.
+
+    Parameters
+    ----------
+    x_arcsec, y_arcsec : `numpy.ndarray`_
+        1D arrays of fiber offsets in instrument-frame arcseconds.
+    raw_hdr : `astropy.io.fits.Header`_
+        Primary header from the spec1d file, providing ``RA``, ``DEC``,
+        and (optionally) ``POSANG``.
+    spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+        Provides the ``ifu_sky_wcs`` reference-coordinate/CD-matrix helper.
+
+    Returns
+    -------
+    ra, dec : `numpy.ndarray`_
+        Fiber RA/Dec in degrees, same shape as the inputs.
+    """
+    # The inputs are already in arcsec and are fed directly to pixel_to_world
+    # below as the WCS pixel coordinates, so the WCS scale is fixed at 1 arcsec
+    # per unit step: a fiber offset of N arcsec maps to N arcsec on sky.  This
+    # is a units identity, not the output sampling (cf. build_cube_common, which
+    # passes the real spatial_scale).
+    coord, cd = spectrograph.ifu_sky_wcs(raw_hdr, 1.0)
+
+    w = wcs.WCS(naxis=2)
+    w.wcs.ctype = ['RA---TAN', 'DEC--TAN']
+    w.wcs.crval = [coord.ra.degree, coord.dec.degree]
+    # crpix is FITS 1-indexed; pixel_to_world is 0-indexed.  Setting crpix=1
+    # makes pixel (0, 0) == reference pixel == crval.
+    w.wcs.crpix = [1.0, 1.0]
+    w.wcs.cd = cd
+    w.wcs.lonpole = 180.0
+    w.wcs.latpole = 0.0
+
+    sky = w.pixel_to_world(np.asarray(x_arcsec, dtype=float),
+                           np.asarray(y_arcsec, dtype=float))
+    return np.atleast_1d(sky.ra.degree), np.atleast_1d(sky.dec.degree)
+
+
+def resample_and_combine(waves, fluxes, ivars):
+    """Resample selected fibers onto a common grid and combine.
+
+    Parameters
+    ----------
+    waves, fluxes, ivars : :obj:`list` of `numpy.ndarray`_
+        Native per-fiber wavelength, flux, and inverse-variance arrays
+        (parallel lists).  Wavelengths must be positive; the function
+        sorts each fiber internally so callers need not pre-sort.
+
+    Returns
+    -------
+    wave_out : `numpy.ndarray`_
+        Common output wavelength grid (Angstrom).
+    flux_out : `numpy.ndarray`_
+        Summed flux across fibers, NaN-safe with count rescaling.
+    ivar_out : `numpy.ndarray`_
+        Inverse variance of the combined flux.
+
+    Raises
+    ------
+    PypeItError
+        If the selected fibers do not share any overlapping wavelength range.
+    """
+    valid = [(w, f, iv) for w, f, iv in zip(waves, fluxes, ivars)
+             if np.any(w > 0)]
+    if not valid:
+        raise PypeItError("No valid wavelength data in selected fibers")
+
+    # Common range = intersection of fibers' native ranges.
+    wave_min = max(np.min(w[w > 0]) for w, _, _ in valid)
+    wave_max = min(np.max(w[w > 0]) for w, _, _ in valid)
+    if wave_max <= wave_min:
+        raise PypeItError("Selected fibers have no overlapping wavelength "
+                          f"range (min={wave_min:.2f}, max={wave_max:.2f})")
+
+    # Median pixel width across selected fibers.
+    diffs = []
+    for w, _, _ in valid:
+        good = w > 0
+        if good.sum() > 1:
+            d = np.diff(w[good])
+            d = d[d > 0]
+            if d.size:
+                diffs.append(np.median(d))
+    if not diffs:
+        raise PypeItError("Could not determine wavelength dispersion from "
+                          "selected fibers")
+    dwv = np.median(diffs)
+    n_wave = int(round((wave_max - wave_min) / dwv)) + 1
+    wave_out = np.linspace(wave_min, wave_max, n_wave)
+
+    n_fib = len(valid)
+    flux_resamp = np.zeros((n_fib, n_wave))
+    ivar_resamp = np.zeros((n_fib, n_wave))
+    have_flux = np.zeros((n_fib, n_wave), dtype=bool)
+
+    for i, (w, f, iv) in enumerate(valid):
+        flux_resamp[i], ivar_resamp[i], have_flux[i] = \
+            resample_spec_to_grid(w, f, iv, wave_out)
+
+    # Coadd: sum flux (rescaling for partial wavelength coverage) and sum the
+    # per-fiber variances (utils.inverse is zero where ivar <= 0, so masked
+    # pixels drop out of the sum automatically).
+    n_good = have_flux.sum(axis=0)
+    rescale = n_fib / np.maximum(n_good, 1)
+    flux_out = np.sum(np.where(have_flux, flux_resamp, 0.0), axis=0) * rescale
+
+    var_out = np.sum(utils.inverse(ivar_resamp), axis=0)
+    ivar_out = utils.inverse(var_out)
+
+    return wave_out, flux_out, ivar_out
+
+
+def load_fibers(sobjs, spectrograph, targetx, targety, prefix='OPT'):
+    """Build per-fiber records from a SpecObjs object.
+
+    Parameters
+    ----------
+    sobjs : :class:`~pypeit.specobjs.SpecObjs`-like
+        Iterable of :class:`~pypeit.specobj.SpecObj`.  Must expose ``DET``,
+        ``SLITID``, ``SPAT_PIXPOS``, and the relevant ``{prefix}_*`` arrays.
+    spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+        Provides ``get_fiber_metadata`` and
+        ``get_science_fiber_layout_indices``.
+    targetx, targety : `numpy.ndarray`_
+        Layout-file fiber positions in instrument-frame arcseconds, indexed
+        by science layout index.
+    prefix : {'OPT', 'BOX'}, optional
+        Extraction column prefix (optimal or boxcar).
+
+    Returns
+    -------
+    :obj:`list` of :obj:`dict`
+        One record per surviving science fiber, with keys ``wave``, ``flux``,
+        ``ivar``, ``x``, ``y``, ``fiber_id``, ``fiber_type``, ``det``.
+
+    Raises
+    ------
+    PypeItError
+        If no science fibers survive (e.g. spec1d contains only sky fibers).
+    """
+    wave_key = f'{prefix}_WAVE'
+    flux_key = f'{prefix}_COUNTS'
+    ivar_key = f'{prefix}_COUNTS_IVAR'
+
+    fibers = []
+    for det_name in sorted(np.unique(sobjs.DET)):
+        det_mask = sobjs.DET == det_name
+        det_sobjs = sobjs[det_mask]
+        if len(det_sobjs) == 0:
+            continue
+        det_num = int(det_name.replace('DET', ''))
+        spat_ids = np.array([s.SLITID for s in det_sobjs], dtype=int)
+        slit_centers = np.array([s.SPAT_PIXPOS for s in det_sobjs],
+                                dtype=float)
+        meta = spectrograph.get_fiber_metadata(det_num, spat_ids,
+                                               slit_centers=slit_centers)
+        if meta is None:
+            raise PypeItError(
+                f"{spectrograph.name} does not implement get_fiber_metadata(); "
+                "it is required to map fibers to sky positions.")
+        fiber_ids = meta['fiber_id']
+        fiber_types = np.asarray(meta['fiber_type'])
+        layout = spectrograph.get_science_fiber_layout_indices(
+            det_num, fiber_ids, fiber_types)
+        for i, sobj in enumerate(det_sobjs):
+            if fiber_types[i] == 'SKY' or layout[i] < 0:
+                continue
+            fibers.append({
+                'wave': np.asarray(getattr(sobj, wave_key), dtype=float),
+                'flux': np.asarray(getattr(sobj, flux_key), dtype=float),
+                'ivar': np.asarray(getattr(sobj, ivar_key), dtype=float),
+                'x': float(targetx[layout[i]]),
+                'y': float(targety[layout[i]]),
+                'fiber_id': int(fiber_ids[i]),
+                'fiber_type': str(fiber_types[i]),
+                'det': det_name,
+            })
+
+    if not fibers:
+        raise PypeItError("No science fibers found in spec1d input")
+    return fibers
+
+
+def write_onespec(wave, flux, ivar, raw_hdr, pyp_spec, outfile):
+    """Write a combined fiber spectrum as a :class:`~pypeit.onespec.OneSpec`.
+
+    Parameters
+    ----------
+    wave, flux, ivar : `numpy.ndarray`_
+        1D arrays of equal length (output wavelength grid, summed flux,
+        inverse variance).
+    raw_hdr : `astropy.io.fits.Header`_
+        Primary header of the source spec1d, copied through to the output.
+    pyp_spec : :obj:`str`
+        Spectrograph short name, written as ``PYP_SPEC`` so downstream
+        PypeIt scripts can re-load the file.
+    outfile : :obj:`str`
+        Output FITS path.
+    """
+    # `wave_grid_mid` is the (optional) uniformly-spaced grid used by 1D
+    # coaddition; this writer is not a coadd, so leave it as None.
+    one = OneSpec(wave=wave, wave_grid_mid=None, flux=flux, ivar=ivar,
+                  PYP_SPEC=pyp_spec)
+    # Do NOT set `one.head0` before `to_file` -- that triggers
+    # `spectrograph.subheader_for_spec` which expects extra metadata keys
+    # (e.g. target tables) not present in arbitrary input headers.  Pass
+    # the raw header via `primary_hdr=` to copy keys through.
+    one.to_file(outfile, primary_hdr=raw_hdr, overwrite=True)
 
 
 def gaussian2D(tup, intflux, xo, yo, sigma_x, sigma_y, theta, offset):
@@ -2338,6 +3034,9 @@ def subpixellate(
             wpix = (this_specpos[this_sl], this_spatpos[this_sl])
             # Create an array to index each subpixel
             numpix = wpix[0].size
+            if numpix == 0:
+                # Slit is masked or has no good pixels - skip
+                continue
             # Generate a spline between spectral pixel position and wavelength
             yspl = this_tilts[wpix] * (this_slits.nspec - 1)
             tiltpos = np.add.outer(yspl, spec_y).flatten()

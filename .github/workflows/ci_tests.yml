@@ -1,21 +1,79 @@
+
 name: CI Tests
 
 on:
   workflow_dispatch:
 
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - labeled
+      - synchronize
+
   push:
     branches:
-    - release
-    - develop
-
-  pull_request:
-    types: [labeled]
+      - release
+      - develop
 
 env:
   SETUP_XVFB: True  # avoid issues if something tries to open a GUI window
 
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      success: ${{ steps.check.outputs.success }}
+    steps:
+      - name: Check for protected branches or PR label
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Always pass the gate for pushes directly to our two protected
+          # branches
+          if [ "${{ github.event_name }}" = "push" ]; then
+            BRANCH="${{ github.ref_name }}"
+            if [ "$BRANCH" = "release" ] || [ "$BRANCH" = "develop" ]; then
+              echo "Push to protected branch '$BRANCH' — bypassing label check."
+              echo "success=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            PR_NUMBER="${{ github.event.pull_request.number }}"
+          else
+            PR_NUMBER=$(gh pr list \
+              --repo "${{ github.repository }}" \
+              --head "${{ github.ref_name }}" \
+              --state open \
+              --json number \
+              --jq '.[0].number')
+          fi
+
+          if [ -z "$PR_NUMBER" ]; then
+            echo "No open PR found for this branch — skipping."
+            echo "success=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          LABEL_COUNT=$(gh pr view "$PR_NUMBER" \
+            --repo "${{ github.repository }}" \
+            --json labels \
+            --jq '.labels | length')
+
+          if [ "$LABEL_COUNT" -gt 0 ]; then
+            echo "success=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "success=false" >> "$GITHUB_OUTPUT"
+          fi
+
   ci-tests:
+    needs: validate
+    if: needs.validate.outputs.success == 'true'
     name: Tox env ${{ matrix.python }}-${{ matrix.toxenv }}
     runs-on: ${{ matrix.os }}
     permissions:
@@ -35,11 +93,20 @@ jobs:
     - name: Install base dependencies
       run: |
         python -m pip install --upgrade pip tox
+    # PyQt6 (a core dependency, pulled in by the pytest-qt dashboard tests) links
+    # libEGL/libGL/libxkbcommon at import time; these are absent on the bare
+    # ubuntu runner, so install them or pytest crashes at startup (exit 3).
+    - name: Install system libraries for headless Qt
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libegl1 libgl1 libxkbcommon0
     - name: Test with tox
       run: |
         tox -e ${{ matrix.python }}-${{ matrix.toxenv }}
 
   dev-tests:
+    needs: validate
+    if: needs.validate.outputs.success == 'true'
     name: Tox env ${{ matrix.python }}-${{ matrix.toxenv }}
     runs-on: ${{ matrix.os }}
     permissions:
@@ -59,11 +126,18 @@ jobs:
     - name: Install base dependencies
       run: |
         python -m pip install --upgrade pip tox
+    # See the note in the ci-tests job: PyQt6 needs these system libraries.
+    - name: Install system libraries for headless Qt
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libegl1 libgl1 libxkbcommon0
     - name: Test with tox
       run: |
         tox -e ${{ matrix.python }}-${{ matrix.toxenv }}
 
   os-tests:
+    needs: validate
+    if: needs.validate.outputs.success == 'true'
     name: Python ${{ matrix.python }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     permissions:
@@ -90,6 +164,8 @@ jobs:
         tox -e ${{ matrix.python }}-${{ matrix.toxenv }}
 
   conda:
+    needs: validate
+    if: needs.validate.outputs.success == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -102,11 +178,18 @@ jobs:
     - name: Install base dependencies
       run: |
         python -m pip install --upgrade pip tox
+    # See the note in the ci-tests job: PyQt6 needs these system libraries.
+    - name: Install system libraries for headless Qt
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libegl1 libgl1 libxkbcommon0
     - name: Run pypeit tests from environment built with conda
       run: |
         tox -e conda
 
   codestyle:
+    needs: validate
+    if: needs.validate.outputs.success == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read

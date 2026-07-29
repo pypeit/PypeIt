@@ -23,7 +23,7 @@ from pypeit import PypeItError
 from pypeit import datamodel
 from pypeit import calibframe
 from pypeit import specobj
-from pypeit.bitmask import BitMask
+from pypeit.core.bitmask import BitMask
 from pypeit.core import parse
 
 
@@ -403,7 +403,7 @@ class SlitTraceSet(calibframe.CalibFrame):
             `numpy.ndarray`_:
 
         """
-        if self.pypeline in ['MultiSlit', 'SlicerIFU']:
+        if self.pypeline in ['MultiSlit', 'SlicerIFU', 'Fiber']:
             return self.spat_id
         if self.pypeline == 'Echelle':
             return self.ech_order
@@ -419,7 +419,7 @@ class SlitTraceSet(calibframe.CalibFrame):
             str: Either 'slit' or 'order'
 
         """
-        if self.pypeline in ['MultiSlit', 'SlicerIFU']:
+        if self.pypeline in ['MultiSlit', 'SlicerIFU', 'Fiber']:
             return 'slit'
         if self.pypeline == 'Echelle':
             return 'order'
@@ -449,7 +449,7 @@ class SlitTraceSet(calibframe.CalibFrame):
             int: zero-based index of the input spat_id
 
         """
-        if self.pypeline in ['MultiSlit', 'SlicerIFU']:
+        if self.pypeline in ['MultiSlit', 'SlicerIFU', 'Fiber']:
             return np.where(self.spat_id == slitord)[0][0]
         if self.pypeline == 'Echelle':
             return np.where(self.ech_order == slitord)[0][0]
