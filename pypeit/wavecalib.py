@@ -16,11 +16,12 @@ from astropy.io import fits
 
 from pypeit import log
 from pypeit import PypeItError
-from pypeit.core import arc, qa
+from pypeit import qa
+from pypeit.core import arc
 from pypeit.core import fitting
 from pypeit.core import parse
 from pypeit.core.wavecal import autoid, wv_fitting, wvutils
-from pypeit.core.gui.identify import Identify
+from pypeit.gui.identify import Identify
 from pypeit import datamodel
 from pypeit import calibframe
 from pypeit.core.wavecal import echelle
@@ -514,7 +515,11 @@ class BuildWaveCalib:
         self.meta_dict = meta_dict
 
         # Optional parameters
-        self.bpm = self.msarc.select_flag(flag='BPM') if msbpm is None else msbpm.astype(bool)
+        # Mask BPM and CR-flagged pixels: when residual CR rejection runs without
+        # filling, CR pixels still carry their original (contaminated) values, so
+        # they must be excluded from line centroiding.
+        self.bpm = self.msarc.select_flag(flag=['BPM', 'CR']) if msbpm is None \
+                    else msbpm.astype(bool)
         if self.bpm.shape != self.msarc.shape:
             raise PypeItError('Bad-pixel mask is not the same shape as the arc image.')
         self.qa_path = qa_path
@@ -1092,9 +1097,13 @@ class BuildWaveCalib:
             boolean array containing a mask indicating which slits are good. True
             = masked (bad).
         """
+        # Allow the spectrograph to adjust extraction centers (e.g. snap
+        # to nearest fiber for fiber-fed IFUs instead of block-slit midpoint)
+        slitcen = self.spectrograph.get_arc_extract_center(
+            self.slitcen, self.slits, self.det)
         # Do it on the slits not masked in self.slitmask
         arccen, arccen_bpm, arc_maskslit = arc.get_censpec(
-            self.slitcen, self.slitmask, self.msarc.image,
+            slitcen, self.slitmask, self.msarc.image,
             gpm=self.gpm, slit_bpm=self.wvc_bpm,
             slitIDs=slitIDs, box_rad=self.par['boxcar_radius'])
         # Step

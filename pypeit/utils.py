@@ -32,7 +32,7 @@ from scipy import signal
 
 from pypeit import log
 from pypeit import PypeItError
-from pypeit.move_median import move_median
+from pypeit.core.move_median import move_median
 from pypeit import dataPaths
 
 
@@ -1348,23 +1348,6 @@ def inverse(array):
         `numpy.ndarray`_: Result of controlled ``1/array`` calculation.
     """
     return (array > 0.0) / (np.abs(array) + (array == 0.0))
-
-
-def calc_ivar(varframe):
-    """
-
-    Calculate the inverse variance based on the input array
-
-    Wrapper to inverse()
-
-    Args:
-        varframe (`numpy.ndarray`_):  Variance image
-
-    Returns:
-        `numpy.ndarray`_:  Inverse variance image
-    """
-    # THIS WILL BE DEPRECATED!!
-    return inverse(varframe)
 
 
 def robust_meanstd(array):

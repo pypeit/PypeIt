@@ -72,7 +72,6 @@ PypeIt BibTeX Entries
    Execution <running>
    outputs
    QA <qa>
-   Step-by-step Processing <reduce_by_step>
 
 .. toctree::
    :caption: Processing Details
@@ -113,6 +112,8 @@ PypeIt BibTeX Entries
    frametype
    scripts
    bitmasks
+   Reduction State <state>
+   bspline
 
 .. toctree::
    :caption: Project Information
@@ -130,5 +131,6 @@ PypeIt BibTeX Entries
 
    Development Guidelines <dev/development>
    Adding a New Spectrograph <dev/new_spectrograph>
+   Dashboard Design <dashboard/dashboard_design>
    API <api/modules>
 

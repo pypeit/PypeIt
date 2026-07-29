@@ -16,7 +16,7 @@ import numpy as np
 from astropy.io import fits
 
 from pypeit.datamodel import DataContainer
-from pypeit.bitmask import BitMask
+from pypeit.core.bitmask import BitMask
 from pypeit import log
 from pypeit import PypeItBitMaskError
 from pypeit import PypeItError
@@ -32,7 +32,7 @@ class BitMaskArray(DataContainer):
             Shape of the mask to create.
         asuint (:obj:`bool`, optional):
             When setting the data-type for the mask array (see
-            :func:`~pypeit.bitmask.BitMask.minimum_dtype`), use an *unsigned*
+            :func:`~pypeit.core.bitmask.BitMask.minimum_dtype`), use an *unsigned*
             integer instead of a signed integer (e.g., ``uint16`` instead of
             ``int16``).
     """
@@ -51,7 +51,7 @@ class BitMaskArray(DataContainer):
 
     bitmask = None
     """
-    :class:`~pypeit.bitmask.BitMask` object used to interpret the bit array.
+    :class:`~pypeit.core.bitmask.BitMask` object used to interpret the bit array.
     Must be defined by the subclass.  When defining subclasses, note that the
     bitmask flags *must* be case-insensitive strings.
     """

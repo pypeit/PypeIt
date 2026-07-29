@@ -5,6 +5,8 @@ __all__ = [
 
     # Subclasses
     'arxiv_solution',
+    'binospec_ifu_cube',
+    'binospec_ifu_extract',
     'cache_github_data',
     'chk_alignments',
     'chk_edges',
@@ -24,6 +26,7 @@ __all__ = [
     'collate_1d',
     'compare_sky',
     'compile_wvarxiv',
+    'dashboard',
     'edge_inspector',
     'extract_datacube',
     'flux_calib',
@@ -54,6 +57,7 @@ __all__ = [
     'show_pixflat',
     'show_wvcalib',
     'skysub_regions',
+    'status',
     'tellfit',
     'trace_edges',
     'version',

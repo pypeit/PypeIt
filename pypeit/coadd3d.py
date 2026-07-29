@@ -1334,6 +1334,12 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 self.mnmx_wv = np.zeros((len(self.spec2d), slits.nslits, 2))
             for slit_idx, slit_spat in enumerate(slits.spat_id):
                 onslit_init = (slitid_img == slit_spat)
+                if not np.any(onslit_init):
+                    # Slit is masked (e.g., bad flat calibration) - use
+                    # values that won't affect global min/max calculations
+                    self.mnmx_wv[ff, slit_idx, 0] = wave0
+                    self.mnmx_wv[ff, slit_idx, 1] = waveimg[wnonzero].max()
+                    continue
                 self.mnmx_wv[ff, slit_idx, 0] = np.min(waveimg[onslit_init])
                 self.mnmx_wv[ff, slit_idx, 1] = np.max(waveimg[onslit_init])
 
