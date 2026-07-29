@@ -1741,21 +1741,40 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 show_qa=show_qa)
 
     def make_datacubes(self):
-        """ Make individual datacubes (and/or) a combined datacube on a single WCS.
+        """
+        Make individual datacubes (and/or) a combined datacube on a single WCS.
 
-        # TODO : Since the images are aligned, we should be using the full cube to
-        # compute the whitelight image since we do that anyway below. So basically the weight computation
-        # should be moved just before the final combined datacube generation below. Specifically, we should be:
-        # 1. Performing an intiial sigma clipping of the cubes.
-        # 2. Computing an initial preliminary stacked cube.
-        # 3. Generate a whitelight image from the preliminary stacked cube.
-        # 4. Perform object finding on this stacked cube.
-        # 5. Compute the weights at the location of the object by extracting spectra from the individual cubes,
-        #    probably there should be an option to use the optimal extraction method  (extract_point_source)
-        #    or one can use the single pixel computation (extended sources) in compute_weights.
-        # 6. Re-combined the cubes using these weights, again performing the final round of sigma clipping
-        # 7. Write out the individual cubes with their sigma clipped pixels masked (?)
-        # 8. Write out the final combined cube.
+        .. todo::
+            
+            Since the images are aligned, we should be using the full cube to
+            compute the whitelight image since we do that anyway below. So
+            basically the weight computation should be moved just before the
+            final combined datacube generation below. Specifically, we should
+            be:
+
+                #. Performing an intiial sigma clipping of the cubes.
+
+                #. Computing an initial preliminary stacked cube.
+                
+                #. Generate a whitelight image from the preliminary stacked
+                   cube.
+
+                #. Perform object finding on this stacked cube.
+
+                #. Compute the weights at the location of the object by
+                   extracting spectra from the individual cubes, probably there
+                   should be an option to use the optimal extraction method
+                   (extract_point_source) or one can use the single pixel
+                   computation (extended sources) in compute_weights.
+                
+                #. Re-combined the cubes using these weights, again performing
+                   the final round of sigma clipping
+
+                #. Write out the individual cubes with their sigma clipped
+                   pixels masked (?)
+                
+                #. Write out the final combined cube.
+
         """
         # Compute the relative weights on the spectra
         self.all_wghts = self.compute_pixel_weights(show_qa=self.debug)
