@@ -12,7 +12,7 @@ from matplotlib import pyplot
 
 from astropy.stats import sigma_clip
 
-from pypeit.bitmask import BitMask
+from pypeit.core.bitmask import BitMask
 from pypeit.utils import index_of_x_eq_y
 from pypeit import io
 
@@ -909,7 +909,6 @@ class SlitMask:
 #         slit_func_y[(slit_func_x > slit[0]) & (slit_func_x < slit[1])] = 1.
 # 
 #     return offset, slit_func_x, slit_func_y
-
 
 def positive_pa(pa:float):
     """ Modify input pa to be positive (0-360)

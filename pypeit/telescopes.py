@@ -235,3 +235,14 @@ class JWSTTelescopePar(TelescopePar):
                                               latitude=0.0,
                                               elevation=0.0,
                                               diameter=6.5)
+
+
+class ARCTelescopePar(TelescopePar):
+    def __init__(self):
+        loc = EarthLocation.of_site('Apache Point Observatory')
+        super(ARCTelescopePar, self).__init__(name='APO',
+                                               longitude=loc.lon.to(units.deg).value,
+                                               latitude=loc.lat.to(units.deg).value,
+                                               elevation=loc.height.to(units.m).value,
+                                               diameter=3.5)
+

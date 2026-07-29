@@ -219,6 +219,7 @@ class ProcessImagesPar(ParSet):
                  comb_sigrej=None,
 #                 calib_setup_and_bit=None,
                  rmcompact=None, sigclip=None, sigfrac=None, objlim=None,
+                 cr_median_width=None,
                  use_biasimage=None, use_overscan=None, use_darkimage=None,
                  dark_expscale=None, correct_nonlinear=None,
                  empirical_rn=None, shot_noise=None, noise_floor=None,
@@ -370,11 +371,11 @@ class ProcessImagesPar(ParSet):
         defaults['spat_flexure_correct'] = False
         dtypes['spat_flexure_correct'] = bool
         descr['spat_flexure_correct'] = 'Correct slits, illumination flat, etc. for flexure'
-        
+
         defaults['spat_flexure_maxlag'] = 20
         dtypes['spat_flexure_maxlag'] = int
         descr['spat_flexure_maxlag'] = 'Maximum of possible spatial flexure correction, in pixels'
-        
+
         defaults['spat_flexure_sigdetect'] = 5.
         dtypes['spat_flexure_sigdetect'] = [int, float]
         descr['spat_flexure_sigdetect'] = 'Sigma threshold above fluctuations in the '  \
@@ -463,6 +464,17 @@ class ProcessImagesPar(ParSet):
         dtypes['objlim'] = [int, float]
         descr['objlim'] = 'Object detection limit in LA cosmics routine'
 
+        defaults['cr_median_width'] = 0
+        dtypes['cr_median_width'] = int
+        descr['cr_median_width'] = 'Width (in pixels, along axis 1) of the row-local ' \
+                                   'median filter applied by build_crmask before running ' \
+                                   'L.A.Cosmic on the residual.  Useful for line-rich ' \
+                                   'frames with small tilts (e.g. arcs, tilts) where the ' \
+                                   'standard 3x3 Laplacian misses the bodies of extended ' \
+                                   'trails.  Only active when mask_cr=True.  Set to 0 ' \
+                                   '(default) to disable; set to an odd integer (e.g. 31) ' \
+                                   'to enable.'
+
 #        defaults['calib_setup_and_bit'] = None
 #        dtypes['calib_setup_and_bit'] = str
 #        descr['calib_setup_and_bit'] = 'Over-ride the calibration setup and bit, e.g. "A_7".  ' \
@@ -490,7 +502,7 @@ class ProcessImagesPar(ParSet):
                    'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
                    'scale_to_mean', 'correct_nonlinear', 'satpix', #'calib_setup_and_bit',
                    'n_lohi', 'mask_cr', 'lamaxiter', 'grow', 'clip', 'comb_sigrej', 'rmcompact',
-                   'sigclip', 'sigfrac', 'objlim']
+                   'sigclip', 'sigfrac', 'objlim', 'cr_median_width']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -578,7 +590,7 @@ class FlatFieldPar(ParSet):
                  illum_iter=None, illum_rej=None, twod_fit_npoly=None, saturated_slits=None,
                  slit_illum_relative=None, slit_illum_ref_idx=None, slit_illum_smooth_npix=None,
                  pixelflat_min_wave=None, pixelflat_max_wave=None, slit_illum_finecorr=None,
-                 fit_2d_det_response=None):
+                 fit_2d_det_response=None, fiber_pixelflat=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -751,6 +763,17 @@ class FlatFieldPar(ParSet):
                                        'that have a dedicated response correction implemented. Currently,' \
                                        'this correction is only implemented for Keck+KCWI.'
 
+        defaults['fiber_pixelflat'] = False
+        dtypes['fiber_pixelflat'] = bool
+        descr['fiber_pixelflat'] = 'For the Fiber pypeline only: build a standard 2D pixel flat from ' \
+                                   'the flat frames (via the normal FlatField machinery) instead of ' \
+                                   'using a unity pixel flat.  The default (False) is appropriate for ' \
+                                   'in-focus fiber flats that illuminate only a few pixels under each ' \
+                                   'fiber (e.g. MMT Binospec), where a 2D pixel flat would imprint ' \
+                                   'fiber-profile structure.  Set True for instruments whose flats ' \
+                                   'illuminate the full detector (e.g. defocused fiber flats), so a ' \
+                                   'meaningful detector-response pixel flat can be measured.'
+
         # Instantiate the parameter set
         super(FlatFieldPar, self).__init__(list(pars.keys()),
                                            values=list(pars.values()),
@@ -770,7 +793,8 @@ class FlatFieldPar(ParSet):
                    'tweak_slits', 'tweak_method', 'tweak_slits_thresh', 'tweak_slits_maxfrac',
                    'rej_sticky', 'slit_trim', 'slit_illum_pad', 'slit_illum_relative',
                    'illum_iter', 'illum_rej', 'twod_fit_npoly', 'saturated_slits',
-                   'slit_illum_ref_idx', 'slit_illum_smooth_npix', 'slit_illum_finecorr', 'fit_2d_det_response']
+                   'slit_illum_ref_idx', 'slit_illum_smooth_npix', 'slit_illum_finecorr', 'fit_2d_det_response',
+                   'fiber_pixelflat']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -1150,7 +1174,7 @@ class ScatteredLightPar(ParSet):
         """
         Return the valid scattered light methods.
         """
-        return ['model', 'frame', 'archive']
+        return ['model', 'frame', 'archive', 'gaps']
 
     @staticmethod
     def valid_finecorr_scattlight_methods():
@@ -2209,7 +2233,7 @@ class SensFuncPar(ParSet):
     def __init__(self, use_flat=None, extrap_blu=None, extrap_red=None, samp_fact=None, multi_spec_det=None,
                  trim_std_pixs=None, algorithm=None, UVIS=None,
                  IR=None, polyorder=None, star_type=None, star_mag=None, star_ra=None, extr=None,
-                 star_dec=None, mask_hydrogen_lines=None, mask_helium_lines=None, hydrogen_mask_wid=None):
+                 star_dec=None, star_arxiv=None, mask_hydrogen_lines=None, mask_helium_lines=None, hydrogen_mask_wid=None):
         # Grab the parameter names and values from the function arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         pars = OrderedDict([(k, values[k]) for k in args[1:]])
@@ -2304,6 +2328,15 @@ class SensFuncPar(ParSet):
         dtypes['star_dec'] = float
         descr['star_dec'] = 'DEC of the standard star. This will override values in the header (`i.e.`, if they are wrong or absent)'
 
+        defaults['star_arxiv'] = 'default'
+        dtypes['star_arxiv'] = str
+        descr['star_arxiv'] = (
+            'Specify the name of the archive to search for the standard star flux '
+            'table/spectrum.  When set to ``default``, code will search through the '
+            'prioritized list set by :func:`~pypeit.core.standard.get_archive_sets`.  Note this '
+            'must be a valid, single string identifying the archive to use (e.g. ``lbtmods``).'
+        )
+
         defaults['mask_hydrogen_lines'] = True
         dtypes['mask_hydrogen_lines'] = bool
         descr['mask_hydrogen_lines'] = 'Mask hydrogen Balmer, Paschen, Brackett, and Pfund recombination lines in the sensitivity function fit. ' \
@@ -2334,7 +2367,7 @@ class SensFuncPar(ParSet):
         # Single element parameters
         parkeys = ['use_flat', 'extrap_blu', 'extrap_red', 'samp_fact', 'multi_spec_det',
                    'trim_std_pixs', 'algorithm', 'polyorder', 'star_type', 'star_mag',
-                   'star_ra', 'star_dec', 'extr',   'mask_hydrogen_lines', 'mask_helium_lines',
+                   'star_ra', 'star_dec', 'star_arxiv', 'extr',   'mask_hydrogen_lines', 'mask_helium_lines',
                    'hydrogen_mask_wid']
 
         # All parameters, including nested ParSets
@@ -3824,7 +3857,7 @@ class EdgeTracePar(ParSet):
         descr['niter_gaussian'] = 'The number of iterations of ' \
                                   ':func:`~pypeit.core.trace.fit_trace` to use when using ' \
                                   'Gaussian weighting.'
-        
+
         defaults['min_edge_side_sep'] = 5.0
         dtypes['min_edge_side_sep'] = [int, float]
         descr['min_edge_side_sep'] = 'Minimum separation between same-side edges (e.g., the ' \
@@ -4745,7 +4778,8 @@ class SkySubPar(ParSet):
 
     def __init__(self, bspline_spacing=None, sky_sigrej=None, global_sky_std=None, no_poly=None,
                  user_regions=None, joint_fit=None, mask_by_boxcar=None,
-                 no_local_sky=None, max_mask_frac=None, local_maskwidth=None):
+                 no_local_sky=None, max_mask_frac=None, local_maskwidth=None,
+                 joint_fit_use_sci=None, sci_exclude_radius=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -4817,6 +4851,23 @@ class SkySubPar(ParSet):
         dtypes['local_maskwidth'] = float
         descr['local_maskwidth'] = 'Initial width of the region in units of FWHM that will be used for local sky subtraction'
 
+        defaults['joint_fit_use_sci'] = True
+        dtypes['joint_fit_use_sci'] = bool
+        descr['joint_fit_use_sci'] = 'Fiber pypeline only. When True, the global sky bspline is fit ' \
+                                     'jointly to dedicated sky fibers and science fibers, using the ' \
+                                     'standard iterative sigma rejection to down-weight pixels that ' \
+                                     'contain real source flux. When False, only fibers whose ' \
+                                     'MASKDEF_OBJNAME starts with "SKY" are used.'
+
+        defaults['sci_exclude_radius'] = None
+        dtypes['sci_exclude_radius'] = [int, float]
+        descr['sci_exclude_radius'] = 'Fiber pypeline only. When set and joint_fit_use_sci is True, ' \
+                                      'exclude from the joint sky fit any science fiber whose on-sky ' \
+                                      'position lies within this radius (in arcsec) of the instrument ' \
+                                      'geometric center. Use this to exclude inner science fibers most ' \
+                                      'likely to contain source flux while retaining fibers away from ' \
+                                      'the source for additional sky background information.'
+
 
         # Instantiate the parameter set
         super(SkySubPar, self).__init__(list(pars.keys()),
@@ -4834,7 +4885,8 @@ class SkySubPar(ParSet):
         # Basic keywords
         parkeys = ['bspline_spacing', 'sky_sigrej', 'global_sky_std', 'no_poly',
                    'user_regions', 'joint_fit', 'mask_by_boxcar',
-                   'no_local_sky', 'max_mask_frac', 'local_maskwidth']
+                   'no_local_sky', 'max_mask_frac', 'local_maskwidth',
+                   'joint_fit_use_sci', 'sci_exclude_radius']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -5768,7 +5820,7 @@ class TelescopePar(ParSet):
         """
         return ['AAT', 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT',
                 'MAGELLAN', 'LBT', 'MMT', 'KPNO', 'NOT', 'P200', 'BOK', 'GTC', 'SOAR', 'NTT',
-                'LDT', 'JWST', 'HILTNER', 'SUBARU']
+                'LDT', 'JWST', 'HILTNER', 'SUBARU', 'APO']
 
     def validate(self):
         pass

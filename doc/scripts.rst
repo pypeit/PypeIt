@@ -232,9 +232,39 @@ An example call is:
 pypeit_reduce_by_step
 ---------------------
 
-See :doc:`reduce_by_step` for a complete discussion of this 
-script which is used to isolate individual steps of the reduction 
+See :ref:`step-by-step-reductions` for a complete discussion of this
+script which is used to isolate individual steps of the reduction
 on individual science/standard frames and detectors/mosaics.
+
+.. _pypeit_status:
+
+pypeit_status
+-------------
+
+This prints the status of a PypeIt reduction to the screen — for each
+calibration group and
+detector, which calibration steps have been built (and the status of the science
+frames) — *without* performing any processing.  It *always* re-derives the
+:ref:`reduction state <state>` from the products currently on disk (it never
+simply reads the ``*_state.json`` file, and, being a read, does not write it),
+so its output reflects the disk even when the state file is stale or missing.
+It is the command-line counterpart
+of the graphical :ref:`dashboard`.
+
+The status tables are printed to standard output, so they can be paged or
+saved with the usual shell tools (e.g. ``pypeit_status ... | less``, or a
+``>`` redirect).
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_status.rst
+
+A typical call is:
+
+.. code-block:: console
+
+    pypeit_status shane_kast_blue_A.pypeit
 
 pypeit_trace_edges
 ------------------

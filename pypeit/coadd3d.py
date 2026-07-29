@@ -477,7 +477,7 @@ class CoAdd3D:
         spectrograph (see
         :func:`~pypeit.spectrographs.spectrograph.Spectrograph.default_pypeit_par`
         for the relevant spectrograph class).
-    redux_path : :obj: str, optional
+    redux_path : :obj:`str`, optional
         The top-level directory for all output files.  If None, this is set to
         the current working directory.  Output files may also be put into
         subdirectories within this top-level directory, like Science_cube and
@@ -504,7 +504,7 @@ class CoAdd3D:
     spectrograph : :obj:`str`, :class:`~pypeit.spectrographs.spectrograph.Spectrograph`, optional
         The name or instance of the spectrograph used to obtain the data.  If
         None, this is pulled from the header of the first spec2D file provided.
-    det : :obj:`int`_, optional
+    det : :obj:`int`, optional
         Detector index
     overwrite : :obj:`bool`, optional
         Overwrite existing output files
@@ -756,31 +756,34 @@ class CoAdd3D:
         """
         Construct the names and ensure the existence of the science and QA output directories.
 
-        Args:
-            spec2d_files (:obj:`list`):
-                The list of PypeIt spec2d files to be coadded.  The top-level
-                directory for the coadd3d output directories is assumed to be
-                same as used by the basic reductions.  For example, if one of
-                the spec2d files is
-                ``/path/to/reductions/Science/spec2d_file.fits``, the parent
-                directory for the coadd2d directories is
-                ``/path/to/reductions/``.
-            science_dir (:obj:`str`):
-                The name of the science directory to use for the coadd3d output.
-                 For example, if scidir is "Science", the science output directory will be
-                ``/path/to/reductions/Science_cube/``.
-            qa_dir (:obj:`str`):
-                The name of the QA directory to use for the coadd3d output.  For
-                example, if qadir is "QA", the QA output directory will be
-                ``/path/to/reductions/QA_cube/``.
-            coadd_dir (:obj:`str`, optional):
-                Path to the directory to use for the coadd3d output.
-                If None, the parent of the science directory is used.
+        Parameters
+        ----------
+        spec2d_files : :obj:`list`
+            The list of PypeIt spec2d files to be coadded.  The top-level
+            directory for the coadd3d output directories is assumed to be same
+            as used by the basic reductions.  For example, if one of the spec2d
+            files is ``/path/to/reductions/Science/spec2d_file.fits``, the
+            parent directory for the coadd2d directories is
+            ``/path/to/reductions/``.
+        science_dir : :obj:`str`
+            The name of the science directory to use for the coadd3d output.
+            For example, if scidir is "Science", the science output directory
+            will be ``/path/to/reductions/Science_cube/``.
+        qa_dir : :obj:`str`
+            The name of the QA directory to use for the coadd3d output.  For
+            example, if qadir is "QA", the QA output directory will be
+            ``/path/to/reductions/QA_cube/``.
+        coadd_dir : :obj:`str`, optional
+            Path to the directory to use for the coadd3d output.  If None, the
+            parent of the science directory is used.
 
-        Returns:
-            :obj:`tuple`: Two strings with the names of (1) the science output
-            directory and (2) the QA output directory.  The function also
-            creates both directories if they do not exist.
+        Returns
+        -------
+        coadd_scidir : str
+            The science output directory.  Directory is created if it doesn't
+            exist.
+        qa_path : str
+            The QA output directory.  Directory is created if it doesn't exist.
         """
         # Science output directory
         if coadd_dir is not None:
@@ -1814,21 +1817,40 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 show_qa=show_qa)
 
     def make_datacubes(self):
-        """ Make individual datacubes (and/or) a combined datacube on a single WCS.
+        """
+        Make individual datacubes (and/or) a combined datacube on a single WCS.
 
-        # TODO : Since the images are aligned, we should be using the full cube to
-        # compute the whitelight image since we do that anyway below. So basically the weight computation
-        # should be moved just before the final combined datacube generation below. Specifically, we should be:
-        # 1. Performing an intiial sigma clipping of the cubes.
-        # 2. Computing an initial preliminary stacked cube.
-        # 3. Generate a whitelight image from the preliminary stacked cube.
-        # 4. Perform object finding on this stacked cube.
-        # 5. Compute the weights at the location of the object by extracting spectra from the individual cubes,
-        #    probably there should be an option to use the optimal extraction method  (extract_point_source)
-        #    or one can use the single pixel computation (extended sources) in compute_weights.
-        # 6. Re-combined the cubes using these weights, again performing the final round of sigma clipping
-        # 7. Write out the individual cubes with their sigma clipped pixels masked (?)
-        # 8. Write out the final combined cube.
+        .. todo::
+            
+            Since the images are aligned, we should be using the full cube to
+            compute the whitelight image since we do that anyway below. So
+            basically the weight computation should be moved just before the
+            final combined datacube generation below. Specifically, we should
+            be:
+
+                #. Performing an intiial sigma clipping of the cubes.
+
+                #. Computing an initial preliminary stacked cube.
+                
+                #. Generate a whitelight image from the preliminary stacked
+                   cube.
+
+                #. Perform object finding on this stacked cube.
+
+                #. Compute the weights at the location of the object by
+                   extracting spectra from the individual cubes, probably there
+                   should be an option to use the optimal extraction method
+                   (extract_point_source) or one can use the single pixel
+                   computation (extended sources) in compute_weights.
+                
+                #. Re-combined the cubes using these weights, again performing
+                   the final round of sigma clipping
+
+                #. Write out the individual cubes with their sigma clipped
+                   pixels masked (?)
+                
+                #. Write out the final combined cube.
+
         """
         # Compute the relative weights on the spectra
         self.all_wghts = self.compute_pixel_weights(show_qa=self.debug)
