@@ -1371,7 +1371,8 @@ def spec_flexure_qa(slitords:np.ndarray, bpm:np.ndarray, basename:str,
     plt.rcdefaults()
 
 
-def calculate_image_phase(imref, imshift, gpm_ref=None, gpm_shift=None, maskval=None):
+def calculate_image_phase(imref, imshift, gpm_ref=None, gpm_shift=None, maskval=None,
+                          force_cc=False):
     """
     Perform a masked cross-correlation and optical flow calculation to robustly
     estimate the subpixel shifts of two images.
@@ -1395,6 +1396,10 @@ def calculate_image_phase(imref, imshift, gpm_ref=None, gpm_shift=None, maskval=
     maskval : float, optional
         If gpm_ref and gpm_shift are both None, a single value can be specified
         and this value will be masked in both images.
+    force_cc : bool, optional
+        If True, forces the use of the standard (unmasked) cross-correlation
+        method, even if skimage is installed and the input images are the same
+        shape.  This is useful for testing and debugging.
 
     Returns
     -------
@@ -1407,6 +1412,8 @@ def calculate_image_phase(imref, imshift, gpm_ref=None, gpm_shift=None, maskval=
         In order to align image with im_ref, dec_diff should be added to the
         y-coordinates of image
     """
+    if force_cc:
+        return calculate_image_offset(imref, imshift)
     # Do some checks first
     try:
         from skimage.registration import optical_flow_tvl1, phase_cross_correlation

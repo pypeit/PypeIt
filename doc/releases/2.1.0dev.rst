@@ -56,6 +56,7 @@ Testing
 
 - Add new tests for :mod:`~pypeit.core.pydl`
 - Added new tests for :class:`~pypeit.inputfiles.InputFile` objects.
+- Added new tests for :mod:`~pypeit.core.datacube`.
 
 Under-the-hood Improvements
 ---------------------------
@@ -72,6 +73,8 @@ Under-the-hood Improvements
 - Refactor how script and spectrograph classes are imported.  Instead of
   importing each module in the relevant ``__init__.py`` file, we now define
   ``__all__`` and import all the relevant classes where needed.
+- Multiple improvements for datacube generation, including no transpose operations
+  and faster cube generation.
 
 Bug Fixes
 ---------
@@ -93,3 +96,4 @@ Bug Fixes
 - Fix a bug in 2D coaddition where manually identified objects were not being
   used to compute offsets between input frames.  Add description of this failure
   mode to the :ref:`known_issues_coadd2d` documentation for 2D coaddition.
+- Fixed bugs with the datacube WCS and datacube alignments.

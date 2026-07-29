@@ -1036,6 +1036,47 @@ def occurrences(inarr):
     return cnt[idx]
 
 
+def occurrences_sorted(inarr):
+    """ Calculate the sub-pixellation weights for a 2D array.
+
+    This function calculates the number of occurrences of each unique value in the 2D input array along one axis.
+
+    Parameters
+    ----------
+    inarr : ndarray
+        Input array. Must be 2D. The first axis is expected to be a large number of indices, N,
+        and the second axis is expected to be of length M, where M is the number of unique values in each row.
+        The function calculates the number of occurrences of each unique value along the first axis for each row.
+
+    Returns
+    -------
+    ndarray
+        Array of sub-pixellation weights.
+    """
+    n_rows, n_cols = inarr.shape
+
+    # Sort each row and find where values change
+    sorted_idx = np.argsort(inarr, axis=1, kind='stable')
+    sorted_vals = np.take_along_axis(inarr, sorted_idx, axis=1)
+
+    # Detect boundaries between different values within each row
+    boundaries = np.ones((n_rows, n_cols), dtype=bool)
+    boundaries[:, 1:] = sorted_vals[:, 1:] != sorted_vals[:, :-1]
+
+    # Use cumsum trick to count occurrences
+    counts = np.diff(np.where(boundaries.ravel())[0],
+                     append=n_rows * n_cols)
+
+    # Build output in sorted order, then unsort
+    result_sorted = np.repeat(counts, counts)  # each element gets its group's count
+
+    # Unsort back to original order
+    unsort_idx = np.argsort(sorted_idx, axis=1)
+    return np.take_along_axis(
+        result_sorted.reshape(n_rows, n_cols), unsort_idx, axis=1
+    ).ravel()
+
+
 def pyplot_rcparams():
     """
     params for pretty matplotlib plots
@@ -1479,6 +1520,30 @@ def linear_interpolate(x1, y1, x2, y2, x):
         :math:`x`.
     """
     return y1 if np.isclose(x1,x2) else y1 + (x-x1)*(y2-y1)/(x2-x1)
+
+
+def linear_interpolate_extrapolate(x, xp, fp):
+    """ Perform a linear interpolation on a set of points, but allow for extrapolation at the boundaries.
+
+    Parameters
+    ----------
+    x : `numpy.ndarray`_
+        Points to evaluate the linear interpolation at
+    xp : `numpy.ndarray`_
+        The x-coordinates of the data points, must be increasing
+    fp : `numpy.ndarray`_
+        The y-coordinates of the data points, must be increasing
+
+    Returns
+    -------
+    `numpy.ndarray`_
+        The interpolated/extrapolated values at the points in x
+    """
+    idx = np.searchsorted(xp, x, side='right').clip(1, len(xp) - 1)
+    x0, x1 = xp[idx - 1], xp[idx]
+    f0, f1 = fp[idx - 1], fp[idx]
+    slope = (f1 - f0) / (x1 - x0)
+    return f0 + slope * (x - x0)  # naturally extrapolates at boundaries
 
 
 def replace_bad(frame, bpm):
