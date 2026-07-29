@@ -6,19 +6,19 @@
                                  [--whitelight_range WHITELIGHT_RANGE]
                                  [--manual MANUAL] [--fwhm FWHM]
                                  [--snr_thresh SNR_THRESH]
-                                 [--spatial_delta SPATIAL_DELTA] [--det DET]
-                                 [-o] [--append]
+                                 [--spatial_delta SPATIAL_DELTA] [--det DET] [-o]
+                                 [--append]
                                  pypeit_file target
-
+    
     Prepare .coadd3d and .extract files for point-source datacube work.
-
+    
     positional arguments:
       pypeit_file           PypeIt reduction file.
       target                Target name, e.g. J0750+6927.
-
+    
     options:
       -h, --help            show this help message and exit
-      -v VERBOSITY, --verbosity VERBOSITY
+      -v, --verbosity VERBOSITY
                             Verbosity level, which must be 0, 1, or 2. Level 0
                             includes warning and error messages, level 1 adds
                             informational messages, and level 2 adds debugging
@@ -33,9 +33,9 @@
       --sensfile SENSFILE   Optional sensitivity function file. If omitted, the
                             generated .coadd3d file will produce unfluxed cubes.
                             (default: None)
-      --whitelight_range WHITELIGHT_RANGE, --wl_range WHITELIGHT_RANGE
-                            White-light wavelength range, e.g. 9400,10000.
-                            Defaults to None,None. (default: None,None)
+      --whitelight_range, --wl_range WHITELIGHT_RANGE
+                            White-light wavelength range, e.g. 9400,10000. Defaults
+                            to None,None. (default: None,None)
       --manual MANUAL       Manual extraction position in colon-separated x:y
                             coordinates, e.g. 10.0:14.0. Do not use commas. If
                             provided, the extract file uses
@@ -54,3 +54,4 @@
       --append              Append newly reduced spec2d files to an existing
                             .coadd3d file without changing any other lines. The
                             .extract file is left unchanged. (default: False)
+    
