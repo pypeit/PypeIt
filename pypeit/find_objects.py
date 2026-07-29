@@ -26,7 +26,7 @@ from pypeit.core import procimg
 from pypeit.core import findobj_skymask
 from pypeit.core import extract
 from pypeit.core.moment import moment1d
-from pypeit.core.fitting import iterfit
+from pypeit.core.fitting import iterative_bspline_fit
 from pypeit.flatfield import FiberFlatImages, FlatImages
 from pypeit.extraction import FiberExtract
 
@@ -1291,6 +1291,9 @@ class FiberFindObjects(FindObjects):
 
     See parent doc string for Args and Attributes.
     """
+
+    _basis_function = 'legendre'
+
     def get_platescale(self, slitord_id=None):
         """
         Return the platescale in binned pixels for the current detector.
@@ -1540,7 +1543,7 @@ class FiberFindObjects(FindObjects):
                         self.sciImg.image, self.sciImg.ivar,
                         inmask, self.waveimg, zero_sky,
                         fwhmimg=fwhmimg)
-            except Exception as e:
+            except PypeItError as e:
                 log.warning(f"Pre-extract failed for fiber "
                             f"{getattr(sobj, 'MASKDEF_ID', '?')}: {e}")
                 continue
@@ -1742,7 +1745,7 @@ class FiberFindObjects(FindObjects):
                     val = float(f_illum[i])
                     if np.isfinite(val) and val > 0.1:
                         illum_lookup[int(fid)] = val
-            except Exception as e:
+            except PypeItError as e:
                 log.warning(f"Could not load fiber_illumination: {e}; "
                             f"using flat-only throughput")
 
@@ -1813,7 +1816,7 @@ class FiberFindObjects(FindObjects):
 
         By default the fit is joint over dedicated sky fibers and all
         science fibers, relying on the iterative sigma rejection in
-        :func:`~pypeit.core.fitting.iterfit` (asymmetric, tighter on the
+        :func:`~pypeit.core.fitting.iterative_bspline_fit` (asymmetric, tighter on the
         upper side) to down-weight pixels that contain real source flux.
         Two ``[reduce][skysub]`` parameters control which fibers
         contribute:
@@ -1906,7 +1909,7 @@ class FiberFindObjects(FindObjects):
             if np.any(in_range):
                 x2_arr = np.full(int(np.sum(in_range)),
                                  float(sobj.SPAT_PIXPOS) / nspat)
-                vals, _ = sset.value(sobj.BOX_WAVE[in_range], x2=x2_arr)
+                vals, _ = sset.value(sobj.BOX_WAVE[in_range], basis_x=x2_arr)
                 sky_spec[in_range] = vals * thru
             sobj.BOX_COUNTS_SKY = sky_spec
 
@@ -1977,7 +1980,7 @@ class FiberFindObjects(FindObjects):
         -------
         result : tuple or None
             ``(sset, wave_min, wave_max, outmask)`` on success, or ``None``
-            if there are no good fiber inputs or ``iterfit`` raises.
+            if there are no good fiber inputs or ``iterative_bspline_fit`` raises.
         """
 
         nspec, nspat = self.sciImg.image.shape
@@ -2056,15 +2059,16 @@ class FiberFindObjects(FindObjects):
             f"(excluded {n_excluded} sci within r<{excl_r}\"), "
             f"bsp={bsp}, npoly={npoly}, sigrej=({lower},{upper})")
         try:
-            sset, outmask = iterfit(
-                all_wave, all_flux, invvar=all_ivar, x2=all_x2,
-                upper=upper, lower=lower, maxiter=10, nord=4,
-                kwargs_bspline={'bkspace': bsp, 'npoly': npoly})
-        except Exception as e:
+            sset, outmask, *_ = iterative_bspline_fit(
+                all_wave, all_flux, ivar=all_ivar, basis=self._basis_function, npoly=npoly,
+                basis_x=all_x2, upper=upper, lower=lower, maxiter=10, nord=4,
+                kwargs_knots={'spacing': bsp}
+            )
+        except PypeItError as e:
             log.warning(f"Fiber sky bspline fit{tag} failed: {e}")
             return None
 
-        n_rej = int(np.sum(~outmask))
+        n_rej = int(np.sum(np.logical_not(outmask)))
         log.info(f"Fiber sky bspline{tag}: {n_rej}/{len(outmask)} pixels "
                  f"rejected ({100 * n_rej / max(len(outmask), 1):.1f}%)")
         return sset, float(all_wave[0]), float(all_wave[-1]), outmask
@@ -2098,8 +2102,8 @@ class FiberFindObjects(FindObjects):
         n_wave_search = 4000
         grid_w = np.linspace(wave_min + 5.0, wave_max - 5.0, n_wave_search)
         try:
-            mdl, _ = sset.value(grid_w, x2=np.full_like(grid_w, 0.5))
-        except Exception as e:
+            mdl, _ = sset.value(grid_w, basis_x=np.full_like(grid_w, 0.5))
+        except PypeItError as e:
             log.warning(f"Could not evaluate bspline for LSF line search: {e}")
             return 0
         finite = np.isfinite(mdl)
@@ -2252,7 +2256,7 @@ class FiberFindObjects(FindObjects):
         sobjs : :class:`~pypeit.specobjs.SpecObjs`
             Fiber SpecObjs from the first pass; ``BOX_WAVE`` is updated in
             place.
-        sset : :class:`~pypeit.bspline.bspline.bspline`
+        sset : :class:`~pypeit.core.bspline.BSpline2D`
             First-pass bspline.
         wave_min, wave_max : float
             Valid wavelength range for the bspline.
@@ -2361,7 +2365,7 @@ class FiberFindObjects(FindObjects):
 
         Parameters
         ----------
-        sset : :class:`~pypeit.bspline.bspline.bspline`
+        sset : :class:`~pypeit.core.bspline.BSpline2D`
             The reference (joint) bspline being refined against.
         wave : :class:`numpy.ndarray`
             Per-row wavelength of the fiber's boxcar spectrum (good rows
@@ -2388,9 +2392,9 @@ class FiberFindObjects(FindObjects):
             The closed-form Delta-p that adds to ``center`` to give the
             estimated shift, or ``None`` if the solve was degenerate.
         """
-        base, _ = sset.value(wave + center * dlam, x2=x2)
+        base, _ = sset.value(wave + center * dlam, basis_x=x2)
         base_plus, _ = sset.value(
-            wave + (center + probe_pix) * dlam, x2=x2)
+            wave + (center + probe_pix) * dlam, basis_x=x2)
         dbase = (base_plus - base) / probe_pix
         # weight^2 = (dbase/dp)^2 * ivar; matches the legacy
         # grad*sqrt(ivar) weighting (the 1/dlam^2 conversion factor cancels
@@ -2475,7 +2479,7 @@ class FiberFindObjects(FindObjects):
 
         try:
             targetx, targety = spec.load_sky_layout()
-        except Exception as e:
+        except PypeItError as e:
             log.warning(f"Could not load IFU sky layout for "
                         f"sci_exclude_radius: {e}")
             return {}
@@ -2492,7 +2496,7 @@ class FiberFindObjects(FindObjects):
         try:
             layout_idx = spec.get_science_fiber_layout_indices(
                 det, fiber_ids, fiber_types)
-        except Exception as e:
+        except PypeItError as e:
             log.warning(f"Could not map fibers to layout indices for "
                         f"sci_exclude_radius: {e}")
             return {}

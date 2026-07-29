@@ -49,6 +49,7 @@ dependencies = [
     "pygithub",
     "bottleneck",
     "pyqt6",
+    "pydantic>=2.0",
 ]
 
 [project.optional-dependencies]
@@ -68,6 +69,7 @@ test = [
     "pytest-astropy",
     "tox",
     "pytest-cov",
+    "pytest-qt",
     "coverage",
 ]
 docs = [
@@ -77,10 +79,10 @@ docs = [
     "sphinx-design",
     "sphinx_rtd_theme==3.0.0",
     "sphinx-autodoc-typehints>3.2",
+    "sphinxcontrib-mermaid",
 ]
 devsuite = [
     "psutil",
-    "pytest-qt",
 ]
 dev = [
     "scikit-image>=0.23",
@@ -97,6 +99,7 @@ dev = [
     "sphinx-design",
     "sphinx_rtd_theme==3.0.0",
     "sphinx-autodoc-typehints>3.2",
+    "sphinxcontrib-mermaid",
     "psutil",
     "pytest-qt",
 ]
@@ -107,6 +110,7 @@ Documentation = "https://pypeit.readthedocs.io/"
 
 [project.scripts]
 
+#  
 # non-GUI scripts
 pypeit_rectify_2dspec = "pypeit.scripts.rectify_2dspec:Rectify2DSpec.entry_point"
 pypeit_arxiv_solution = "pypeit.scripts.arxiv_solution:ArxivSolution.entry_point"
@@ -141,11 +145,13 @@ pypeit_preprocess_jwst = "pypeit.scripts.preprocess_jwst:PreprocessJWST.entry_po
 pypeit_print_bpm = "pypeit.scripts.print_bpm:PrintBPM.entry_point"
 pypeit_qa_html = "pypeit.scripts.qa_html:QAHtml.entry_point"
 pypeit_ql = "pypeit.scripts.ql:QL.entry_point"
+pypeit_status = "pypeit.scripts.status:PypeItStatus.entry_point"
 run_pypeit = "pypeit.scripts.run_pypeit:RunPypeIt.entry_point"
 pypeit_run_to_calibstep = "pypeit.scripts.run_to_calibstep:RunToCalibStep.entry_point"
 pypeit_reduce_by_step = "pypeit.scripts.reduce_by_step:ReducebyStep.entry_point"
 pypeit_sensfunc = "pypeit.scripts.sensfunc:SensFunc.entry_point"
 pypeit_setup = "pypeit.scripts.setup:Setup.entry_point"
+pypeit_dashboard = "pypeit.scripts.dashboard:PypeItDashboard.entry_point"
 pypeit_setup_coadd2d = "pypeit.scripts.setup_coadd2d:SetupCoAdd2D.entry_point"
 pypeit_show_arxiv = "pypeit.scripts.show_arxiv:ShowArxiv.entry_point"
 pypeit_version = "pypeit.scripts.version:Version.entry_point"

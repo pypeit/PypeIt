@@ -24,6 +24,7 @@ from pypeit.metadata import PypeItMetaData
 from pypeit import outputfiles
 from pypeit import exposure
 from pypeit import pypeit_steps
+from pypeit.state.run_state import RunPypeItState
 
 
 class PypeIt:
@@ -87,13 +88,11 @@ class PypeIt:
         self.pypeit_file = pypeit_file
 
         # State
-        #self.run_state = state.RunPypeItState(pypeit_file=pypeit_file,
-        #                                      current_step='init',
-        #                                      current_det=-1,
-        #                                      current_calibID=-1)
+        self.run_state = RunPypeItState(pypeit_file=pypeit_file,
+                                              current_step='init',
+                                              current_det=-1,
+                                              current_calibID=-1)
         #self.run_state = self.run_state.load()
-        # TODO: Implement RunPypeItState.
-        self.run_state = None
         
         # Load up PypeIt file
         self.pypeItFile = inputfiles.PypeItFile.from_file(pypeit_file)
@@ -144,6 +143,9 @@ class PypeIt:
         if not self.calib_only:
             self._check_calibrations()
 
+        # Check for required calibrations
+        self.run_state = calibrations.required_calibs(self.par, self.fitstbl, self.spectrograph, self.run_state)
+
         # --------------------------------------------------------------
         #   - Write .calib file (For QA naming amongst other things)
         calib_file = pypeit_file.replace('.pypeit', '.calib')
@@ -188,13 +190,23 @@ class PypeIt:
         qa.gen_mf_html(self.pypeit_file, self.qa_path)
         qa.gen_exp_html()
 
-    def calib_all(self):
+    def calib_all(self, status_only=False, reload_only=False):
         """
         Process all calibration frames.
 
-        Provides an avenue to process the calibrations for a dataset 
+        Provides an avenue to process the calibrations for a dataset
         without (or omitting) any science/standard frames.
+
+        Args:
+            status_only (:obj:`bool`, optional):
+                If True, only check whether calibration output files
+                exist and update the state accordingly, without running
+                any calibrations.
+            reload_only (:obj:`bool`, optional):
+                If True, only reload the calibrations, without running any
+                calibrations.
         """
+
         self.tstart = time.perf_counter()
 
         log.info('Starting calibration only reduction')
@@ -202,6 +214,7 @@ class PypeIt:
         # Frame indices
         for calib_ID in self.fitstbl.calib_groups:
             # Find all the frames in this calibration group
+
             in_grp = self.fitstbl.find_calib_group(calib_ID)
             if not any(in_grp):
                 continue
@@ -216,7 +229,10 @@ class PypeIt:
                 log.info(f'Working on detector {self.det}')
 
                 caliBrate = pypeit_steps.calib_one(self.spectrograph, self.fitstbl, self.par,
-                                       self.det, calib_ID, self.calibrations_path)
+                                       self.det, calib_ID, self.calibrations_path,
+                                       run_state=self.run_state,
+                                       status_only=status_only,
+                                       reload_only=reload_only)
 
             log.info(f'Finished calibration group {calib_ID}')
 
@@ -465,7 +481,7 @@ def reduce_calibID(spectrograph, par, fitstbl, calib_ID:str,
             execution until clicked on) and outputs to ginga. Requires
             remote control ginga session via
             ``ginga --modules=RC,SlitWavelength &``
-        run_state (:class:`~pypeit.state.RunPypeItState`, optional):
+        run_state (:class:`~pypeit.state.run_state.RunPypeItState`, optional):
             The current state of the reduction.
         reuse_calibs (:obj:`bool`, optional):
             Reuse any pre-existing calibration files

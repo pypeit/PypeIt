@@ -132,7 +132,8 @@ def set_bkg_negative(fitstbl, par, bg_frames:list):
 def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str=None,
               slitname:str=None, reuse_calibs:bool=True,
               qa_path:str=None, show:bool=False, run_state:dict=None,
-              stop_at_step:str=None):
+              stop_at_step:str=None, status_only:bool=False,
+              reload_only:bool=False):
     """
     Run Calibration for a single detector, calib_ID pair.
 
@@ -166,11 +167,18 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str=N
             defined by the parameters.
         show (:obj:`bool`, optional):
             Show the QA during processing
-        run_state (:obj:`dict`, optional):
-            A dictionary containing the current state of the reduction.
-            If None, a new empty dictionary is created.
+        run_state (:class:`~pypeit.state.run_state.RunPypeItState`, optional):
+            The current state of the reduction.
+            If None, no state tracking is performed.
         stop_at_step (:obj:`str`, optional):
             Run only up to this calibration step.
+        status_only (:obj:`bool`, optional):
+            If True, only check whether calibration output files exist
+            and update the state accordingly, without running any
+            calibrations.
+        reload_only (:obj:`bool`, optional):
+            If True, only reload the calibrations, without running any
+            calibrations.
 
     Returns:
         caliBrate (:class:`~pypeit.calibrations.Calibrations`)
@@ -191,12 +199,12 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str=N
     add_to_lstr = f' -- Slit/SRC {slitname}' if slitname is not None else ''
     log.info(f'Building/loading calibrations for detector {det}{add_to_lstr} ')
     caliBrate = calibrations.Calibrations.get_instance(
-        fitstbl, par['calibrations'], spectrograph,
-        calibrations_path, calib_ID, grp_frames[0], det,
+        fitstbl, par['calibrations'], spectrograph, calibrations_path,
+        calib_ID, grp_frames[0], det,
         qadir=qa_path,
         reuse_calibs=reuse_calibs, show=show, user_slits=user_slits,
-        chk_version=par['rdx']['chk_version'])
-        #, state=run_state)
+        chk_version=par['rdx']['chk_version'],
+        state=run_state)
 
     # Check
     if stop_at_step is not None and stop_at_step not in caliBrate.steps:
@@ -204,9 +212,10 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str=N
             f"Requested stop_at_step={stop_at_step} is not a valid calibration step.\n Allowed "
             f"steps are: {caliBrate.steps}"
         )
-        
+
     # Run
-    caliBrate.run_the_steps(stop_at_step=stop_at_step)
+    caliBrate.run_the_steps(stop_at_step=stop_at_step,
+        reload_only=reload_only, status_only=status_only)
 
     # Success?
     if not caliBrate.success:
