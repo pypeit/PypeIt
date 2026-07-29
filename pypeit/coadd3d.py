@@ -1574,22 +1574,19 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 log.info("Calculating the spatial translation of each cube relative to user-defined 'reference_image'")
 
             # Calculate the image offsets relative to the reference image
-            if self.alignment_method == 'phase':
+            if self.alignment_method in ['phase', 'cc']:
+                force_cc = True if self.alignment_method == 'cc' else False
                 for ff in range(self.numfiles):
                     # Calculate the shift
-                        ra_shift, dec_shift = calculate_image_phase(
-                            reference_image.copy(), wl_imgs[:, :, ff], maskval=0.0)
-                        # Convert pixel shift to degrees shift
-                        ra_shift *= self._dspat/cosdec
-                        dec_shift *= self._dspat
-                        log.info(
-                            f"Spatial shift of cube #{ff+1}:\n"
-                            f"RA, DEC (arcsec) = {ra_shift*3600.0:+0.3f} E, "
-                            f"{dec_shift*3600.0:+0.3f} N"
-                        )
-                        # Store the shift in the RA and DEC offsets in degrees
-                        ra_offsets[ff] += ra_shift
-                        dec_offsets[ff] += dec_shift
+                    dec_shift, ra_shift = calculate_image_phase(
+                        reference_image.copy(), wl_imgs[:, :, ff], maskval=0.0, force_cc=force_cc
+                    )
+                    # Convert pixel shift to degrees shift
+                    ra_shift *= -self._dspat/cosdec
+                    dec_shift *= self._dspat
+                    # Store the shift in the RA and DEC offsets in degrees
+                    ra_offsets[ff] -= ra_shift
+                    dec_offsets[ff] -= dec_shift
             elif self.alignment_method == 'fit':
                 ra_pix_star = np.zeros(self.numfiles)
                 dec_pix_star = np.zeros(self.numfiles)
@@ -1606,18 +1603,18 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                             np.logical_not(bpm_imgs[:, :, ff]), model, gaussian_position,
                             init_obj_position, channel_prefix = f'Img_{ff}'
                         )
-                    ra_pix_star[ff], dec_pix_star[ff] = gaussian_position
+                    dec_pix_star[ff], ra_pix_star[ff] = gaussian_position
 
-                ra_shifts = (ra_pix_star - ra_pix_star[ref_idx]) * self._dspat / cosdec
-                dec_shifts = (dec_pix_star - dec_pix_star[ref_idx]) * self._dspat
-                ra_offsets =[ra_offsets[ff] + ra_shifts[ff] for ff in range(self.numfiles)]
-                dec_offsets =[dec_offsets[ff] + dec_shifts[ff] for ff in range(self.numfiles)]
+                ra_shifts = -(ra_pix_star[ref_idx] - ra_pix_star) * self._dspat / cosdec
+                dec_shifts = (dec_pix_star[ref_idx] - dec_pix_star) * self._dspat
+                ra_offsets = [ra_offsets[ff] - ra_shifts[ff] for ff in range(self.numfiles)]
+                dec_offsets = [dec_offsets[ff] - dec_shifts[ff] for ff in range(self.numfiles)]
             else:
                 raise PypeItError(f"self.alignment_method method '{self.alignment_method}' is not supported.")
 
             for ff in range(self.numfiles):
                 log.info(
-                    f"Spatial shift of cube #{ff + 1}:\n"
+                    f"Total spatial offset of cube #{ff + 1}:\n"
                     f"RA, DEC (arcsec) = {ra_offsets[ff]*3600.0:+0.3f} E, "
                     f"{dec_offsets[ff]*3600.0:+0.3f} N"
                 )
@@ -1770,7 +1767,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
         # If we are combining frames, check that alignment has been requested. 
         # If not, then print out a warning. 
-        if self.combine and not self.align:
+        if self.combine and not self.align and self.numfiles!=1:
             log.warning(
                 "Combining frames without aligning them.  Make sure that you know what you are "
                 "doing!  Even if your frames are taken at the same position, alignment is still "
@@ -1845,9 +1842,6 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     self.scidir, self.spec2d[ff], self.cubepar['output_filename'], False, idx=ff+1
                 )
                 # Generate the datacube       
-                
-                # TODO Put in a self.native flag to allow for the datacube to be generated in the native resolution
-                # of the data as it is currently being done in the load method?    
                 flxcube, sigcube, bpmcube, normcube, wave = \
                     datacube.generate_cube_subpixel(cube_wcs, vox_edges,
                                                     self.all_sci[ff], self.all_ivar[ff], self.all_wave[ff],

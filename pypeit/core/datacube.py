@@ -5,6 +5,7 @@ Module containing routines used by 3D datacubes.
 """
 
 import os
+# import line_profiler
 
 from astropy import wcs, units
 from astropy.coordinates import AltAz, SkyCoord
@@ -96,7 +97,7 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
         The inverse variance of the image. Optional. If not passed, the standard deviation computed
         from the image will be used to compute the inverse variance. Default is None.
     gpm : `numpy.ndarray`_, optional
-        A good pixel mask. Pixels that are True are good. Default is None,
+        A good pixel mask. Pixels that are True are good. Default is None.
     init_obj_position : tuple, optional
         The initial guess for the object position in the image with format
         (x, y). If set, the 2D Gaussian fit will be performed with the position constrainted
@@ -148,15 +149,6 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
     sigma = fwhm*fwhm2sigma
     # Normalise if requested
     wlscl = np.max(image) if norm else 1.0
-    if ivar is None: 
-        mean, median, std = sigma_clipped_stats(image[np.logical_not(totmask)], sigma=3.0)
-        if std > 0:
-            _ivar = np.full_like(image, 1.0/std**2)
-        else:
-            log.warning('Could not measure standard deviation from image.  Assuming 1.')
-            _ivar = np.ones_like(image)
-    else: 
-        _ivar = ivar
 
     ## Find the objects
     ximg = np.tile(np.arange(image.shape[1]), (image.shape[0], 1))
@@ -165,10 +157,20 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
                 (yimg < mask_edge) | (yimg >= image.shape[0] - mask_edge)
     totmask = edgemask | np.logical_not(_gpm)
 
+    if ivar is None:
+        mean, median, std = sigma_clipped_stats(image[np.logical_not(totmask)], sigma=3.0)
+        if std > 0:
+            _ivar = np.full_like(image, 1.0/std**2)
+        else:
+            log.warning('Could not measure standard deviation from image.  Assuming 1.')
+            _ivar = np.ones_like(image)
+    else:
+        _ivar = ivar
+
     if init_obj_position is None: 
         if DAOStarFinder is None:
             raise PypeItError(
-                'Requires optional photutils dependency to proceed.  Try to reinstall pypeit '
+                'Requires optional photutils (>=3.0.0) dependency to proceed.  Try to reinstall pypeit '
                 'including the datacube dependencies; e.g., pip install "pypeit[datacube]".'
             )
         if median_filter:
@@ -187,8 +189,8 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
 
         # Create a border mask to exclude junk at the edges
         daofind = DAOStarFinder(
-            fwhm=fwhm, threshold=nsigma, sharphi=2.0, 
-            exclude_border=False, brightest=1)
+            fwhm=fwhm, threshold=nsigma, sharpness_range=(0.2, 2.0),
+            exclude_border=False, n_brightest=1)
         # switched exclude_border to False since we use the edgemask now
         sources = daofind((objfind_image - median_objfind)*np.sqrt(ivar_objfind), mask=totmask)
         if verbose: 
@@ -205,7 +207,7 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
                 f"nsigma = {nsigma:.1f} or adjust the DAOStarFinder parameters."
             )
 
-        _init_obj_position = sources['ycentroid'][0], sources['xcentroid'][0]
+        _init_obj_position = sources['y_centroid'][0], sources['x_centroid'][0]
     else:
         _init_obj_position = init_obj_position
         
@@ -690,7 +692,7 @@ def extract_point_source(
     if fluxed:
         sobj.OPT_FLAM = sobj.OPT_COUNTS
         sobj.OPT_FLAM_SIG = sobj.OPT_COUNTS_SIG
-        sobj.OPT_FLAM_IVAR = sobj.OPT_COUNTS_IVARf
+        sobj.OPT_FLAM_IVAR = sobj.OPT_COUNTS_IVAR
 
     # Make a specobjs object
     sobjs = specobjs.SpecObjs()
@@ -1224,8 +1226,8 @@ def align_user_offsets(ifu_ra, ifu_dec, ra_offset, dec_offset):
     out_dec_offsets = [0.0 for _ in range(numfiles)]
     for ff in range(numfiles):
         # Apply the shift
-        out_ra_offsets[ff] = ref_shift_ra[ff] + ra_offset[ff]
-        out_dec_offsets[ff] = ref_shift_dec[ff] + dec_offset[ff]
+        out_ra_offsets[ff] = ref_shift_ra[ff] - ra_offset[ff]
+        out_dec_offsets[ff] = ref_shift_dec[ff] - dec_offset[ff]
         log.info(
             f"Spatial shift of cube #{ff + 1}:\nRA, DEC (arcsec) = {ra_offset[ff]*3600.0:+0.3f} "
             f"E, {dec_offset[ff]*3600.0:+0.3f} N"
@@ -1393,21 +1395,24 @@ def wcs_bounds(raImg, decImg, waveImg, slitid_img_gpm, ra_offsets=None, dec_offs
         # Get the RA, Dec, and wavelength of the pixels on the slit
         if ra_min is None or ra_max is None:
             this_ra = _raImg[fr][_slitid_img_gpm[fr] > 0]
-            tmp_min, tmp_max = np.min(this_ra)+_ra_offsets[fr], np.max(this_ra)+_ra_offsets[fr]
+            tmp_min = np.min(this_ra) - _ra_offsets[fr]
+            tmp_max = np.max(this_ra) - _ra_offsets[fr]
             if fr == 0 or tmp_min < _ra_min:
                 _ra_min = tmp_min
             if fr == 0 or tmp_max > _ra_max:
                 _ra_max = tmp_max
         if dec_min is None or dec_max is None:
             this_dec = _decImg[fr][_slitid_img_gpm[fr] > 0]
-            tmp_min, tmp_max = np.min(this_dec)+_dec_offsets[fr], np.max(this_dec)+_dec_offsets[fr]
+            tmp_min = np.min(this_dec) - _dec_offsets[fr]
+            tmp_max = np.max(this_dec) - _dec_offsets[fr]
             if fr == 0 or tmp_min < _dec_min:
                 _dec_min = tmp_min
             if fr == 0 or tmp_max > _dec_max:
                 _dec_max = tmp_max
         if wave_min is None or wave_max is None:
             this_wave = _waveImg[fr][_slitid_img_gpm[fr] > 0]
-            tmp_min, tmp_max = np.min(this_wave), np.max(this_wave)
+            tmp_min = np.min(this_wave)
+            tmp_max = np.max(this_wave)
             if fr == 0 or tmp_min < _wave_min:
                 _wave_min = tmp_min
             if fr == 0 or tmp_max > _wave_max:
@@ -2021,7 +2026,7 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
                                  _all_wcs, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset,
                                  spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel,
                                  skip_subpix_weights=True, correct_dar=correct_dar)
-        return img[:, :, 0], sigimg[:, :, 0], bpmimg[:, :, 0]
+        return img[0, :, :], sigimg[0, :, :], bpmimg[0, :, :]
     else:
         # Prepare the array of white light images to be stored
         numframes = len(_sciImg)
@@ -2163,8 +2168,9 @@ def generate_cube_subpixel(
 
     return flxcube, sigcube, bpmcube, normcube, wave
 
-
-
+# DEVELOPER NOTES: RJC is working towards making subpixellate a faster routine, and sometimes uses this decorator
+# find out the bottlenecks and how to speed things up. Please leave this decorator in for the time-being, uncommented.
+# @line_profiler.profile
 def subpixellate(
     output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts, slits,
     astrom_trans, all_dar, ra_offset, dec_offset, spec_subpixel=5, spat_subpixel=5,
@@ -2286,6 +2292,8 @@ def subpixellate(
     # Prepare the output arrays
     outshape = (bins[0].size-1, bins[1].size-1, bins[2].size-1)
     binrng = np.array([[bins[0][0], bins[0][-1]], [bins[1][0], bins[1][-1]], [bins[2][0], bins[2][-1]]])
+    voxscale = outshape / (binrng[:, 1] - binrng[:, 0])  # shape (3,)
+    voxoffset = binrng[:, 0] * voxscale  # shape (3,)
     flxcube, varcube, normcube = np.zeros(outshape), np.zeros(outshape), np.zeros(outshape)
     # Divide each pixel into subpixels
     spec_offs = np.arange(0.5/spec_subpixel, 1, 1/spec_subpixel) - 0.5  # -0.5 is to offset from the centre of each pixel.
@@ -2310,6 +2318,14 @@ def subpixellate(
         this_sci = _sciImg[fr][this_onslit_gpm]
         this_var = utils.inverse(_ivarImg[fr][this_onslit_gpm])
         this_wav = _waveImg[fr][this_onslit_gpm]
+        slshape = (this_slits.nspec, this_slits.nspat, slice_subpixel)
+        raimg_slc = np.zeros(slshape, dtype=float)
+        decimg_slc = np.zeros(slshape, dtype=float)
+        for ss in range(slice_subpixel):
+            # Generate an RA/Dec image for this subslice
+            raimg_slc[:, :, ss], decimg_slc[:, :, ss], _ = this_slits.get_radec_image(
+                this_wcs, this_astrom_trans, this_tilts, slice_offset=slice_offs[ss]
+            )
         # Loop through all slits
         for sl, spatid in enumerate(this_slits.spat_id):
             if verbose:
@@ -2349,27 +2365,18 @@ def subpixellate(
                 if verbose and slice_subpixel > 1: 
                     # Only print this if there are multiple subslices
                     log.info(f"Resampling subslice {ss+1}/{slice_subpixel}")
-                # Generate an RA/Dec image for this subslice
-                raimg, decimg, delta_pix = this_slits.get_radec_image(this_wcs, this_astrom_trans, this_tilts,
-                                                                      slit_compute=sl, slice_offset=slice_offs[ss])
-                this_ra = raimg[this_onslit_gpm]
-                this_dec = decimg[this_onslit_gpm]
+                # Select the RA/Dec image for this subslice
+                this_ra = raimg_slc[:,:,ss][this_onslit_gpm]
+                this_dec = decimg_slc[:,:,ss][this_onslit_gpm]
                 # Interpolate the RA/Dec over the subpixel spatial positions
                 tmp_ra = this_ra[this_sl]
                 tmp_dec = this_dec[this_sl]
-                ra_spl = interp1d(spatpos[ssrt], tmp_ra[ssrt], kind='linear', bounds_error=False, fill_value='extrapolate')
-                dec_spl = interp1d(spatpos[ssrt], tmp_dec[ssrt], kind='linear', bounds_error=False, fill_value='extrapolate')
                 # Evaluate the RA/Dec at the subpixel spatial positions
-                this_ra_int = ra_spl(spatpos_subpix)
-                this_dec_int = dec_spl(spatpos_subpix)
+                this_ra_int = utils.linear_interpolate_extrapolate(spatpos_subpix, spatpos[ssrt], tmp_ra[ssrt])
+                this_dec_int = utils.linear_interpolate_extrapolate(spatpos_subpix, spatpos[ssrt], tmp_dec[ssrt])
                 # Now apply the DAR correction and any user-supplied offsets
-                this_ra_int += ra_corr + _ra_offset[fr]
-                this_dec_int += dec_corr + _dec_offset[fr]
-                # TODO: Below was a hack to fix bug for KCRM. I suspected the
-                # WCS was being set incorrectly, which was true, and this hack
-                # fixed it. Old code is the line above.  See
-                # https://github.com/pypeit/PypeIt/issues/2116
-                #this_dec_int += dec_corr - _dec_offset[fr]
+                this_ra_int += ra_corr - _ra_offset[fr]
+                this_dec_int += dec_corr - _dec_offset[fr]
                 # Convert world coordinates to voxel coordinates, then histogram
                 sslo = ss * num_subpixels
                 sshi = (ss + 1) * num_subpixels
@@ -2380,12 +2387,11 @@ def subpixellate(
             else:
                 if verbose: 
                     log.info("Preparing subpixel weights")
-                vox_index = np.floor(outshape * (vox_coord - binrng[:,0].reshape((1, 1, 3))) /
-                                                (binrng[:,1] - binrng[:,0]).reshape((1, 1, 3))).astype(int)
+                vox_index = np.floor(vox_coord * voxscale - voxoffset).astype(int)
                 # Convert to a unique index
                 vox_index = np.dot(vox_index, np.array([1, outshape[0], outshape[0]*outshape[1]]))
                 # Calculate the number of repeated indices for each subpixel - this is the subpixel weights
-                subpix_wght = np.apply_along_axis(utils.occurrences, 1, vox_index).flatten()
+                subpix_wght = utils.occurrences_sorted(vox_index)
             # Reshape the voxel coordinates
             vox_coord = vox_coord.reshape(numpix * num_all_subpixels, 3)
             # Use the "fast histogram" algorithm, that assumes regular bin spacing

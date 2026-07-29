@@ -662,7 +662,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         # Calculate the CD Matrix
         cd11 = cdelt1 * np.cos(crota)                          # RA degrees per column
         cd12 = abs(cdelt2) * np.sign(cdelt1) * np.sin(crota)   # RA degrees per row
-        cd21 = -abs(cdelt1) * np.sign(cdelt2) * np.sin(crota)  # DEC degress per column
+        cd21 = -abs(cdelt1) * np.sign(cdelt2) * np.sin(crota)  # DEC degrees per column
         cd22 = cdelt2 * np.cos(crota)                          # DEC degrees per row
         # Get reference pixels (set these to the middle of the FOV)
         crpix1 = 24/2   # i.e. 24 slices/2
@@ -672,19 +672,17 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         porg = hdr['PONAME']
         ifunum = hdr['IFUNUM']
         if 'IFU' in porg:
-            # if ifunum == 1:  # Large slicer
-            #     off1 = 1.0
-            #     off2 = 4.0
-            # elif ifunum == 2:  # Medium slicer
-            #     off1 = 1.0
-            #     off2 = 5.0
-            # elif ifunum == 3:  # Small slicer
-            #     off1 = 0.05
-            #     off2 = 5.6
-            # else:
-            #     log.warning("Unknown IFU number: {0:d}".format(ifunum))
-            off1 = 0.
-            off2 = 0.
+            if ifunum == 1:  # Large slicer
+                off1 = 1.0
+                off2 = 4.0
+            elif ifunum == 2:  # Medium slicer
+                off1 = 1.0
+                off2 = 5.0
+            elif ifunum == 3:  # Small slicer
+                off1 = 0.05
+                off2 = 5.6
+            else:
+                log.warning("Unknown IFU number: {0:d}".format(ifunum))
             off1 /= binspec
             off2 /= binspat
             crpix1 += off1
@@ -1279,7 +1277,6 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
                         dataext         = 0,
                         specaxis        = 0,
                         specflip        = specflip,
-                        #spatflip        = False,  # JFH changed to False after consulting with R. Cooke on 2024-12-21
                         spatflip        = True,  # Due to the extra mirror, the slices are flipped relative to KCWI
                         platescale      = 0.145728,  # arcsec/pixel TODO :: Need to double check this
                         darkcurr        = None,  # e-/pixel/hour  TODO :: Need to check this.
