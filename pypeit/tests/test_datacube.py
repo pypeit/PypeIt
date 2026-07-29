@@ -3,17 +3,21 @@ Module to run tests on datacube generation
 """
 from pathlib import Path
 
-from IPython import embed
-
-import numpy as np
-
 from astropy.wcs import WCS
 import astropy.units as u
 from astropy.coordinates import SkyCoord
+from IPython import embed
+import numpy as np
+import pytest
 
 from pypeit import utils
 from pypeit.core import datacube
 from pypeit.core.flexure import calculate_image_phase
+
+photutils_required = pytest.mark.skipif(
+    datacube.DAOStarFinder is None, reason='photutils not installed'
+)
+
 
 def make_point_source_image(ra, dec, dspat, wcs,
                             n_pix=100, fwhm_arcsec=None):
@@ -184,6 +188,8 @@ def test_align_cc():
     assert np.isclose(ra_offsets[1].to(u.arcsec).value, offs_ra.to(u.arcsec).value, atol=atol)
     assert np.isclose(dec_offsets[1].to(u.arcsec).value, offs_dec.to(u.arcsec).value, atol=atol)
 
+
+@photutils_required
 def test_align_fit():
     numiter = 5  # This is the same number of iterations used in the coadd3d run_align() method
     ref_idx = 0
