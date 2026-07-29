@@ -41,7 +41,23 @@ TBD.  Likely to include:
 Voting Members
 --------------
 
-TBD
+- M\. Brodheim (WMKO)
+- A\. Carvalho (Harvard)
+- R\. Cooke (Durham)
+- F\. Davies (MPIA)
+- T\. Ellsworth-Bowers (Lowell)
+- M\. Geha (Yale)
+- J\. Hennawi (UCSB)
+- B\. Holden (UCO)
+- O\. Kuhn (LBT)
+- J\. O'Meara (WMKO)
+- D\. Pelliccia (UCO)
+- T\. Pickering (Steward/MMT)
+- X\. Prochaska (UCSC/UCO)
+- D\. Reichwein (UCO)
+- S\. Simha (Chicago)
+- F\. Wang (Michigan)
+- K\. Westfall (UCO)
 
 Code/Documentation Contributors
 -------------------------------

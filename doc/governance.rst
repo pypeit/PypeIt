@@ -8,19 +8,12 @@ PypeIt follows a structured do-ocracy governance model, where valuable and
 sustained contributions to the project lead to more influence over its
 development direction.
 
-.. note::
-
-    We are currently in a transition to a new governance model that evolves the
-    current structure into one that is intended to be more community focused,
-    but remains primarily a do-ocracy.  We expect the new governance model will
-    be instituted by the end of 2025.  The following is **a working draft** of
-    this governance structure.
-
-==========   ===========  ============= ====================
-Date         Status       Authors       Comments
-==========   ===========  ============= ====================
-2025-07-29   DRAFT        Westfall      First draft
-==========   ===========  ============= ====================
+==========   ===========  ============== =========================================================
+Date         Status       Authors        Comments
+==========   ===========  ============== =========================================================
+2025-07-29   DRAFT        Westfall       First draft
+2026-07-29   Ratified     Voting Members 14/17 voting members voted; vote to ratify was unanimous
+==========   ===========  ============== =========================================================
 
 .. contents:: Sections
     :depth: 2
