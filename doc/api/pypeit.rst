@@ -7,6 +7,7 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
+   pypeit.containers
    pypeit.core
    pypeit.dashboard
    pypeit.display

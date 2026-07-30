@@ -150,7 +150,7 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
             defined by the parameters.
         show (:obj:`bool`, optional):
             Show the QA during processing
-        run_state (:class:`~pypeit.state.RunPypeItState`, optional):
+        run_state (:class:`~pypeit.state.run_state.RunPypeItState`, optional):
             The current state of the reduction.
             If None, no state tracking is performed.
         stop_at_step (:obj:`str`, optional):
@@ -187,12 +187,6 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
         chk_version=par['rdx']['chk_version'],
         state=run_state)
 
-    # Status check only?
-    #if status_only:
-    #    caliBrate.check_status()
-    #    embed(header='189 pypeit_steps')
-    #    return caliBrate
-
     # Check
     if stop_at_step is not None and stop_at_step not in caliBrate.steps:
         raise PypeItError(
@@ -203,9 +197,6 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
     # Run
     caliBrate.run_the_steps(stop_at_step=stop_at_step,
         reload_only=reload_only, status_only=status_only)
-
-    #embed(header='207 pypeit_steps')
-
 
     # Success?
     if not caliBrate.success:
@@ -873,7 +864,7 @@ def instantiate_objfind(sciImg, spectrograph, fitstbl, par, frames, det,
         # Build the initial sky mask
         initial_skymask = load_skyregions(
             spectrograph, fitstbl, par, frames[0], det,
-            caliBrate, str(caliBrate.calib_dir), initial_slits=spectrograph.pypeline != 'SlicerIFU',
+            caliBrate, str(caliBrate.calib_dir), initial_slits=spectrograph.pypeline not in ['SlicerIFU', 'Fiber'],
             scifile=fitstbl.frame_paths(frames[0]))
             
 

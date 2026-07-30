@@ -60,6 +60,7 @@ class ReducebyStep(scriptbase.ScriptBase):
         from pypeit import spec2dobj
         from pypeit import exposure
         from pypeit import slittrace
+        from pypeit.state import science_status
 
         from IPython import embed
 
@@ -137,9 +138,9 @@ class ReducebyStep(scriptbase.ScriptBase):
 
         # Preserve any existing reduction state — especially the calibration
         # statuses written by pypeit_run_to_calibstep.  PypeIt starts with a
-        # fresh run_state (calibrations 'undone', no science); without this,
+        # fresh run_state (calibrations 'pending', no science); without this,
         # writing the state after a science step would reset the calibrations
-        # to 'undone' and (in the Dashboard) disable every science (Re)Build.
+        # to 'pending' and (in the Dashboard) disable every science (Re)Build.
         pypeIt.run_state.merge_from_disk()
 
         # Record that this science step is starting, so the PypeIt Dashboard can
@@ -307,15 +308,14 @@ class ReducebyStep(scriptbase.ScriptBase):
                                    in_update_det=det)
 
         # Refresh the science state from the products just written and persist
-        # it, so the Dashboard reflects this (re)build (mirrors the
-        # run_to_calibstep state-write fix; reached by every step since
-        # 'process' no longer returns early).  Non-essential: never crash here.
+        # it, so the Dashboard reflects this (re)build (reached by every step
+        # since 'process' does not return early).  State bookkeeping is
+        # non-essential: log any failure and continue.
         try:
-            from pypeit.state import science_status
-            science_status.derive_science_from_disk(
-                pypeIt.run_state, pypeIt.par['rdx']['redux_path'],
-                fitstbl=pypeIt.fitstbl)
-            pypeIt.run_state.write()
-        except Exception as e:
-            log.warning(f'Could not update science state after '
-                        f'{args.step}: {e}')
+            science_status.derive_science_from_disk(pypeIt.run_state,
+                                                    pypeIt.par['rdx']['redux_path'],
+                                                    fitstbl=pypeIt.fitstbl)
+        except (OSError, PypeItError) as e:
+            log.warning(f'Could not update the science state after {args.step}: {e}')
+        else:
+            pypeIt.run_state.safe_write()

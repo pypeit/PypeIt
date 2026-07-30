@@ -10,7 +10,7 @@ What it is
 ==========
 
 While ``run_pypeit`` reduces your data it records a machine-readable **state**
-of the reduction to a JSON file in the reduction (configuration) directory,
+of the reduction to a JSON file in the reduction directory,
 named after the ``.pypeit`` file:
 
 .. code-block:: none
@@ -22,8 +22,7 @@ status of each calibration step (``bias``, ``dark``, ``arc``, ``tiltimg``,
 ``slits``, ``wv_calib``, ``tilts``, ``scattlight``, ``flats``, ``align``).
 For each step it records:
 
-- a ``required`` flag and a ``status`` — one of ``undone``, ``running``,
-  ``success``, ``complete``, or ``fail``;
+- a ``required`` flag and a ``status`` (see `Status values`_ below);
 - the ``input_files`` used, the processed ``output_file``, and any ``qa_files``;
   and
 - step-specific **metrics** and **per-slit/order** detail — e.g. ``bias`` mean
@@ -36,10 +35,43 @@ In addition to the calibrations, the state records the **science frames** (see
 and detector, with the status of each science macro-step and the per-object /
 per-slit detail.
 
-The state is modeled by :class:`~pypeit.state.RunPypeItState` (a pydantic model);
+The state is modeled by :class:`~pypeit.state.run_state.RunPypeItState` (a
+pydantic model);
 a tabular summary of the calibrations is available via
-:meth:`~pypeit.state.RunPypeItState.get_status`, and of the science frames via
-:meth:`~pypeit.state.RunPypeItState.get_science_status`.
+:meth:`~pypeit.state.run_state.RunPypeItState.get_status`, and of the science
+frames via
+:meth:`~pypeit.state.run_state.RunPypeItState.get_science_status` (both return
+an `astropy.table.Table`_).
+
+.. _state-status-values:
+
+Status values
+=============
+
+Each step's ``status`` is one of a small, fixed vocabulary:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 15 85
+
+   * - Status
+     - Meaning
+   * - ``pending``
+     - The step has not (yet) been run.  This is the initial value, and the
+       value a step is reset to when its output is not found on disk during
+       a status-only read.
+   * - ``running``
+     - The step is currently being built (set just before a build starts, so
+       a live reader sees the step in progress).
+   * - ``success``
+     - The step was built successfully (its output exists and was written, or
+       an existing output was successfully reloaded).
+   * - ``fail``
+     - The step raised an error and its output was not produced.
+
+Per-slit/order entries use the same vocabulary, with one addition: ``skip``
+(currently used by ``flats``), meaning the slit was *intentionally* skipped
+(e.g. flagged ``SKIPFLATCALIB``), as distinct from a failure.
 
 Science-frame state
 ===================
@@ -57,8 +89,8 @@ detector)`` entry the state records:
 
 - the ``objtype`` (``science`` or ``standard``) and the contributing raw
   frame(s);
-- the ``status`` of each of the four macro-steps (same vocabulary as the
-  calibrations: ``undone`` / ``running`` / ``success`` / ``fail``);
+- the ``status`` of each of the four macro-steps (the same vocabulary as the
+  calibrations — see `Status values`_);
 - the data products — the ``spec2d`` and ``spec1d`` files — and the object count
   ``nobj``;
 - **per-slit** detail (a status from the ``BADSKYSUB`` / ``BADEXTRACT`` slit
@@ -68,9 +100,10 @@ detector)`` entry the state records:
   FWHM, the trace ``sign``, and whether it was ``extracted``.
 
 A tabular per-frame summary is available via
-:meth:`~pypeit.state.RunPypeItState.get_science_status` (columns ``frame``,
+:meth:`~pypeit.state.run_state.RunPypeItState.get_science_status` (an
+`astropy.table.Table`_ with columns ``frame``,
 ``detector``, ``calib``, ``objtype``, the four step statuses, ``nobj``,
-``spec2d``, ``spec1d``).  The :doc:`dashboard/dashboard` renders this in its
+``spec2d``, ``spec1d``).  The :ref:`dashboard` renders this in its
 Science view.
 
 How and when it is generated
@@ -85,19 +118,23 @@ How and when it is generated
   state as they run and refresh it from disk on completion.  Because each of
   these single-purpose runs only populates its own portion of the state, they
   first **merge** the existing on-disk state
-  (:meth:`~pypeit.state.RunPypeItState.merge_from_disk`) so a calibration build
+  (:meth:`~pypeit.state.run_state.RunPypeItState.merge_from_disk`) so a
+  calibration build
   does not blank the science entries, nor a science build the calibration
   statuses.
 - **Without running (read-only).** The :ref:`pypeit_status` script derives the
   same state *without* performing any processing — it instantiates PypeIt in
-  ``calib_only`` mode, checks what calibrations exist, and prints a status
-  table; it writes a human-readable ``<pypeit_root>.status.log`` but, being a
-  read, does **not** write ``<pypeit_root>_state.json``.  The dashboard derives
-  the same way on launch when no state file is present, and additionally
-  reconstructs the **science** state from the on-disk ``spec2d`` / ``spec1d``
-  products (and any ``Intermediate/`` files).
+  ``calib_only`` mode, checks what calibration outputs exist, reconstructs the
+  **science** state from the on-disk ``spec2d`` / ``spec1d`` products (and any
+  ``Intermediate/`` files), and prints the status
+  tables to the screen.  It *always* re-derives the status from the current
+  on-disk products — it never simply reads ``<pypeit_root>_state.json`` — so
+  its output reflects the disk even when the state file is missing, stale, or
+  wrong (e.g. after files have been deleted by hand).  Being a read, it does
+  **not** write the state file.  The dashboard derives
+  the state the same way on launch when no state file is present.
 
-The :doc:`dashboard/dashboard` reads ``<pypeit_root>_state.json`` to render its
+The :ref:`dashboard` reads ``<pypeit_root>_state.json`` to render its
 Status, Calibrations, and Science views; if the file is absent it derives the
 state the same way ``pypeit_status`` does.
 
@@ -119,6 +156,6 @@ state the same way ``pypeit_status`` does.
 See also
 ========
 
-- :doc:`dashboard/dashboard` — the GUI that visualizes the state.
+- :ref:`dashboard` — the GUI that visualizes the state.
 - :ref:`pypeit_status` — print the reduction status from the command line.
-- :doc:`running` — the core ``run_pypeit`` execution.
+- :ref:`run-pypeit` — the core ``run_pypeit`` execution.

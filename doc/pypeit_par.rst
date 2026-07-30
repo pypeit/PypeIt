@@ -315,6 +315,7 @@ Class Instantiation: :class:`~pypeit.par.pypeitpar.FlatFieldPar`
 ==========================  =================  =================================  =============  ================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 Key                         Type               Options                            Default        Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 ==========================  =================  =================================  =============  ================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+``fiber_pixelflat``         bool               ..                                 False          For the Fiber pypeline only: build a standard 2D pixel flat from the flat frames (via the normal FlatField machinery) instead of using a unity pixel flat.  The default (False) is appropriate for in-focus fiber flats that illuminate only a few pixels under each fiber (e.g. MMT Binospec), where a 2D pixel flat would imprint fiber-profile structure.  Set True for instruments whose flats illuminate the full detector (e.g. defocused fiber flats), so a meaningful detector-response pixel flat can be measured.                                     
 ``fit_2d_det_response``     bool               ..                                 False          Set this variable to True if you want to compute and account for the detector response in the flatfield image. Note that ``detector response`` refers to pixel sensitivity variations that primarily depend on (x,y) detector coordinates. In most cases, the default 2D bspline is sufficient to account for detector response (i.e. set this parameter to False). Note that this correction will _only_ be performed for the spectrographs that have a dedicated response correction implemented. Currently,this correction is only implemented for Keck+KCWI.
 ``illum_iter``              int                ..                                 0              The number of rejection iterations to perform when constructing the slit-illumination profile.  No rejection iterations are performed if 0.  WARNING: Functionality still being tested.                                                                                                                                                                                                                                                                                                                                                                         
 ``illum_rej``               int, float         ..                                 5.0            The sigma threshold used in the rejection iterations used to refine the slit-illumination profile.  Rejection iterations are only performed if ``illum_iter > 0``.                                                                                                                                                                                                                                                                                                                                                                                              
@@ -815,20 +816,22 @@ SkySubPar Keywords
 
 Class Instantiation: :class:`~pypeit.par.pypeitpar.SkySubPar`
 
-===================  ==========  =======  =======  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-Key                  Type        Options  Default  Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
-===================  ==========  =======  =======  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-``bspline_spacing``  int, float  ..       0.6      Break-point spacing for the bspline sky subtraction fits.                                                                                                                                                                                                                                                                                                                                                                                                                          
-``global_sky_std``   bool        ..       True     Global sky subtraction will be performed on standard stars. This should be turned off for example for near-IR reductions with narrow slits, since bright standards can fill the slit causing global sky-subtraction to fail. In these situations we go straight to local sky-subtraction since it is designed to deal with such situations                                                                                                                                         
-``joint_fit``        bool        ..       False    Perform a simultaneous joint fit to sky regions using all available slits. Currently, this parameter is only used for IFU data reduction. Note that the current implementation does not account for variations in the instrument FWHM in different slits. This will be addressed by Issue #1660.                                                                                                                                                                                   
-``local_maskwidth``  float       ..       4.0      Initial width of the region in units of FWHM that will be used for local sky subtraction                                                                                                                                                                                                                                                                                                                                                                                           
-``mask_by_boxcar``   bool        ..       False    In global sky evaluation, mask the sky region around the object by the boxcar radius (set in ExtractionPar).                                                                                                                                                                                                                                                                                                                                                                       
-``max_mask_frac``    float       ..       0.8      Maximum fraction of total pixels on a slit that can be masked by the input masks. If more than this threshold is masked the code will return zeros and throw a warning.                                                                                                                                                                                                                                                                                                            
-``no_local_sky``     bool        ..       False    If True, turn off local sky model evaluation, but do fit object profile and perform optimal extraction                                                                                                                                                                                                                                                                                                                                                                             
-``no_poly``          bool        ..       False    Turn off polynomial basis (Legendre) in global sky subtraction                                                                                                                                                                                                                                                                                                                                                                                                                     
-``sky_sigrej``       float       ..       3.0      Rejection parameter for local sky subtraction                                                                                                                                                                                                                                                                                                                                                                                                                                      
-``user_regions``     str, list   ..       ..       Provides a user-defined mask defining sky regions.  By default, the sky regions are identified automatically.  To specify sky regions for *all* slits, provide a comma separated list of percentages.  For example, setting user_regions = :10,35:65,80: selects the first 10%, the inner 30%, and the final 20% of *all* slits as containing sky.  Setting user_regions = user will attempt to load any SkyRegions files generated by the user via the pypeit_skysub_regions tool.
-===================  ==========  =======  =======  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+======================  ==========  =======  =======  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+Key                     Type        Options  Default  Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+======================  ==========  =======  =======  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+``bspline_spacing``     int, float  ..       0.6      Break-point spacing for the bspline sky subtraction fits.                                                                                                                                                                                                                                                                                                                                                                                                                          
+``global_sky_std``      bool        ..       True     Global sky subtraction will be performed on standard stars. This should be turned off for example for near-IR reductions with narrow slits, since bright standards can fill the slit causing global sky-subtraction to fail. In these situations we go straight to local sky-subtraction since it is designed to deal with such situations                                                                                                                                         
+``joint_fit``           bool        ..       False    Perform a simultaneous joint fit to sky regions using all available slits. Currently, this parameter is only used for IFU data reduction. Note that the current implementation does not account for variations in the instrument FWHM in different slits. This will be addressed by Issue #1660.                                                                                                                                                                                   
+``joint_fit_use_sci``   bool        ..       True     Fiber pypeline only. When True, the global sky bspline is fit jointly to dedicated sky fibers and science fibers, using the standard iterative sigma rejection to down-weight pixels that contain real source flux. When False, only fibers whose MASKDEF_OBJNAME starts with "SKY" are used.                                                                                                                                                                                      
+``local_maskwidth``     float       ..       4.0      Initial width of the region in units of FWHM that will be used for local sky subtraction                                                                                                                                                                                                                                                                                                                                                                                           
+``mask_by_boxcar``      bool        ..       False    In global sky evaluation, mask the sky region around the object by the boxcar radius (set in ExtractionPar).                                                                                                                                                                                                                                                                                                                                                                       
+``max_mask_frac``       float       ..       0.8      Maximum fraction of total pixels on a slit that can be masked by the input masks. If more than this threshold is masked the code will return zeros and throw a warning.                                                                                                                                                                                                                                                                                                            
+``no_local_sky``        bool        ..       False    If True, turn off local sky model evaluation, but do fit object profile and perform optimal extraction                                                                                                                                                                                                                                                                                                                                                                             
+``no_poly``             bool        ..       False    Turn off polynomial basis (Legendre) in global sky subtraction                                                                                                                                                                                                                                                                                                                                                                                                                     
+``sci_exclude_radius``  int, float  ..       ..       Fiber pypeline only. When set and joint_fit_use_sci is True, exclude from the joint sky fit any science fiber whose on-sky position lies within this radius (in arcsec) of the instrument geometric center. Use this to exclude inner science fibers most likely to contain source flux while retaining fibers away from the source for additional sky background information.                                                                                                     
+``sky_sigrej``          float       ..       3.0      Rejection parameter for local sky subtraction                                                                                                                                                                                                                                                                                                                                                                                                                                      
+``user_regions``        str, list   ..       ..       Provides a user-defined mask defining sky regions.  By default, the sky regions are identified automatically.  To specify sky regions for *all* slits, provide a comma separated list of percentages.  For example, setting user_regions = :10,35:65,80: selects the first 10%, the inner 30%, and the final 20% of *all* slits as containing sky.  Setting user_regions = user will attempt to load any SkyRegions files generated by the user via the pypeit_skysub_regions tool.
+======================  ==========  =======  =======  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -938,15 +941,15 @@ ScatteredLightPar Keywords
 
 Class Instantiation: :class:`~pypeit.par.pypeitpar.ScatteredLightPar`
 
-===================  =========  =================================  =========  ================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-Key                  Type       Options                            Default    Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
-===================  =========  =================================  =========  ================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-``finecorr_mask``    int, list  ..                                 ..         A list containing the inter-slit regions that the user wishes to mask during the fine correction to the scattered light. Each integer corresponds to an inter-slit region. For example, "0" corresponds to all pixels left of the leftmost slit, while a value of "1" corresponds to all pixels between the first and second slit (counting from the left). It should be either a single integer value, or a list of integer values. The default (None) means that no inter-slit regions will be masked.                                                        
-``finecorr_method``  str        ``median``, ``poly``               ..         If None, a fine correction to the scattered light will not be performed. Otherwise, the allowed methods include: median, poly. 'median' will subtract a constant value from an entire CCD row, based on a median of the pixels that are not on slits (see also, 'finecorr_pad'). 'poly' will fit a polynomial to the scattered light in each row, based on the pixels that are not on slits (see also, 'finecorr_pad').                                                                                                                                         
-``finecorr_order``   int        ..                                 2          Polynomial order to use for the fine correction to the scattered light subtraction. It should be a low value.                                                                                                                                                                                                                                                                                                                                                                                                                                                   
-``finecorr_pad``     int        ..                                 4          Number of unbinned pixels to extend the slit edges by when masking the slits for the fine correction to the scattered light.                                                                                                                                                                                                                                                                                                                                                                                                                                    
-``method``           str        ``model``, ``frame``, ``archive``  ``model``  Method used to fit the overscan. Options are: model, frame, archive. 'model' will the scattered light model parameters derived from a user-specified frame during their reduction (note, you will need to make sure that you set appropriate scattlight frames in your .pypeit file for this option). 'frame' will use each individual frame to determine the scattered light that affects this frame. 'archive' will use an archival model parameter solution for the scattered light (note that this option is not currently available for all spectrographs).
-===================  =========  =================================  =========  ================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+===================  =========  ===========================================  =========  ======================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+Key                  Type       Options                                      Default    Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+===================  =========  ===========================================  =========  ======================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+``finecorr_mask``    int, list  ..                                           ..         A list containing the inter-slit regions that the user wishes to mask during the fine correction to the scattered light. Each integer corresponds to an inter-slit region. For example, "0" corresponds to all pixels left of the leftmost slit, while a value of "1" corresponds to all pixels between the first and second slit (counting from the left). It should be either a single integer value, or a list of integer values. The default (None) means that no inter-slit regions will be masked.                                                              
+``finecorr_method``  str        ``median``, ``poly``                         ..         If None, a fine correction to the scattered light will not be performed. Otherwise, the allowed methods include: median, poly. 'median' will subtract a constant value from an entire CCD row, based on a median of the pixels that are not on slits (see also, 'finecorr_pad'). 'poly' will fit a polynomial to the scattered light in each row, based on the pixels that are not on slits (see also, 'finecorr_pad').                                                                                                                                               
+``finecorr_order``   int        ..                                           2          Polynomial order to use for the fine correction to the scattered light subtraction. It should be a low value.                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+``finecorr_pad``     int        ..                                           4          Number of unbinned pixels to extend the slit edges by when masking the slits for the fine correction to the scattered light.                                                                                                                                                                                                                                                                                                                                                                                                                                          
+``method``           str        ``model``, ``frame``, ``archive``, ``gaps``  ``model``  Method used to fit the overscan. Options are: model, frame, archive, gaps. 'model' will the scattered light model parameters derived from a user-specified frame during their reduction (note, you will need to make sure that you set appropriate scattlight frames in your .pypeit file for this option). 'frame' will use each individual frame to determine the scattered light that affects this frame. 'archive' will use an archival model parameter solution for the scattered light (note that this option is not currently available for all spectrographs).
+===================  =========  ===========================================  =========  ======================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -1305,6 +1308,379 @@ Alterations to the default parameters are:
           no_local_sky = True
       [[extraction]]
           boxcar_radius = 1.728
+
+.. _instr_par-arc_arces:
+
+APO ARCARCES (``arc_arces``)
+----------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = arc_arces
+  [calibrations]
+      [[biasframe]]
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          exprng = 999999, None,
+          [[[process]]]
+              mask_cr = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          [[[process]]]
+              clip = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              clip = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              satpix = nothing
+              scale_to_mean = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          exprng = 999999, None,
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              scale_to_mean = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              scale_to_mean = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = None, 120,
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[flatfield]]
+          spat_samp = 1
+          tweak_slits = False
+          slit_trim = 1
+          slit_illum_finecorr = False
+      [[wavelengths]]
+          method = reidentify
+          echelle = True
+          ech_norder_coeff = 6
+          ech_sigrej = 3.0
+          lamps = ThAr,
+          bad_orders_maxfrac = 0.5
+          sigdetect = 3.0
+          fwhm = 3.5
+          fwhm_fromlines = False
+          reid_arxiv = arc_arces.fits
+          cc_thresh = 0.4
+          rms_thresh_frac_fwhm = 0.5
+      [[slitedges]]
+          edge_thresh = 15.0
+          smash_range = 0.3, 0.7,
+          fwhm_uniform = 1.5
+          fwhm_gaussian = 1.5
+          sync_predict = nearest
+          order_match = 0.005
+          pad = 5
+      [[tilts]]
+          tracethresh = 10.0
+  [scienceframe]
+      exprng = 1, None,
+      [[process]]
+          mask_cr = True
+          noise_floor = 0.01
+  [reduce]
+      [[findobj]]
+          find_trim_edge = 0, 0,
+          skip_skysub = True
+      [[skysub]]
+          global_sky_std = False
+          mask_by_boxcar = True
+          no_local_sky = True
+      [[extraction]]
+          boxcar_radius = 1.56
+          sn_gauss = 4000
+          model_full_slit = True
+
+.. _instr_par-arc_kosmos:
+
+APO ARCKOSMOS (``arc_kosmos``)
+------------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = arc_kosmos
+  [calibrations]
+      [[biasframe]]
+          exprng = None, 0.001,
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          exprng = 999999, None,
+          [[[process]]]
+              mask_cr = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          [[[process]]]
+              clip = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              clip = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          exprng = 999999, None,
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = None, 120,
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[wavelengths]]
+          method = full_template
+          lamps = HeI, NeI, ArI,
+          sigdetect = 10.0
+          nsnippet = 3
+      [[slitedges]]
+          sync_predict = nearest
+          minimum_slit_length_sci = 5
+  [scienceframe]
+      exprng = 90, None,
+      [[process]]
+          mask_cr = True
+          noise_floor = 0.01
+
+.. _instr_par-arc_tspec:
+
+APO ARCTSPEC (``arc_tspec``)
+----------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = arc_tspec
+  [calibrations]
+      [[biasframe]]
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              use_overscan = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          exprng = 0, None,
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          exprng = 100, None,
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          exprng = 100, None,
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_illumflat = False
+      [[standardframe]]
+          exprng = None, 60,
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_illumflat = False
+      [[wavelengths]]
+          method = reidentify
+          echelle = True
+          ech_norder_coeff = 6
+          ech_sigrej = 3.0
+          lamps = OH_NIRES,
+          fwhm = 2.9
+          reid_arxiv = arc_tspec.fits
+          cc_thresh = 0.4, 0.7, 0.7, 0.7, 0.7,
+          n_final = 3, 4, 4, 4, 4,
+      [[slitedges]]
+          fit_min_spec_length = 0.3
+          left_right_pca = True
+          trace_thresh = 5.0
+          fwhm_gaussian = 4.0
+      [[tilts]]
+          tracethresh = 10.0
+  [scienceframe]
+      exprng = 60, None,
+      [[process]]
+          satpix = nothing
+          sigclip = 20.0
+          use_biasimage = False
+          use_overscan = False
+          use_illumflat = False
+  [reduce]
+      [[findobj]]
+          maxnumber_sci = 2
+          maxnumber_std = 1
+      [[skysub]]
+          bspline_spacing = 0.8
+      [[extraction]]
+          boxcar_radius = 2.0
+          model_full_slit = True
+  [coadd1d]
+      wave_method = log10
+  [sensfunc]
+      algorithm = IR
+      polyorder = 8
+      [[IR]]
+          telgridfile = TellPCA_3000_26000_R10000.fits
 
 .. _instr_par-bok_bc:
 
@@ -6985,6 +7361,129 @@ Alterations to the default parameters are:
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
 
+.. _instr_par-magellan_ldss3:
+
+MMT LDSS3 (``magellan_ldss3``)
+------------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = magellan_ldss3
+  [calibrations]
+      [[biasframe]]
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          exprng = 0, None,
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          exprng = 0, 10,
+          [[[process]]]
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          exprng = 0, 10,
+          [[[process]]]
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          [[[process]]]
+              use_biasimage = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = 10, 500,
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+              noise_floor = 0.01
+      [[wavelengths]]
+          sigdetect = 6.0
+          fwhm = 5.0
+          rms_thresh_frac_fwhm = 0.5
+          match_toler = 2.5
+          n_first = 3
+          n_final = 5
+      [[tilts]]
+          spat_order = 6
+          spec_order = 6
+  [scienceframe]
+      exprng = 200, None,
+      [[process]]
+          mask_cr = True
+          sigclip = 5.0
+          objlim = 2.0
+          use_biasimage = False
+          noise_floor = 0.01
+  [reduce]
+      [[skysub]]
+          bspline_spacing = 0.8
+          global_sky_std = False
+  [flexure]
+      spec_method = boxcar
+  [sensfunc]
+      algorithm = IR
+      polyorder = 7
+      [[IR]]
+          telgridfile = TellPCA_3000_26000_R15000.fits
+
 .. _instr_par-magellan_mage:
 
 MAGELLAN MagE (``magellan_mage``)
@@ -7442,11 +7941,25 @@ Alterations to the default parameters are:
       [[arcframe]]
           exprng = 20, None,
           [[[process]]]
+              mask_cr = True
+              lamaxiter = 2
+              grow = 2.0
+              rmcompact = False
+              sigclip = 10.0
+              objlim = 0.0
+              cr_median_width = 31
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
+              mask_cr = True
+              lamaxiter = 2
+              grow = 2.0
+              rmcompact = False
+              sigclip = 10.0
+              objlim = 0.0
+              cr_median_width = 31
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -7532,6 +8045,158 @@ Alterations to the default parameters are:
       spec_method = boxcar
   [sensfunc]
       polyorder = 7
+      [[IR]]
+          telgridfile = TellPCA_3000_26000_R10000.fits
+
+.. _instr_par-mmt_binospec_ifu:
+
+MMT BINOSPEC (``mmt_binospec_ifu``)
+-----------------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = mmt_binospec_ifu
+  [calibrations]
+      [[biasframe]]
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          exprng = 20, None,
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          exprng = 20, None,
+          [[[process]]]
+              mask_cr = True
+              lamaxiter = 2
+              grow = 2.0
+              rmcompact = False
+              sigclip = 10.0
+              objlim = 0.0
+              cr_median_width = 31
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              mask_cr = True
+              lamaxiter = 2
+              grow = 2.0
+              rmcompact = False
+              sigclip = 10.0
+              objlim = 0.0
+              cr_median_width = 31
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+              subtract_scattlight = True
+              [[[[scattlight]]]]
+                  method = gaps
+      [[pinholeframe]]
+          [[[process]]]
+              use_biasimage = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = None, 100,
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+              noise_floor = 0.01
+      [[flatfield]]
+          tweak_slits = False
+          slit_trim = 0
+          slit_illum_finecorr = False
+      [[wavelengths]]
+          method = full_template
+          lamps = HeI, NeI, ArI, ArII,
+          rms_thresh_frac_fwhm = 0.125
+      [[slitedges]]
+          sync_predict = nearest
+      [[tilts]]
+          tracethresh = 10.0
+          spat_order = 6
+          spec_order = 6
+  [scienceframe]
+      exprng = 20, None,
+      [[process]]
+          mask_cr = True
+          sigclip = 4.0
+          objlim = 1.5
+          use_biasimage = False
+          noise_floor = 0.01
+          use_illumflat = False
+          subtract_scattlight = True
+          [[[scattlight]]]
+              method = gaps
+  [reduce]
+      trim_edge = 0, 0,
+      [[findobj]]
+          skip_second_find = True
+          skip_final_global = True
+      [[skysub]]
+          bspline_spacing = 0.8
+          global_sky_std = False
+          no_poly = True
+          joint_fit = True
+  [sensfunc]
+      polyorder = 7
+      [[UVIS]]
+          extinct_correct = False
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
 

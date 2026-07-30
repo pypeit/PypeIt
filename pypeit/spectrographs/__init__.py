@@ -27,6 +27,7 @@ __all__ = [
     'lbt_mods',
     'ldt_deveny',
     'magellan_fire',
+    'magellan_ldss3',
     'magellan_mage',
     'mdm_modspec',
     'mdm_osmos',

@@ -19,16 +19,20 @@ astronomical telescopes into calibrated spectra for scientific analysis.
 - Frequently fetch changes to the upstream base branch (`release` or `develop`)
   and rebase, as necessary.
 
+- Use `pathlib` (e.g. `Path(...).name`, `.stem`, `.with_name()`, `.exists()`)
+  for all new filesystem-path handling; prefer it over `os.path` in new code.
+
 - Additional development guidelines is provided in `doc/dev/development.rst`.
 
 ## Key Architectural Components
 
-- PypeIt implements three primary processing paths, depending on the format of
-  the spectrograph used to collect the raw data:
+- PypeIt implements four processing paths (pypelines), depending on the format
+  of the spectrograph used to collect the raw data:
 
     - **MultiSlit**: Standard long-slit and multi-slit spectrographs
     - **Echelle**: Cross-dispersed echelle spectrographs
     - **SlicerIFU**: Slicer-based integral-field units
+    - **Fiber**: Fiber-fed spectrographs (e.g., IFU fiber bundles)
 
 - Instrument specifications and data-processing considerations that are specific
   to each spectrograph (including the processing path that should be used) are
@@ -48,9 +52,70 @@ astronomical telescopes into calibrated spectra for scientific analysis.
   package distribution of the code, but rely on a cache system that downloads
   files as needed for processing.
 
+- The pypeline dispatch system uses class name conventions: setting
+  `pypeline = 'Fiber'` causes `FindObjects.get_instance()` and
+  `Extract.get_instance()` to find `FiberFindObjects` and `FiberExtract`
+  respectively.  When adding a new pypeline, the string must be added to
+  validation lists in `specobj.py`, `specobjs.py`, `slittrace.py`,
+  `show_2dspec.py`, `spectrograph.py`, and `pypeit_steps.py`.
+
+- Calibrations: The `Fiber` pypeline falls through to `IFUCalibrations` in
+  `calibrations.py` (not in `['MultiSlit', 'Echelle']`), sharing the
+  calibration flow with `SlicerIFU`.
+
+### Fiber Pypeline
+
+The `Fiber` pypeline handles fiber-fed spectrographs where each fiber IS the
+object — no peak-detection object finding is needed.
+
+- **FiberFindObjects** (`find_objects.py`): Creates one `SpecObj` per fiber
+  with the trace at the fiber center (midpoint of slit edges). Uses joint sky
+  subtraction inherited from `SlicerIFUFindObjects`. Must reset `reduce_bpm`
+  after `global_skysub` because per-slit sky fitting rejects narrow fibers
+  before the joint fit runs.
+
+- **FiberExtract** (`extraction.py`): Performs boxcar and Horne (1986) optimal
+  extraction using the global sky model directly (no local sky subtraction).
+  Builds empirical spatial profiles from the flat field.
+
+- **Fiber metadata** (`spectrograph.py`): The `get_fiber_metadata()` method
+  allows spectrographs to map detected trace positions to instrument-defined
+  fiber IDs, names, and types. This populates `MASKDEF_ID` and
+  `MASKDEF_OBJNAME` on each `SpecObj`.
+
+### Binospec IFU Notes
+
+- MMT Binospec IFU (`mmt_binospec.py`) uses `pypeline = 'Fiber'`.
+- Has 360 fibers on side A (DET01) and 356 on side B (DET02), including 40
+  dedicated sky fibers per side.
+- Spectral flexure correction is disabled (`spec_method = 'skip'`) because
+  Binospec has active flexure control.
+- Fiber identification uses cross-correlation against a reference profile
+  (`fiber_ref_profile.fits`). Sky fibers are identified by `FIB_NAME`
+  starting with `'SKY'` (the `FIB_TYPE` field in the reference file is
+  unreliable — all fibers are marked as `SKY`).
+- Header metadata cards: temperature is `TEMP`, humidity is `HUMID`,
+  parallactic angle is `PA` (in `headarr[1]`).
+- **Block-slit architecture**: Fibers are grouped into 21 block-slits per
+  detector (42 total), each containing 8–20 fibers. Individual fibers are
+  objects within their block-slit, not separate slits. Edge detection uses
+  a high Sobel threshold (100σ) to find block boundaries at ~70 px
+  inter-block gaps.
+- Spatial illumination correction is not applied (no `IllumFlat`); fiber
+  throughput variations are corrected post-extraction using per-fiber
+  throughput weights derived from the flat field.
+- Wavelength calibration runs per block-slit (42 total vs 720 individual
+  fibers previously), providing significant performance improvement.
+- Throughput corrections are applied post-extraction: sky fibers are
+  extracted and throughput-corrected before building the 2D sky model.
+
 ## Testing
 
 - All tests are collected in the `pypeit/tests` directory.
+
+- Tests are written as plain module-level functions, not wrapped in `TestX`
+  classes with `setup_class`. Use module-level constants or pytest fixtures
+  for shared setup.
 
 - Tests in `pypeit/tests` should be limited to unit tests that do not require
   the use of large data files.
