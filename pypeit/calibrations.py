@@ -2171,7 +2171,7 @@ class IFUCalibrations(Calibrations):
         self.slits.to_file()
 
         # State
-        self.slits_state(self.slits.get_path())
+        self.slits_state()
 
         if self.user_slits is not None:
             self.slits.user_mask(detname, self.user_slits)
