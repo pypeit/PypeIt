@@ -408,6 +408,7 @@ def ech_fof_sobjs(sobjs:specobjs.SpecObjs,
     ra_fake = fracpos/1000.0  # Divide all angles by 1000 to make geometry euclidian
     dec_fake = np.zeros_like(fracpos)
     if nfound>1:
+        # TODO: Deprecate spheregroup
         inobj_id, multobj_id, firstobj_id, nextobj_id \
                 = pydl.spheregroup(ra_fake, dec_fake, FOF_frac/1000.0)
         # Modify to 1-based indexing
@@ -1988,6 +1989,9 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
     flux_smash_smth = scipy.ndimage.gaussian_filter1d(flux_smash_recen, gauss_smth_sigma, mode='nearest')
 
     # Return if none found and no hand extraction
+    # TODO: Is the information message here specific enough?  No objects were
+    # found because the image was heavily masked, not because no source was
+    # detected.
     if not np.any(gpm_smash): 
         sobjs = specobjs.SpecObjs()
         if hand_extract_dict is None:
@@ -2000,6 +2004,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
             snr_smash_smth = np.zeros_like(flux_smash_smth)
             log.info('No objects found automatically.')
     else:
+
         # Compute the formal corresponding variance over the set of pixels that are not masked by gpm_sigclip
         var_rect = utils.inverse(ivar_rect)
         var_sum_smash = np.sum((var_rect*gpm_sigclip)[find_min_max_out[0]:find_min_max_out[1]], axis=0)
