@@ -43,6 +43,8 @@ with the ``-s`` argument.  This directory only has one instrument configuration,
 but the RIMAS reductions are configured to name setups descriptively rather than
 with "A", "B", etc. -- setting ``-c all`` means you don't have to know the
 descriptive names ahead of time.
+If you need to inspect or construct an echelle wavelength template manually, see
+:ref:`pypeit_identify-echelle`.
 
 Running the setup script on this set of example data will create a subdirectory
 called ``ldt_rimas_vph_300HK12l``.  The "``300HK12l``" is the descriptive setup
@@ -520,4 +522,3 @@ spectral extractions; see :ref:`outputs`.
 
 2D Coadding
 ===========
-
