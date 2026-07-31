@@ -123,7 +123,19 @@ class ShaneHamspecSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
         par['calibrations']['flatfield']['slit_illum_finecorr'] = False
 
-        # Extraction
+        # Object finding & Extraction
+        # The target fills the very short (~7 px) Hamspec slit, so the
+        # smashed spatial profile has no peak and peak-detection object
+        # finding fails even on a bright star.  Instead, always extract a
+        # single object forced at the center of each order, with FWHM and
+        # boxcar radius set by the order width.
+        par['reduce']['findobj']['force_center_obj'] = True
+        # With the star filling the narrow slit there are no sky pixels to
+        # fit, so turn off sky subtraction entirely: skip the global sky fit
+        # during object finding (the global sky model is then zero) and do
+        # not evaluate a local sky during extraction.
+        par['reduce']['findobj']['skip_skysub'] = True
+        par['reduce']['skysub']['no_local_sky'] = True
         par['reduce']['skysub']['bspline_spacing'] = 0.6
         par['reduce']['skysub']['global_sky_std'] = False
         # local sky subtraction operates on entire slit

@@ -4328,7 +4328,8 @@ class FindObjPar(ParSet):
                  find_fwhm=None, ech_find_max_snr=None, ech_find_min_snr=None, find_numiterfit=None,
                  ech_find_nabove_min_snr=None, skip_second_find=None, skip_final_global=None,
                  skip_skysub=None, find_negative=None, find_min_max=None, trace_min_max=None,
-                 std_spec1d=None, use_std_trace=None, fof_link = None):
+                 std_spec1d=None, use_std_trace=None, fof_link = None,
+                 force_center_obj=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -4463,6 +4464,16 @@ class FindObjPar(ParSet):
                                  'to explicitly override this default behavior, set this parameter to True to find negative objects or False to ignore ' \
                                  'them.'
 
+        defaults['force_center_obj'] = False
+        dtypes['force_center_obj'] = bool
+        descr['force_center_obj'] = 'If True, skip automated (peak-detection) object finding and ' \
+                                    'instead force a single object at the center of each slit/order, ' \
+                                    'with the FWHM and boxcar radius set by the slit width. Use this ' \
+                                    'for spectrographs where the target always fills the slit (e.g., ' \
+                                    'Shane/Hamspec), so the smashed spatial profile has no peak for ' \
+                                    'the object finder to detect. Currently only implemented for ' \
+                                    'Echelle reductions; it is ignored by the other pipelines.'
+
         defaults['find_min_max'] = None
         dtypes['find_min_max'] = list
         descr['find_min_max'] = 'It defines the minimum and maximum of your object in pixels in the spectral direction on the ' \
@@ -4504,7 +4515,8 @@ class FindObjPar(ParSet):
                    'trace_maxdev', 'find_numiterfit', 'find_fwhm', 'ech_find_max_snr',
                    'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find',
                    'skip_final_global', 'skip_skysub', 'find_negative', 'find_min_max',
-                   'trace_min_max', 'std_spec1d', 'use_std_trace', 'fof_link']
+                   'trace_min_max', 'std_spec1d', 'use_std_trace', 'fof_link',
+                   'force_center_obj']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
