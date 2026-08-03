@@ -69,7 +69,7 @@ class Identify(scriptbase.ScriptBase):
         from pypeit.wavecalib import BuildWaveCalib, WaveCalib
         from pypeit import slittrace
         from pypeit.images.buildimage import ArcImage
-        from pypeit.core.wavecal import autoid
+        from pypeit.core.wavecal import autoid, wv_fitting
         from pypeit.utils import jsonify
 
         # Initialize the log
@@ -232,10 +232,12 @@ class Identify(scriptbase.ScriptBase):
 
             
                 else:
+                    empty_wvfit = wv_fitting.WaveFit(slits.spat_id[slit_val])
+                    empty_wvfit.fwhm = measured_fwhms[slit_val]
                     if np.any(wv_calib.wv_fits):
-                        wv_calib.wv_fits[slit_val] = None
+                        wv_calib.wv_fits[slit_val] = empty_wvfit
                     else: 
-                        wv_fits_arr.append('None')
+                        wv_fits_arr.append(empty_wvfit)
                     waveCalib = None
                     custom_wav_q = ''
                     while custom_wav_q != 'y' and custom_wav_q != 'n':
@@ -268,6 +270,10 @@ class Identify(scriptbase.ScriptBase):
                         # sample the new solution to make a fake IDs list:
                         lines_pix_arr.append(np.linspace(0, nspec-1, 8)[1:-1])
                         lines_wav_arr.append(np.linspace(min_wav, max_wav, 8)[1:-1])
+                        lines_fit_ord.append([1])
+                    else:
+                        lines_pix_arr.append(np.array([], dtype=float))
+                        lines_wav_arr.append(np.array([], dtype=float))
                         lines_fit_ord.append([1])
 
             if not np.any(wv_calib.wv_fits):
@@ -343,4 +349,3 @@ class Identify(scriptbase.ScriptBase):
                                 custom_wav = np.array(custom_wav),
                                 custom_wav_ind = np.array(custom_wav_ind) )
             
-

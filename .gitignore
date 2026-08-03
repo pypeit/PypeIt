@@ -81,6 +81,7 @@ Thumbs.db
 pypeit/_compiler.c
 pypeit/data/telluric/atm_grids/*.fits
 pypeit/data/QL_CALIB
+notes
 
 *.pckl
 
@@ -88,6 +89,9 @@ pypeit/data/QL_CALIB
 doc/sphinx_warnings.out
 pypeit/tests/files/setup_files/*
 .DS_Store
+
+# Local Claude Code configuration
+.claude/
 
 # added by TEB
 AGENTS.md

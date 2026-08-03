@@ -13,7 +13,7 @@ from pypeit.core import fitting
 from pypeit import wavecalib
 from pypeit import slittrace
 from pypeit.tests.tstutils import data_output_path
-from pypeit.core.wavecal import waveio
+from pypeit.core.wavecal import waveio, wvutils
 
 
 def test_load_template():
@@ -25,6 +25,26 @@ def test_load_template():
     wave, flux = waveio.load_template('gemini_gmos_r831_ham.fits', 1)[:2]
     assert wave[0] > 6200, 'Bad wavelength read'
     assert np.amax(flux) > 1e5, 'Bad flux read'
+
+
+def test_write_template_with_empty_line_ids(tmp_path):
+    """Templates can keep skipped orders aligned with empty line-ID arrays"""
+    wave = np.vstack((5000. + np.arange(10), np.full(10, np.nan)))
+    flux = np.ones_like(wave)
+    lines_pix = [np.array([2., 7.]), np.array([], dtype=float)]
+    lines_wav = [wave[0, [2, 7]], np.array([], dtype=float)]
+    outfile = tmp_path / 'test_empty_lines.fits'
+
+    wvutils.write_template(wave, flux, 1, str(tmp_path), outfile.name,
+                           order=np.array([10, 11]), lines_pix_arr=lines_pix,
+                           lines_wav_arr=lines_wav, lines_fit_ord=[1, 1])
+    _wave, _flux, _binspec, order, _lines_pix, _lines_wav, _lines_fit_ord = \
+        waveio.load_template(str(outfile), 1)
+
+    assert np.array_equal(order, np.array([10, 11]))
+    assert np.array_equal(_lines_pix[0], lines_pix[0])
+    assert len(_lines_pix[1]) == 0
+    assert len(_lines_wav[1]) == 0
 
 
 def test_wavefit_hduprefix():
@@ -160,4 +180,3 @@ def test_wvcalib_no2d():
 
     # Finish
     ofile.unlink()
-

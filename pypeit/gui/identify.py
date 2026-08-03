@@ -855,8 +855,12 @@ class Identify:
                                 if fitdict is not None and fitdict['full_fit'] is not None:
                                     wavelengths[iord,:] = fitdict['full_fit'].eval(np.arange(specdata_multi[iord,:].size) /
                                                                             (specdata_multi[iord,:].size - 1))
-                                elif wvcalib is not None and wvcalib.wv_fits[iord] is None and iord in custom_wav_ind:
-                                    wavelengths[iord,:] = custom_wav[np.where(iord == custom_wav_ind)[0]]
+                                elif wvcalib is not None and (wvcalib.wv_fits[iord] is None
+                                                              or wvcalib.wv_fits[iord].pypeitfit is None):
+                                    if iord in custom_wav_ind:
+                                        wavelengths[iord,:] = custom_wav[np.where(iord == custom_wav_ind)[0]]
+                                    else:
+                                        wavelengths[iord,:] = np.nan
                     else:
                         wavelengths = self._fitdict['full_fit'].eval(np.arange(self.specdata.size) /
                                                                     (self.specdata.size - 1))
