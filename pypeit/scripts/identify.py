@@ -59,6 +59,8 @@ class Identify(scriptbase.ScriptBase):
         import json
 
         import numpy as np
+        import matplotlib.pyplot as plt
+        from astropy.io import fits
                 
         from pypeit import log
         from pypeit import PypeItError
@@ -78,6 +80,12 @@ class Identify(scriptbase.ScriptBase):
 
         # Load the Arc file
         msarc = ArcImage.from_file(args.arc_file, chk_version=chk_version)
+        #test plots
+        fig, ax = plt.subplots(2,1)
+        img = ax[0].imshow(msarc.image, vmin=-100, vmax = 100)
+        fig.colorbar(img)
+        #img = ax[1].imshow(fits.open(msarc.filename)[0].data, vmin=-100, vmax=100)
+        fig.colorbar(img)
 
         # Load the spectrograph
         spec = load_spectrograph(msarc.PYP_SPEC)

@@ -686,6 +686,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             Boolean array with the flags selecting the exposures in
             ``fitstbl`` that are ``ftype`` type frames.
         """
+        
         good_exp = framematch.check_frame_exptime(fitstbl["exptime"], exprng)
         if ftype in ["arc", "tilt"]:
             return (
