@@ -90,3 +90,6 @@ doc/sphinx_warnings.out
 pypeit/tests/files/setup_files/*
 .DS_Store
 AGENTS.md
+
+# Local Claude Code configuration
+.claude/

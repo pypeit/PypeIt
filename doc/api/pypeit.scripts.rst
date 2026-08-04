@@ -29,6 +29,7 @@ Submodules
    pypeit.scripts.collate_1d
    pypeit.scripts.compare_sky
    pypeit.scripts.compile_wvarxiv
+   pypeit.scripts.dashboard
    pypeit.scripts.edge_inspector
    pypeit.scripts.extract_datacube
    pypeit.scripts.flux_calib
@@ -60,6 +61,7 @@ Submodules
    pypeit.scripts.show_pixflat
    pypeit.scripts.show_wvcalib
    pypeit.scripts.skysub_regions
+   pypeit.scripts.status
    pypeit.scripts.tellfit
    pypeit.scripts.trace_edges
    pypeit.scripts.util
