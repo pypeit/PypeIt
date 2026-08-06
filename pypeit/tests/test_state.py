@@ -129,9 +129,10 @@ def test_update_calib_normalizes_output_path():
     """
     s = run_state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
                              current_det=-1, current_calibID=-1)
-    s.update_calib('arc', 0, 1, 'output_file', Path('/path/Arc.fits'))
+    output_path = Path('/path/Arc.fits')
+    s.update_calib('arc', 0, 1, 'output_file', output_path)
 
-    assert s.arc[0].output_file == '/path/Arc.fits'
+    assert s.arc[0].output_file == str(output_path)
     assert isinstance(s.arc[0].output_file, str)
 
     # Turn the serializer warning into an exception so this test regresses
