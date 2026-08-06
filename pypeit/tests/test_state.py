@@ -18,6 +18,7 @@ machinery:
   pipeline processing order (``slits`` before ``arc``).
 """
 
+import warnings
 from pathlib import Path
 
 import pytest
@@ -119,6 +120,25 @@ def test_update_calib_create_and_update():
     assert len(s.arc) == 1
     assert s.arc[0].status == 'success'
     assert s.arc[0].output_file == '/path/Arc.fits'
+
+
+def test_update_calib_normalizes_output_path():
+    """
+    A calibration ``Path`` is stored as a string so pydantic can serialize
+    the state without reporting an unexpected value for ``output_file``.
+    """
+    s = run_state.RunPypeItState(pypeit_file='x.pypeit', current_step='init',
+                             current_det=-1, current_calibID=-1)
+    s.update_calib('arc', 0, 1, 'output_file', Path('/path/Arc.fits'))
+
+    assert s.arc[0].output_file == '/path/Arc.fits'
+    assert isinstance(s.arc[0].output_file, str)
+
+    # Turn the serializer warning into an exception so this test regresses
+    # if a non-string Path reaches the pydantic model again.
+    with warnings.catch_warnings():
+        warnings.simplefilter('error')
+        s.model_dump_json()
 
 
 def test_update_calib_input_files_stored_as_list():
