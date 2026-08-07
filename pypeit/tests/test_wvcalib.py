@@ -12,7 +12,6 @@ from pypeit.core.wavecal import wv_fitting
 from pypeit.core import fitting
 from pypeit import wavecalib
 from pypeit import slittrace
-from pypeit.tests.tstutils import data_output_path
 from pypeit.core.wavecal import waveio
 
 
@@ -34,9 +33,9 @@ def test_wavefit_hduprefix():
     assert spat_id == _spat_id, 'Bad parse'
 
 
-def test_wavefit():
+def test_wavefit(tmp_path):
     "Fuss with the WaveFit DataContainer"
-    out_file = Path(data_output_path('test_wavefit.fits')).absolute()
+    out_file = tmp_path / 'test_wavefit.fits'
     if out_file.exists():
         out_file.unlink()
     pypeitFit = fitting.PypeItFit(fitc=np.arange(5).astype(float))
@@ -75,7 +74,7 @@ def test_wavefit():
     out_file.unlink()
 
 
-def test_wavecalib():
+def test_wavecalib(tmp_path):
     "Fuss with the WaveCalib DataContainer"
     # Pieces
     pypeitFit = fitting.PypeItFit(fitc=np.arange(5).astype(float), xval=np.linspace(1,100., 100))
@@ -90,7 +89,7 @@ def test_wavecalib():
                                     nslits=1, spat_ids=np.asarray([232]),
                                     wv_fit2d=np.array([pypeitFit2]),
                                     fwhm_map=np.array([pypeitFit2]))
-    waveCalib.set_paths(data_output_path(''), 'A', '1', 'DET01')
+    waveCalib.set_paths(str(tmp_path), 'A', '1', 'DET01')
 
     ofile = Path(waveCalib.get_path()).absolute()
 
@@ -119,7 +118,7 @@ def test_wavecalib():
     waveCalib3 = wavecalib.WaveCalib(wv_fits=np.asarray([waveFit, wv_fitting.WaveFit(949)]),
                                      nslits=2, spat_ids=spat_ids,
                                      wv_fit2d=np.array([pypeitFit2, pypeitFit2]))
-    waveCalib3.set_paths(data_output_path(''), 'A', '1', 'DET01')
+    waveCalib3.set_paths(str(tmp_path), 'A', '1', 'DET01')
     waveCalib3.to_file(overwrite=True)
     waveCalib4 = wavecalib.WaveCalib.from_file(ofile)
 
@@ -135,7 +134,7 @@ def test_wavecalib():
     ofile.unlink()
 
 
-def test_wvcalib_no2d():
+def test_wvcalib_no2d(tmp_path):
     """ Test WaveCalib without a 2D fit (not echelle) """
     # Pieces
     pypeitFit = fitting.PypeItFit(fitc=np.arange(5).astype(float), xval=np.linspace(1,100., 100))
@@ -146,7 +145,7 @@ def test_wvcalib_no2d():
     spat_ids = np.asarray([232, 949])
     waveCalib = wavecalib.WaveCalib(wv_fits=np.asarray([waveFit, wv_fitting.WaveFit(949)]),
                                     nslits=2, spat_ids=spat_ids)
-    waveCalib.set_paths(data_output_path(''), 'A', '1', 'DET01')
+    waveCalib.set_paths(str(tmp_path), 'A', '1', 'DET01')
     ofile = Path(waveCalib.get_path()).absolute()
 
     waveCalib.to_file(overwrite=True)

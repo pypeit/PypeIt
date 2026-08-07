@@ -13,7 +13,6 @@ from pypeit import dataPaths
 from pypeit import fluxcalibrate
 from pypeit import sensfunc
 from pypeit.par import pypeitpar
-from pypeit.tests.tstutils import data_output_path
 from pypeit import specobjs, specobj
 
 from pypeit import fluxcalibrate
@@ -76,7 +75,7 @@ def test_flux_calib(tmp_path, monkeypatch):
         config_file_no_sens = str(tmp_path / "test_flux_calib_no_sens.flux")
         with open(config_file_no_sens, "w") as f:
             print("flux read", file=f)
-            print(f"path {data_output_path('')}", file=f)
+            print(f"path {str(tmp_path)}", file=f)
             print("filename", file=f)
             # TODO: Are these meant to be the same file?
             print("spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits", file=f)
@@ -91,15 +90,15 @@ def test_flux_calib(tmp_path, monkeypatch):
 # TODO: Include tests for coadd2d, sensfunc
 
 
-def test_extinction_correction_uvis():
-    extinction_correction_tester('UVIS')
+def test_extinction_correction_uvis(tmp_path):
+    extinction_correction_tester(tmp_path, 'UVIS')
 
-def test_extinction_correction_ir():
-    extinction_correction_tester('IR')
+def test_extinction_correction_ir(tmp_path):
+    extinction_correction_tester(tmp_path, 'IR')
 
-def extinction_correction_tester(algorithm):
-    spec1d_file = data_output_path('spec1d_test.fits')
-    sens_file = data_output_path('sens_test.fits')
+def extinction_correction_tester(tmp_path, algorithm):
+    spec1d_file = str(tmp_path / 'spec1d_test.fits')
+    sens_file = str(tmp_path / 'sens_test.fits')
 
     if os.path.isfile(spec1d_file):
         os.remove(spec1d_file)

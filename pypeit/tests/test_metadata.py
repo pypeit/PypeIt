@@ -17,11 +17,11 @@ from astropy.table import Table
 from pypeit import PypeItError
 
 
-def test_read_combid():
+def test_read_combid(tmp_path):
 
     # ------------------------------------------------------------------
     # In case of failed tests
-    config_dir = Path(tstutils.data_output_path('shane_kast_blue_A')).absolute()
+    config_dir = tmp_path / 'shane_kast_blue_A'
     if config_dir.exists():
         shutil.rmtree(config_dir)
     # ------------------------------------------------------------------
@@ -29,7 +29,7 @@ def test_read_combid():
     tstutils.install_shane_kast_blue_raw_data()
 
     # Generate the pypeit file with the comb_id
-    droot = tstutils.data_output_path('b')
+    droot = str(tmp_path / 'b')
     pargs = Setup.parse_args(['-r', droot, '-s', 'shane_kast_blue', '-c', 'all', '-b',
                               '--output_path', f'{config_dir.parent}'])
     Setup.main(pargs)
@@ -180,13 +180,13 @@ def test_multiple_setups():
         os.remove(fil)
 
 
-def test_get_row_for_filename():
+def test_get_row_for_filename(tmp_path):
     ## Clone of above test, just trying to get a metadata object
-    config_dir = Path(tstutils.data_output_path('shane_kast_blue_A')).absolute()
+    config_dir = tmp_path / 'shane_kast_blue_A'
     if config_dir.exists():
         shutil.rmtree(config_dir)
     tstutils.install_shane_kast_blue_raw_data()
-    droot = tstutils.data_output_path('b')
+    droot = str(tmp_path / 'b')
     pargs = Setup.parse_args(['-r', droot, '-s', 'shane_kast_blue', '-c', 'all', '-b',
                               '--output_path', f'{config_dir.parent}'])
     Setup.main(pargs)

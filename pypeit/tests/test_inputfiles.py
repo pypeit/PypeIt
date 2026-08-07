@@ -18,7 +18,7 @@ from pypeit import inputfiles
 from pypeit.tests import tstutils
 
 
-def _pypeitfile_components():
+def _pypeitfile_components(tmp_path):
     """
     Bits needed to generate a PypeIt file
     """
@@ -29,7 +29,7 @@ def _pypeitfile_components():
     data['frametype'] = ['arc', 'science']
     data['exptime'] = [1., 10.]
 
-    file_paths = [tstutils.data_output_path('')]
+    file_paths = [tmp_path]
 
     setup_dict = {'Setup A': ' '}
 
@@ -37,9 +37,9 @@ def _pypeitfile_components():
     return confdict, data, file_paths, setup_dict
 
 
-def test_grab_rawfiles():
+def test_grab_rawfiles(tmp_path):
 
-    tst_file = Path(tstutils.data_output_path('test.rawfiles')).absolute()
+    tst_file = tmp_path / 'test.rawfiles'
     if tst_file.exists():
         tst_file.unlink()
 
@@ -47,7 +47,7 @@ def test_grab_rawfiles():
     # installation
     tstutils.install_shane_kast_blue_raw_data()
 
-    root = Path(tstutils.data_output_path('')).absolute()
+    root = tmp_path
     raw_files = [root / 'b11.fits.gz', root / 'b12.fits.gz']
     assert all([f.exists() for f in raw_files]), 'Files missing'
 
@@ -103,9 +103,9 @@ def test_read_backwards_pypeitfile():
     assert isinstance(pypeItFile.config, dict), 'Backwards-format PypeIt file should parse to a dict'
 
 
-def test_write_pypeitfile():
+def test_write_pypeitfile(tmp_path):
     # Test writing a PypeIt file
-    outfile = Path(tstutils.data_output_path('tmp_file.pypeit')).absolute()
+    outfile = tmp_path / 'tmp_file.pypeit'
     if outfile.is_file():
         outfile.unlink()
 
@@ -131,9 +131,9 @@ def test_write_pypeitfile():
     outfile.unlink()
 
 
-def test_path_and_files_commented_and_skip_blank():
+def test_path_and_files_commented_and_skip_blank(tmp_path):
     # Prepare a small test directory and files
-    root = Path(tstutils.data_output_path('')).absolute()
+    root = tmp_path
 
     f1 = root / 'good.fits'
     f2 = root / 'masked.fits'
@@ -174,8 +174,8 @@ def test_path_and_files_commented_and_skip_blank():
     f2.unlink()
 
 
-def test_path_and_files_check_exists_flag():
-    root = Path(tstutils.data_output_path('')).absolute()
+def test_path_and_files_check_exists_flag(tmp_path):
+    root = tmp_path
 
     f_exists = root / 'exists1.fits'
     if f_exists.exists():
@@ -206,9 +206,9 @@ def test_path_and_files_check_exists_flag():
     f_exists.unlink()
 
 
-def test_vet_raises_when_missing_datablock():
+def test_vet_raises_when_missing_datablock(tmp_path):
     # datablock_required for PypeItFile is True; vet should raise when data is None
-    root = Path(tstutils.data_output_path('')).absolute()
+    root = tmp_path
     pfile = inputfiles.PypeItFile(
         config={'rdx': {}}, file_paths=[str(root)], data_table=None, setup={'Setup A': ' '},
         vet=False,
@@ -217,9 +217,9 @@ def test_vet_raises_when_missing_datablock():
         pfile.vet()
 
 
-def test_vet_raises_when_required_columns_missing():
+def test_vet_raises_when_required_columns_missing(tmp_path):
     # Missing required column 'frametype' should trigger vet() to raise
-    root = Path(tstutils.data_output_path('')).absolute()
+    root = tmp_path
     tbl = Table()
     tbl['filename'] = ['a.fits']
     pfile = inputfiles.PypeItFile(
@@ -286,9 +286,9 @@ def test_find_block():
 # that function.  We should fix that, and then we can uncomment this test.  We
 # could also move this test to the dev-suite unit tests so that it has a real
 # raw file to go from.
-#def test_get_pypeitpar_selects_science_file():
+#def test_get_pypeitpar_selects_science_file(tmp_path):
 #    # Create example files and a PypeIt table with an arc and a science frame
-#    root = Path(tstutils.data_output_path('')).absolute()
+#    root = tmp_path
 #    sci = root / 'sci1.fits'
 #    arc = root / 'arc1.fits'
 #    if sci.exists():
@@ -320,8 +320,8 @@ def test_find_block():
 #    sci.unlink()
 #    arc.unlink()
 
-def test_preserve_comments_in_filenames_property():
-    root = Path(tstutils.data_output_path('')).absolute()
+def test_preserve_comments_in_filenames_property(tmp_path):
+    root = tmp_path
     f1 = root / 'good.fits'
     f2 = root / 'masked.fits'
     if f1.exists():
@@ -507,20 +507,20 @@ def test_write_preserve_comments_true_and_cfg_lines():
         assert pfile2.setup_name == 'B', 'setup_name should return the setup letter'
 
 
-def test_sensfile_basic():
-    root = Path(tstutils.data_output_path('')).absolute()
+def test_sensfile_basic(tmp_path):
+    root = tmp_path
     sfile = inputfiles.SensFile(config={'rdx': {}}, file_paths=[str(root)], data_table=None, setup=None, vet=False)
     sfile.vet()
 
 
-def test_extractfile_basic():
-    root = Path(tstutils.data_output_path('')).absolute()
+def test_extractfile_basic(tmp_path):
+    root = tmp_path
     efile = inputfiles.ExtractFile(config={'rdx': {}}, file_paths=[str(root)], data_table=None, setup=None, vet=False)
     efile.vet()
 
 
-def test_fluxfile_basic():
-    root = Path(tstutils.data_output_path('')).absolute()
+def test_fluxfile_basic(tmp_path):
+    root = tmp_path
     tbl = Table()
     tbl['filename'] = ['f1.fits']
     tbl['frametype'] = ['science']
@@ -530,11 +530,11 @@ def test_fluxfile_basic():
         'FluxFile.vet should add an empty sensfile column when not provided'
 
 
-def test_input_flux_file():
+def test_input_flux_file(tmp_path):
     """Tests for generating and reading fluxing input files
     """
     # Generate an input file
-    flux_input_file = Path(tstutils.data_output_path('test.flux')).absolute()
+    flux_input_file = tmp_path /'test.flux'
     if flux_input_file.is_file():
         flux_input_file.unlink()
 
@@ -548,7 +548,7 @@ def test_input_flux_file():
                         'spec1d_cN20170331S0217-pisco_GNIRS_20170331T085933.097.fits']
     data['sensfile'] = 'sens_cN20170331S0206-HIP62745_GNIRS_20170331T083351.681.fits'
     # 
-    paths = [Path(tstutils.data_output_path('')).absolute()]
+    paths = [tmp_path]
     # If pulling from the cache, make sure there are symlinks at the expected path
     for f in data['filename']:
         dataPaths.tests.get_file_path(f, to_pkg='symlink')
@@ -595,8 +595,8 @@ def test_input_flux_file():
     flux_input_file.unlink()
 
 
-def test_coadd1dfile_basic():
-    root = Path(tstutils.data_output_path('')).absolute()
+def test_coadd1dfile_basic(tmp_path):
+    root = tmp_path
     tbl2 = Table()
     tbl2['filename'] = ['a.fits']
     with pytest.raises(PypeItError):
@@ -606,8 +606,8 @@ def test_coadd1dfile_basic():
     c1.vet()
 
 
-def test_coadd2d_basic():
-    root = Path(tstutils.data_output_path('')).absolute()
+def test_coadd2d_basic(tmp_path):
+    root = tmp_path
     tbl3 = Table()
     tbl3['filename'] = ['b.fits']
     with pytest.raises(PypeItError):
@@ -616,8 +616,8 @@ def test_coadd2d_basic():
     c2.vet()
 
 
-def test_coadd3d_basic():
-    root = Path(tstutils.data_output_path('')).absolute()
+def test_coadd3d_basic(tmp_path):
+    root = tmp_path
     tbl3 = Table()
     tbl3['filename'] = ['b.fits']
     with pytest.raises(PypeItError):
@@ -626,14 +626,14 @@ def test_coadd3d_basic():
     c3.vet()
 
 
-def test_telluric_basic():
-    root = Path(tstutils.data_output_path('')).absolute()
+def test_telluric_basic(tmp_path):
+    root = tmp_path
     tfile = inputfiles.TelluricFile(config={'rdx': {}}, file_paths=[str(root)], data_table=None, setup=None, vet=False)
     tfile.vet()
 
 
-def test_flexure_basic():
-    root = Path(tstutils.data_output_path('')).absolute()
+def test_flexure_basic(tmp_path):
+    root = tmp_path
     tbl3 = Table()
     tbl3['filename'] = ['b.fits']
     with pytest.raises(PypeItError):
@@ -642,8 +642,8 @@ def test_flexure_basic():
     flex.vet()
 
 
-def test_collate1d_basic():
-    root = Path(tstutils.data_output_path('')).absolute()
+def test_collate1d_basic(tmp_path):
+    root = tmp_path
     with pytest.raises(PypeItError):
         inputfiles.Collate1DFile(config={'rdx': {}}, file_paths=[str(root)], data_table=Table(), setup=None, vet=True)
     rtbl = Table()
@@ -652,8 +652,8 @@ def test_collate1d_basic():
     coll.vet()
 
 
-def test_rawfiles_basic():
-    root = Path(tstutils.data_output_path('')).absolute()
+def test_rawfiles_basic(tmp_path):
+    root = tmp_path
     with pytest.raises(PypeItError):
         inputfiles.RawFiles(config={'rdx': {}}, file_paths=[str(root)], data_table=Table(), setup=None, vet=True)
     rtbl = Table()

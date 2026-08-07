@@ -14,8 +14,6 @@ from pypeit.images import buildimage
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 
-from pypeit.tests.tstutils import data_output_path
-
 det = 1
 
 @pytest.fixture
@@ -37,7 +35,7 @@ def fitstbl():
     return setupc.fitstbl
 
 @pytest.fixture
-def multi_caliBrate(fitstbl):
+def multi_caliBrate(tmp_path, fitstbl):
     # Grab a science file for configuration specific parameters
     indx = fitstbl.find_frames('science', index=True)[0]
     sci_file = fitstbl.frame_paths(indx)
@@ -52,7 +50,7 @@ def multi_caliBrate(fitstbl):
     calib_par['slitedges']['sync_predict'] = 'nearest'
 
     multi_caliBrate = calibrations.MultiSlitCalibrations(
-        fitstbl, calib_par, spectrograph, data_output_path('Calibrations'),
+        fitstbl, calib_par, spectrograph, str(tmp_path / 'Calibrations'),
         calib_ID, indx, det)
     multi_caliBrate.success = True
     return multi_caliBrate
@@ -60,11 +58,11 @@ def multi_caliBrate(fitstbl):
 ###################################################
 # TESTS BEGIN HERE
 
-def test_abstract_init(fitstbl):
+def test_abstract_init(tmp_path, fitstbl):
     frame = fitstbl.find_frames('science', index=True)[0]
     par = pypeitpar.CalibrationsPar()
     spectrograph = load_spectrograph('shane_kast_blue')
-    caldir = data_output_path('Calibrations')
+    caldir = str(tmp_path / 'Calibrations')
     calib_ID = fitstbl.calib_groups[0]
     calib = calibrations.Calibrations.get_instance(
         fitstbl, par, spectrograph, caldir,calib_ID,frame,det)
@@ -79,11 +77,11 @@ def test_abstract_init(fitstbl):
     assert isinstance(calib, calibrations.IFUCalibrations), 'Wrong calibration object type'
 
 
-def test_instantiate(fitstbl):
+def test_instantiate(tmp_path, fitstbl):
     frame = fitstbl.find_frames('science', index=True)[0]
     par = pypeitpar.CalibrationsPar()
     spectrograph = load_spectrograph('shane_kast_blue')
-    caldir = data_output_path('Calibrations')
+    caldir = str(tmp_path / 'Calibrations')
     calib_ID = fitstbl.calib_groups[0]
     caliBrate = calibrations.MultiSlitCalibrations(
         fitstbl, par, spectrograph, caldir, calib_ID, frame, det)

@@ -5,10 +5,11 @@ from pathlib import Path
 
 from IPython import embed
 
+import pytest
+
 import numpy as np
 
 from pypeit import onespec
-from pypeit.tests.tstutils import data_output_path
 
 
 def test_init():
@@ -24,12 +25,12 @@ def test_init():
     #assert np.allclose(spec.sigma, 1/np.sqrt(2)), 'Conversion to sigma is wrong'
 
 
-def test_io():
+def test_io(tmp_path):
     wave = np.linspace(3500,10000,1000)
     flux = np.ones(1000, dtype=float)
     # TODO: PYP_SPEC is required if we want to be able to read the file!
     spec = onespec.OneSpec(wave, wave, flux, PYP_SPEC='shane_kast_blue')
-    ofile = Path(data_output_path('tmp.fits')).absolute()
+    ofile = tmp_path / 'tmp.fits'
     spec.to_file(str(ofile), overwrite=True)
     _spec = onespec.OneSpec.from_file(ofile)
     assert np.array_equal(spec.flux, _spec.flux), 'Flux munged'

@@ -13,7 +13,6 @@ import numpy as np
 
 from pypeit import utils
 from pypeit import log
-from pypeit.tests.tstutils import data_output_path
 from pypeit import io
 
 
@@ -99,7 +98,7 @@ def test_boxcar_smooth_rows():
 
 
 
-def test_yamlify():
+def test_yamlify(tmp_path):
     """ This tests the yamlify method and also the approach to 
     writing and reading the Setup block of PypeIt"""
 
@@ -108,7 +107,7 @@ def test_yamlify():
     new_obj = utils.yamlify(obj)
 
     # Write
-    tst_file = data_output_path('tst.yaml')
+    tst_file = str(tmp_path / 'tst.yaml')
     with open(tst_file, 'w') as f:
         setup_lines = io.dict_to_lines(new_obj, level=1)
         f.write('\n'.join(setup_lines)+'\n')

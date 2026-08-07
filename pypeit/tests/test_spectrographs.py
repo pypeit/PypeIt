@@ -14,7 +14,6 @@ from pypeit import spectrographs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import pypeitsetup
 from pypeit.tests import tstutils
-from pypeit.tests.tstutils import data_output_path
 
 from IPython import embed
 
@@ -30,11 +29,11 @@ def test_shanekastblue():
     assert bpm.shape == (2048,350)
 
 
-def test_select_detectors_pypeit_file():
+def test_select_detectors_pypeit_file(tmp_path):
     # Generate a PypeIt file
     tstutils.install_shane_kast_blue_raw_data()
-    pypeItFile = tstutils.make_shane_kast_blue_pypeitfile()
-    pypeit_file = data_output_path('test.pypeit')
+    pypeItFile = tstutils.make_shane_kast_blue_pypeitfile(tmp_path)
+    pypeit_file = str(tmp_path / 'test.pypeit')
     pypeItFile.write(pypeit_file)
 
     # Perform the setup

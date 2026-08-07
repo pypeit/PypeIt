@@ -11,11 +11,10 @@ import numpy as np
 
 from pypeit import dataPaths
 from pypeit.core import fitting
-from pypeit.tests.tstutils import data_output_path
 
 
-def test_pypeitfit():
-    out_file = data_output_path('test_fit.fits')
+def test_pypeitfit(tmp_path):
+    out_file = str(tmp_path / 'test_fit.fits')
     if os.path.isfile(out_file):
         os.remove(out_file)
     pypeitFit = fitting.PypeItFit(fitc=np.arange(100).astype(float))

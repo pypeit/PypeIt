@@ -5,6 +5,8 @@ from pathlib import Path
 
 from IPython import embed
 
+import pytest
+
 import numpy as np
 
 from pypeit.images import pypeitimage
@@ -22,7 +24,7 @@ def test_init():
     arcImage = buildimage.ArcImage.from_pypeitimage(pypeitImage)
 
 
-def test_io():
+def test_io(tmp_path):
     # Instantiate a simple pypeitImage
     pypeitImage = pypeitimage.PypeItImage(np.ones((1000, 1000)))
     pypeitImage.reinit_mask()
@@ -30,12 +32,12 @@ def test_io():
     pypeitImage.PYP_SPEC = 'shane_kast_blue'
     # Now the arcimage
     arcImage = buildimage.ArcImage.from_pypeitimage(
-        pypeitImage, calib_dir=tstutils.data_output_path(''), setup='A', calib_id=['1'],
+        pypeitImage, calib_dir=str(tmp_path), setup='A', calib_id=['1'],
         detname='DET01'
     )
     # Set paths and check name
     ofile = Path(arcImage.get_path()).absolute()
-    assert str(ofile) == str(Path(tstutils.data_output_path('Arc_A_1_DET01.fits')).absolute()), \
+    assert str(ofile) == str(tmp_path / 'Arc_A_1_DET01.fits'), \
             'Calibration file name changed'
     
     # Write
