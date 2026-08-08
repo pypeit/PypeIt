@@ -89,6 +89,37 @@ This will:
     - Apply an offset to generate tilts and wavelengths for the associated
       science/standard images
 
+.. _flexure-spatial-manual:
+
+Manual correction
+-----------------
+
+If the automated cross-correlation fails for a given frame (or you simply
+know the offset better than the code does), you can supply the spatial
+flexure shift yourself via the ``shift`` column in the data block of your
+:doc:`../pypeit_file`.  Running :ref:`pypeit_setup` with the ``-f``
+(``--flexure``) option includes this column in the generated pypeit file:
+
+.. code-block:: console
+
+    pypeit_setup -r /path/to/raw -s shane_kast_blue -c A -f
+
+The column defaults to ``nan``, which means no manual correction; the
+automatically computed value (if ``spat_flexure_correct = True``) is used.
+Set the column to any finite value (in pixels, including ``0.0``) for a
+science or standard frame to override the automatic determination for that
+frame:
+
+.. code-block:: console
+
+    filename |                 frametype | ... | shift
+    b27.fits |                   science | ... |   2.5
+    b28.fits |                   science | ... |   nan
+     b1.fits |                  arc,tilt | ... |   nan
+
+Here, ``b27.fits`` is reduced with a fixed spatial flexure of 2.5 pixels,
+while ``b28.fits`` uses the default behavior.
+
 ----
 
 .. _flexure-spectral:

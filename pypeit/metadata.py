@@ -1514,7 +1514,9 @@ class PypeItMetaData:
         if 'bkg_id' not in self.keys():
             self['bkg_id'] = -1
         if 'shift' not in self.keys():
-            self['shift'] = 0
+            # NaN means no manual spatial flexure; any finite value
+            # (including 0.) is a user-requested override.
+            self['shift'] = np.nan
 
         # NOTE: Importantly, this if statement means that, if the user has
         # defined any non-negative combination IDs in their pypeit file, none of
@@ -1550,7 +1552,9 @@ class PypeItMetaData:
         if 'manual' not in self.keys():
             self['manual'] = ''
         if 'shift' not in self.keys():
-            self['shift'] = 0
+            # NaN means no manual spatial flexure; any finite value
+            # (including 0.) is a user-requested override.
+            self['shift'] = np.nan
 
     def write_sorted(self, ofile, overwrite=True, ignore=None, 
                      write_bkg_pairs=False, write_manual=False):
