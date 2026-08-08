@@ -13,7 +13,6 @@ import numpy as np
 from astropy.io import fits
 
 from pypeit import specobj
-from pypeit.tests.tstutils import data_output_path
 from pypeit import log
 
 
@@ -54,11 +53,11 @@ def test_hdu():
     assert 'TRACE_SPAT' in hdul[0].data.dtype.names
     assert 'SLITID' in hdul[0].header.keys()
 
-def test_io():
+def test_io(tmp_path):
     sobj = specobj.SpecObj('MultiSlit', 'DET01', SLITID=0)
     # Can we handle 1 array?
     sobj['BOX_WAVE'] = np.arange(100).astype(float)
-    ofile = data_output_path('tmp.fits')
+    ofile = str(smp_path / 'tmp.fits')
     sobj.to_file(ofile, overwrite=True)
     _sobj = specobj.SpecObj.from_file(ofile)
     assert np.array_equal(sobj.BOX_WAVE, _sobj.BOX_WAVE)
@@ -66,7 +65,7 @@ def test_io():
     # Cleanup
     os.remove(ofile)
 
-def test_iotwo():
+def test_iotwo(tmp_path):
     sobj = specobj.SpecObj('MultiSlit', 'DET01', SLITID=0)
     #
     sobj['BOX_WAVE'] = np.arange(100).astype(float)
@@ -75,7 +74,7 @@ def test_iotwo():
     sobj['BOX_MASK'] = np.arange(100).astype(bool)
 
     # Write table
-    ofile = data_output_path('tmp.fits')
+    ofile = str(tmp_path / 'tmp.fits')
     sobj.to_file(ofile, overwrite=True)
     sobj2 = specobj.SpecObj.from_file(ofile)
     #

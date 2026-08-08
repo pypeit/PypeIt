@@ -79,7 +79,7 @@ def test_set(sobj1, sobj2, sobj3):
     assert sobjs.PYPELINE[0] == 'MultiSlit'
 
 
-def test_io(sobj1, sobj2, sobj3, sobj4):
+def test_io(tmp_path, sobj1, sobj2, sobj3, sobj4):
     sobjs = specobjs.SpecObjs([sobj1,sobj2,sobj3,sobj4])
     sobjs[0]['BOX_WAVE'] = np.arange(1000).astype(float)
     sobjs[1]['BOX_WAVE'] = np.arange(1000).astype(float)
@@ -96,7 +96,7 @@ def test_io(sobj1, sobj2, sobj3, sobj4):
     # Write
     header = fits.PrimaryHDU().header
     header['TST'] = 'TEST'
-    ofile = tstutils.data_output_path('tst_specobjs.fits')
+    ofile = str(tmp_path / 'tst_specobjs.fits')
     if os.path.isfile(ofile):
         os.remove(ofile)
     sobjs.write_to_fits(header, ofile, overwrite=False)

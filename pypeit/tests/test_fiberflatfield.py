@@ -2,11 +2,12 @@
 import numpy as np
 from pathlib import Path
 
+import pytest
+
 from pypeit.flatfield import FiberFlatImages
-from pypeit.tests.tstutils import data_output_path
 
 
-def test_fiberflatimages_io():
+def test_fiberflatimages_io(tmp_path):
     """Test FiberFlatImages DataContainer I/O round-trip."""
     nfibers = 40
     nwave = 100
@@ -29,7 +30,7 @@ def test_fiberflatimages_io():
     )
 
     # Write and read back
-    ofile = Path(data_output_path('test_fiberflatimages.fits')).absolute()
+    ofile = tmp_path / 'test_fiberflatimages.fits'
     ffi.to_file(str(ofile), overwrite=True)
     _ffi = FiberFlatImages.from_file(str(ofile))
 

@@ -5,6 +5,8 @@ from pathlib import Path
 
 from IPython import embed
 
+import pytest
+
 import numpy as np
 
 from astropy.io import fits
@@ -13,10 +15,9 @@ from pypeit import flatfield
 from pypeit.core.bspline import Knots
 from pypeit.containers.bspline import BSplineContainer
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.tests.tstutils import data_output_path
 
 
-def test_flatimages():
+def test_flatimages(tmp_path):
     tmp = np.ones((1000, 100)) * 10.
     x = np.random.rand(500)
     # Create bspline
@@ -37,7 +38,7 @@ def test_flatimages():
     assert flatImages.pixelflat_model is None
     assert flatImages.pixelflat_spec_illum is None
     assert flatImages.pixelflat_spat_bsplines is not None
-    flatImages.set_paths(data_output_path(''), 'A', '1', 'DET01')
+    flatImages.set_paths(str(tmp_path), 'A', '1', 'DET01')
 
     # I/O
     ofile = Path(flatImages.get_path()).absolute()

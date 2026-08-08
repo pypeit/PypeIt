@@ -5,6 +5,8 @@ import os
 
 from IPython import embed
 
+import pytest
+
 import numpy as np
 
 from pypeit.tests import tstutils
@@ -28,11 +30,11 @@ def test_bundle():
     assert len(data) == 1
 
 
-def test_io():
+def test_io(tmp_path):
     detector = detector_container.DetectorContainer(**tstutils.default_detector())
-    detector.to_file(tstutils.data_output_path('tmp_detector.fits'), overwrite=True)
+    detector.to_file(str(tmp_path / 'tmp_detector.fits'), overwrite=True)
 
-    _new_detector = detector.from_file(tstutils.data_output_path('tmp_detector.fits'))
+    _new_detector = detector.from_file(str(tmp_path / 'tmp_detector.fits'))
 
     # Check a few attributes are equal
     assert detector['dataext'] == _new_detector['dataext'], 'Bad read dataext'
@@ -40,7 +42,7 @@ def test_io():
     assert detector['binning'] == _new_detector['binning'], 'Bad read binning'
     assert np.array_equal(detector['datasec'], _new_detector['datasec']), 'Bad read datasec'
 
-    os.remove(tstutils.data_output_path('tmp_detector.fits'))
+    os.remove(str(tmp_path / 'tmp_detector.fits'))
 
 
 def test_copy():

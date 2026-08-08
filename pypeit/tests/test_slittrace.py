@@ -5,10 +5,11 @@ from pathlib import Path
 
 from IPython import embed
 
+import pytest
+
 import numpy as np
 
 from pypeit.slittrace import SlitTraceSet, SlitTraceBitMask
-from pypeit.tests.tstutils import data_output_path
 
 
 def test_bits():
@@ -38,11 +39,11 @@ def test_init():
     assert np.all(center == 5), 'Bad center'
 
 
-def test_io():
+def test_io(tmp_path):
 
     slits = SlitTraceSet(np.full((1000,3), 2, dtype=float), np.full((1000,3), 8, dtype=float),
                          'MultiSlit', nspat=10, PYP_SPEC='dummy')
-    slits.set_paths(data_output_path(''), 'A', '1', 'DET01')
+    slits.set_paths(str(tmp_path), 'A', '1', 'DET01')
     ofile = Path(slits.get_path()).absolute()
 
     # Try to save it
@@ -59,14 +60,14 @@ def test_io():
     ofile.unlink()
 
 
-def test_io_single():
+def test_io_single(tmp_path):
     # NOTE this is just a test string. The file itself is not actually read, so it is not required to run the test.
     file = '/home/xavier/Projects/PypeIt-development-suite/RAW_DATA/keck_deimos/830G_M_8500/DE.20100913.57006.fits.gz'
     slits = SlitTraceSet(np.full((1000, 1), 2, dtype=float), np.full((1000, 1), 8, dtype=float),
                          'MultiSlit',
                          nspat=10, PYP_SPEC='dummy',
                          maskfile=file)
-    slits.set_paths(data_output_path(''), 'A', '1', 'DET01')
+    slits.set_paths(str(tmp_path), 'A', '1', 'DET01')
     ofile = Path(slits.get_path()).absolute()
 
     # Try to save it

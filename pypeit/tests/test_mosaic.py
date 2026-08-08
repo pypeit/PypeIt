@@ -6,25 +6,24 @@ import pytest
 from astropy.io import fits
 
 from pypeit import PypeItDataModelError
-from pypeit.tests.tstutils import data_output_path
 from pypeit.images.mosaic import Mosaic
 from pypeit.spectrographs.util import load_spectrograph
 
 
-def test_io():
+def test_io(tmp_path):
     # Create the mosaic
     spec = load_spectrograph('keck_deimos')
     mpar = spec.get_mosaic_par((1,5))
 
     # Write it
-    ofile = data_output_path('tmp_mosaic.fits')
+    ofile = str(tmp_path / 'tmp_mosaic.fits')
     mpar.to_file(ofile, overwrite=True)
 
     # Try to read it
     _mpar = Mosaic.from_file(ofile)
 
     # Change the version
-    _ofile = data_output_path('tmp_mosaic_wrongver.fits')
+    _ofile = str(tmp_path / 'tmp_mosaic_wrongver.fits')
     with fits.open(ofile) as hdu:
         hdu['MOSAIC'].header['DMODVER'] = '1.0.0'
         hdu.writeto(_ofile, overwrite=True)

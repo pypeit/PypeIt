@@ -17,21 +17,6 @@ from pypeit.metadata import PypeItMetaData
 from pypeit.inputfiles import PypeItFile 
 
 
-# NOTE: Now that the test data files are kept remotely, we have to distinguish
-# between paths to files that are *written* (data_output_path) as part of the
-# tests and those that are *read* (data_input_path) as part of the tests.  I.e.,
-# files to be written should not exist on GitHub, so we should not attempt to
-# download them.
-# def data_input_path(filename, to_pkg=None):
-#    return str(dataPaths.tests.get_file_path(filename, to_pkg=to_pkg))
-
-
-def data_output_path(filename):
-    if len(filename) == 0:
-        return str(dataPaths.tests.path)
-    return str(dataPaths.tests.path / filename)
-
-
 # Example (shane_kast_blue)
 def default_detector():
     return dict(
@@ -159,7 +144,7 @@ def dummy_fitstbl(nfile=10, spectro_name='shane_kast_blue', directory='', notype
     return fitstbl
 
 
-def make_shane_kast_blue_pypeitfile():
+def make_shane_kast_blue_pypeitfile(tmp_path):
     """ Generate a PypeItFile class """
     # Bits needed to generate a PypeIt file
     confdict = {'rdx': {'spectrograph': 'shane_kast_blue'}}
@@ -176,7 +161,7 @@ def make_shane_kast_blue_pypeitfile():
     data['filename'] = [os.path.basename(dataPaths.tests.get_file_path(f, to_pkg='symlink'))
                             for f in raw_files]
     data['frametype'] = ['science']*len(data)
-    file_paths = [data_output_path('')]
+    file_paths = [str(tmp_path)]
     setup_dict = {'Setup A': ' '}
 
     # Return

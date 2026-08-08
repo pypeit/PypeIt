@@ -12,7 +12,6 @@ import pytest
 from pypeit import PypeItError
 from pypeit.calibframe import CalibFrame
 from pypeit import io
-from pypeit.tests.tstutils import data_output_path
 
 
 class NoTypeCalibFrame(CalibFrame):
@@ -46,9 +45,9 @@ def test_implementation_faults():
         calib = MissingPYPSPECCalibFrame()
 
 
-def test_init():
+def test_init(tmp_path):
     calib = MinimalCalibFrame()
-    odir = Path(data_output_path('')).absolute()
+    odir = tmp_path
     calib.set_paths(odir, 'A', '1', 'DET01')
     ofile = Path(calib.get_path()).name
     assert ofile == 'Minimal_A_1_DET01.fits', 'Wrong file name'
@@ -61,9 +60,9 @@ def test_init():
     assert ofile == 'Minimal_A_1+2_DET01.fits', 'Wrong file name'
 
 
-def test_io():
+def test_io(tmp_path):
     calib = MinimalCalibFrame()
-    odir = Path(data_output_path('')).absolute()
+    odir = tmp_path
     calib.set_paths(odir, 'A', '1', 'DET01')
     calib.PYP_SPEC = 'this is a test'
     opath = Path(calib.get_path()).absolute()
@@ -142,9 +141,9 @@ def test_parse_calib_id():
             'Bad complex construction'
 
 
-def test_parse_key_dir():
+def test_parse_key_dir(tmp_path):
     calib = MinimalCalibFrame()
-    odir = Path(data_output_path('')).absolute()
+    odir = tmp_path
     calib.set_paths(odir, 'A', '1', 'DET01')
     calib.PYP_SPEC = 'this is a test'
     opath = Path(calib.get_path()).absolute()
@@ -164,9 +163,9 @@ def test_parse_key_dir():
     opath.unlink()
 
 
-def test_hdr():
+def test_hdr(tmp_path):
     calib = MinimalCalibFrame()
-    odir = Path(data_output_path('')).absolute()
+    odir = tmp_path
     calib.set_paths(odir, 'A', '1', 'DET01')
 
     hdr = calib._base_header()

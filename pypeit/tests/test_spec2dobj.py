@@ -79,11 +79,11 @@ def test_init(init_dict):
     assert spec2DObj.hdu_prefix == 'DET01-'
 
 
-def test_spec2dobj_io(init_dict):
+def test_spec2dobj_io(tmp_path, init_dict):
     init_dict['detector'] = tstutils.get_kastb_detector()
     spec2DObj = spec2dobj.Spec2DObj(**init_dict)
     # Write
-    ofile = tstutils.data_output_path('tst_spec2d.fits')
+    ofile = str(tmp_path / 'tst_spec2d.fits')
     if os.path.isfile(ofile):
         os.remove(ofile)
     spec2DObj.to_file(ofile)
@@ -127,7 +127,7 @@ def test_spec2dobj_update_slit(init_dict):
 ####################################################3
 # Testing of AllSpec2DObj
 
-def test_all2dobj_hdr(init_dict):
+def test_all2dobj_hdr(tmp_path, init_dict):
     # Build one
     init_dict['detector'] = tstutils.get_kastb_detector()
     spec2DObj = spec2dobj.Spec2DObj(**init_dict)
@@ -141,12 +141,12 @@ def test_all2dobj_hdr(init_dict):
     spectrograph = load_spectrograph('shane_kast_blue')
     # Do it
     hdr = allspec2D.build_primary_hdr(header, spectrograph,
-                                      calib_dir=tstutils.data_output_path(''))
+                                      calib_dir=str(tmp_path))
     # Test it
     assert hdr['SKYSUB'] == 'MODEL'
 
 
-def test_all2dobj_write(init_dict):
+def test_all2dobj_write(tmp_path, init_dict):
     # Build one
     init_dict['detector'] = tstutils.get_kastb_detector()
     spec2DObj = spec2dobj.Spec2DObj(**init_dict)
@@ -156,7 +156,7 @@ def test_all2dobj_write(init_dict):
     detname = spec2DObj.detname
     allspec2D[detname] = spec2DObj
     # Write
-    ofile = tstutils.data_output_path('tst_allspec2d.fits')
+    ofile = str(tmp_path / 'tst_allspec2d.fits')
     if os.path.isfile(ofile):
         os.remove(ofile)
     allspec2D.write_to_fits(ofile)
@@ -177,7 +177,7 @@ def test_all2dobj_write(init_dict):
     os.remove(ofile)
 
 
-def test_all2dobj_update_image(init_dict):
+def test_all2dobj_update_image(tmp_path, init_dict):
 
     allspec2D = spec2dobj.AllSpec2DObj()
     allspec2D['meta']['bkg_redux'] = False
@@ -187,7 +187,7 @@ def test_all2dobj_update_image(init_dict):
         allspec2D[d.name] = spec2dobj.Spec2DObj(detector=d, **init_dict)
 
     # Write
-    ofile = tstutils.data_output_path('tst_allspec2d.fits')
+    ofile = str(tmp_path / 'tst_allspec2d.fits')
     if os.path.isfile(ofile):
         os.remove(ofile)
     allspec2D.write_to_fits(ofile)

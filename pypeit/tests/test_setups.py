@@ -21,11 +21,11 @@ def expected_file_extensions():
     return ['sorted']
 
 
-def test_read_list_rawfiles():
+def test_read_list_rawfiles(tmp_path):
     """ Read in a file which is a 
     list of raw data files for setting up
     """
-    tst_file = tstutils.data_output_path('test.rawfiles')
+    tst_file = str(tmp_path / 'test.rawfiles')
     if os.path.isfile(tst_file):
         os.remove(tst_file)
 
@@ -36,7 +36,7 @@ def test_read_list_rawfiles():
     # Bulid
     tbl = Table()
     tbl['filename'] = ['b11.fits.gz', 'b12.fits.gz']
-    iRaw = RawFiles(file_paths=[tstutils.data_output_path('')],
+    iRaw = RawFiles(file_paths=[str(tmp_path)],
                     data_table=tbl)
 
     # Write
@@ -53,15 +53,15 @@ def test_read_list_rawfiles():
         os.remove(tst_file)
 
 
-def test_run_setup():
+def test_run_setup(tmp_path):
     """ Test the setup script
     """
     # Download and move all the required b*fits.gz files into the local package
     # installation
     tstutils.install_shane_kast_blue_raw_data()
 
-    droot = tstutils.data_output_path('b')
-    odir = Path(tstutils.data_output_path('')).absolute() / 'shane_kast_blue_A'
+    droot = str(tmp_path / 'b')
+    odir = tmp_path / 'shane_kast_blue_A'
     pargs = Setup.parse_args(['-r', droot, '-s', 'shane_kast_blue', '-c', 'all',
                               '--output_path', f'{odir.parent}'])
     Setup.main(pargs)
@@ -72,7 +72,7 @@ def test_run_setup():
     with pytest.raises(ValueError):
         Setup.main(pargs2)
     
-    pypeit_file = tstutils.data_output_path('shane_kast_blue_A/shane_kast_blue_A.pypeit')
+    pypeit_file = str(tmp_path / 'shane_kast_blue_A/shane_kast_blue_A.pypeit')
     pypeItFile = PypeItFile.from_file(pypeit_file)
 
     # Test
@@ -81,6 +81,6 @@ def test_run_setup():
     assert pypeItFile.setup_name == 'A'
 
     # Cleanup
-    shutil.rmtree(tstutils.data_output_path('shane_kast_blue_A'))
+    shutil.rmtree(str(tmp_path / 'shane_kast_blue_A'))
 
 

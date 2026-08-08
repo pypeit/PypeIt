@@ -22,14 +22,14 @@ specutils_required = pytest.mark.skipif(Spectrum is None or SpectrumList is None
 
 
 @specutils_required
-def test_onespec_io():
+def test_onespec_io(tmp_path):
     rng = np.random.default_rng()
     grid_wave = np.linspace(3500,10000,1000)
     wave = grid_wave + (2*rng.uniform(size=grid_wave.size) - 1)
     flux = np.ones(1000, dtype=float)
     # TODO: PYP_SPEC is required if we want to be able to read the file!
     spec = onespec.OneSpec(wave, grid_wave, flux, PYP_SPEC='shane_kast_blue')
-    ofile = Path(tstutils.data_output_path('tmp.fits')).absolute()
+    ofile = tmp_path / 'tmp.fits'
     spec.to_file(str(ofile), overwrite=True)
 
     _spec = Spectrum.read(ofile)
@@ -43,9 +43,9 @@ def test_onespec_io():
 
 
 @specutils_required
-def test_spec1d_io():
+def test_spec1d_io(tmp_path):
 
-    ofile = Path(tstutils.data_output_path('tmp.fits')).absolute()
+    ofile = tmp_path / 'tmp.fits'
 
     spec1 = specobj.SpecObj('MultiSlit', 'DET01', SLITID=0)
     npix_spec = 100
@@ -138,14 +138,14 @@ def test_spec1d_io():
 
 
 @specutils_required
-def test_onespec_monotonic():
+def test_onespec_monotonic(tmp_path):
     rng = np.random.default_rng(999)
     grid_wave = np.linspace(3500,10000,1000)
     wave = grid_wave + (10*rng.uniform(size=grid_wave.size) - 1)
     flux = np.ones(1000, dtype=float)
     # TODO: PYP_SPEC is required if we want to be able to read the file!
     spec = onespec.OneSpec(wave, grid_wave, flux, PYP_SPEC='shane_kast_blue')
-    ofile = Path(tstutils.data_output_path('tmp.fits')).absolute()
+    ofile = tmp_path / 'tmp.fits'
     spec.to_file(str(ofile), overwrite=True)
 
     with pytest.raises(PypeItError):

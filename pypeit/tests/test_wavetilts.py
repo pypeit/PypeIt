@@ -6,12 +6,13 @@ from pathlib import Path
 
 import numpy as np
 
-from pypeit.tests.tstutils import data_output_path
+import pytest
+
 from pypeit import wavetilts
 
 
 # Test WaveTilts
-def test_wavetilts():
+def test_wavetilts(tmp_path):
 
     instant_dict = dict(coeffs=np.ones((6,4,1)),
                         nslit=1,
@@ -21,7 +22,7 @@ def test_wavetilts():
                         func2d='legendre2d')
 
     wvtilts = wavetilts.WaveTilts(**instant_dict)
-    wvtilts.set_paths(data_output_path(''), 'A', '1', 'DET01')
+    wvtilts.set_paths(str(tmp_path), 'A', '1', 'DET01')
     # I/O
     ofile = Path(wvtilts.get_path()).absolute()
     wvtilts.to_file(overwrite=True)

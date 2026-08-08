@@ -14,17 +14,16 @@ from astropy.io import fits
 from pypeit import PypeItError
 from pypeit.images import pypeitimage
 from pypeit.images import imagebitmask
-from pypeit.tests.tstutils import data_output_path
 
 
-def test_full():
+def test_full(tmp_path):
     shape = (100,100)
     pypeitImage = pypeitimage.PypeItImage(np.ones(shape), ivar=np.ones(shape))
     # Full datamodel
     assert 'detector' in pypeitImage.keys(), 'Detector somehow missing!'
 
     # I/O
-    outfile = Path(data_output_path('tst_pypeitimage.fits')).absolute()
+    outfile = tmp_path / 'tst_pypeitimage.fits'
     pypeitImage.to_file(str(outfile), overwrite=True)
     _pypeitImage = pypeitimage.PypeItImage.from_file(str(outfile))
 
@@ -134,8 +133,8 @@ def test_bitmaskarray():
     assert np.all(mask.saturation), 'All should have been flagged as saturated.'
 
 
-def test_bitmaskarray_io():
-    path = Path(data_output_path('test.fits')).absolute()
+def test_bitmaskarray_io(tmp_path):
+    path = tmp_path / 'test.fits'
     if path.exists():
         path.unlink()
 
@@ -205,14 +204,14 @@ def test_calib_instantiation():
     assert hasattr(img, 'newdmcomponent'), 'Missing added datamodel component'
 
 
-def test_calib_io():
+def test_calib_io(tmp_path):
 
     rng = np.random.default_rng(99)
     ran_image = rng.normal(size=(100,100))
 
     img = MinimalPypeItCalibrationImage(ran_image)
     img.PYP_SPEC = 'test'
-    odir = Path(data_output_path('')).absolute()
+    odir = tmp_path
     img.set_paths(odir, 'A', '1', 'DET01')
     assert img.calib_dir == str(odir), 'Bad output directory'
     opath = Path(img.get_path()).absolute()
