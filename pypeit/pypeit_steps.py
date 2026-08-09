@@ -621,7 +621,13 @@ def load_skyregions(spectrograph, fitstbl, par, frame, det, caliBrate,
     spat_flexure : :obj:`float`, optional
         Spatial flexure shift (in pixels) of the science frame, used to
         shift the user-defined sky regions consistently with the data.
-        If None, no shift is applied.
+        If None, no shift is applied.  Only used for percentage-format
+        ``user_regions``; a SkyRegions *file* (``user_regions = user``)
+        is loaded as-is, because it is created per science frame by
+        ``pypeit_skysub_regions`` in that frame's own pixel coordinates
+        (the GUI applies the frame's flexure at creation time via its
+        ``--flexure`` option), so shifting it here would double-apply
+        the correction.
 
     Returns
     -------
@@ -651,6 +657,13 @@ def load_skyregions(spectrograph, fitstbl, par, frame, det, caliBrate,
                 'See documentation.'
             )
         log.info(f'Loading SkyRegions file: {regfile}')
+        # NOTE: Deliberately do NOT apply spat_flexure here.  The
+        # SkyRegions file is created per science frame by
+        # pypeit_skysub_regions on that frame itself, so the saved mask
+        # is already in the frame's pixel coordinates (the GUI applies
+        # the frame's flexure at creation time via its --flexure
+        # option).  Shifting again here would double-apply it.  This
+        # matches the pre-2.0.0 (v1.18.1) behavior.
         return buildimage.SkyRegions.from_file(regfile).image.astype(bool)
 
     skyregtxt = par['reduce']['skysub']['user_regions']
