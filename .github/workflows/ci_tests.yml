@@ -93,6 +93,13 @@ jobs:
     - name: Install base dependencies
       run: |
         python -m pip install --upgrade pip tox
+    # PyQt6 (a core dependency, pulled in by the pytest-qt dashboard tests) links
+    # libEGL/libGL/libxkbcommon at import time; these are absent on the bare
+    # ubuntu runner, so install them or pytest crashes at startup (exit 3).
+    - name: Install system libraries for headless Qt
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libegl1 libgl1 libxkbcommon0
     - name: Test with tox
       run: |
         tox -e ${{ matrix.python }}-${{ matrix.toxenv }}
@@ -119,6 +126,11 @@ jobs:
     - name: Install base dependencies
       run: |
         python -m pip install --upgrade pip tox
+    # See the note in the ci-tests job: PyQt6 needs these system libraries.
+    - name: Install system libraries for headless Qt
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libegl1 libgl1 libxkbcommon0
     - name: Test with tox
       run: |
         tox -e ${{ matrix.python }}-${{ matrix.toxenv }}
@@ -166,6 +178,11 @@ jobs:
     - name: Install base dependencies
       run: |
         python -m pip install --upgrade pip tox
+    # See the note in the ci-tests job: PyQt6 needs these system libraries.
+    - name: Install system libraries for headless Qt
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libegl1 libgl1 libxkbcommon0
     - name: Run pypeit tests from environment built with conda
       run: |
         tox -e conda

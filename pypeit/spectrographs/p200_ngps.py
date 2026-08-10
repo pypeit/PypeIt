@@ -150,8 +150,10 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
     #: hold the tolerance fixed in UNBINNED pixels and divide by the spectral
     #: binning in :func:`config_specific_par`.  The window is then constant in
     #: wavelength regardless of on-chip binning:
+    #:
     #:   - binspec=3 (commissioning) -> 0.30 binned px (~0.5-0.6 A across u/g/r/i)
     #:   - binspec=1                 -> 0.90 binned px
+    #:
     #: 0.30 px at binspec=3 reproduces the original commissioning default.
     _match_toler_unbinned_pixels = 0.9
     #: Per-channel detector gain (electrons / ADU); set by each subclass.

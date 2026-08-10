@@ -1,7 +1,7 @@
-pypeit.core.bspline.util module
+pypeit.dashboard.palette module
 ===============================
 
-.. automodule:: pypeit.core.bspline.util
+.. automodule:: pypeit.dashboard.palette
    :members:
    :private-members:
    :show-inheritance:
