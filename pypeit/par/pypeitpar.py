@@ -4317,6 +4317,7 @@ class ReducePar(ParSet):
         kwargs[pk] = CubePar.from_dict(cfg[pk]) if pk in k else None
         pk = 'slitmask'
         kwargs[pk] = SlitMaskPar.from_dict(cfg[pk]) if pk in k else None
+        kwargs['trim_edge'] = cfg['trim_edge'] if 'trim_edge' in k else None
 
         return cls(**kwargs)
 
