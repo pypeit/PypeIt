@@ -20,6 +20,7 @@ from pypeit.tests.tstutils import data_output_path
 from IPython import embed
 
 
+@pytest.mark.remote_data
 def test_shanekastblue():
     s = spectrographs.shane_kast.ShaneKastBlueSpectrograph()
     example_file = dataPaths.tests.get_file_path('b1.fits.gz')
@@ -31,6 +32,7 @@ def test_shanekastblue():
     assert bpm.shape == (2048,350)
 
 
+@pytest.mark.remote_data
 def test_select_detectors_pypeit_file():
     # Generate a PypeIt file
     tstutils.install_shane_kast_blue_raw_data()
@@ -200,6 +202,7 @@ def test_atmext():
     atmext = spec.get_atmospheric_extinction('mkoextinct.dat')
     assert atmext.file == 'mkoextinct.dat', 'Used wrong extinction file'
 
+@pytest.mark.remote_data
 def test_load_spectrograph():
 
     # Basic test
@@ -256,6 +259,7 @@ def fitstbl():
     setupc.fitstbl.finalize_usr_build(None, 'A')
     return setupc.fitstbl
 
+@pytest.mark.remote_data
 def test_config_specific_par(fitstbl):
     # Grab a science file for configuration specific parameters
     indx = fitstbl.find_frames('science', index=True)[0]
