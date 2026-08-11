@@ -118,5 +118,7 @@
       --debug               show debug plots?
       --show                show QA during coadding process
       --par_outfile PAR_OUTFILE
-                            Output to save the parameters
+                            Name of output file to save the parameters used for
+                            coadding. Defaults to 'coadd1d.par' in the top-level
+                            output directory.
     

@@ -22,14 +22,16 @@ from IPython import embed
 #  THE HTML GENERATION OCCURS FROM log
 #from pypeit import log
 
-# TODO: Move these names to the appropriate class.  This always writes
-# to QA directory, even if the user sets something else...
+from pypeit import outputPaths
+from pypeit.pkg.outputpaths import PNGS_DIRNAME
+
 def set_qa_filename(
-    root:str, method:str, det:str|None=None, slit:int|None=None, 
-    prefix:str|None=None, mode:str|None=None, out_dir:str|None=None
+    root:str, method:str, det:str|None=None, slit:int|None=None,
+    prefix:str|None=None, mode:str|None=None
 ) -> str:
     """
-    Generate the filename for the QA file from the input parameters.
+    Generate the file name (not the full path) for the QA file from the
+    input parameters.
 
     Parameters
     ----------
@@ -46,97 +48,70 @@ def set_qa_filename(
     mode
         Additional differentiating information (*e.g.*, ``gloabl`` vs ``local``
         flexure correction)
-    out_dir
-        Path to the QA/ directory
 
     Returns
     -------
-        Output filename
+        Output file name (no directory component). Callers are responsible
+        for joining this with the relevant QA-PNGs directory (e.g.,
+        ``outputPaths.qa_pngs / set_qa_filename(...)``).
     """
-    if out_dir is None:
-        out_dir = pathlib.Path.cwd()
-
     match method:
         case 'slit_trace_qa':
-            # outfile = 'QA/PNGs/Slit_Trace_{:s}.png'.format(root)
-            outfile = 'PNGs/Slit_Trace_{:s}.png'.format(root)
+            return f'Slit_Trace_{root}.png'
 
-        case 'slit_profile_qa':
-            outfile = 'QA/PNGs/Slit_Profile_{:s}_'.format(root)
-            # outfile = 'PNGs/Slit_Profile_{:s}_'.format(root)
+        case 'slit_profile_qa':  # This is root for multiple PNGs
+            return f'Slit_Profile_{root}_'
 
         case 'arc_fit_qa':
-            # outfile = 'QA/PNGs/Arc_1dfit_{:s}_S{:04d}.png'.format(root, slit)
-            outfile = 'PNGs/Arc_1dfit_{:s}_S{:04d}.png'.format(root, slit)
+            return f'Arc_1dfit_{root}_S{slit:04d}.png'
 
         case 'arc_fwhm_qa':
-            outfile = 'PNGs/Arc_FWHMfit_{:s}_S{:04d}.png'.format(root, slit)
-
-        case 'plot_orderfits_Arc':  # This is root for multiple PNGs
-            outfile = 'QA/PNGs/Arc_lines_{:s}_S{:04d}_'.format(root, slit)
-            # outfile = 'PNGs/Arc_lines_{:s}_S{:04d}_'.format(root, slit)
+            return f'Arc_FWHMfit_{root}_S{slit:04d}.png'
 
         case 'arc_fit2d_global_qa':
-            # outfile = 'QA/PNGs/Arc_2dfit_global_{:s}'.format(root)
-            outfile = 'PNGs/Arc_2dfit_global_{:s}'.format(root)
+            return f'Arc_2dfit_global_{root}'
 
         case 'arc_fit2d_orders_qa':
-            # outfile = 'QA/PNGs/Arc_2dfit_orders_{:s}'.format(root)
-            outfile = 'PNGs/Arc_2dfit_orders_{:s}'.format(root)
+            return f'Arc_2dfit_orders_{root}'
 
         case 'arc_tilts_spec_qa':
-            # outfile = 'QA/PNGs/Arc_tilts_spec_{:s}_S{:04d}.png'.format(root, slit)
-            outfile = 'PNGs/Arc_tilts_spec_{:s}_S{:04d}.png'.format(root, slit)
+            return f'Arc_tilts_spec_{root}_S{slit:04d}.png'
 
         case 'arc_tilts_spat_qa':
-            # outfile = 'QA/PNGs/Arc_tilts_spat_{:s}_S{:04d}.png'.format(root, slit)
-            outfile = 'PNGs/Arc_tilts_spat_{:s}_S{:04d}.png'.format(root, slit)
+            return f'Arc_tilts_spat_{root}_S{slit:04d}.png'
 
         case 'arc_tilts_2d_qa':
-            # outfile = 'QA/PNGs/Arc_tilts_2d_{:s}_S{:04d}.png'.format(root, slit)
-            outfile = 'PNGs/Arc_tilts_2d_{:s}_S{:04d}.png'.format(root, slit)
-
-        case 'pca_plot':  # This is root for multiple PNGs
-            outfile = 'QA/PNGs/{:s}_pca_{:s}_'.format(prefix, root)
-            # outfile = 'PNGs/{:s}_pca_{:s}_'.format(prefix, root)
+            return f'Arc_tilts_2d_{root}_S{slit:04d}.png'
 
         case 'pca_arctilt':  # This is root for multiple PNGs
-            outfile = 'QA/PNGs/Arc_pca_{:s}_'.format(root)
-            # outfile = 'PNGs/Arc_pca_{:s}_'.format(root)
+            return f'Arc_pca_{root}_'
 
         case 'plot_orderfits_Blaze':  # This is root for multiple PNGs
-            outfile = 'QA/PNGs/Blaze_{:s}_'.format(root)
-            # outfile = 'PNGs/Blaze_{:s}_'.format(root)
+            return f'Blaze_{root}_'
 
         case 'obj_trace_qa':
-            outfile = 'PNGs/{:s}_{:s}_S{:04d}_obj_trace.png'.format(root, det, slit)
+            return f'{root}_{det}_S{slit:04d}_obj_trace.png'
 
         case 'obj_profile_qa':
-            outfile = 'PNGs/{:s}_{:s}_S{:04d}_obj_prof.png'.format(root, det, slit)
+            return f'{root}_{det}_S{slit:04d}_obj_prof.png'
 
         case 'spat_flexure_qa_corr':
-            outfile = 'QA/PNGs/{:s}_spat_flex_corr.png'.format(root)
-            # outfile = 'PNGs/{:s}_spat_flex_corr.png'.format(root)
+            return f'{root}_spat_flex_corr.png'
 
         case 'spec_flexure_qa_corr':
-            # outfile = 'QA/PNGs/{:s}_D{:02d}_S{:04d}_spec_flex_corr.png'.format(root, det, slit)
-            outfile = 'PNGs/{:s}_{:s}_{:s}_S{:04d}_spec_flex_corr.png'.format(root, mode, det, slit)
+            return f'{root}_{mode}_{det}_S{slit:04d}_spec_flex_corr.png'
 
         case 'spec_flexure_qa_sky':
-            # outfile = 'QA/PNGs/{:s}_D{:02d}_S{:04d}_spec_flex_sky.png'.format(root, det, slit)
-            outfile = 'PNGs/{:s}_{:s}_{:s}_S{:04d}_spec_flex_sky.png'.format(root, mode, det, slit)
+            return f'{root}_{mode}_{det}_S{slit:04d}_spec_flex_sky.png'
 
         case 'spatillum_finecorr':
-            outfile = 'PNGs/{:s}_S{:04d}_spatillum_finecorr.png'.format(root, slit)
+            return f'{root}_S{slit:04d}_spatillum_finecorr.png'
 
         case 'detector_structure':
-            outfile = 'PNGs/{:s}_{:s}_detector_structure.png'.format(root, det)
+            return f'{root}_{det}_detector_structure.png'
 
         case _:
-            raise IOError("NOT READY FOR THIS QA: {:s}".format(method))
-
-    # Return
-    return str(pathlib.Path(out_dir) / outfile)
+            raise IOError(f'NOT READY FOR THIS QA: {method}')
 
 
 def get_dimen(x:int, maxp:int=25) -> tuple[list,list]:
@@ -266,12 +241,14 @@ def html_init(f:io.TextIOWrapper, title:str) -> str:
     return links
 
 
-def html_mf_pngs(idval:str) -> tuple[str,str]:
+def html_mf_pngs(idval:str, qa_path:str|pathlib.Path) -> tuple[str,str]:
     """ Generate HTML for QA PNGs
 
     Args:
         idval: str
             Key identifier of the calibration set
+        qa_path: str, Path
+            Path to the top-level QA directory
 
     Returns:
         tuple: 
@@ -321,12 +298,12 @@ def html_mf_pngs(idval:str) -> tuple[str,str]:
     for key in ['strace', 'sprof', 'blaze', 'arc_fit', 'arc_pca', 'arc_fit2d_global', 'arc_fit2d_orders',
                 'arc_tilts_spec', 'arc_tilts_spat', 'arc_tilts_2d']:
         # PNG Root
-        png_fileroot = set_qa_filename(idval, html_dict[key]['fname'], slit=9999, out_dir='QA')
+        png_path = pathlib.Path(qa_path) / PNGS_DIRNAME
+        png_stem = set_qa_filename(idval, html_dict[key]['fname'], slit=9999)
         if html_dict[key]['slit']:  # Kludge to handle multiple slits
-            png_fileroot = png_fileroot.replace('S9999', 'S*')
+            png_stem = png_stem.replace('S9999', 'S*')
         # Find the PNGs
-        png_path, png_stem = pathlib.Path(png_fileroot).parent, pathlib.Path(png_fileroot).name
-        pngs = sorted(pathlib.Path(png_path).glob(f"{png_stem}{html_dict[key]['ext']}"))
+        pngs = sorted(png_path.glob(f"{png_stem}{html_dict[key]['ext']}"))
         if len(pngs) > 0:
             href="{:s}_{:s}".format(html_dict[key]['href'], idval)
             # Link
@@ -357,7 +334,7 @@ def html_mf_pngs(idval:str) -> tuple[str,str]:
     return links, body
 
 
-def html_exp_pngs(exp_name:str, det:int) -> tuple[str,str]:
+def html_exp_pngs(exp_name:str, det:int, qa_path:str|pathlib.Path) -> tuple[str,str]:
     """
     Generate HTML for Exposure PNGs
 
@@ -367,6 +344,8 @@ def html_exp_pngs(exp_name:str, det:int) -> tuple[str,str]:
         PypeIt-standard exposure name
     det
         Detector number
+    qa_path
+        Path to the top-level QA directory (`str` or `Path`)
 
     Returns
     -------
@@ -399,12 +378,12 @@ def html_exp_pngs(exp_name:str, det:int) -> tuple[str,str]:
     # Generate HTML
     for key in ['trace', 'prof', 'flex_corr', 'flex_sky']:
         # PNG Root
-        png_fileroot = set_qa_filename(exp_name, html_dict[key]['fname'], det=det_str, slit=9999, mode="*", out_dir='QA')
+        png_path = pathlib.Path(qa_path) / PNGS_DIRNAME
+        png_stem = set_qa_filename(exp_name, html_dict[key]['fname'], det=det_str, slit=9999, mode="*")
         if html_dict[key]['slit']:  # Kludge to handle multiple slits
-            png_fileroot = png_fileroot.replace('S9999', 'S*')
+            png_stem = png_stem.replace('S9999', 'S*')
         # Find the PNGs
-        png_path, png_stem = pathlib.Path(png_fileroot).parent, pathlib.Path(png_fileroot).name
-        pngs = sorted(pathlib.Path(png_path).glob(f"{png_stem}{html_dict[key]['ext']}"))
+        pngs = sorted(png_path.glob(f"{png_stem}{html_dict[key]['ext']}"))
         if len(pngs) > 0:
             href="{:s}_{:02d}".format(html_dict[key]['href'], det)
             # Link
@@ -425,24 +404,14 @@ def html_exp_pngs(exp_name:str, det:int) -> tuple[str,str]:
     return links, body
 
 
-def gen_qa_dir(qa_path:str):
-    """ Make the QA directory if it doesn't already exist
-
-    Args:
-        qa_path (str):
-            Path to the QA folder
-    """
-    if not (the_path := pathlib.Path(qa_path)).exists():
-        the_path.mkdir(parents=True, exist_ok=True)
-
 # TODO: Need to revisit this...
-def gen_mf_html(pypeit_file:str, qa_path:str):
+def gen_mf_html(pypeit_file:str, qa_path:str|pathlib.Path):
     """ Generate the HTML for QA
 
     Args:
         pypeit_file (:obj:`str`):
             Name of the PypeIt file, no path
-        qa_path (:obj:`str`):
+        qa_path (:obj:`str`, `Path`_):
             Path to the QA folder
     """
     # TODO: Can this instead just use the pypeit file?
@@ -474,14 +443,14 @@ def gen_mf_html(pypeit_file:str, qa_path:str):
             for det in dets:
                 # Run
                 idval = '{:s}_{:d}_DET{:02d}'.format(setup, cbset, det)
-                new_links, new_body = html_mf_pngs(idval)
+                new_links, new_body = html_mf_pngs(idval, qa_path)
                 # Save
                 links += new_links
                 body += new_body
             for msc in mscs:
                 # Run
                 idval = '{:s}_{:d}_MSC{:02d}'.format(setup, cbset, msc)
-                new_links, new_body = html_mf_pngs(idval)
+                new_links, new_body = html_mf_pngs(idval, qa_path)
                 # Save
                 links += new_links
                 body += new_body
@@ -491,19 +460,23 @@ def gen_mf_html(pypeit_file:str, qa_path:str):
     print(f"Wrote: {MF_filename}")
 
 
-def gen_exp_html():
+def gen_exp_html(qa_path:str|pathlib.Path):
     """ Generate the HTML for an Exposure set
+
+    Args:
+        qa_path (:obj:`str`, `Path`_):
+            Path to the top-level QA directory
     """
     # Find all obj_trace files -- Not fool proof but ok
     # NOTE: At some point, the obj_trace QA was removed from the repo.  Adding
     #       it back reactivates this code.  (TEB, 21-Oct-2025)
-    obj_files = sorted((pathlib.Path("QA") / "PNGs").glob("*obj_trace.png"))
+    obj_files = sorted((pathlib.Path(qa_path) / PNGS_DIRNAME).glob("*obj_trace.png"))
     # Parse for names
     uni_names = np.unique([obj_file.name.split("_DET")[0] for obj_file in obj_files])
     # Loop
     for uni_name in uni_names:
         # Generate MF file
-        exp_filename = f"QA/{uni_name}.html"
+        exp_filename = pathlib.Path(qa_path) / f"{uni_name}.html"
         body = ""
         with open(exp_filename, "w", encoding="utf-8") as f_obj:
             # Start
@@ -511,7 +484,7 @@ def gen_exp_html():
             # Loop on detector
             for det in range(1,99):
                 # Run
-                new_links, new_body = html_exp_pngs(uni_name, det)
+                new_links, new_body = html_exp_pngs(uni_name, det, qa_path)
                 # Save
                 links += new_links
                 body += new_body
@@ -520,14 +493,14 @@ def gen_exp_html():
         print(f"Wrote: {exp_filename}")
 
 
-def close_qa(pypeit_file:str, qa_path:str):
+def close_qa(pypeit_file:str, qa_path:str|pathlib.Path):
     """
     Tie off QA under a crash
 
     Args:
         pypeit_file (str):
             PypeIt file name
-        qa_path (str):
+        qa_path (str, `Path`_):
             Path to QA directory
     """
     if pypeit_file is None:
@@ -537,12 +510,12 @@ def close_qa(pypeit_file:str, qa_path:str):
     except:  # Likely crashed real early
         pass
     else:
-        gen_exp_html()
+        gen_exp_html(qa_path)
 
 
 # This method needs to match the name in set_qa_filename()
 def arc_tilts_2d_qa(tilts_dspat, tilts, tilts_model, tot_mask, rej_mask, spat_order, spec_order, rms, fwhm,
-                 slitord_id=0, setup='A', outfile=None, show_QA=False, out_dir=None):
+                 slitord_id=0, setup='A', outfile=None, show_QA=False):
     """
 
     ..todo.. this method needs docs
@@ -561,7 +534,6 @@ def arc_tilts_2d_qa(tilts_dspat, tilts, tilts_model, tot_mask, rej_mask, spat_or
         setup:
         outfile:
         show_QA:
-        out_dir:
 
     Returns:
 
@@ -572,7 +544,7 @@ def arc_tilts_2d_qa(tilts_dspat, tilts, tilts_model, tot_mask, rej_mask, spat_or
     # Outfile
     method = inspect.stack()[0][3]
     if (outfile is None):
-        outfile = set_qa_filename(setup, method, slit=slitord_id, out_dir=out_dir)
+        outfile = outputPaths.qa_pngs / set_qa_filename(setup, method, slit=slitord_id)
 
     # Show the fit
     fig, ax = plt.subplots(figsize=(12, 18))
@@ -608,7 +580,7 @@ def arc_tilts_2d_qa(tilts_dspat, tilts, tilts_model, tot_mask, rej_mask, spat_or
 
 # This method needs to match the name in set_qa_filename()
 def arc_tilts_spec_qa(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rms, fwhm,
-                   slitord_id=0, setup='A', outfile=None, show_QA=False, out_dir=None):
+                   slitord_id=0, setup='A', outfile=None, show_QA=False):
     """ Generate a QA plot of the residuals for the fit to the tilts in the spectral direction one slit at a time
 
     Parameters
@@ -621,7 +593,7 @@ def arc_tilts_spec_qa(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rm
     # Outfil
     method = inspect.stack()[0][3]
     if (outfile is None):
-        outfile = set_qa_filename(setup, method, slit=slitord_id, out_dir=out_dir)
+        outfile = outputPaths.qa_pngs / set_qa_filename(setup, method, slit=slitord_id)
 
     # Setup
     plt.figure(figsize=(14, 6))
@@ -692,7 +664,7 @@ def arc_tilts_spec_qa(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rm
 
 def arc_tilts_spat_qa(tilts_dspat, tilts, tilts_model, tilts_spec_fit, tot_mask, rej_mask,
                       spat_order, spec_order, rms, fwhm, setup='A', slitord_id=0, outfile=None,
-                      show_QA=False, out_dir=None):
+                      show_QA=False):
     """
     NEEDS A DOC STRING!
     """
@@ -702,7 +674,7 @@ def arc_tilts_spat_qa(tilts_dspat, tilts, tilts_model, tilts_spec_fit, tot_mask,
     # Output file
     method = inspect.stack()[0][3]
     if outfile is None:
-        outfile = set_qa_filename(setup, method, slit=slitord_id, out_dir=out_dir)
+        outfile = outputPaths.qa_pngs / set_qa_filename(setup, method, slit=slitord_id)
 
     nspat, nuse = tilts_dspat.shape
     # Show the fit residuals as a function of spatial position
@@ -760,8 +732,7 @@ def arc_tilts_spat_qa(tilts_dspat, tilts, tilts_model, tilts_spec_fit, tot_mask,
 #       to annotate `specobjs`; however, should really remove PypeIt-specific
 #       objects from `core`.
 def spec_flexure_qa(slitords:np.ndarray, bpm:np.ndarray, basename:str,
-                    flex_list:list[dict], specobjs=None,
-                    out_dir:str|None=None):
+                    flex_list:list[dict], specobjs=None):
     """
     Generate QA for the spectral flexure calculation
 
@@ -776,9 +747,6 @@ def spec_flexure_qa(slitords:np.ndarray, bpm:np.ndarray, basename:str,
             list of :obj:`dict` objects containing the flexure information
         specobjs (:class:`~pypeit.specobjs.SpecObjs`, optional):
             Spectrally extracted objects
-        out_dir (str, optional):
-            Path to the output directory for the QA plots.  If None, the current
-            is used.
     """
     # Extract the mode and detector from the ``basename``
     *_, mode, det = basename.split("_")
@@ -820,8 +788,8 @@ def spec_flexure_qa(slitords:np.ndarray, bpm:np.ndarray, basename:str,
 
         nrow = nobj // ncol + ((nobj % ncol) > 0)
         # Outfile, one QA file per slit
-        outfile = set_qa_filename(
-            basename, method + '_corr', slit=slitord, det=det, mode=mode, out_dir=out_dir
+        outfile = outputPaths.qa_pngs / set_qa_filename(
+            basename, method + '_corr', slit=slitord, det=det, mode=mode
         )
         plt.figure(figsize=(8, 5.0))
         plt.clf()
@@ -873,8 +841,8 @@ def spec_flexure_qa(slitords:np.ndarray, bpm:np.ndarray, basename:str,
             gdsky = gdsky[idx]
 
         # Outfile
-        outfile = set_qa_filename(
-            basename, method+'_sky', slit=slitord, det=det, mode=mode, out_dir=out_dir
+        outfile = outputPaths.qa_pngs / set_qa_filename(
+            basename, method+'_sky', slit=slitord, det=det, mode=mode
         )
         # Figure
         plt.figure(figsize=(8, 5.0))

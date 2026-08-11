@@ -209,7 +209,7 @@ class CalibFrame(datamodel.DataContainer):
         Grab the identifying key and directory by parsing the input.
 
         Args:
-            inp (:obj:`str`, `astropy.io.fits.Header`_):
+            inp (:obj:`str`, `Path`_, `astropy.io.fits.Header`_):
                 Either a filename or a Header of a FITS file
             from_filename (:obj:`bool`, optional):
                 If True, ``inp`` must be a string providing the calibration file
@@ -514,7 +514,7 @@ class CalibFrame(datamodel.DataContainer):
         # calibration groups
         keep = np.ones(files.size, dtype=bool)
         for i, f in enumerate(files):
-            _calib_id = cls.parse_calib_key(cls.parse_key_dir(str(f), from_filename=True)[0])[1]
+            _calib_id = cls.parse_calib_key(cls.parse_key_dir(f, from_filename=True)[0])[1]
             if _calib_id == 'all' or str(calib_id) in cls.ingest_calib_id(_calib_id):
                 continue
             keep[i] = False

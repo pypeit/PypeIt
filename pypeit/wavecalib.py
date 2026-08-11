@@ -16,6 +16,7 @@ from astropy.io import fits
 
 from pypeit import log
 from pypeit import PypeItError
+from pypeit import outputPaths
 from pypeit import qa
 from pypeit.core import arc
 from pypeit.core import fitting
@@ -822,19 +823,18 @@ class BuildWaveCalib:
             for slit_idx in ok_mask_idx:
                 log.info(f"Preparing wavelength calibration QA for slit {slit_idx+1}/{self.slits.nslits}")
                 # Obtain the output QA name for the wavelength solution
-                outfile = qa.set_qa_filename(
-                    self.wv_calib.calib_key, 'arc_fit_qa', 
-                    slit=self.slits.slitord_id[slit_idx],
-                    out_dir=self.qa_path)
+                outfile = outputPaths.qa_pngs / qa.set_qa_filename(
+                    self.wv_calib.calib_key, 'arc_fit_qa',
+                    slit=self.slits.slitord_id[slit_idx])
                 # Save the wavelength solution fits
-                autoid.arc_fit_qa(self.wv_calib.wv_fits[slit_idx], 
+                autoid.arc_fit_qa(self.wv_calib.wv_fits[slit_idx],
                                   title=f'Arc Fit QA for slit/order: {self.slits.slitord_id[slit_idx]}',
                                   outfile=outfile, log=self.par['qa_log'])
 
                 # Obtain the output QA name for the spectral resolution map
-                outfile_fwhm = qa.set_qa_filename(self.wv_calib.calib_key, 'arc_fwhm_qa',
-                                                  slit=self.slits.slitord_id[slit_idx],
-                                                  out_dir=self.qa_path)
+                outfile_fwhm = outputPaths.qa_pngs / qa.set_qa_filename(
+                    self.wv_calib.calib_key, 'arc_fwhm_qa',
+                    slit=self.slits.slitord_id[slit_idx])
                 # Save the wavelength solution fits
                 autoid.arc_fwhm_qa(self.wv_calib.fwhm_map[slit_idx],
                                    self.slits.slitord_id[slit_idx], self.slits.slitord_txt,
@@ -922,10 +922,9 @@ class BuildWaveCalib:
                     # TODO -- This is repeated from build_wv_calib()
                     #  Would be nice to consolidate
                     # QA
-                    outfile = qa.set_qa_filename(
-                        self.wv_calib.calib_key, 'arc_fit_qa', 
-                        slit=order,
-                        out_dir=self.qa_path)
+                    outfile = outputPaths.qa_pngs / qa.set_qa_filename(
+                        self.wv_calib.calib_key, 'arc_fit_qa',
+                        slit=order)
                     autoid.arc_fit_qa(final_fit,
                                     title=f'Arc Fit QA for slit/order: {order}',
                                     outfile=outfile, log=self.par['qa_log'])
@@ -1062,14 +1061,12 @@ class BuildWaveCalib:
                 else:
                     det_str = ''
                 # Global QA
-                outfile_global = qa.set_qa_filename(
-                    calib_key+det_str, 'arc_fit2d_global_qa',
-                    out_dir=self.qa_path)
+                outfile_global = outputPaths.qa_pngs / qa.set_qa_filename(
+                    calib_key+det_str, 'arc_fit2d_global_qa')
                 arc.fit2darc_global_qa(fit2d, nspec, outfile=outfile_global)
                 # Order QA
-                outfile_orders = qa.set_qa_filename(
-                    calib_key+det_str, 'arc_fit2d_orders_qa',
-                    out_dir=self.qa_path)
+                outfile_orders = outputPaths.qa_pngs / qa.set_qa_filename(
+                    calib_key+det_str, 'arc_fit2d_orders_qa')
                 arc.fit2darc_orders_qa(fit2d, nspec, outfile=outfile_orders)
 
         return fit2ds, dets, save_order_dets

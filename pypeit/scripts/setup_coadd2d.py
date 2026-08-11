@@ -209,7 +209,7 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
             tbl['filename'] = [f.name for f in files]
             ofile_name = f'{spec_name}_{obj}.coadd2d' if args.pypeit_file is None \
                 else Path(args.pypeit_file).name.replace('.pypeit', f'_{obj}.coadd2d')
-            ofile = str(Path(cfg['rdx']['redux_path']) / ofile_name)
+            ofile = Path(cfg['rdx']['redux_path']) / ofile_name
 
             inputfiles.Coadd2DFile(config=cfg, file_paths=[str(sc) for sc in sci_dirs],
                                    data_table=tbl).write(ofile)

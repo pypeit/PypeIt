@@ -14,6 +14,7 @@ from astropy.io import fits
 from astropy.time import Time
 
 from pypeit import log
+from pypeit import outputPaths
 from pypeit import PypeItError
 from pypeit import inputfiles
 from pypeit import coadd1d
@@ -141,8 +142,9 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
         parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
         parser.add_argument("--show", default=False, action="store_true",
                             help="show QA during coadding process")
-        parser.add_argument("--par_outfile", default='coadd1d.par',
-                            help="Output to save the parameters")
+        parser.add_argument("--par_outfile", default=None,
+                            help="Name of output file to save the parameters used for coadding. "
+                                 "Defaults to 'coadd1d.par' in the top-level output directory.")
         return parser
 
     @classmethod
@@ -173,7 +175,16 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
         if spectrograph.pypeline == 'Echelle' and coadd1dFile.sensfiles is None:
             raise PypeItError("To coadd echelle spectra, the 'sensfile' column must present in your .coadd1d file")
 
+        # Configure the output paths, once, immediately after `par` is built.
+        # Guarded (rather than unconditional) since this script may be run
+        # in the same process as another script/entry point that has
+        # already configured `outputPaths`.
+        if not outputPaths.configured:
+            outputPaths.configure(par, caller='CoAdd1DSpec.main')
+
         # Write the par to disk
+        if args.par_outfile is None:
+            args.par_outfile = outputPaths.redux / 'coadd1d.par'
         print("Writing the parameters to {}".format(args.par_outfile))
         par.to_config(args.par_outfile)
         # TODO This needs to come out of the parset

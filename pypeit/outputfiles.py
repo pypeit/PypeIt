@@ -31,7 +31,11 @@ def get_std_outfile(fitstbl, par, standard_frames:list):
             standard star frames.
 
     Returns:
-        :obj:`str`: Full path to the standard spec1d output file to use.
+        :obj:`str`, `Path`_: Full path to the standard spec1d output file to
+        use.  A `str` if taken directly from the
+        :class:`~pypeit.par.pypeitpar.FindObjPar` parameters (a `ParSet`
+        field with a fixed `str` dtype); a `Path` if constructed via
+        :func:`spec_output_file`.
     """
     std_outfile = par['reduce']['findobj']['std_spec1d']
     if std_outfile is not None:
@@ -59,8 +63,8 @@ def get_std_outfile(fitstbl, par, standard_frames:list):
         raise PypeItError(f'Could not find standard file: {std_outfile}')
     return std_outfile
 
-def intermediate_filename(itype:str, basename:str, det_name:str, 
-                          inter_path:str='Intermediate'):
+def intermediate_filename(itype:str, basename:str, det_name:str,
+                          inter_path:str|Path='Intermediate'):
     """
     Construct the intermediate file name for a given type and detector
 
@@ -72,11 +76,11 @@ def intermediate_filename(itype:str, basename:str, det_name:str,
             Basename of the file
         det_name (:obj:`str`):
             Name of the detector
-        inter_path (:obj:`str`, optional):
+        inter_path (:obj:`str`, `Path`_, optional):
             Path to the intermediate files
 
     Returns:
-        :obj:`str`: The full path to the intermediate file
+        `Path`_: The full path to the intermediate file
     """
     return Path(inter_path) / f'{itype}_{basename}_{det_name}.fits'
 
@@ -120,3 +124,27 @@ def spec_output_file(fitstbl, par, frame:int, twod:bool=False,
     basename = fitstbl.construct_basename(frame)
     # Finish``
     return sci_path / f'spec{"2" if twod else "1"}d_{basename}{ext}'
+
+def coadd_output_file(sci_path, basename:str, twod:bool=False, ext:str='.fits') -> Path:
+    """
+    Return the path to a 2D-coadd spectral output file.
+
+    Same naming convention as :func:`spec_output_file`, but for coadd2d
+    outputs, which are named directly from a ``basename`` string (e.g., as
+    returned by :func:`~pypeit.coadd2d.CoAdd2D.default_basename`) instead of
+    a frame index into a :class:`~pypeit.metadata.PypeItMetaData` table.
+
+    Args:
+        sci_path (:obj:`str`, `Path`_):
+            Path to the coadd science-output directory.
+        basename (:obj:`str`):
+            Basename of the coadd.
+        twod (:obj:`bool`, optional):
+            Name for the 2D output file; 1D file otherwise.
+        ext (:obj:`str`, optional):
+            Extension for the output file.  Default is '.fits'.
+
+    Returns:
+        `Path`_: The path for the output file
+    """
+    return Path(sci_path) / f'spec{"2" if twod else "1"}d_{basename}{ext}'

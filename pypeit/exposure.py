@@ -5,6 +5,7 @@ from astropy.io import fits
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import outputfiles
+from pypeit import outputPaths
 from pypeit.core import parse
 from pypeit.display import display
 from pypeit.history import History
@@ -82,14 +83,14 @@ def adjust_for_slitmask(sciImg_dict:dict, spectrograph, fitstbl, par,
     
                             
 
-def process_exposure(spectrograph, fitstbl, par, frames:list, 
-                     calib_ID:str, detectors:list, calibrations_path:str, 
-                     bg_frames:list=None): 
+def process_exposure(spectrograph, fitstbl, par, frames:list,
+                     calib_ID:str, detectors:list,
+                     bg_frames:list=None):
     """
     Process all detectors for a given exposure.
 
     Calls :func:`~pypeit.pypeit_steps.process_one_det` for each detector.
-    
+
 
     This function processes exposure data for a list of detectors by performing
     the necessary reduction steps and generating science images and background
@@ -101,12 +102,11 @@ def process_exposure(spectrograph, fitstbl, par, frames:list,
         fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
             The class holding the metadata for all the frames in this PypeIt run.
         par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
-            The parameter set for the reduction process, 
+            The parameter set for the reduction process,
             including slitmask and object finding parameters.
         frames (:obj:`list`): A list of frame indices to process.
         calib_ID (:obj:`str`): The calibration group ID.
         detectors (:obj:`list`): A list of detector indices to process.
-        calibrations_path (:obj:`str`): The path to the calibration files.
         bg_frames (:obj:`list`, optional): A list of background frame indices. Defaults to None.
 
     Returns:
@@ -128,7 +128,7 @@ def process_exposure(spectrograph, fitstbl, par, frames:list,
 
         # Process
         sciImg, bkg_redux_sciimg = pypeit_steps.process_one_det(
-            spectrograph, fitstbl, par, frames, det, calib_ID, calibrations_path, 
+            spectrograph, fitstbl, par, frames, det, calib_ID,
             bg_frames=bg_frames)
 
         # List em up
@@ -140,9 +140,8 @@ def process_exposure(spectrograph, fitstbl, par, frames:list,
 
 def findobj_on_exposure(sciImg_dict:dict, bkg_redux_sciimg_dict:dict,
                         spectrograph, fitstbl, par,
-                        frames:list, detectors:list, calib_ID:str, 
-                        calibrations_path:str, 
-                        std_outfile:str=None, bkg_redux=False, 
+                        frames:list, detectors:list, calib_ID:str,
+                        std_outfile:str=None, bkg_redux=False,
                         find_negative=False, show=False):
     """
     Identifies objects on a set of exposures for the specified detectors.
@@ -169,7 +168,6 @@ def findobj_on_exposure(sciImg_dict:dict, bkg_redux_sciimg_dict:dict,
         frames (:obj:`list`): A list of frame indices to process.
         calib_ID (:obj:`str`): The calibration group ID.
         detectors (list): List of detectors to process.
-        calibrations_path (:obj:`str`): The path to the calibration files.
         std_outfile (str, optional): Path to the standard star output file. Defaults to None.
         bkg_redux (bool, optional): If True, perform A-B background subtraction. Defaults to False.
         find_negative (bool, optional): If True, search for negative objects. Defaults to False.
@@ -207,9 +205,8 @@ def findobj_on_exposure(sciImg_dict:dict, bkg_redux_sciimg_dict:dict,
         # Run
         initial_sky, sobjs_obj, objFind = \
             pypeit_steps.findobj_on_det(
-                sciImg, spectrograph, fitstbl, par, frames, calib_ID, det, 
-                calibrations_path, 
-                bkg_redux=bkg_redux, find_negative=find_negative, show=show, 
+                sciImg, spectrograph, fitstbl, par, frames, calib_ID, det,
+                bkg_redux=bkg_redux, find_negative=find_negative, show=show,
                 std_outfile=std_outfile)
 
         # Slits
@@ -265,7 +262,7 @@ def findobj_on_exposure(sciImg_dict:dict, bkg_redux_sciimg_dict:dict,
     return final_sky_dict, bkg_redux_final_sky_dict, all_specobjs_objfind, all_slits, sciImg_dict
 
 def extract_exposure(sciImg_dict:dict, spectrograph, fitstbl, par, frames:list, detectors,
-                     calib_ID:str, calibrations_path:str, all_specobjs_objfind, 
+                     calib_ID:str, all_specobjs_objfind,
                      final_sky_dict:dict, bkg_redux_final_sky_dict:dict,
                      calib_slits, bkg_redux:bool=False, find_negative:bool=False):
 
@@ -288,7 +285,6 @@ def extract_exposure(sciImg_dict:dict, spectrograph, fitstbl, par, frames:list, 
         frames (:obj:`list`): A list of frame indices to process.
         detectors: List of detectors to process.
         calib_ID (:obj:`str`): The calibration group ID.
-        calibrations_path (:obj:`str`): The path to the calibration files.
         all_specobjs_objfind: SpecObjs object containing objects found during object finding.
         final_sky_dict (:obj:`dict`): Dictionary containing final sky models for each detector.
         bkg_redux_final_sky_dict (:obj:`dict`): Dictionary containing final bkg_redux sky models for each detector.
@@ -325,7 +321,7 @@ def extract_exposure(sciImg_dict:dict, spectrograph, fitstbl, par, frames:list, 
         # Extract
         all_spec2d[detname], tmp_sobjs = pypeit_steps.extract_det(
             spectrograph, fitstbl, par, frames, det,
-            calib_ID, calibrations_path,
+            calib_ID,
             sciImg_dict[det],
             final_sky_dict[det],
             all_specobjs_on_det,
@@ -340,7 +336,7 @@ def extract_exposure(sciImg_dict:dict, spectrograph, fitstbl, par, frames:list, 
 
         # Add calibration associations to the SpecObjs object
         all_specobjs_extract.calibs = calibrations.Calibrations.get_association(
-                                fitstbl, spectrograph, calibrations_path,
+                                fitstbl, spectrograph, outputPaths.calibrations,
                                 fitstbl[frames[0]]['setup'],
                                 fitstbl.find_frame_calib_groups(frames[0])[0], det,
                                 must_exist=True, proc_only=True)
@@ -348,8 +344,8 @@ def extract_exposure(sciImg_dict:dict, spectrograph, fitstbl, par, frames:list, 
     # Return
     return all_spec2d, all_specobjs_extract
 
-def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID, 
-                    calibrations_path: str, bg_frames=None, 
+def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
+                    bg_frames=None,
                     reuse_calibs: bool = True,
                     run_state: dict = None, std_outfile=None,
                     show: bool = False):
@@ -369,7 +365,6 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
             including slitmask and object finding parameters.
         frames (:obj:`list`): A list of frame indices to process.
         calib_ID (:obj:`str`): The calibration group ID.
-        calibrations_path (:obj:`str`): The path to the calibration files.
         bg_frames (:obj:`list`, optional): A list of background frame indices. Defaults to None.
         reuse_calibs (bool, optional): Whether to reuse existing calibrations. Defaults to True.
         run_state (dict, optional): Dictionary to track the state of the reduction process. Defaults to None.
@@ -422,7 +417,7 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
     for det in detectors:
         log.info(f'Calibrating detector {det}')
         # run/load calibration
-        caliBrate =  pypeit_steps.calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path,
+        caliBrate =  pypeit_steps.calib_one(spectrograph, fitstbl, par, det, calib_ID,
               show=show, run_state=run_state, reuse_calibs=reuse_calibs)
         if not caliBrate.success:
             log.warning(
@@ -437,7 +432,7 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
     # Process or load processed frames
     sciImg_dict, bkg_redux_sciimg_dict = process_exposure(
             spectrograph, fitstbl, par, frames, calib_ID,
-                detectors, calibrations_path,
+                detectors,
                 bg_frames=bg_frames)
 
     # Record the science 'process' state (never let it crash the run)
@@ -456,7 +451,7 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
                             spectrograph,
                             fitstbl,
                             par, frames, detectors,
-                            calib_ID, calibrations_path,
+                            calib_ID,
                             std_outfile=std_outfile,
                             bkg_redux=bkg_redux,
                             find_negative=find_negative,
@@ -478,7 +473,7 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
     all_spec2d, all_specobjs_extract = extract_exposure(
         sciImg_dict, spectrograph, fitstbl,
         par, frames, detectors, calib_ID,
-        calibrations_path, all_specobjs_find,
+        all_specobjs_find,
         final_sky_dict, bkg_redux_final_sky_dict,
         calib_slits, bkg_redux=bkg_redux,
         find_negative=find_negative)
@@ -501,10 +496,9 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
     # Return
     return all_spec2d, all_specobjs_extract
 
-def save_exposure(spectrograph, fitstbl, par, 
+def save_exposure(spectrograph, fitstbl, par,
                   frame:int, all_spec2d:spec2dobj.AllSpec2DObj,
-                  all_specobjs:specobjs.SpecObjs, 
-                  calibrations_path:str,
+                  all_specobjs:specobjs.SpecObjs,
                   history:History=None,
                   in_update_det:int=None,
                   skip_write_2d:bool=False):
@@ -526,7 +520,6 @@ def save_exposure(spectrograph, fitstbl, par,
             The 2D reduced spectrum objects.
         all_specobjs (:class:`~pypeit.specobjs.SpecObjs`):
             The 1D spectral extraction objects.
-        calibrations_path (:obj:`str`): The path to the calibration files.
         history (:class:`~pypeit.history.History`, optional):
             History entries to be added to fits header
         in_update_det (:obj:`int`, optional):
@@ -535,10 +528,8 @@ def save_exposure(spectrograph, fitstbl, par,
         skip_write_2d (:obj:`bool`, optional):
             Skip writing the 2D spectrum to disk
     """
-    # Check for the Science/ directory
-    science_path = outputfiles.science_path(par)
-    if not science_path.is_dir():
-        science_path.mkdir()
+    # The Science/ directory is created (if needed) by the property access.
+    sci_path = outputPaths.science
 
     # Determine the headers
     row_fitstbl = fitstbl[frame]
@@ -565,7 +556,7 @@ def save_exposure(spectrograph, fitstbl, par,
     # 1D spectra
     if all_specobjs.nobj > 0 and not par['reduce']['extraction']['skip_extraction']:
         # Spectra
-        outfile1d = outputfiles.spec_output_file(fitstbl, par, frame)
+        outfile1d = outputfiles.spec_output_file(fitstbl, par, frame, sci_path=sci_path)
         # TODO
         #embed(header='deal with the following for maskIDs;  713 of pypeit')
         all_specobjs.write_to_fits(subheader, outfile1d,
@@ -574,7 +565,7 @@ def save_exposure(spectrograph, fitstbl, par,
                                     history=history)
         # Info
         outfiletxt = outputfiles.spec_output_file(fitstbl, par,
-                                            frame, ext='.txt')
+                                            frame, ext='.txt', sci_path=sci_path)
         # TODO: Note we re-read in the specobjs from disk to deal with situations where
         # only a single detector is run in a second pass but in the same reduction directory.
         # This was to address Issue #1116 in PR #1154. Slightly inefficient, but only other
@@ -586,12 +577,12 @@ def save_exposure(spectrograph, fitstbl, par,
         return
 
     # 2D spectra
-    outfile2d = outputfiles.spec_output_file(fitstbl, par, frame, twod=True)
+    outfile2d = outputfiles.spec_output_file(fitstbl, par, frame, twod=True, sci_path=sci_path)
 
     # Build header
     pri_hdr = all_spec2d.build_primary_hdr(head2d, spectrograph,
                                             redux_path=par['rdx']['redux_path'],
-                                            calib_dir=calibrations_path,
+                                            calib_dir=outputPaths.calibrations,
                                             subheader=subheader,
                                             history=history)
 

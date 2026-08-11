@@ -121,9 +121,9 @@ def set_bkg_negative(fitstbl, par, bg_frames:list):
     # Return
     return has_bg, bkg_redux, find_negative
 
-def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
+def calib_one(spectrograph, fitstbl, par, det, calib_ID,
               reuse_calibs:bool=True,
-              qa_path:str=None, show:bool=False, run_state=None,
+              show:bool=False, run_state=None,
               stop_at_step:str=None, status_only:bool=False,
               reload_only:bool=False):
     """
@@ -141,13 +141,8 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
             Detector number (1-indexed)
         calib_ID (:obj:`str`):
             The calibration group ID
-        calibrations_path (:obj:`str`):
-            Path to the calibration files
         reuse_calibs (:obj:`bool`, optional):
             If True, reuse existing calibration files if they exist.
-        qa_path (:obj:`str`, optional):
-            Path to the QA files; if None, use the default path
-            defined by the parameters.
         show (:obj:`bool`, optional):
             Show the QA during processing
         run_state (:class:`~pypeit.state.run_state.RunPypeItState`, optional):
@@ -167,9 +162,6 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
         caliBrate (:class:`~pypeit.calibrations.Calibrations`)
 
     """
-    if qa_path is None:
-        qa_path = os.path.join(par['rdx']['redux_path'], par['rdx']['qadir'])
-
     # Handle frames
     in_grp = fitstbl.find_calib_group(calib_ID)
     frame_indx = np.arange(len(fitstbl))
@@ -180,9 +172,8 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
                                             par['rdx']['maskIDs'])
     log.info(f'Building/loading calibrations for detector {det}')
     caliBrate = calibrations.Calibrations.get_instance(
-        fitstbl, par['calibrations'], spectrograph, calibrations_path,
+        fitstbl, par['calibrations'], spectrograph,
         calib_ID, grp_frames[0], det,
-        qadir=qa_path,
         reuse_calibs=reuse_calibs, show=show, user_slits=user_slits,
         chk_version=par['rdx']['chk_version'],
         state=run_state)
@@ -208,9 +199,9 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
     return caliBrate
 
 
-def process_one_det(spectrograph, fitstbl, par, frames:list, 
-                    det, calib_ID:str, calibrations_path:str, bg_frames:list=None,
-                    sci_outfile:str=None, bkg_outfile:str=None): 
+def process_one_det(spectrograph, fitstbl, par, frames:list,
+                    det, calib_ID:str, bg_frames:list=None,
+                    sci_outfile:str=None, bkg_outfile:str=None):
     """
     Process a single detector for a given set of frames.
 
@@ -233,8 +224,6 @@ def process_one_det(spectrograph, fitstbl, par, frames:list,
             Detector number (1-indexed)
         calib_ID (:obj:`str`):
             The calibration group ID
-        calibrations_path (:obj:`str`):
-            Path to the calibration files
         bg_frames (:obj:`list`, optional):
             List of indices corresponding to the background frames in the
             `fitstbl`. If None or empty, no A-B background subtraction is performed.
@@ -264,7 +253,7 @@ def process_one_det(spectrograph, fitstbl, par, frames:list,
 
     # Grab the calibrations
     caliBrate = load_calibrations_for_frame(
-        spectrograph, fitstbl, par, frames[0], det, calib_ID, calibrations_path)
+        spectrograph, fitstbl, par, frames[0], det, calib_ID)
 
     log.info(f"Image processing begins for {basename} on det={det}")
 
@@ -327,8 +316,8 @@ def process_one_det(spectrograph, fitstbl, par, frames:list,
     # Return
     return sciImg, bkg_redux_sciimg
 
-def findobj_on_det(sciImg, spectrograph, fitstbl, par, frames:list, calib_ID:str, 
-                   det, calibrations_path:str, std_outfile:str=None, 
+def findobj_on_det(sciImg, spectrograph, fitstbl, par, frames:list, calib_ID:str,
+                   det, std_outfile:str=None,
                    bkg_redux=False, find_negative=False, show:bool=False):
     """
     Perform object finding on a specific detector.
@@ -355,8 +344,6 @@ def findobj_on_det(sciImg, spectrograph, fitstbl, par, frames:list, calib_ID:str
             The calibration group ID
         det (:obj:`int`):
             Detector number (1-indexed)
-        calibrations_path (:obj:`str`):
-            Path to the calibration files
         std_outfile (:obj:`str`, optional):
             The standard star output file, if this is a standard star
             reduction. Default is None.
@@ -391,7 +378,7 @@ def findobj_on_det(sciImg, spectrograph, fitstbl, par, frames:list, calib_ID:str
 
     # Grab the calibrations
     caliBrate = load_calibrations_for_frame(
-        spectrograph, fitstbl, par, frames[0], det, calib_ID, calibrations_path)
+        spectrograph, fitstbl, par, frames[0], det, calib_ID)
 
     log.info(f'Reducing detector {det}')
 
@@ -488,8 +475,8 @@ def finalize_sky_det(spectrograph, fitstbl, par, frame,
 
 
 
-def load_calibrations_for_frame(spectrograph, fitstbl, par, frame, det, 
-                                calib_ID, calibrations_path:str):
+def load_calibrations_for_frame(spectrograph, fitstbl, par, frame, det,
+                                calib_ID):
     """
     Load calibrations for a specific frame and detector.
 
@@ -511,8 +498,6 @@ def load_calibrations_for_frame(spectrograph, fitstbl, par, frame, det,
             Detector number (1-indexed)
         calib_ID (:obj:`str`):
             The calibration group ID
-        calibrations_path (:obj:`str`):
-            Path to the calibration files
 
     Returns:
         :class:`~pypeit.calibrations.Calibrations`:
@@ -525,10 +510,12 @@ def load_calibrations_for_frame(spectrograph, fitstbl, par, frame, det,
     # Instantiate Calibrations class
     user_slits = slittrace.merge_user_slit(par['rdx']['slitspatnum'],
                                             par['rdx']['maskIDs'])
+    # write_qa=False: this reload-only path is used during science reduction,
+    # after QA was already written once during the earlier calibration step.
     caliBrate = calibrations.Calibrations.get_instance(
         fitstbl, par['calibrations'], spectrograph,
-        calibrations_path, 
         calib_ID, frame, det,
+        write_qa=False,
         reuse_calibs=True, user_slits=user_slits,
         chk_version=par['rdx']['chk_version'])
     #caliBrate.set_config(frame, det, par['calibrations'])
@@ -544,7 +531,7 @@ def load_calibrations_for_frame(spectrograph, fitstbl, par, frame, det,
 
 
 def load_skyregions(spectrograph, fitstbl, par, frame, det, caliBrate,
-                    calibrations_path:str, scifile:str=None, initial_slits=False):
+                    calibrations_path:str|Path, scifile:str=None, initial_slits=False):
     """
     Generate or load sky regions, if defined by the user.
 
@@ -636,7 +623,7 @@ def load_skyregions(spectrograph, fitstbl, par, frame, det, caliBrate,
 
 
 def extract_det(spectrograph, fitstbl, par,
-                frames, det, calib_ID:str, calibrations_path:str,
+                frames, det, calib_ID:str,
                 sciImg, final_sky, sobjs_obj, calib_slits,
                 bkg_redux_final_sky=None, bkg_redux:bool=False,
                 find_negative:bool=False,
@@ -661,8 +648,6 @@ def extract_det(spectrograph, fitstbl, par,
             Detector number (1-indexed)
         calib_ID (:obj:`str`):
             The calibration group ID
-        calibrations_path (:obj:`str`):
-            Path to the calibration files
         sciImg (:class:`~pypeit.images.pypeitimage.PypeItImage`):
             Data container that holds a single image from a
             single detector and its related images (e.g. ivar, mask)
@@ -701,7 +686,7 @@ def extract_det(spectrograph, fitstbl, par,
 
     # Grab the calibrations
     caliBrate = load_calibrations_for_frame(
-        spectrograph, fitstbl, par, frames[0], det, calib_ID, calibrations_path)
+        spectrograph, fitstbl, par, frames[0], det, calib_ID)
     # update slits
     caliBrate.slits = calib_slits
 
@@ -864,7 +849,7 @@ def instantiate_objfind(sciImg, spectrograph, fitstbl, par, frames, det,
         # Build the initial sky mask
         initial_skymask = load_skyregions(
             spectrograph, fitstbl, par, frames[0], det,
-            caliBrate, str(caliBrate.calib_dir), initial_slits=spectrograph.pypeline not in ['SlicerIFU', 'Fiber'],
+            caliBrate, caliBrate.calib_dir, initial_slits=spectrograph.pypeline not in ['SlicerIFU', 'Fiber'],
             scifile=fitstbl.frame_paths(frames[0]))
             
 

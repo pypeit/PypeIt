@@ -1019,9 +1019,9 @@ class QL(scriptbase.ScriptBase):
             # Get the output file name
             spectrograph, par, _ = coadd2dFile.get_pypeitpar(pypeit_fits=True)
             spec2d_files = coadd2dFile.filenames
-            coadd_scidir = Path(coadd2d.CoAdd2D.output_paths(spec2d_files, par)[0]).absolute()
+            coadd_scidir = coadd2d.CoAdd2D.output_paths(spec2d_files, par)[0]
             basename = coadd2d.CoAdd2D.default_basename(spec2d_files)
-            spec2d_file = str(coadd_scidir / f'spec2d_{basename}.fits')
+            spec2d_file = outputfiles.coadd_output_file(coadd_scidir, basename, twod=True)
         else:
             # Grab the spec2d file (or at least the first one)
             frame = pypeIt.fitstbl.find_frames('science', index=True)[0]
@@ -1029,7 +1029,12 @@ class QL(scriptbase.ScriptBase):
 
         if not args.skip_display:
             # TODO: Need to parse detector here?
-            show2d_spec_args = [spec2d_file]
+            # NOTE: argparse.parse_args() requires plain strings -- it
+            # indexes into each argument to check for an option prefix
+            # before ever getting to positional-argument handling, so a
+            # bare Path object (spec2d_file may be one, from either branch
+            # above) raises a TypeError.
+            show2d_spec_args = [str(spec2d_file)]
             if args.removetrace:
                 show2d_spec_args += ['--removetrace']
             Show2DSpec.main(Show2DSpec.parse_args(show2d_spec_args))

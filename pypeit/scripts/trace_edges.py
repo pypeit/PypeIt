@@ -12,6 +12,7 @@ class TraceEdges(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
+        from pypeit.par.pypeitpar import CalibrationsPar
         from pypeit.spectrographs.util import available_spectrographs
 
         parser = super().get_parser(description='Trace slit edges', width=width,
@@ -39,7 +40,7 @@ class TraceEdges(scriptbase.ScriptBase):
                                  'providing files directly; default is 1,1.')
         parser.add_argument('-p', '--redux_path', type=str, default='current working directory',
                             help='Path to top-level output directory.')
-        parser.add_argument('-c', '--calib_dir', default='Calibrations',
+        parser.add_argument('-c', '--calib_dir', default=CalibrationsPar()['calib_dir'],
                             help='Name for directory in output path for calibration file(s) '
                                  'relative to the top-level directory.')
         parser.add_argument('-o', '--overwrite', default=False, action='store_true',
@@ -64,6 +65,7 @@ class TraceEdges(scriptbase.ScriptBase):
 
         from pypeit import edgetrace
         from pypeit import log
+        from pypeit import outputPaths
         from pypeit import PypeItError
         from pypeit.core import parse
         from pypeit.images import buildimage
@@ -122,9 +124,6 @@ class TraceEdges(scriptbase.ScriptBase):
             lampoff_par = rdx.par['calibrations']['lampoffflatsframe']
             if len(lampoff_files) == 0:
                 lampoff_files = None
-
-            # Set the QA path
-            qa_path = rdx.qa_path
         else:
             detectors = args.detector
             spec = load_spectrograph(args.spectrograph)
@@ -150,8 +149,14 @@ class TraceEdges(scriptbase.ScriptBase):
             lampoff_files = None
             lampoff_par = None
 
-            # Set the QA path
-            qa_path = redux_path / 'QA'
+            # This is the one branch where `outputPaths` isn't already
+            # configured by a `PypeIt` object -- configure it here, once,
+            # for this script.  Guarded (rather than unconditional) since
+            # this script may be run in the same process as another
+            # script/entry point that has already configured `outputPaths`.
+            if not outputPaths.configured:
+                outputPaths.configure(redux_path=redux_path, calib_dir=args.calib_dir,
+                                      caller='TraceEdges.main')
 
         if detectors is None:
             detectors = np.arange(spec.ndet)+1
@@ -160,7 +165,7 @@ class TraceEdges(scriptbase.ScriptBase):
         elif any([isinstance(d,str) for d in detectors]):
             detectors = [parse.eval_detectors(d) for d in detectors]
 
-        calib_dir = redux_path / args.calib_dir
+        calib_dir = outputPaths.calibrations
         for det in detectors:
 
             # Get the bias frame
@@ -200,7 +205,7 @@ class TraceEdges(scriptbase.ScriptBase):
             # Trace the slit edges
             t = time.perf_counter()
             edges = edgetrace.EdgeTraceSet(traceImage, spec, trace_par, auto=True,
-                                           debug=args.debug, qa_path=qa_path)
+                                           debug=args.debug)
             if not edges.success:
                 log.warning(f'Edge tracing for detector {det} failed.  Continuing...')
                 continue

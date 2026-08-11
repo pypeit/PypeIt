@@ -16,6 +16,7 @@ from astropy.time import Time
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import log
+from pypeit import outputPaths
 from pypeit.utils import is_float
 from pypeit.collate import collate_1d
 from pypeit.scripts import scriptbase
@@ -193,12 +194,17 @@ class Collate1D(scriptbase.ScriptBase):
         start_time = datetime.now()
         (par, spectrograph, spec1d_files) = build_parameters(args)
 
-        outdir = par['collate1d']['outdir'] 
-        os.makedirs(outdir, exist_ok=True)
+        # Configure the output paths.  Accessing `outputPaths.collate` below
+        # both resolves and creates the directory on first use.  Guarded
+        # (rather than unconditional) since this script may be run in the
+        # same process as another script/entry point that has already
+        # configured `outputPaths`.
+        if not outputPaths.configured:
+            outputPaths.configure(par, caller='Collate1D.main')
 
         # Write the par to disk
         if args.par_outfile is None:
-            args.par_outfile = os.path.join(outdir, 'collate1d.par')
+            args.par_outfile = outputPaths.collate / 'collate1d.par'
         print("Writing the parameters to {}".format(args.par_outfile))
         # Gather up config lines for the sections relevant to collate_1d
         config_lines = par['collate1d'].to_config(section_name='collate1d',include_descr=False) + ['']

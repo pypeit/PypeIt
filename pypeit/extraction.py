@@ -8,7 +8,6 @@ Main driver class for skysubtraction and extraction
 
 import inspect
 import numpy as np
-import os
 
 from abc import ABCMeta
 
@@ -581,9 +580,8 @@ class Extract:
         # Save QA
         if flex_list is not None:
             basename = f'{self.basename}_{mode}_{self.spectrograph.get_det_name(self.det)}'
-            out_dir = os.path.join(self.par['rdx']['redux_path'], 'QA')
             spec_flexure_qa(self.slits.slitord_id, self.extract_bpm, basename, flex_list,
-                            specobjs=sobjs, out_dir=out_dir)
+                            specobjs=sobjs)
 
     def show(self, attr, image=None, showmask=False, sobjs=None,
              chname=None, slits=False,clear=False):

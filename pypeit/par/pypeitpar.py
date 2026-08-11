@@ -4815,8 +4815,7 @@ class CalibrationsPar(ParSet):
         dtypes['calib_dir'] = str
         descr['calib_dir'] = 'The name of the directory for the processed calibration frames.  ' \
                              'The host path for the directory is set by the redux_path (see ' \
-                             ':class:`~pypeit.par.pypeitpar.ReduxPar`).  Beware that success ' \
-                             'when changing the default value is not well tested!'
+                             ':class:`~pypeit.par.pypeitpar.ReduxPar`).'
 
         defaults['raise_chk_error'] = True
         dtypes['raise_chk_error'] = bool
