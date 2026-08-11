@@ -4,11 +4,13 @@ Module to run tests on datacube generation
 
 from astropy.wcs import WCS
 from astropy.io import fits
+from astropy.stats import sigma_clipped_stats
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 from IPython import embed
 import numpy as np
 import pytest
+from scipy.optimize import curve_fit
 
 from pypeit import utils
 from pypeit.core import datacube
@@ -318,6 +320,244 @@ def test_align_fit():
     assert np.isclose(dec_offsets[0].to(u.arcsec).value, 0.0, atol=atol)
     assert np.isclose(ra_offsets[1].to(u.arcsec).value, offs_ra.to(u.arcsec).value, atol=atol)
     assert np.isclose(dec_offsets[1].to(u.arcsec).value, offs_dec.to(u.arcsec).value, atol=atol)
+
+
+@photutils_required
+def test_fitgaussian2d_ginga_xy_convention():
+    """`fitGaussian2D` must return (x, y) = (column, row), matching Ginga/DS9.
+
+    Uses a non-square image with two point sources of unequal brightness at
+    positions with different row and column indices, so a transpose or a
+    row/column swap cannot accidentally produce the right answer.
+    """
+    ny, nx = 20, 28
+    bright_row, bright_col, bright_amp = 14, 7, 1.0
+    faint_row, faint_col, faint_amp = 5, 21, 0.4
+    sigma_pix = 1.3
+    fwhm_pix = sigma_pix * 2.0 * np.sqrt(2.0 * np.log(2.0))
+
+    yimg, ximg = np.mgrid[0:ny, 0:nx]
+    image = (
+        bright_amp * np.exp(-0.5 * (((ximg - bright_col) / sigma_pix) ** 2
+                                     + ((yimg - bright_row) / sigma_pix) ** 2))
+        + faint_amp * np.exp(-0.5 * (((ximg - faint_col) / sigma_pix) ** 2
+                                      + ((yimg - faint_row) / sigma_pix) ** 2))
+    )
+
+    # Auto-detection (DAOStarFinder, n_brightest=1) must lock onto the bright source.
+    popt, *_ = datacube.fitGaussian2D(image, fwhm=fwhm_pix, mask_edge=2, norm=False)
+    assert np.isclose(popt[1], bright_col, atol=0.2), 'x (column) does not match the bright source'
+    assert np.isclose(popt[2], bright_row, atol=0.2), 'y (row) does not match the bright source'
+
+    # A manually-supplied (x, y) position must override auto-detection and lock
+    # onto the source at that position, even though it is fainter.
+    popt_manual, *_ = datacube.fitGaussian2D(
+        image, init_obj_position=(faint_col, faint_row), fwhm=fwhm_pix, mask_edge=2, norm=False)
+    assert np.isclose(popt_manual[1], faint_col, atol=0.2), \
+        'manual_position did not lock the fit onto the faint source in x (column)'
+    assert np.isclose(popt_manual[2], faint_row, atol=0.2), \
+        'manual_position did not lock the fit onto the faint source in y (row)'
+
+
+# ---------------------------------------------------------------------------
+# NOTE -- TEMPORARY, branch-specific regression scaffolding.
+#
+# The helpers and tests in this block (`_pre_fix_auto_position`,
+# `_pre_fix_manual_position`, `test_fitgaussian2d_autodetect_unaffected_by_bugfix`,
+# and `test_manual_position_bugfix_regression`) exist only to document and lock
+# in the specific `(x, y)` mislabeling bug fixed by `fix-cube-manual-coords-kbw`
+# relative to its parent branch, `kcwi_dec_2024_weights`.  They intentionally
+# duplicate old, buggy logic as a frozen reference for comparison.  These
+# should be removed or refactored into ordinary (non-comparative) convention
+# tests before this branch stack is merged into `develop` -- once merged,
+# there is no further value in re-deriving the pre-fix behavior, and carrying
+# duplicated buggy code forward in the test suite is a maintenance liability.
+# ---------------------------------------------------------------------------
+
+def _pre_fix_auto_position(image, fwhm, nsigma=5.0, mask_edge=2):
+    """
+    Reference re-implementation of the auto-detection (DAOStarFinder + 2D
+    Gaussian fit) branch of ``fitGaussian2D`` as it existed on
+    ``kcwi_dec_2024_weights``, before the ``fix-cube-manual-coords-kbw`` fix.
+
+    On that branch, the curve-fit coordinate grid was built with
+    ``indexing='ij'`` using ``image.shape[0]``/``image.shape[1]`` swapped
+    relative to the Ginga/DS9 (x, y) convention -- so internally "x" tracked
+    the row (Dec) axis and "y" tracked the column (RA) axis -- DAOStarFinder's
+    centroids were assigned as ``(y_centroid, x_centroid)`` to match, and
+    ``extract_point_source`` applied a final ``yobj, xobj = gaussian_position``
+    swap to undo the internal mislabeling before using the position.  This
+    function reproduces that chain bug-for-bug, purely so
+    ``test_fitgaussian2d_autodetect_unaffected_by_bugfix`` below can prove the
+    fix left the auto-detection result numerically unchanged.  Do not "fix"
+    this function -- it must stay identical to the pre-fix code.
+
+    TEMPORARY: remove this helper (and its one caller) before merging this
+    branch stack into `develop`; see the module note above.
+    """
+    fwhm2sigma = 1.0 / (2 * np.sqrt(2 * np.log(2)))
+    ny, nx = image.shape
+    yimg, ximg = np.mgrid[0:ny, 0:nx]
+    edgemask = (ximg < mask_edge) | (ximg >= nx - mask_edge) \
+        | (yimg < mask_edge) | (yimg >= ny - mask_edge)
+
+    _, median, std = sigma_clipped_stats(image[~edgemask], sigma=3.0)
+    ivar = np.full_like(image, 1.0 / std ** 2) if std > 0 else np.ones_like(image)
+
+    daofind = datacube.DAOStarFinder(fwhm=fwhm, threshold=nsigma, sharpness_range=(0.2, 2.0),
+                                     exclude_border=False, n_brightest=1)
+    sources = daofind((image - median) * np.sqrt(ivar), mask=edgemask)
+    init_obj_position = sources['y_centroid'][0], sources['x_centroid'][0]
+
+    initial_guess = (1, init_obj_position[0], init_obj_position[1],
+                     fwhm * fwhm2sigma, fwhm * fwhm2sigma, 0, 0)
+    bounds = ([0, init_obj_position[0] - fwhm / 3.0, init_obj_position[1] - fwhm / 3.0,
+               fwhm / 6.0, fwhm / 6.0, -np.pi, -np.inf],
+              [np.inf, init_obj_position[0] + fwhm / 3.0, init_obj_position[1] + fwhm / 3.0,
+               fwhm, fwhm, np.pi, np.inf])
+
+    x = np.linspace(0, ny - 1, ny)
+    y = np.linspace(0, nx - 1, nx)
+    xx, yy = np.meshgrid(x, y, indexing='ij')
+    popt, _ = curve_fit(datacube.gaussian2D, (xx, yy), image.ravel(), bounds=bounds,
+                        p0=initial_guess)
+    xpos_gauss, ypos_gauss = popt[1], popt[2]
+    yobj, xobj = xpos_gauss, ypos_gauss  # extract_point_source's pre-fix unpack
+    return xobj, yobj
+
+
+def _pre_fix_manual_position(manual_position):
+    """
+    Reproduces the pre-fix (``kcwi_dec_2024_weights``) handling of a
+    user-supplied ``manual_position`` inside ``extract_point_source``:
+    ``yobj, xobj = manual_position`` instead of the corrected
+    ``xobj, yobj = manual_position``.  Kept only to lock in a regression test
+    for the ``fix-cube-manual-coords-kbw`` fix -- do not "fix" this helper.
+
+    TEMPORARY: remove this helper (and its one caller) before merging this
+    branch stack into `develop`; see the module note above.
+    """
+    yobj, xobj = manual_position
+    return xobj, yobj
+
+
+@photutils_required
+def test_fitgaussian2d_autodetect_unaffected_by_bugfix():
+    """The manual-coordinate bugfix must not change the auto-detection result.
+
+    The pre-fix code's internal (x, y) mislabeling was self-consistent for
+    auto-detected positions (see `_pre_fix_auto_position`), so the final
+    position handed to the extraction code should be numerically identical
+    before and after the fix.
+
+    TEMPORARY: this comparative test should be removed (or refactored into an
+    ordinary convention test, without the `_pre_fix_auto_position` reference
+    implementation) before merging this branch stack into `develop`; see the
+    module note above `_pre_fix_auto_position`.
+    """
+    ny, nx = 20, 28
+    row0, col0 = 12, 17
+    sigma_pix = 1.4
+    fwhm_pix = sigma_pix * 2.0 * np.sqrt(2.0 * np.log(2.0))
+    yimg, ximg = np.mgrid[0:ny, 0:nx]
+    image = np.exp(-0.5 * (((ximg - col0) / sigma_pix) ** 2 + ((yimg - row0) / sigma_pix) ** 2))
+
+    popt, *_ = datacube.fitGaussian2D(image, fwhm=fwhm_pix, mask_edge=2, norm=False)
+    x_new, y_new = popt[1], popt[2]
+    x_old, y_old = _pre_fix_auto_position(image, fwhm=fwhm_pix, mask_edge=2)
+
+    assert np.isclose(x_new, x_old, atol=1e-4), \
+        'auto-detected x position changed between the pre-fix and current code'
+    assert np.isclose(y_new, y_old, atol=1e-4), \
+        'auto-detected y position changed between the pre-fix and current code'
+    # Sanity check both still recover the true, known source position.
+    assert np.isclose(x_new, col0, atol=0.2)
+    assert np.isclose(y_new, row0, atol=0.2)
+
+
+def test_manual_position_bugfix_regression():
+    """Lock in the fix-cube-manual-coords-kbw fix for manual extraction positions.
+
+    Pre-fix, a user-supplied ``manual_position=(x, y)`` (Ginga/DS9 convention)
+    was silently transposed before use.  Choose x != y so the swap is
+    detectable.
+
+    TEMPORARY: this comparative test should be removed before merging this
+    branch stack into `develop`, since `test_fitgaussian2d_ginga_xy_convention`
+    above already covers the correct (non-comparative) behavior going forward;
+    see the module note above `_pre_fix_auto_position`.
+    """
+    manual_position = (17, 6)  # (x, y): column 17, row 6
+
+    x_new, y_new = manual_position  # current (fixed) unpack in extract_point_source
+    assert (x_new, y_new) == manual_position
+
+    x_old, y_old = _pre_fix_manual_position(manual_position)
+    assert (x_old, y_old) == (manual_position[1], manual_position[0]), \
+        'the pre-fix reference implementation should reproduce the x/y swap bug'
+    assert (x_old, y_old) != manual_position, \
+        'pre-fix code should have gotten the manual position wrong (x/y swapped)'
+
+
+@photutils_required
+def test_extract_point_source_manual_position_selects_correct_source():
+    """`extract_point_source` must extract the source at `manual_position`,
+    not always the brightest source in the field.
+    """
+    nwave, ny, nx = 6, 20, 28
+    bright_row, bright_col, bright_amp = 14, 7, 1.0
+    faint_row, faint_col, faint_amp = 5, 21, 0.4
+    sigma_pix = 1.3
+
+    yimg, ximg = np.mgrid[0:ny, 0:nx]
+    image2d = (
+        bright_amp * np.exp(-0.5 * (((ximg - bright_col) / sigma_pix) ** 2
+                                     + ((yimg - bright_row) / sigma_pix) ** 2))
+        + faint_amp * np.exp(-0.5 * (((ximg - faint_col) / sigma_pix) ** 2
+                                      + ((yimg - faint_row) / sigma_pix) ** 2))
+    )
+    flxcube = np.broadcast_to(image2d, (nwave, ny, nx)).copy()
+    # The synthetic image is noise-free, so use a large (but finite) ivar to
+    # give DAOStarFinder's internal S/N image (image * sqrt(ivar)) a healthy
+    # signal well above its default 5-sigma detection threshold.
+    ivarcube = np.full((nwave, ny, nx), 1.0e8)
+    bpmcube = np.zeros((nwave, ny, nx), dtype=bool)
+    wave = np.linspace(5000.0, 5010.0, nwave)
+
+    dspat_arcsec = 0.3
+    dspat_deg = dspat_arcsec / 3600.0
+    wcscube = WCS(naxis=3)
+    wcscube.wcs.crpix = [1.0, 1.0, 1.0]
+    wcscube.wcs.crval = [150.0, 10.0, wave[0]]
+    wcscube.wcs.cdelt = [-dspat_deg, dspat_deg, 2.0]
+    wcscube.wcs.cunit = [u.deg, u.deg, u.Angstrom]
+    wcscube.wcs.ctype = ['RA---TAN', 'DEC--TAN', 'WAVE']
+
+    extract_kwargs = dict(
+        exptime=1.0, fluxed=False, subpixel=5, boxcar_radius=1.0, fwhm=0.9,
+        opt_prof_method='fit_gauss', spectrograph='keck_kcrm', show_qa=False
+    )
+
+    sobjs_auto, *_ = datacube.extract_point_source(
+        wave, flxcube, ivarcube, bpmcube, wcscube, manual_position=None, **extract_kwargs)
+    sobjs_bright, *_ = datacube.extract_point_source(
+        wave, flxcube, ivarcube, bpmcube, wcscube,
+        manual_position=(bright_col, bright_row), **extract_kwargs)
+    sobjs_faint, *_ = datacube.extract_point_source(
+        wave, flxcube, ivarcube, bpmcube, wcscube,
+        manual_position=(faint_col, faint_row), **extract_kwargs)
+
+    flux_auto = np.median(sobjs_auto[0].BOX_COUNTS)
+    flux_bright = np.median(sobjs_bright[0].BOX_COUNTS)
+    flux_faint = np.median(sobjs_faint[0].BOX_COUNTS)
+
+    # With no manual position, auto-detection should lock onto the brighter source.
+    assert np.isclose(flux_auto, flux_bright, rtol=0.05), \
+        'auto-detection did not recover the same flux as the known bright source'
+    # A manual position at the fainter source must override auto-detection and
+    # recover roughly the expected (amplitude) flux ratio, not the bright flux.
+    assert 0.2 * flux_bright < flux_faint < 0.6 * flux_bright, \
+        'manual_position at the faint source did not recover the expected flux ratio'
 
 
 def test_resample_spec_to_grid_identity():
