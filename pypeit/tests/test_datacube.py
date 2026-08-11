@@ -51,20 +51,28 @@ def test_datacube_whitelight_range_datamodel(tmp_path):
     wl_range = np.array([5004.0, 5012.0])
     cube = make_test_datacube(whitelight_range=wl_range)
 
-    assert np.allclose(cube.resolve_whitelight_range([None, None]), wl_range)
-    assert np.allclose(cube.resolve_whitelight_range([5006.0, None]), [5006.0, 5012.0])
-    assert np.allclose(cube.resolve_whitelight_range([None, 5010.0]), [5004.0, 5010.0])
-    assert np.allclose(cube.resolve_whitelight_range([5002.0, 5016.0]), [5002.0, 5016.0])
+    assert np.allclose(cube.resolve_whitelight_range([None, None]), wl_range), \
+        'resolve_whitelight_range([None, None]) should fall back to the stored default range'
+    assert np.allclose(cube.resolve_whitelight_range([5006.0, None]), [5006.0, 5012.0]), \
+        'a user-supplied lower bound should override the default, keeping the default upper bound'
+    assert np.allclose(cube.resolve_whitelight_range([None, 5010.0]), [5004.0, 5010.0]), \
+        'a user-supplied upper bound should override the default, keeping the default lower bound'
+    assert np.allclose(cube.resolve_whitelight_range([5002.0, 5016.0]), [5002.0, 5016.0]), \
+        'fully user-supplied bounds should be returned unchanged'
 
     ofile = tmp_path / 'spec3d_test.fits'
     cube.to_file(str(ofile), hdr=make_test_cube_wcs().to_header(), overwrite=True)
     read_cube = DataCube.from_file(str(ofile))
-    assert np.allclose(read_cube.whitelight_range, wl_range)
-    assert np.allclose(read_cube.resolve_whitelight_range([None, None]), wl_range)
+    assert np.allclose(read_cube.whitelight_range, wl_range), \
+        'whitelight_range did not survive a FITS write/read round trip'
+    assert np.allclose(read_cube.resolve_whitelight_range([None, None]), wl_range), \
+        'resolve_whitelight_range should still recover the stored default after a round trip'
 
     int_range_cube = make_test_datacube(whitelight_range=[5004, 5012])
-    assert np.issubdtype(int_range_cube.whitelight_range.dtype, np.floating)
-    assert np.allclose(int_range_cube.whitelight_range, wl_range)
+    assert np.issubdtype(int_range_cube.whitelight_range.dtype, np.floating), \
+        'whitelight_range should be cast to float even when given as integers'
+    assert np.allclose(int_range_cube.whitelight_range, wl_range), \
+        'integer whitelight_range input should be preserved numerically'
 
     # Old cubes do not have the new datamodel field.  They should still load,
     # and extraction should fall back to the full saved cube wavelength range.
@@ -76,11 +84,12 @@ def test_datacube_whitelight_range_datamodel(tmp_path):
             ext.header['DMODVER'] = '1.2.0'
 
     read_old_cube = DataCube.from_file(str(old_file))
-    assert read_old_cube.whitelight_range is None
+    assert read_old_cube.whitelight_range is None, \
+        'a pre-1.3.0 cube on disk should load with whitelight_range unset, not a stale/garbage value'
     assert np.allclose(
         read_old_cube.resolve_whitelight_range([None, None]),
         [read_old_cube.wave.min(), read_old_cube.wave.max()]
-    )
+    ), 'a cube with no stored whitelight_range should fall back to the full saved wavelength range'
 
 photutils_required = pytest.mark.skipif(
     datacube.DAOStarFinder is None, reason='photutils not installed'
@@ -163,8 +172,11 @@ def test_align_phase():
 
     # Calculate and check the separation
     dra, ddec = coord1.spherical_offsets_to(coord2)
-    assert np.isclose(dra.to(u.arcsec).value, offs_ra.to(u.arcsec).value*cosdec, atol=0.001)
-    assert np.isclose(ddec.to(u.arcsec).value, offs_dec.to(u.arcsec).value, atol=0.001)
+    assert np.isclose(dra.to(u.arcsec).value, offs_ra.to(u.arcsec).value*cosdec, atol=0.001), \
+        'test setup error: injected RA separation (with cos(dec) factor) does not match ' \
+        'the requested offset'
+    assert np.isclose(ddec.to(u.arcsec).value, offs_dec.to(u.arcsec).value, atol=0.001), \
+        'test setup error: injected Dec separation does not match the requested offset'
 
     # Loop through iterations to find the offsets using the PHASE method
     # Set up the offsets arrays that will be computed by the spatial alignment methods
@@ -192,10 +204,14 @@ def test_align_phase():
 
     # Check that the offsets agree to within 1/3 of a pixel
     atol = _dspat.to(u.arcsec).value/3
-    assert np.isclose(ra_offsets[0].to(u.arcsec).value, 0.0, atol=atol)
-    assert np.isclose(dec_offsets[0].to(u.arcsec).value, 0.0, atol=atol)
-    assert np.isclose(ra_offsets[1].to(u.arcsec).value, offs_ra.to(u.arcsec).value, atol=atol)
-    assert np.isclose(dec_offsets[1].to(u.arcsec).value, offs_dec.to(u.arcsec).value, atol=atol)
+    assert np.isclose(ra_offsets[0].to(u.arcsec).value, 0.0, atol=atol), \
+        'phase method: the reference image should recover a zero RA offset relative to itself'
+    assert np.isclose(dec_offsets[0].to(u.arcsec).value, 0.0, atol=atol), \
+        'phase method: the reference image should recover a zero Dec offset relative to itself'
+    assert np.isclose(ra_offsets[1].to(u.arcsec).value, offs_ra.to(u.arcsec).value, atol=atol), \
+        'phase method: recovered RA offset does not match the injected offset'
+    assert np.isclose(dec_offsets[1].to(u.arcsec).value, offs_dec.to(u.arcsec).value, atol=atol), \
+        'phase method: recovered Dec offset does not match the injected offset'
 
 
 def test_align_cc():
@@ -222,8 +238,11 @@ def test_align_cc():
 
     # Calculate and check the separation
     dra, ddec = coord1.spherical_offsets_to(coord2)
-    assert np.isclose(dra.to(u.arcsec).value, offs_ra.to(u.arcsec).value * cosdec, atol=0.001)
-    assert np.isclose(ddec.to(u.arcsec).value, offs_dec.to(u.arcsec).value, atol=0.001)
+    assert np.isclose(dra.to(u.arcsec).value, offs_ra.to(u.arcsec).value * cosdec, atol=0.001), \
+        'test setup error: injected RA separation (with cos(dec) factor) does not match ' \
+        'the requested offset'
+    assert np.isclose(ddec.to(u.arcsec).value, offs_dec.to(u.arcsec).value, atol=0.001), \
+        'test setup error: injected Dec separation does not match the requested offset'
 
     # Loop through iterations to find the offsets using the CC method
     # Set up the offsets arrays that will be computed by the spatial alignment methods
@@ -251,10 +270,14 @@ def test_align_cc():
 
     # Check that the offsets agree to within 1/3 of a pixel
     atol = _dspat.to(u.arcsec).value/3
-    assert np.isclose(ra_offsets[0].to(u.arcsec).value, 0.0, atol=atol)
-    assert np.isclose(dec_offsets[0].to(u.arcsec).value, 0.0, atol=atol)
-    assert np.isclose(ra_offsets[1].to(u.arcsec).value, offs_ra.to(u.arcsec).value, atol=atol)
-    assert np.isclose(dec_offsets[1].to(u.arcsec).value, offs_dec.to(u.arcsec).value, atol=atol)
+    assert np.isclose(ra_offsets[0].to(u.arcsec).value, 0.0, atol=atol), \
+        'cc method: the reference image should recover a zero RA offset relative to itself'
+    assert np.isclose(dec_offsets[0].to(u.arcsec).value, 0.0, atol=atol), \
+        'cc method: the reference image should recover a zero Dec offset relative to itself'
+    assert np.isclose(ra_offsets[1].to(u.arcsec).value, offs_ra.to(u.arcsec).value, atol=atol), \
+        'cc method: recovered RA offset does not match the injected offset'
+    assert np.isclose(dec_offsets[1].to(u.arcsec).value, offs_dec.to(u.arcsec).value, atol=atol), \
+        'cc method: recovered Dec offset does not match the injected offset'
 
 
 @photutils_required
@@ -282,8 +305,11 @@ def test_align_fit():
 
     # Calculate and check the separation
     dra, ddec = coord1.spherical_offsets_to(coord2)
-    assert np.isclose(dra.to(u.arcsec).value, offs_ra.to(u.arcsec).value * cosdec, atol=0.001)
-    assert np.isclose(ddec.to(u.arcsec).value, offs_dec.to(u.arcsec).value, atol=0.001)
+    assert np.isclose(dra.to(u.arcsec).value, offs_ra.to(u.arcsec).value * cosdec, atol=0.001), \
+        'test setup error: injected RA separation (with cos(dec) factor) does not match ' \
+        'the requested offset'
+    assert np.isclose(ddec.to(u.arcsec).value, offs_dec.to(u.arcsec).value, atol=0.001), \
+        'test setup error: injected Dec separation does not match the requested offset'
 
     # Loop through iterations to find the offsets using the FIT method
     # Set up the offsets arrays that will be computed by the spatial alignment methods
@@ -316,10 +342,14 @@ def test_align_fit():
 
     # Check that the offsets agree to within 1/3 of a pixel
     atol = _dspat.to(u.arcsec).value/3
-    assert np.isclose(ra_offsets[0].to(u.arcsec).value, 0.0, atol=atol)
-    assert np.isclose(dec_offsets[0].to(u.arcsec).value, 0.0, atol=atol)
-    assert np.isclose(ra_offsets[1].to(u.arcsec).value, offs_ra.to(u.arcsec).value, atol=atol)
-    assert np.isclose(dec_offsets[1].to(u.arcsec).value, offs_dec.to(u.arcsec).value, atol=atol)
+    assert np.isclose(ra_offsets[0].to(u.arcsec).value, 0.0, atol=atol), \
+        'fit method: the reference image should recover a zero RA offset relative to itself'
+    assert np.isclose(dec_offsets[0].to(u.arcsec).value, 0.0, atol=atol), \
+        'fit method: the reference image should recover a zero Dec offset relative to itself'
+    assert np.isclose(ra_offsets[1].to(u.arcsec).value, offs_ra.to(u.arcsec).value, atol=atol), \
+        'fit method: recovered RA offset does not match the injected offset'
+    assert np.isclose(dec_offsets[1].to(u.arcsec).value, offs_dec.to(u.arcsec).value, atol=atol), \
+        'fit method: recovered Dec offset does not match the injected offset'
 
 
 @photutils_required
@@ -471,8 +501,10 @@ def test_fitgaussian2d_autodetect_unaffected_by_bugfix():
     assert np.isclose(y_new, y_old, atol=1e-4), \
         'auto-detected y position changed between the pre-fix and current code'
     # Sanity check both still recover the true, known source position.
-    assert np.isclose(x_new, col0, atol=0.2)
-    assert np.isclose(y_new, row0, atol=0.2)
+    assert np.isclose(x_new, col0, atol=0.2), \
+        'current fitGaussian2D did not recover the true source column (x) position'
+    assert np.isclose(y_new, row0, atol=0.2), \
+        'current fitGaussian2D did not recover the true source row (y) position'
 
 
 def test_manual_position_bugfix_regression():
@@ -490,7 +522,8 @@ def test_manual_position_bugfix_regression():
     manual_position = (17, 6)  # (x, y): column 17, row 6
 
     x_new, y_new = manual_position  # current (fixed) unpack in extract_point_source
-    assert (x_new, y_new) == manual_position
+    assert (x_new, y_new) == manual_position, \
+        'the current (fixed) unpack must return manual_position unchanged, i.e. (x, y) with no swap'
 
     x_old, y_old = _pre_fix_manual_position(manual_position)
     assert (x_old, y_old) == (manual_position[1], manual_position[0]), \
