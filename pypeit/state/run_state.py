@@ -441,7 +441,8 @@ class RunPypeItState(BaseModel):
                 Value to assign.  A list/tuple replaces the field with a
                 flat list (e.g. ``input_files``); a scalar appended to a
                 field that already holds a list accumulates (e.g. flats
-                ``types``); otherwise the scalar is assigned.
+                ``types``); otherwise the scalar is assigned.  Path-like
+                calibration output filenames are normalized to strings.
             slit (:obj:`int`, optional):
                 Slit/order ID.  If provided, ``key`` is set on the
                 per-slit sub-entry rather than the step entry itself.
@@ -468,6 +469,13 @@ class RunPypeItState(BaseModel):
             item = calib_classes[step](calib_id=calib_id, det=det)
             self_items.append(item)
             index = -1
+
+        # CalibFrame.get_path() returns a Path when calib_dir is set, but the
+        # state model deliberately stores output_file as a JSON string.  Since
+        # pydantic does not validate assignment by default, normalize here to
+        # avoid serializer warnings and keep the in-memory model type-correct.
+        if key == 'output_file' and isinstance(value, Path):
+            value = str(value)
 
         # Set
         if slit is None:

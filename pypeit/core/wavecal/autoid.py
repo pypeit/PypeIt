@@ -1094,7 +1094,8 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
 
     """
     # Load line lists
-    line_lists, _, _ = waveio.load_line_lists(lamps, include_unknown=False)
+    line_lists, _, _ = waveio.load_line_lists(lamps, include_unknown=False,
+                                              lamps_wvrng=par['lamps_wvrng'])
 
     # Load template
     if template_dict is None:
@@ -1724,7 +1725,7 @@ class ArchiveReid:
 
         # Load the line lists
         self.tot_line_list, self.line_lists, self.unknwns = waveio.load_line_lists(
-            lamps, include_unknown=self.use_unknowns)
+            lamps, include_unknown=self.use_unknowns, lamps_wvrng=self.par['lamps_wvrng'])
 
         # Read in the wv_calib_arxiv and pull out some relevant quantities
         # ToDO deal with different binnings!
@@ -1976,7 +1977,7 @@ class HolyGrail:
             restrict = spectrograph if self._par['use_instr_flag'] else None
             self._tot_list, self._line_lists, self._unknwns = waveio.load_line_lists(
                 self._lamps, include_unknown=self._use_unknowns,
-                restrict_on_instr=restrict)
+                restrict_on_instr=restrict, lamps_wvrng=self._par['lamps_wvrng'])
 
 
         # Generate the final linelist and sort
