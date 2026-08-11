@@ -2921,7 +2921,7 @@ class WavelengthSolutionPar(ParSet):
     see :ref:`parameters`.
     """
     def __init__(self, reference=None, method=None, echelle=None, ech_nspec_coeff=None, ech_norder_coeff=None,
-                 ech_sigrej=None, lamps=None, bad_orders_maxfrac=None, frac_rms_thresh=None,
+                 ech_sigrej=None, lamps=None, lamps_wvrng=None, bad_orders_maxfrac=None, frac_rms_thresh=None,
                  sigdetect=None, fwhm=None, fwhm_fromlines=None, fwhm_spat_order=None, fwhm_spec_order=None,
                  reid_arxiv=None, nreid_min=None, reid_cont_sub=None, cc_shift_range=None, cc_thresh=None,
                  cc_local_thresh=None, nlocal_cc=None, rms_thresh_frac_fwhm=None, match_toler=None, func=None,
@@ -3032,6 +3032,16 @@ class WavelengthSolutionPar(ParSet):
                          'recorded in the header of the arc frames (this is currently ' \
                          'available only for Keck DEIMOS, Keck LRIS, MMT Blue Channel, and LDT DeVeny).' # \
 #                         'Options are: {0}'.format(', '.join(WavelengthSolutionPar.valid_lamps()))
+
+        if pars['lamps_wvrng'] is not None and not isinstance(pars['lamps_wvrng'], list):
+            pars['lamps_wvrng'] = [pars['lamps_wvrng']]
+        defaults['lamps_wvrng'] = None
+        dtypes['lamps_wvrng'] = list
+        descr['lamps_wvrng'] = 'Wavelength range of the lines to use from each lamp in ``lamps``, ' \
+            'allowing a subset of a shipped line list to be used without copying it.  Must be ' \
+            'the same length as ``lamps``.  Each element is ``min:max`` in Angstroms, where ' \
+            'either bound may be ``None``; an element of ``None`` uses the full list.  E.g., ' \
+            '``3400:None`` drops all lines below 3400 angstroms from the corresponding lamp.'
 
         defaults['use_instr_flag'] = False
         dtypes['use_instr_flag'] = bool
@@ -3282,7 +3292,7 @@ class WavelengthSolutionPar(ParSet):
         k = np.array([*cfg.keys()])
         parkeys = ['reference', 'method', 'echelle', 'ech_nspec_coeff', 'ech_2dfit',
                    'ech_norder_coeff', 'ech_sigrej', 'ech_separate_2d', 'bad_orders_maxfrac', 'frac_rms_thresh',
-                   'lamps', 'sigdetect', 'fwhm', 'fwhm_fromlines', 'fwhm_spat_order', 'fwhm_spec_order',
+                   'lamps', 'lamps_wvrng', 'sigdetect', 'fwhm', 'fwhm_fromlines', 'fwhm_spat_order', 'fwhm_spec_order',
                    'reid_arxiv', 'nreid_min', 'reid_cont_sub', 'cc_shift_range', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_thresh_frac_fwhm', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix', 'boxcar_radius',
@@ -4307,6 +4317,7 @@ class ReducePar(ParSet):
         kwargs[pk] = CubePar.from_dict(cfg[pk]) if pk in k else None
         pk = 'slitmask'
         kwargs[pk] = SlitMaskPar.from_dict(cfg[pk]) if pk in k else None
+        kwargs['trim_edge'] = cfg['trim_edge'] if 'trim_edge' in k else None
 
         return cls(**kwargs)
 
