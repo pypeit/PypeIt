@@ -104,21 +104,22 @@ flexure shift yourself via the ``shift`` column in the data block of your
 
     pypeit_setup -r /path/to/raw -s shane_kast_blue -c A -f
 
-The column defaults to ``nan``, which means no manual correction; the
-automatically computed value (if ``spat_flexure_correct = True``) is used.
-Set the column to any finite value (in pixels, including ``0.0``) for a
-science or standard frame to override the automatic determination for that
-frame:
+The column is blank by default, meaning no manual correction: the
+automatically computed value (if ``spat_flexure_correct = True``) is
+used.  Set the column to any number (in pixels, including ``0.0``) for
+a science or standard frame to override the automatic determination
+for that frame:
 
 .. code-block:: console
 
     filename |                 frametype | ... | shift
     b27.fits |                   science | ... |   2.5
-    b28.fits |                   science | ... |   nan
-     b1.fits |                  arc,tilt | ... |   nan
+    b28.fits |                   science | ... |
+     b1.fits |                  arc,tilt | ... |
 
 Here, ``b27.fits`` is reduced with a fixed spatial flexure of 2.5 pixels,
-while ``b28.fits`` uses the default behavior.
+while frames with a blank ``shift`` entry (e.g. ``b28.fits``) use the
+default behavior.
 
 ----
 

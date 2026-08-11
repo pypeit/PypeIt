@@ -122,7 +122,7 @@ class PypeItMetaData:
             self.merge(usrdata)
 
         # Impose types on specific columns
-        self._impose_types(['comb_id', 'bkg_id', 'manual', 'shift'], [int, int, str, float])
+        self._impose_types(['comb_id', 'bkg_id', 'manual', 'shift'], [int, int, str, str])
 
         # Initialize internal attributes
         self.configs = None
@@ -1514,9 +1514,9 @@ class PypeItMetaData:
         if 'bkg_id' not in self.keys():
             self['bkg_id'] = -1
         if 'shift' not in self.keys():
-            # NaN means no manual spatial flexure; any finite value
+            # Blank means no manual spatial flexure; any numeric value
             # (including 0.) is a user-requested override.
-            self['shift'] = np.nan
+            self['shift'] = ''
 
         # NOTE: Importantly, this if statement means that, if the user has
         # defined any non-negative combination IDs in their pypeit file, none of
@@ -1552,9 +1552,9 @@ class PypeItMetaData:
         if 'manual' not in self.keys():
             self['manual'] = ''
         if 'shift' not in self.keys():
-            # NaN means no manual spatial flexure; any finite value
+            # Blank means no manual spatial flexure; any numeric value
             # (including 0.) is a user-requested override.
-            self['shift'] = np.nan
+            self['shift'] = ''
 
     def write_sorted(self, ofile, overwrite=True, ignore=None, 
                      write_bkg_pairs=False, write_manual=False):
