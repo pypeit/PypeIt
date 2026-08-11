@@ -593,6 +593,132 @@ def test_extract_point_source_manual_position_selects_correct_source():
         'manual_position at the faint source did not recover the expected flux ratio'
 
 
+# ---------------------------------------------------------------------------
+# Phase 1b -- decomposing the bundled develop -> kcwi_dec_2024 WCS axis-order
+# and sign-convention changes (see kcwi_wcs.md, open question [Q3]).  Each
+# test below isolates one of the four changes that were bundled into that
+# rewrite (RA/Dec offset sign, voxedges axis order, the sky-right crpix/cdelt
+# convention, and the world2pix axis reversal in `subpixellate`), so a future
+# regression in any one of them is caught without needing a full cube build.
+# ---------------------------------------------------------------------------
+
+def test_wcs_bounds_subtracts_offsets():
+    """`wcs_bounds` must SUBTRACT ra_offsets/dec_offsets from the pixel
+    coordinates, matching the sign convention introduced in `kcwi_dec_2024`
+    (previously `+=`, now `-=`).  Uses a nonzero, asymmetric offset so an
+    accidental sign flip back to addition is guaranteed to produce a
+    different (and thus detectable) result.
+    """
+    raImg = np.array([[150.0, 150.001], [150.0005, 150.0008]])
+    decImg = np.array([[10.0, 10.002], [10.0011, 10.0006]])
+    waveImg = np.array([[5000.0, 5001.0], [5002.0, 5003.0]])
+    slitid_img_gpm = np.ones_like(raImg, dtype=int)
+
+    ra_offset, dec_offset = 5.0e-4, -3.0e-4  # deg; deliberately asymmetric and nonzero
+
+    ra_min, ra_max, dec_min, dec_max, wave_min, wave_max = datacube.wcs_bounds(
+        raImg, decImg, waveImg, slitid_img_gpm, ra_offsets=ra_offset, dec_offsets=dec_offset
+    )
+
+    assert np.isclose(ra_min, raImg.min() - ra_offset), \
+        'wcs_bounds should subtract ra_offsets from the minimum RA, not add it'
+    assert np.isclose(ra_max, raImg.max() - ra_offset), \
+        'wcs_bounds should subtract ra_offsets from the maximum RA, not add it'
+    assert np.isclose(dec_min, decImg.min() - dec_offset), \
+        'wcs_bounds should subtract dec_offsets from the minimum Dec, not add it'
+    assert np.isclose(dec_max, decImg.max() - dec_offset), \
+        'wcs_bounds should subtract dec_offsets from the maximum Dec, not add it'
+    # Wavelength bounds are unaffected by RA/Dec offsets.
+    assert np.isclose(wave_min, waveImg.min()), \
+        'wave_min should be unaffected by ra_offsets/dec_offsets'
+    assert np.isclose(wave_max, waveImg.max()), \
+        'wave_max should be unaffected by ra_offsets/dec_offsets'
+
+
+def test_create_wcs_voxedges_axis_order():
+    """`create_wcs` must return `voxedges` ordered `(spec_bins, ybins,
+    xbins)`, i.e. (wavelength, Dec, RA), matching the cube's
+    `(nwave, ndec, nra)` numpy array axis order.  Uses deliberately different
+    bin counts along each axis so a silent axis swap cannot hide behind
+    equal-length arrays.
+    """
+    dspat = 1.0e-4  # deg/pixel
+    dwave = 1.0     # Angstrom/pixel
+
+    dec_min, dec_max = 10.0, 10.0 + 6.5 * dspat          # -> numdec = 6
+    cosdec = np.cos(np.radians(0.5 * (dec_min + dec_max)))
+    ra_min = 150.0
+    ra_max = ra_min + 10.5 * dspat / cosdec              # -> numra = 10
+    wave_min, wave_max = 5000.0, 5000.0 + 4.05 * dwave   # -> numwav = 4
+
+    # With all six bounds specified explicitly, wcs_bounds() never touches the
+    # image arrays, so trivial placeholders are sufficient here.
+    dummy = np.zeros((2, 2))
+    dummy_gpm = np.ones((2, 2), dtype=int)
+
+    _, voxedges, _ = datacube.create_wcs(
+        dummy, dummy, dummy, dummy_gpm, dspat, dwave,
+        ra_min=ra_min, ra_max=ra_max, dec_min=dec_min, dec_max=dec_max,
+        wave_min=wave_min, wave_max=wave_max
+    )
+    spec_bins, ybins, xbins = voxedges
+
+    assert spec_bins.size - 1 == 4, \
+        'voxedges[0] (spec_bins) should have 4 wavelength bins; got the wrong axis or count'
+    assert ybins.size - 1 == 6, \
+        'voxedges[1] (ybins/Dec) should have 6 Dec bins; got the wrong axis or count'
+    assert xbins.size - 1 == 10, \
+        'voxedges[2] (xbins/RA) should have 10 RA bins; got the wrong axis or count'
+
+
+def test_generate_wcs_sky_right_convention():
+    """`generate_WCS` must produce a WCS where RA decreases as the pixel-x
+    index increases, so that displaying the cube with `imshow` (origin at the
+    bottom-left) is "sky-right": RA increasing to the left, i.e. East left,
+    North up.
+    """
+    dspat = 1.0e-4  # deg/pixel
+    numra = 10
+    crval = [150.0, 10.0, 5000.0]
+    cdelt = [-dspat, dspat, 1.0]
+    w = datacube.generate_WCS(crval, cdelt, numra)
+
+    pix = np.array([[0, 0, 0], [3, 0, 0], [9, 0, 0]], dtype=float)
+    world = w.wcs_pix2world(pix, 0)
+    ra = world[:, 0]
+
+    assert np.all(np.diff(ra) < 0), \
+        'RA should strictly decrease as the pixel-x index increases (sky-right convention)'
+
+
+def test_subpixellate_world2pix_axis_reversal():
+    """The `output_wcs.wcs_world2pix(...)[:, :, ::-1]` step inside
+    `subpixellate()` must reorder world2pix's natural `(ra_pix, dec_pix,
+    wave_pix)` output into `(wave_pix, dec_pix, ra_pix)`, matching the cube's
+    `(nwave, ndec, nra)` numpy axis order used for histogramming.  Chooses
+    `ira != iwave` so a missed or partial reversal is guaranteed to be caught.
+    """
+    numra = 10
+    w = datacube.generate_WCS([150.0, 10.0, 5000.0], [-1.0e-4, 1.0e-4, 1.0], numra)
+
+    iwave, idec, ira = 2, 3, 7  # target voxel index, in (wave, dec, ra) order
+
+    # WCS/FITS pixel order is (ra, dec, wave); get the world coordinates for
+    # this target pixel (0-indexed, matching subpixellate()'s use of origin=0).
+    world = w.wcs_pix2world(np.array([[ira, idec, iwave]], dtype=float), 0)
+
+    # Reproduce the exact expression used inside subpixellate():
+    #   output_wcs.wcs_world2pix(...).reshape(numpix, num_subpixels, 3)[:, :, ::-1]
+    # with numpix = num_subpixels = 1, since this test targets the reversal
+    # itself, not the subpixel-averaging machinery around it.
+    vox_coord = w.wcs_world2pix(world, 0).reshape(1, 1, 3)[:, :, ::-1]
+
+    assert np.allclose(vox_coord[0, 0], [iwave, idec, ira], atol=1e-6), \
+        'the [:, :, ::-1] reversal should reorder world2pix output from ' \
+        '(ra_pix, dec_pix, wave_pix) to (wave_pix, dec_pix, ra_pix), matching ' \
+        "the cube's (nwave, ndec, nra) numpy axis order"
+
+
 def test_resample_spec_to_grid_identity():
     """Resampling onto the native grid reproduces flux/ivar on interior pixels.
 
