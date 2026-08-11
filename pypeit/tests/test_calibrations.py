@@ -60,6 +60,7 @@ def multi_caliBrate(fitstbl):
 ###################################################
 # TESTS BEGIN HERE
 
+@pytest.mark.remote_data
 def test_abstract_init(fitstbl):
     frame = fitstbl.find_frames('science', index=True)[0]
     par = pypeitpar.CalibrationsPar()
@@ -79,6 +80,7 @@ def test_abstract_init(fitstbl):
     assert isinstance(calib, calibrations.IFUCalibrations), 'Wrong calibration object type'
 
 
+@pytest.mark.remote_data
 def test_instantiate(fitstbl):
     frame = fitstbl.find_frames('science', index=True)[0]
     par = pypeitpar.CalibrationsPar()
@@ -89,6 +91,7 @@ def test_instantiate(fitstbl):
         fitstbl, par, spectrograph, caldir, calib_ID, frame, det)
 
 
+@pytest.mark.remote_data
 def test_bias(multi_caliBrate):
     """
     This should produce nothing as we have no bias frames
@@ -99,6 +102,7 @@ def test_bias(multi_caliBrate):
     multi_caliBrate.get_bias()
 
 
+@pytest.mark.remote_data
 def test_arc(multi_caliBrate):
     arc = multi_caliBrate.get_arc()
     assert isinstance(arc, buildimage.ArcImage), 'arc has wrong type'
@@ -109,6 +113,7 @@ def test_arc(multi_caliBrate):
     shutil.rmtree(multi_caliBrate.calib_dir)
 
 
+@pytest.mark.remote_data
 def test_tiltimg(multi_caliBrate):
     tilt = multi_caliBrate.get_tiltimg()
     assert isinstance(tilt, buildimage.TiltImage), 'tilt has wrong type'
@@ -119,6 +124,7 @@ def test_tiltimg(multi_caliBrate):
     shutil.rmtree(multi_caliBrate.calib_dir)
 
 
+@pytest.mark.remote_data
 def test_bpm(multi_caliBrate):
     # Build
     bpm = multi_caliBrate.get_bpm()
@@ -133,6 +139,7 @@ def test_bpm(multi_caliBrate):
 #   - get_tilts
 
 
+@pytest.mark.remote_data
 def test_asn(multi_caliBrate):
     caldir = Path().absolute()
     ofile = caldir / 'test.calib'
@@ -161,6 +168,7 @@ def test_asn(multi_caliBrate):
     ofile.unlink()
 
 
+@pytest.mark.remote_data
 def test_asn_calib_ID_dict(multi_caliBrate):
 
     caldir = Path().absolute()

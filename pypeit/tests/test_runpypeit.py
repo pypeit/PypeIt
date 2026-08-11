@@ -5,6 +5,7 @@ from pathlib import Path
 import shutil
 from IPython.terminal.embed import embed
 import numpy as np
+import pytest
 
 import matplotlib
 matplotlib.use('agg')  
@@ -18,6 +19,7 @@ from pypeit import specobjs, sensfunc
 from pypeit.par import pypeitpar 
 from pypeit.tests import tstutils
 
+@pytest.mark.remote_data
 def test_run_pypeit():
 
     # Just get a few files

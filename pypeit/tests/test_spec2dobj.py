@@ -127,6 +127,7 @@ def test_spec2dobj_update_slit(init_dict):
 ####################################################3
 # Testing of AllSpec2DObj
 
+@pytest.mark.remote_data
 def test_all2dobj_hdr(init_dict):
     # Build one
     init_dict['detector'] = tstutils.get_kastb_detector()
