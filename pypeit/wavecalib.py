@@ -1110,10 +1110,11 @@ class BuildWaveCalib:
         slitcen = self.spectrograph.get_arc_extract_center(
             self.slitcen, self.slits, self.det)
         # Do it on the slits not masked in self.slitmask
+        log.debug(f"Half-width of spatial averaging: {self.par['boxcar_radius']}")
         arccen, arccen_bpm, arc_maskslit = arc.get_censpec(
             slitcen, self.slitmask, self.msarc.image,
             gpm=self.gpm, slit_bpm=self.wvc_bpm,
-            slitIDs=slitIDs, box_rad=self.par['boxcar_radius'])
+            slitIDs=slitIDs, box_rad=200)
         # Step
         self.steps.append(inspect.stack()[0][3])
 

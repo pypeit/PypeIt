@@ -1664,6 +1664,7 @@ class Calibrations:
                 self.state.safe_write()
 
         for step in self.steps:
+            log.debug(f"Running Calibration Step: {step}")
             self.success = True
             if reload_only:
                 force = 'reload'

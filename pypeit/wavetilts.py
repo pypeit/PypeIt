@@ -408,7 +408,7 @@ class BuildWaveTilts:
         """
         arccen, arccen_bpm, arc_maskslit = arc.get_censpec(self.slitcen, self.slitmask,
                                                            self.mstilt.image, gpm=self.gpm,
-                                                           slit_bpm=self.tilt_bpm)
+                                                           slit_bpm=self.tilt_bpm, box_rad=3) # TODO:make box_rad dependent on wavelenth calibration boxcar par. 
             #, nonlinear_counts=self.nonlinear_counts)
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -711,7 +711,7 @@ class BuildWaveTilts:
         cont_image[self.slitmask == -1] = 0.
         return cont_image
 
-    def run(self, doqa=True, debug=False, show=False):
+    def run(self, doqa=True, debug=False, show=True):
         """
         Main driver for tracing arc lines
 
