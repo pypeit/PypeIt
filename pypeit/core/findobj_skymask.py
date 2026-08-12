@@ -1889,17 +1889,6 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
         show_peaks = True
         show_fits = True
         show_trace = True
-        fig, ax = plt.subplots(1,3)
-        img1 = ax[0].imshow(image, vmin=np.median(image)-np.std(image)*5, vmax=np.median(image)+np.std(image)*5)
-        ax[0].set_title("image")
-        img2 = ax[1].imshow(ivar, vmin=np.median(ivar)-np.std(ivar)*5, vmax=np.median(ivar)+np.std(ivar)*5)
-        ax[1].set_title("inverse-varience")
-        sig = ivar**-0.5
-        img3 = ax[2].imshow(sig, vmin=np.median(sig)-np.std(sig)*5, vmax=np.median(sig)+np.std(sig)*5)
-        fig.colorbar(img1)
-        fig.colorbar(img2)
-        fig.colorbar(img3)
-        plt.show()
 
     if specobj_dict is None:
         specobj_dict = dict(SLITID=999, DET='DET01', OBJTYPE='unknown', PYPELINE='MultiSlit')

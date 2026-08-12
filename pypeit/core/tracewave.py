@@ -58,7 +58,6 @@ def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sig_neigh=5.0, nfwhm_
     # Setup some convenience variables
     npix_neigh = nfwhm_neigh * fwhm
 
-    log.debug(f"tracethresh: {tracethresh}, debug peaks: {debug_peaks}, debug lines {debug_lines}")
     # Find peaks
     tampl_tot, tampl_cont_tot, tcent_tot, twid_tot, _, wgood, arc_cont_sub, nsig_tot \
         = arc.detect_lines(arc_spec, sigdetect=np.min([sig_neigh, tracethresh]), fwhm=fwhm,

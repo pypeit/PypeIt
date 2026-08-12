@@ -711,7 +711,7 @@ class BuildWaveTilts:
         cont_image[self.slitmask == -1] = 0.
         return cont_image
 
-    def run(self, doqa=True, debug=False, show=True):
+    def run(self, doqa=True, debug=False, show=False):
         """
         Main driver for tracing arc lines
 

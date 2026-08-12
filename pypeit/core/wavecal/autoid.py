@@ -531,7 +531,6 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
     November 2018 by J.F. Hennawi. Built from an initial version of cross_match code written by Ryan Cooke.
     """
     # TODO -- Break up this morass into multiple methods
-    log.debug(f"reidentify continuum-subtraction value: {cont_sub}")
 
     if xcorr_only and stretch_func != 'linear':
         log.warning("xcorr_only requires stretch_func='linear'; overriding the requested "
