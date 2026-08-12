@@ -2177,9 +2177,6 @@ class IFUCalibrations(Calibrations):
         self.slits.set_paths(self.calib_dir, setup, calib_id, detname)
         self.slits.to_file()
 
-        # State
-        self.slits_state(self.slits.get_path())
-
         if self.user_slits is not None:
             self.slits.user_mask(detname, self.user_slits)
 
@@ -2342,22 +2339,12 @@ class IFUCalibrations(Calibrations):
         self.flatimages, self.fiber_flatimages = fiberFlatField.run(
             doqa=self.write_qa, show=self.show)
 
-        # State
-        if self.state is not None:
-            self.state.update_calib('flats', self.calib_ID, self.det,
-                                    'types', 'pixelflat')
-
         if self.flatimages is not None:
             self.flatimages.set_paths(self.calib_dir, setup, calib_id,
                                       detname)
             self.flatimages.to_file()
             # Save slits too, in case they were tweaked
             self.slits.to_file()
-            # State
-            if self.state is not None:
-                self.state.update_calib('flats', self.calib_ID, self.det,
-                                        'output_file',
-                                        self.flatimages.get_path())
 
         if self.fiber_flatimages is not None:
             self.fiber_flatimages.set_paths(self.calib_dir, setup, calib_id,

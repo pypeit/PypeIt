@@ -37,6 +37,7 @@ def _pypeitfile_components():
     return confdict, data, file_paths, setup_dict
 
 
+@pytest.mark.remote_data
 def test_grab_rawfiles():
 
     tst_file = Path(tstutils.data_output_path('test.rawfiles')).absolute()
@@ -71,6 +72,7 @@ def test_grab_rawfiles():
     tst_file.unlink()
 
 
+@pytest.mark.remote_data
 def test_instantiate_pypeitfile():
     # Test of instantiation
     confdict, data, file_paths, setup_dict = _pypeitfile_components()
@@ -530,6 +532,7 @@ def test_fluxfile_basic():
         'FluxFile.vet should add an empty sensfile column when not provided'
 
 
+@pytest.mark.remote_data
 def test_input_flux_file():
     """Tests for generating and reading fluxing input files
     """
