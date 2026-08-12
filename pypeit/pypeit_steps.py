@@ -32,6 +32,48 @@ from pypeit import calibrations
 
 from IPython import embed
 
+def get_manual_flexure(fitstbl, frame:int):
+    """
+    Return the user-supplied manual spatial flexure for a frame, if any.
+
+    The manual value is taken from the ``shift`` column of the pypeit
+    file.  A blank entry (or ``None``) means no manual value; any
+    numeric entry -- including ``0.`` -- is a user request to override
+    the automatically computed spatial flexure.  See Issue #2180.
+
+    Parameters
+    ----------
+    fitstbl : :class:`~pypeit.metadata.PypeItMetaData`
+        The class holding the metadata for all the frames in this
+        PypeIt run.  Any object supporting ``fitstbl[frame]['shift']``
+        row access (e.g., an `astropy.table.Table`_) may be used.
+    frame : :obj:`int`
+        The index of the frame in ``fitstbl``.
+
+    Returns
+    -------
+    :obj:`float` or None
+        The manual spatial flexure shift in pixels, or None if the
+        user did not provide one.
+    """
+    # The 'shift' column may be absent entirely, e.g. for metadata
+    # built without the user-added columns.
+    if 'shift' not in fitstbl.keys():
+        return None
+    # Blank (or 'None') is the "not set" sentinel; see
+    # PypeItMetaData.set_user_added_columns()
+    manual_flexure = str(fitstbl[frame]['shift']).strip()
+    if manual_flexure.lower() in ['', 'none']:
+        return None
+    try:
+        return float(manual_flexure)
+    except ValueError:
+        raise PypeItError(
+            'Invalid value in the pypeit-file shift column: '
+            f'{manual_flexure}.  Must be a number or blank.'
+        )
+
+
 def get_sci_metadata(spectrograph, fitstbl, frame:int, det):
     """
     Grab the meta data for a given science frame and specific detector
@@ -311,6 +353,15 @@ def process_one_det(spectrograph, fitstbl, par, frames:list,
         # spatial flexure determined for the background image.
         sciImg = bkg_redux_sciimg.sub(bgimg)
 
+    # Manual (user-supplied) spatial flexure, restored per Issue #2180.
+    # A finite value in the pypeit-file "shift" column overrides the
+    # automatically computed spatial flexure.
+    manual_flexure = get_manual_flexure(fitstbl, frames[0])
+    if manual_flexure is not None:
+        log.info(f'Implementing manual flexure of {manual_flexure}')
+        sciImg.spat_flexure = manual_flexure
+    log.info(f'Spatial flexure being used is: {sciImg.spat_flexure}')
+
     # Write out the science image?
     if sci_outfile is not None:
         # Generate the folder?
@@ -543,8 +594,9 @@ def load_calibrations_for_frame(spectrograph, fitstbl, par, frame, det,
     return caliBrate
 
 
-def load_skyregions(spectrograph, fitstbl, par, frame, det, caliBrate,
-                    calibrations_path:str, scifile:str=None, initial_slits=False):
+def load_skyregions(spectrograph, fitstbl, user_regions, frame, det,
+                    caliBrate, calibrations_path:str, scifile:str=None,
+                    initial_slits=False, spat_flexure=None):
     """
     Generate or load sky regions, if defined by the user.
 
@@ -571,26 +623,59 @@ def load_skyregions(spectrograph, fitstbl, par, frame, det, caliBrate,
 
     Parameters
     ----------
+    spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+        The spectrograph instance.
+    fitstbl : :class:`~pypeit.metadata.PypeItMetaData`
+        The class holding the metadata for all the frames in this PypeIt
+        run.
+    user_regions : :obj:`str` or :obj:`list`
+        The ``user_regions`` value from
+        :class:`~pypeit.par.pypeitpar.SkySubPar`: ``'user'`` to load a
+        SkyRegions file, a percentage-format definition (e.g.
+        ``:25,75:``), or None/empty for no sky regions.
+    frame : :obj:`int`
+        The index of the frame in ``fitstbl``, used to construct the
+        calibration key.  Only used if ``user_regions = user``.
+    det : :obj:`int`
+        Detector number (1-indexed).
+    caliBrate : :class:`~pypeit.calibrations.Calibrations`
+        The calibration data for the current frame and detector;
+        provides the slits.
+    calibrations_path : :obj:`str`
+        Path to the calibration files.
+    scifile : :obj:`str`, optional
+        The file name used to define the user-based sky regions.  Only
+        used if ``user_regions = user``.
     initial_slits : :obj:`bool`, optional
         Flag to use the initial slits before any tweaking based on the
         slit-illumination profile; see
         :func:`~pypeit.slittrace.SlitTraceSet.select_edges`.
+    spat_flexure : :obj:`float`, optional
+        Spatial flexure shift (in pixels) of the science frame.  If
+        None, no shift is applied.  See Notes.
 
     Returns
     -------
     skymask : `numpy.ndarray`_
         A boolean array used to select sky pixels; i.e., True is a pixel
-        that corresponds to a sky region.  If the ``user_regions`` parameter
-        is not set (or an empty string), the returned value is None.
+        that corresponds to a sky region.  If ``user_regions`` is not set
+        (or an empty string), the returned value is None.
+
+    Notes
+    -----
+    ``spat_flexure`` is only applied to percentage-format
+    ``user_regions``.  A SkyRegions *file* (``user_regions = user``) is
+    loaded as-is: it is created per science frame by
+    ``pypeit_skysub_regions`` in that frame's own pixel coordinates
+    (the GUI applies the frame's flexure at creation time via its
+    ``--flexure`` option), so shifting it here would double-apply the
+    correction.  This matches the pre-2.0.0 (v1.18.1) behavior.
     """
-    if par['reduce']['skysub']['user_regions'] in [None, '']:
+    if user_regions in [None, '']:
         return None
 
-    # Flexure
-    spat_flexure = None
-
     # First priority given to user_regions first
-    if par['reduce']['skysub']['user_regions'] == 'user':
+    if user_regions == 'user':
         # Build the file name
         calib_key = CalibFrame.construct_calib_key(
                             fitstbl['setup'][frame],
@@ -607,9 +692,16 @@ def load_skyregions(spectrograph, fitstbl, par, frame, det, caliBrate,
                 'See documentation.'
             )
         log.info(f'Loading SkyRegions file: {regfile}')
+        # NOTE: Deliberately do NOT apply spat_flexure here.  The
+        # SkyRegions file is created per science frame by
+        # pypeit_skysub_regions on that frame itself, so the saved mask
+        # is already in the frame's pixel coordinates (the GUI applies
+        # the frame's flexure at creation time via its --flexure
+        # option).  Shifting again here would double-apply it.  This
+        # matches the pre-2.0.0 (v1.18.1) behavior.
         return buildimage.SkyRegions.from_file(regfile).image.astype(bool)
 
-    skyregtxt = par['reduce']['skysub']['user_regions']
+    skyregtxt = user_regions
     if isinstance(skyregtxt, list):
         skyregtxt = ",".join(skyregtxt)
     log.info(f'Generating skysub mask based on the user defined regions: {skyregtxt}')
@@ -863,9 +955,11 @@ def instantiate_objfind(sciImg, spectrograph, fitstbl, par, frames, det,
     else:
         # Build the initial sky mask
         initial_skymask = load_skyregions(
-            spectrograph, fitstbl, par, frames[0], det,
+            spectrograph, fitstbl,
+            par['reduce']['skysub']['user_regions'], frames[0], det,
             caliBrate, str(caliBrate.calib_dir), initial_slits=spectrograph.pypeline not in ['SlicerIFU', 'Fiber'],
-            scifile=fitstbl.frame_paths(frames[0]))
+            scifile=fitstbl.frame_paths(frames[0]),
+            spat_flexure=sciImg.spat_flexure)
             
 
     objFind = find_objects.FindObjects.get_instance(
