@@ -1754,7 +1754,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 else:
                     hdr['FLUXUNIT'] = (1, "Flux units -- counts/s/Angstrom/arcsec^2")
                 # Write out the datacube
-                log.info(f"Saving datacube at the native sampling of {self.specname.replace("_", " ")}: {outfile}")
+                specname = self.specname.replace("_", " ")
+                log.info(f"Saving datacube at the native sampling of {specname}: {outfile}")
                 final_cube = DataCube(
                     flxcube, sigcube, bpmcube.astype(np.uint8),
                     wave, self.specname, self.blaze_wave, self.blaze_spec,
