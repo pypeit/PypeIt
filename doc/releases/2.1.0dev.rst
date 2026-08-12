@@ -177,6 +177,15 @@ Under-the-hood Improvements
 Bug Fixes
 ---------
 
+- Restore the manual spatial flexure correction (Issue #2180): a value in the
+  pypeit-file ``shift`` column again overrides the automatically computed
+  spatial flexure for that science/standard frame.  The feature was lost in
+  the 2.0.0 step-by-step processing refactor.  The ``shift`` column is
+  now a string entry that is blank by default (like the ``manual``
+  column), so an explicit ``0.0`` is a valid manual override; see
+  :ref:`flexure-spatial-manual`.  The frame's spatial
+  flexure is also passed to the user sky-regions mask again, which the same
+  refactor had dropped.
 - Avoid a circular import by moving
   :func:`~pypeit.core.wavecal.autoid.arc_fit_qa` out of
   :mod:`~pypeit.core.wavecal.wv_fitting`.
