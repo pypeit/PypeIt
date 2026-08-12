@@ -812,19 +812,26 @@ def _make_synthetic_three_slit_detector():
     return slits, tilts, astrom_trans, sciImg, ivarImg, wghtImg, waveImg, wave0, dwv, bright, faint
 
 
+# Along-slit (Dec-like) and cross-slit/slice (RA-like) spatial scales used by
+# _make_synthetic_frame_wcs, exposed at module level so tests that need to
+# reason about a specific whole-slice shift (e.g. modeling a dither of
+# exactly one slice width) can reference the same value rather than
+# duplicating the magic number.
+SYNTH_ALONGSLIT_SCALE_DEG = 0.5 / 3600.0
+SYNTH_SLICE_SCALE_DEG = 0.5 / 3600.0
+
+
 def _make_synthetic_frame_wcs(ra0, dec0, wave0, dwv):
     """
     Construct the simple per-exposure "instrument" WCS (slit index, along-slit
     pixel, spectral row) -> (RA, Dec, wavelength) used by the Phase 2 tests
     below, with no rotation (diagonal CD matrix) for simplicity.
     """
-    pxscl_deg = 0.5 / 3600.0  # along-slit spatial scale (Dec-like axis)
-    slscl_deg = 0.5 / 3600.0  # cross-slit (slice) scale (RA-like axis)
     frame_wcs = WCS(naxis=3)
     frame_wcs.wcs.crval = [ra0, dec0, wave0]
     frame_wcs.wcs.crpix = [1.0, 1.0, 1.0]
-    frame_wcs.wcs.cd = np.array([[-slscl_deg, 0.0, 0.0],
-                                 [0.0, pxscl_deg, 0.0],
+    frame_wcs.wcs.cd = np.array([[-SYNTH_SLICE_SCALE_DEG, 0.0, 0.0],
+                                 [0.0, SYNTH_ALONGSLIT_SCALE_DEG, 0.0],
                                  [0.0, 0.0, dwv]])
     frame_wcs.wcs.cunit = [u.deg, u.deg, u.Angstrom]
     frame_wcs.wcs.ctype = ['RA---TAN', 'DEC--TAN', 'WAVE']
@@ -963,8 +970,8 @@ def test_generate_cube_subpixel_recovers_injected_source_position():
 
 
 def test_generate_cube_subpixel_combines_offset_frames_correctly():
-    """Combining two synthetic exposures with a known RA/Dec registration
-    offset must co-add them at the correct sky position.
+    """A known, already-measured RA/Dec registration correction must be
+    applied with the correct sign when co-adding two frames.
 
     This is the second bullet of the Phase 2 test plan: it exercises the
     multi-frame `ra_offset`/`dec_offset` combination path inside
@@ -974,11 +981,20 @@ def test_generate_cube_subpixel_combines_offset_frames_correctly():
 
     Frame 1 and frame 2 share identical detector data (`sciImg` et al.) and
     identical slit/tilt/alignment geometry -- only their per-exposure WCS
-    `crval` differ, representing two exposures of the same field whose sky
-    registration differs by a known amount (e.g. a deliberate dither
-    intended to move the source to a different position on the detector, or
-    an imperfect pointing/flexure correction) that a preceding alignment
-    step has already measured and is handing off as `ra_offset`/`dec_offset`.
+    `crval` differ. Note that this is deliberately NOT a physical model of a
+    telescope dither: a real dither moves the object to different detector
+    pixels (see `test_generate_cube_subpixel_combines_genuine_dither_with_zero_offset`
+    below for that scenario, where zero manual offset is needed if the WCS
+    is self-consistent). Here, the identical `sciImg` instead models a
+    *registration/astrometric discrepancy* between two exposures of the same,
+    unmoved field -- e.g. guiding jitter or a timing error not fully
+    reflected in the header WCS -- which is exactly what a preceding
+    alignment step (`SlicerIFUCoAdd3D.run_align()`) measures and hands off as
+    `ra_offset`/`dec_offset` for this function to apply. This test only
+    checks that once such a correction is known, `subpixellate` applies it
+    with the right sign; it says nothing about whether the WCS construction
+    for a genuinely dithered pair of exposures is itself correct.
+
     The injected shift between the two WCS is deliberately asymmetric
     (different in RA than in Dec), so a residual RA/Dec swap or sign error
     cannot hide behind a symmetric shift. The "true" per-frame offset is
@@ -1097,6 +1113,140 @@ def test_generate_cube_subpixel_combines_offset_frames_correctly():
     assert whitelight_wrong[iy_wrong2, ix_wrong2] > 0.5 * whitelight_wrong.max(), \
         'flipping the sign of the applied offset should produce a source-level flux peak ' \
         "at frame 2's now-doubled mis-registration position, not the correctly-registered one"
+
+
+def test_generate_cube_subpixel_combines_genuine_dither_with_zero_offset():
+    """A genuinely dithered pair of exposures -- the object lands at DIFFERENT
+    detector pixels (a different slit entirely) in each frame -- must
+    co-register at their shared true sky position using `ra_offset` /
+    `dec_offset` = 0, relying only on each frame's own per-exposure WCS being
+    self-consistent with where the object actually landed.
+
+    This complements (does not replace) `test_generate_cube_subpixel_combines_offset_frames_correctly`
+    above, which holds the detector flux fixed and varies only the WCS to
+    test the `ra_offset`/`dec_offset` *correction* mechanism. That is not a
+    physical model of a dither: a real telescope move changes where the
+    light lands on the detector, and if the astrometric solution is
+    accurate, each exposure's own WCS should already recover the correct sky
+    position without any manual correction. This test builds that scenario
+    instead: the object is injected in slit 0 in frame 1 and slit 1 in frame
+    2 (a one-slice dither), and frame 2's WCS `crval` is shifted by exactly
+    one slice width (`SYNTH_SLICE_SCALE_DEG`) -- the shift an accurate
+    pointing-to-WCS translation would produce for a dither of that size --
+    so that `SlitTraceSet.get_radec_image()` recovers the SAME true sky
+    position for the object in both frames purely from the different
+    (slit, along-slit position) each frame's WCS maps it through.
+
+    A **sensitivity check** then applies that same one-slice shift with the
+    WRONG sign (as a per-slicer offset bug, e.g. in `keck_kcwi.py`'s
+    `off1`/`off2` values -- Inconsistencies item 11 -- might produce), and
+    confirms the two frames' flux lands at two distinct, separated
+    positions instead of co-registering, proving this test would actually
+    catch such a bug.
+    """
+    slits, tilts, astrom_trans, _, ivarImg, wghtImg, waveImg, wave0, dwv, _, _ = \
+        _make_synthetic_three_slit_detector()
+    slitid_img_gpm = slits.slit_img(pad=0)
+    slitid_img_gpm[slitid_img_gpm < 0] = 0
+
+    # A single point source, injected at the SAME along-slit offset (4 pixels
+    # in from the left edge) and the SAME spectral row in slit 0 (frame 1)
+    # and slit 1 (frame 2) -- i.e. the object dithered by exactly one slice.
+    nspec, nspat = waveImg.shape
+    row, sigma_pix = 20, 1.2
+    col_slit0, col_slit1 = 7, 20  # 4 pixels in from each slit's left edge (3, 16)
+
+    yy, xx = np.mgrid[0:nspec, 0:nspat]
+
+    def point_source(col):
+        return np.exp(-0.5 * (((xx - col) / sigma_pix) ** 2 + ((yy - row) / sigma_pix) ** 2))
+
+    sciImg1 = point_source(col_slit0)
+    sciImg2 = point_source(col_slit1)
+
+    frame1_wcs = _make_synthetic_frame_wcs(150.0, 10.0, wave0, dwv)
+
+    def dithered_frame2_wcs(slice_shift_deg):
+        return _make_synthetic_frame_wcs(150.0 + slice_shift_deg, 10.0, wave0, dwv)
+
+    dspat_cube = 0.15 / 3600.0  # deg/pixel
+
+    def build_and_check(frame2_wcs, label):
+        raimg1, decimg1, _ = slits.get_radec_image(frame1_wcs, astrom_trans, tilts)
+        raimg2, decimg2, _ = slits.get_radec_image(frame2_wcs, astrom_trans, tilts)
+        ra1, dec1 = raimg1[row, col_slit0], decimg1[row, col_slit0]
+        ra2, dec2 = raimg2[row, col_slit1], decimg2[row, col_slit1]
+
+        zero_offsets = [0.0, 0.0]
+        ra_min, ra_max, dec_min, dec_max, _, _ = datacube.wcs_bounds(
+            [raimg1, raimg2], [decimg1, decimg2], [waveImg, waveImg],
+            [slitid_img_gpm, slitid_img_gpm], ra_offsets=zero_offsets, dec_offsets=zero_offsets
+        )
+        ra_pad = 3 * dspat_cube / np.cos(np.radians(0.5 * (dec_min + dec_max)))
+        dec_pad = 3 * dspat_cube
+        cube_wcs, voxedges, _ = datacube.create_wcs(
+            [raimg1, raimg2], [decimg1, decimg2], [waveImg, waveImg],
+            [slitid_img_gpm, slitid_img_gpm], dspat_cube, dwv,
+            ra_offsets=zero_offsets, dec_offsets=zero_offsets,
+            ra_min=ra_min - ra_pad, ra_max=ra_max + ra_pad,
+            dec_min=dec_min - dec_pad, dec_max=dec_max + dec_pad,
+        )
+        flxcube, sigcube, bpmcube, normcube, wave = datacube.generate_cube_subpixel(
+            cube_wcs, voxedges, [sciImg1, sciImg2], [ivarImg, ivarImg], [waveImg, waveImg],
+            [slitid_img_gpm, slitid_img_gpm], [wghtImg, wghtImg], [frame1_wcs, frame2_wcs],
+            [tilts, tilts], [slits, slits], [astrom_trans, astrom_trans], all_dar=[None, None],
+            ra_offset=zero_offsets, dec_offset=zero_offsets, spec_subpixel=1, spat_subpixel=1,
+            slice_subpixel=1, skip_subpix_weights=True, correct_dar=False
+        )
+        whitelight = flxcube.sum(axis=0)
+        cube_celestial = cube_wcs.celestial
+
+        def pix_index(ra, dec):
+            ix, iy = cube_celestial.wcs_world2pix(np.array([ra]), np.array([dec]), 0)
+            return int(np.round(iy[0])), int(np.round(ix[0]))
+
+        return whitelight, pix_index(ra1, dec1), pix_index(ra2, dec2), (ra1, dec1), (ra2, dec2)
+
+    # ---- Correct dither model: frame 2's WCS is shifted by exactly one
+    # slice width, matching a real, accurate pointing-to-WCS translation of
+    # a one-slice dither. ----
+    correct_wcs = dithered_frame2_wcs(SYNTH_SLICE_SCALE_DEG)
+    whitelight, pos1, pos2, (ra1, dec1), (ra2, dec2) = build_and_check(correct_wcs, 'correct')
+
+    # Sanity check (verified numerically, not hand-derived from the WCS's
+    # TAN-projection algebra): if the dither model above is self-consistent,
+    # both frames' own WCS should recover the same true sky position for the
+    # object, purely from where it lands on the detector.
+    assert np.isclose(ra1, ra2, atol=dspat_cube), \
+        f'test setup error: frame 1 and frame 2 should agree on the true RA ({ra1} vs {ra2})'
+    assert np.isclose(dec1, dec2, atol=dspat_cube), \
+        f'test setup error: frame 1 and frame 2 should agree on the true Dec ({dec1} vs {dec2})'
+
+    assert pos1 == pos2, \
+        "with a physically self-consistent dither WCS and zero applied offset, frame 1's and " \
+        "frame 2's own computed positions for the (genuinely relocated) object should be the " \
+        f"same cube voxel (got {pos1} and {pos2})"
+    iy_max, ix_max = np.unravel_index(np.argmax(whitelight), whitelight.shape)
+    assert (iy_max, ix_max) == pos1, \
+        "the cube's brightest voxel should be the dithered object, at the shared true sky " \
+        "position both frames' own WCS agree on"
+
+    # ---- Sensitivity check: a WRONG one-slice shift (wrong sign, as e.g. a
+    # per-slicer offset bug might produce) should leave the two frames'
+    # flux at two distinct, well-separated positions instead of a single,
+    # co-registered peak -- proving this test would catch such a bug. ----
+    wrong_wcs = dithered_frame2_wcs(-SYNTH_SLICE_SCALE_DEG)
+    whitelight_wrong, pos1_wrong, pos2_wrong, *_ = build_and_check(wrong_wcs, 'wrong')
+    assert pos1_wrong != pos2_wrong, \
+        'test setup error: a reversed one-slice WCS shift should NOT leave the two frames ' \
+        'agreeing on the same position'
+    flux_at_pos1 = whitelight_wrong[pos1_wrong]
+    flux_at_pos2 = whitelight_wrong[pos2_wrong]
+    assert flux_at_pos1 > 0.3 * whitelight_wrong.max() and flux_at_pos2 > 0.3 * whitelight_wrong.max(), \
+        'with the wrong per-slicer offset sign, both frames should still show a real, ' \
+        'source-level peak, but at two SEPARATE positions rather than co-registering ' \
+        f'(flux at frame 1 position = {flux_at_pos1}, at frame 2 position = {flux_at_pos2}, ' \
+        f'peak = {whitelight_wrong.max()})'
 
 
 # ---------------------------------------------------------------------------
