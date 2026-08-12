@@ -13,6 +13,8 @@ import pytest
 from scipy.optimize import curve_fit
 
 from pypeit import utils
+from pypeit import slittrace
+from pypeit import alignframe
 from pypeit.core import datacube
 from pypeit.core.flexure import calculate_image_phase
 from pypeit.coadd3d import DataCube
@@ -717,6 +719,178 @@ def test_subpixellate_world2pix_axis_reversal():
         'the [:, :, ::-1] reversal should reorder world2pix output from ' \
         '(ra_pix, dec_pix, wave_pix) to (wave_pix, dec_pix, ra_pix), matching ' \
         "the cube's (nwave, ndec, nra) numpy axis order"
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 -- a full synthetic cube through subpixellate()/generate_cube_subpixel(),
+# still cheap (no real calibrations).  Only the first part is implemented here
+# (a single synthetic exposure); combining a second, offset exposure is left
+# for a follow-up test.
+# ---------------------------------------------------------------------------
+
+def test_generate_cube_subpixel_recovers_injected_source_position():
+    """End-to-end synthetic-cube test of `subpixellate`/`generate_cube_subpixel`.
+
+    Injects two point sources of unequal brightness at asymmetric
+    detector-frame positions -- different slit *and* different spectral row,
+    so no flip/rotation of the field of view maps one onto the other -- builds
+    the corresponding datacube, and confirms the brightest cube voxel lands at
+    the sky position (per the cube's own WCS) that independently matches the
+    true RA/Dec of the injected pixel, as computed by
+    `SlitTraceSet.get_radec_image` using the exact same per-exposure
+    WCS/astrometric-transform/tilts the cube is built from.  The fainter
+    source, in a different slit, is checked the same way, to guard against an
+    axis mapping that happens to work only for the brighter source.
+
+    Uses the cheapest possible synthetic setup: 3 straight, untilted slits, no
+    DAR correction, and no subpixel sampling (nearest-grid-point), since this
+    test targets whole-pixel positional correctness, not sub-pixel accuracy.
+    """
+    # ---- Detector geometry: 3 narrow, straight slits on a small detector ----
+    nspec, nspat = 40, 40
+    slit_cols = [(3, 11), (16, 24), (29, 37)]  # (left, right) detector columns
+    spat_ids = [101, 102, 103]
+
+    # A small rigid drift of the slit edges with row (a mild "tilt") is used
+    # instead of perfectly straight/vertical edges: with perfectly straight
+    # edges, the along-slit spatial offset returned by AlignmentSplines is
+    # exactly degenerate between rows (identical for every row at a given
+    # column), which produces duplicate x-values when subpixellate()
+    # linearly interpolates RA/Dec over that spatial offset, and the
+    # resulting divide-by-zero (NaN) crashes the fast_histogram C extension.
+    # The drift amplitude is kept tiny (a fraction of a pixel over the full
+    # spectral range) so it breaks the exact degeneracy without coupling the
+    # wavelength (row) and Dec (along-slit) axes enough to shift the
+    # wavelength-collapsed white-light peak by more than a fraction of a
+    # cube pixel.
+    row_drift = np.linspace(-0.05, 0.05, nspec)[:, None]
+    left_init = np.tile([c[0] for c in slit_cols], (nspec, 1)).astype(float) + row_drift
+    right_init = np.tile([c[1] for c in slit_cols], (nspec, 1)).astype(float) + row_drift
+    slits = slittrace.SlitTraceSet(
+        left_init, right_init, 'SlicerIFU', nspat=nspat, spat_id=np.array(spat_ids)
+    )
+
+    # Derive the on-slit mask directly from slit_img() (rather than the
+    # nominal (lo, hi) column ranges above), so it exactly matches the
+    # strict-inequality on-slit region that get_radec_image() populates --
+    # slit_img() excludes the boundary columns themselves.
+    slitid_img_gpm = slits.slit_img(pad=0)
+    slitid_img_gpm[slitid_img_gpm < 0] = 0
+
+    # Tilts are essentially a pure function of row, with a tiny (~0.1-row)
+    # linear trend added across columns. Without it, every column in a given
+    # row shares an identical tilt value, so the per-slit wavelength spline
+    # `subpixellate` builds (mapping tilt -> wavelength) is queried at many
+    # duplicate x-values, producing a 0/0 divide warning from `interp1d`
+    # (harmless here since the corresponding y-values are duplicated too, but
+    # avoided for a cleaner test).
+    row_idx, col_idx = np.mgrid[0:nspec, 0:nspat]
+    tilts = (row_idx + 0.1 * col_idx / nspat) / (nspec - 1)
+
+    # Straight slits -> AlignmentSplines just needs the (constant) left/right
+    # traces and the row-only tilts above.
+    traces = np.stack([left_init, right_init], axis=1)  # (nspec, 2, nslit)
+    astrom_trans = alignframe.AlignmentSplines(traces, np.array([0.0, 1.0]), tilts)
+
+    # ---- A simple per-exposure "instrument" WCS: (slit index, along-slit
+    # pixel, spectral row) -> (RA, Dec, wavelength), with no rotation ----
+    wave0, dwv = 5000.0, 2.0
+    pxscl_deg = 0.5 / 3600.0  # along-slit spatial scale (Dec-like axis)
+    slscl_deg = 0.5 / 3600.0  # cross-slit (slice) scale (RA-like axis)
+    frame_wcs = WCS(naxis=3)
+    frame_wcs.wcs.crval = [150.0, 10.0, wave0]
+    frame_wcs.wcs.crpix = [1.0, 1.0, 1.0]
+    frame_wcs.wcs.cd = np.array([[-slscl_deg, 0.0, 0.0],
+                                 [0.0, pxscl_deg, 0.0],
+                                 [0.0, 0.0, dwv]])
+    frame_wcs.wcs.cunit = [u.deg, u.deg, u.Angstrom]
+    frame_wcs.wcs.ctype = ['RA---TAN', 'DEC--TAN', 'WAVE']
+
+    # ---- Inject two point sources of unequal brightness, in different
+    # slits AND at different spectral rows, so no flip/rotation of the field
+    # of view maps one onto the other. ----
+    bright = dict(row=8, col=7, amp=1.0)    # slit 0 (cols 3-11)
+    faint = dict(row=32, col=33, amp=0.4)   # slit 2 (cols 29-37)
+    sigma_pix = 1.2
+
+    yy, xx = np.mgrid[0:nspec, 0:nspat]
+    sciImg = np.zeros((nspec, nspat))
+    for src in (bright, faint):
+        sciImg += src['amp'] * np.exp(
+            -0.5 * (((xx - src['col']) / sigma_pix) ** 2 + ((yy - src['row']) / sigma_pix) ** 2)
+        )
+    ivarImg = np.full((nspec, nspat), 1.0e8)
+    wghtImg = np.ones((nspec, nspat))
+    # Derived from the actual tilts (rather than the raw row index), so it
+    # stays exactly consistent with the tilt -> wavelength relationship
+    # `subpixellate` assumes, matching the WCS's wavelength axis.
+    waveImg = wave0 + dwv * tilts * (nspec - 1)
+
+    # ---- Ground truth: the true RA/Dec of each injected pixel, from the
+    # same per-exposure WCS/astrometric-transform/tilts the cube is built
+    # from -- this is the identical calculation `subpixellate` uses
+    # internally, so it is a faithful oracle, not a re-derivation. ----
+    raimg, decimg, _ = slits.get_radec_image(frame_wcs, astrom_trans, tilts)
+    ra_bright, dec_bright = raimg[bright['row'], bright['col']], decimg[bright['row'], bright['col']]
+    ra_faint, dec_faint = raimg[faint['row'], faint['col']], decimg[faint['row'], faint['col']]
+
+    # ---- Build the output cube WCS/bins directly from the data (single
+    # frame, no offsets -- multi-frame combination is left for a follow-up
+    # test). ----
+    dspat_cube = 0.15 / 3600.0  # deg/pixel; finer than the slice spacing above
+
+    # `create_wcs`'s bin-count calculation truncates (`int(...)`) rather than
+    # rounds up, which can silently place a source sitting exactly at the
+    # extreme edge of the RA/Dec range outside the nominal pixel grid by up
+    # to ~1 pixel (see kcwi_wcs.md, "Inconsistencies" item on numra/numdec
+    # truncation). For continuous, real illumination this only clips a
+    # negligible sliver at the true edge; here, with all of a slit's flux
+    # sitting at a single discrete RA value at that edge, it can lose an
+    # entire source. Padding the explicit bounds by a few cube pixels avoids
+    # exercising that truncation edge case, which is not what this test is
+    # meant to probe.
+    onslit = slitid_img_gpm > 0
+    ra_pad = 3 * dspat_cube / np.cos(np.radians(np.mean(decimg[onslit])))
+    dec_pad = 3 * dspat_cube
+    cube_wcs, voxedges, _ = datacube.create_wcs(
+        raimg, decimg, waveImg, slitid_img_gpm, dspat_cube, dwv,
+        ra_min=raimg[onslit].min() - ra_pad, ra_max=raimg[onslit].max() + ra_pad,
+        dec_min=decimg[onslit].min() - dec_pad, dec_max=decimg[onslit].max() + dec_pad,
+    )
+
+    # ---- Build the cube (nearest-grid-point: no subpixel sampling needed
+    # for this position-recovery check; no DAR). ----
+    flxcube, sigcube, bpmcube, normcube, wave = datacube.generate_cube_subpixel(
+        cube_wcs, voxedges, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg,
+        frame_wcs, tilts, slits, astrom_trans, all_dar=None, ra_offset=0.0, dec_offset=0.0,
+        spec_subpixel=1, spat_subpixel=1, slice_subpixel=1, skip_subpix_weights=True,
+        correct_dar=False
+    )
+
+    whitelight = flxcube.sum(axis=0)
+    cube_celestial = cube_wcs.celestial
+
+    # The brightest voxel overall must be the bright source, at its true sky position.
+    iy_max, ix_max = np.unravel_index(np.argmax(whitelight), whitelight.shape)
+    ra_cube_bright, dec_cube_bright = cube_celestial.wcs_pix2world(
+        np.array([ix_max]), np.array([iy_max]), 0)
+    assert np.isclose(ra_cube_bright[0], ra_bright, atol=dspat_cube), \
+        "the cube's brightest voxel RA does not match the injected bright source's true RA"
+    assert np.isclose(dec_cube_bright[0], dec_bright, atol=dspat_cube), \
+        "the cube's brightest voxel Dec does not match the injected bright source's true Dec"
+
+    # The fainter source, in a different slit and at a different row, must
+    # also land at its true sky position, with roughly the expected relative
+    # flux -- this guards against an axis mapping that happens to work only
+    # for the brighter source.
+    ix_faint, iy_faint = cube_celestial.wcs_world2pix(
+        np.array([ra_faint]), np.array([dec_faint]), 0)
+    ix_faint, iy_faint = int(np.round(ix_faint[0])), int(np.round(iy_faint[0]))
+    flux_bright_peak = whitelight[iy_max, ix_max]
+    flux_faint_at_expected = whitelight[iy_faint, ix_faint]
+    assert 0.15 * flux_bright_peak < flux_faint_at_expected < 0.7 * flux_bright_peak, \
+        "flux at the faint source's expected cube position does not match its known " \
+        "amplitude relative to the bright source"
 
 
 def test_resample_spec_to_grid_identity():
