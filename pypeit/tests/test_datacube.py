@@ -647,11 +647,15 @@ def test_create_wcs_voxedges_axis_order():
     dspat = 1.0e-4  # deg/pixel
     dwave = 1.0     # Angstrom/pixel
 
-    dec_min, dec_max = 10.0, 10.0 + 6.5 * dspat          # -> numdec = 6
+    # create_wcs() rounds the pixel-count calculation UP (np.ceil), rather
+    # than truncating, so that the full requested bounds are always covered
+    # (see kcwi_wcs.md, Inconsistencies item 13) -- hence e.g. a 6.5-pixel
+    # span below rounds up to 7 bins, not down to 6.
+    dec_min, dec_max = 10.0, 10.0 + 6.5 * dspat          # -> numdec = 7
     cosdec = np.cos(np.radians(0.5 * (dec_min + dec_max)))
     ra_min = 150.0
-    ra_max = ra_min + 10.5 * dspat / cosdec              # -> numra = 10
-    wave_min, wave_max = 5000.0, 5000.0 + 4.05 * dwave   # -> numwav = 4
+    ra_max = ra_min + 10.5 * dspat / cosdec              # -> numra = 11
+    wave_min, wave_max = 5000.0, 5000.0 + 4.05 * dwave   # -> numwav = 5
 
     # With all six bounds specified explicitly, wcs_bounds() never touches the
     # image arrays, so trivial placeholders are sufficient here.
@@ -665,12 +669,12 @@ def test_create_wcs_voxedges_axis_order():
     )
     spec_bins, ybins, xbins = voxedges
 
-    assert spec_bins.size - 1 == 4, \
-        'voxedges[0] (spec_bins) should have 4 wavelength bins; got the wrong axis or count'
-    assert ybins.size - 1 == 6, \
-        'voxedges[1] (ybins/Dec) should have 6 Dec bins; got the wrong axis or count'
-    assert xbins.size - 1 == 10, \
-        'voxedges[2] (xbins/RA) should have 10 RA bins; got the wrong axis or count'
+    assert spec_bins.size - 1 == 5, \
+        'voxedges[0] (spec_bins) should have 5 wavelength bins; got the wrong axis or count'
+    assert ybins.size - 1 == 7, \
+        'voxedges[1] (ybins/Dec) should have 7 Dec bins; got the wrong axis or count'
+    assert xbins.size - 1 == 11, \
+        'voxedges[2] (xbins/RA) should have 11 RA bins; got the wrong axis or count'
 
 
 def test_generate_wcs_sky_right_convention():

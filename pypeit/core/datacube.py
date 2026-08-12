@@ -2200,10 +2200,14 @@ def create_wcs(raImg, decImg, waveImg, slitid_img_gpm, dspat, dwave,
     # Grab cos(dec) for convenience. Use the average of the min and max dec
     cosdec = np.cos(0.5*(_dec_min+_dec_max) * np.pi / 180.0)
 
-    # Number of voxels in each dimension
-    numra = int((_ra_max - _ra_min) * cosdec / dspat)
-    numdec = int((_dec_max - _dec_min) / dspat)
-    numwav = int(np.round((_wave_max - _wave_min) / dwave))
+    # Number of voxels in each dimension. Round up (rather than truncate) so
+    # that the full [ra_min, ra_max] (etc.) span is always covered by the
+    # resulting pixel grid -- otherwise, since crpix anchors one edge of the
+    # range, the other edge can fall outside the nominal [0, numra-1] grid
+    # and be silently dropped by the histogram step in subpixellate().
+    numra = int(np.ceil((_ra_max - _ra_min) * cosdec / dspat))
+    numdec = int(np.ceil((_dec_max - _dec_min) / dspat))
+    numwav = int(np.ceil((_wave_max - _wave_min) / dwave))
 
     # If a white light WCS is being generated, make sure there's only 1 wavelength bin
     if collapse:
@@ -3102,6 +3106,23 @@ def subpixellate(
                 sslo = ss * num_subpixels
                 sshi = (ss + 1) * num_subpixels
                 vox_coord[:,sslo:sshi,:] = output_wcs.wcs_world2pix(np.vstack((this_ra_int, this_dec_int, this_wave_subpix * 1.0E-10)).T, 0).reshape(numpix, num_subpixels, 3)[:,:,::-1]
+            # fast_histogram.histogramdd segfaults (an uncatchable process
+            # crash, not a Python exception) if given non-finite input, e.g.
+            # from a division-by-zero in linear_interpolate_extrapolate()
+            # above when the along-slit spatial offset is exactly degenerate
+            # between spectral rows (as for a perfectly straight, untilted
+            # slit). Check explicitly and fail with a diagnosable error
+            # instead of crashing the whole reduction.
+            if not np.all(np.isfinite(vox_coord)):
+                raise PypeItError(
+                    "Non-finite voxel coordinate(s) encountered while resampling slit "
+                    f"{sl + 1}/{this_slits.nslits}"
+                    + (f" of frame {fr + 1}/{numframes}" if numframes > 1 else "")
+                    + ". This is usually caused by a degenerate astrometric transform "
+                    "(e.g. a perfectly straight, untilted slit) or a bad calibration; "
+                    "feeding NaN/inf into fast_histogram.histogramdd() would otherwise "
+                    "crash the process without a catchable exception."
+                )
             # Convert the voxel coordinates to a bin index
             if num_all_subpixels == 1 or skip_subpix_weights:
                 subpix_wght = 1.0
