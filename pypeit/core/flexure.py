@@ -1044,14 +1044,14 @@ def calculate_image_phase(imref, imshift, gpm_ref=None, gpm_shift=None, maskval=
 
     Returns
     -------
-    ra_diff : float
-        Relative shift (in pixels) of image relative to im_ref (x direction).
-        In order to align image with im_ref, ra_diff should be added to the
-        x-coordinates of image
     dec_diff : float
         Relative shift (in pixels) of image relative to im_ref (y direction).
         In order to align image with im_ref, dec_diff should be added to the
         y-coordinates of image
+    ra_diff : float
+        Relative shift (in pixels) of image relative to im_ref (x direction).
+        In order to align image with im_ref, ra_diff should be added to the
+        x-coordinates of image
     """
     if force_cc:
         return calculate_image_offset(imref, imshift)
@@ -1099,7 +1099,7 @@ def calculate_image_phase(imref, imshift, gpm_ref=None, gpm_shift=None, maskval=
 
 
 def calculate_image_offset(im_ref, image, nfit=3):
-    """Calculate the x,y offset between two images
+    """Calculate the y,x offset between two images
 
     Args:
         im_ref (`numpy.ndarray`_):
@@ -1111,13 +1111,13 @@ def calculate_image_offset(im_ref, image, nfit=3):
             fitting the peak of the cross correlation.
 
     Returns:
-        tuple: Returns two floats, the x and y offset of the image.
-          - ra_diff --  Relative shift (in pixels) of image relative to im_ref (x direction).
-            In order to align image with im_ref, ra_diff should be added to the
-            x-coordinates of image
+        tuple: Returns two floats, the y and x offset of the image.
           - dec_diff  -- Relative shift (in pixels) of image relative to im_ref (y direction).
             In order to align image with im_ref, dec_diff should be added to the
             y-coordinates of image
+          - ra_diff --  Relative shift (in pixels) of image relative to im_ref (x direction).
+            In order to align image with im_ref, ra_diff should be added to the
+            x-coordinates of image
     """
     # Subtract median (should be close to zero, anyway)
     image -= np.median(image)

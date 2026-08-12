@@ -219,18 +219,14 @@ class ManualCubeExtractionObj(datamodel.DataContainer):
         Parameters
         ----------
         inp : str
-            String specifying the manual aperture.  The format is
-            ``x:y:fwhm:boxcar_radius``, and multiple manual extractions must be
-            separated by a semi-colon.  Only the first two entries, defining the
-            spatial x and y *spaxel* positions in the datacube, are required;
-            the FWHM and boxcar radius are optional and provided in arcseconds.
-            The x,y values are the image coordinates read from Ginga or DS9.
-            In numpy terms, if the image has shape (ny, nx), a position (x, y)
-            refers to image[y, x].  Note that you cannot provide boxcar_radius
-            without also providing fwhm; if you wish to only provide
-            boxcar_radius, set fwhm = -1.  Currently only the use of x:y is
-            supported, and only single objects can be extracted at a time, so
-            the semi-colon separation does not apply.
+            String specifying the manual aperture, in ``x:y`` format.  The
+            x,y values are the image coordinates read from Ginga or DS9.  In
+            numpy terms, if the image has shape (ny, nx), a position (x, y)
+            refers to image[y, x].  This method also parses the optional
+            ``x:y:fwhm:boxcar_radius`` format and semi-colon-separated
+            multiple positions, but neither is yet supported by the rest of
+            the datacube extraction pipeline, which currently only uses a
+            single ``x:y`` position.
 
         Returns
         -------

@@ -1974,6 +1974,14 @@ class CubePar(ParSet):
 
 
 
+# TODO: The `manual` parameter below currently only supports a single `x:y`
+# position. `ManualCubeExtractionObj.parse()` (pypeit/manual_extract.py) already
+# parses the documented `x:y:fwhm:boxcar_radius` format and semi-colon-separated
+# multiple positions, but neither per-object FWHM/boxcar-radius overrides nor
+# multi-object extraction is yet consumed downstream (e.g. in
+# `datacube.extract_point_source()`). Add support for these elements in a future
+# PR once that integration work is ready, and update `manual`'s description and
+# `validate()` accordingly.
 class CubeExtractionPar(ParSet):
     """
     The parameter set used to hold arguments for functionality relevant to
@@ -2037,17 +2045,11 @@ class CubeExtractionPar(ParSet):
         defaults['manual'] = None
         dtypes['manual'] = str
         descr['manual'] = (
-            'Manual extraction parameters for pypeit_extract_datacube. The format is '
-            '``x:y:fwhm:boxcar_radius``, and multiple manual extractions must be separated by '
-            'a semi-colon.  Only the first two entries, defining the spatial x and y *pixel* '
-            'positions in the datacube, are required; the FWHM and boxcar radius are optional '
-            'and provided in arcseconds.  The x,y values are the image coordinates read from '
-            'Ginga or DS9.  In numpy terms, if the image has shape (ny, nx), a position '
-            '(x, y) refers to image[y, x].  Note that you cannot provide boxcar_radius '
-            'without also providing fwhm; if you wish to only provide '
-            'boxcar_radius, set fwhm=-1.  Currently only the use of x:y is supported, and only '
-            'single objects can be extracted at a time, so the semi-colon separation does not '
-            'apply.'
+            'Manual extraction position for pypeit_extract_datacube, in the format ``x:y``, '
+            'where x,y are the image coordinates read from Ginga or DS9.  In numpy terms, if '
+            'the image has shape (ny, nx), a position (x, y) refers to image[y, x].  Manual '
+            'extraction is currently only possible for a single object; a semi-colon-separated '
+            'list of multiple x:y positions is not supported and will raise an error.'
         )
 
         defaults['boxcar_radius'] = None
@@ -2118,18 +2120,26 @@ class CubeExtractionPar(ParSet):
         if self.data['opt_prof_method'] not in allowed_opt_prof_methods:
             raise ValueError("'opt_prof_method' must be one of:\n" + ", ".join(allowed_opt_prof_methods))
 
-        # Check that only x and y are provided for manual extraction
+        # Check that only x and y are provided for manual extraction, and that
+        # only a single object is requested. A semi-colon-separated string
+        # (e.g. '10:20;30:40') would otherwise be silently accepted here and
+        # correctly parsed into multiple positions downstream by
+        # ManualCubeExtractionObj.parse() -- the x,y values all cast to
+        # floats without error -- but only the first position is ever used
+        # (see coadd3d.py's manual_position = (spatx[0], spaty[0])), so
+        # anything past the first object would be silently dropped. Allowing
+        # multiple manual extraction positions is left for future
+        # development; reject the semi-colon explicitly for now.
         if self.data['manual'] is not None:
-            m_es = self.data['manual'].split(';')
-            for m_e in m_es:
-                parse = m_e.split(':')
-                if len(parse) != 2:
-                    raise ValueError("When providing manual extraction parameters, only x and y can be "
-                                     "provided, and the format must be x:y. You can also provide a semi-colon "
-                                     "separated list of values if you would like to extract more than one object "
-                                     "(e.g. x1:y1;x2:y2). If you wish to also provide "
-                                     "fwhm and boxcar_radius, the format is x:y:fwhm:boxcar_radius (NOTE: the "
-                                     "fwhm and boxcar_radius parameters are not currently supported).")
+            if ';' in self.data['manual']:
+                raise ValueError("Manual extraction parameters must specify a single object; only "
+                                 "the x:y format is currently supported, and a semi-colon-separated "
+                                 "list of multiple objects is not.")
+            parse = self.data['manual'].split(':')
+            if len(parse) != 2:
+                raise ValueError("When providing manual extraction parameters, only x and y can be "
+                                 "provided, and the format must be x:y (e.g. --manual 10.0:14.0). Only "
+                                 "a single object can currently be extracted at a time.")
 
     @staticmethod
     def valid_opt_prof_methods():
