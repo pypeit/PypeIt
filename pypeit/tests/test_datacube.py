@@ -4,13 +4,11 @@ Module to run tests on datacube generation
 
 from astropy.wcs import WCS
 from astropy.io import fits
-from astropy.stats import sigma_clipped_stats
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 from IPython import embed
 import numpy as np
 import pytest
-from scipy.optimize import curve_fit
 
 from pypeit import utils
 from pypeit import slittrace
@@ -391,149 +389,6 @@ def test_fitgaussian2d_ginga_xy_convention():
         'manual_position did not lock the fit onto the faint source in y (row)'
 
 
-# ---------------------------------------------------------------------------
-# NOTE -- TEMPORARY, branch-specific regression scaffolding.
-#
-# The helpers and tests in this block (`_pre_fix_auto_position`,
-# `_pre_fix_manual_position`, `test_fitgaussian2d_autodetect_unaffected_by_bugfix`,
-# and `test_manual_position_bugfix_regression`) exist only to document and lock
-# in the specific `(x, y)` mislabeling bug fixed by `fix-cube-manual-coords-kbw`
-# relative to its parent branch, `kcwi_dec_2024_weights`.  They intentionally
-# duplicate old, buggy logic as a frozen reference for comparison.  These
-# should be removed or refactored into ordinary (non-comparative) convention
-# tests before this branch stack is merged into `develop` -- once merged,
-# there is no further value in re-deriving the pre-fix behavior, and carrying
-# duplicated buggy code forward in the test suite is a maintenance liability.
-# ---------------------------------------------------------------------------
-
-def _pre_fix_auto_position(image, fwhm, nsigma=5.0, mask_edge=2):
-    """
-    Reference re-implementation of the auto-detection (DAOStarFinder + 2D
-    Gaussian fit) branch of ``fitGaussian2D`` as it existed on
-    ``kcwi_dec_2024_weights``, before the ``fix-cube-manual-coords-kbw`` fix.
-
-    On that branch, the curve-fit coordinate grid was built with
-    ``indexing='ij'`` using ``image.shape[0]``/``image.shape[1]`` swapped
-    relative to the Ginga/DS9 (x, y) convention -- so internally "x" tracked
-    the row (Dec) axis and "y" tracked the column (RA) axis -- DAOStarFinder's
-    centroids were assigned as ``(y_centroid, x_centroid)`` to match, and
-    ``extract_point_source`` applied a final ``yobj, xobj = gaussian_position``
-    swap to undo the internal mislabeling before using the position.  This
-    function reproduces that chain bug-for-bug, purely so
-    ``test_fitgaussian2d_autodetect_unaffected_by_bugfix`` below can prove the
-    fix left the auto-detection result numerically unchanged.  Do not "fix"
-    this function -- it must stay identical to the pre-fix code.
-
-    TEMPORARY: remove this helper (and its one caller) before merging this
-    branch stack into `develop`; see the module note above.
-    """
-    fwhm2sigma = 1.0 / (2 * np.sqrt(2 * np.log(2)))
-    ny, nx = image.shape
-    yimg, ximg = np.mgrid[0:ny, 0:nx]
-    edgemask = (ximg < mask_edge) | (ximg >= nx - mask_edge) \
-        | (yimg < mask_edge) | (yimg >= ny - mask_edge)
-
-    _, median, std = sigma_clipped_stats(image[~edgemask], sigma=3.0)
-    ivar = np.full_like(image, 1.0 / std ** 2) if std > 0 else np.ones_like(image)
-
-    daofind = datacube.DAOStarFinder(fwhm=fwhm, threshold=nsigma, sharpness_range=(0.2, 2.0),
-                                     exclude_border=False, n_brightest=1)
-    sources = daofind((image - median) * np.sqrt(ivar), mask=edgemask)
-    init_obj_position = sources['y_centroid'][0], sources['x_centroid'][0]
-
-    initial_guess = (1, init_obj_position[0], init_obj_position[1],
-                     fwhm * fwhm2sigma, fwhm * fwhm2sigma, 0, 0)
-    bounds = ([0, init_obj_position[0] - fwhm / 3.0, init_obj_position[1] - fwhm / 3.0,
-               fwhm / 6.0, fwhm / 6.0, -np.pi, -np.inf],
-              [np.inf, init_obj_position[0] + fwhm / 3.0, init_obj_position[1] + fwhm / 3.0,
-               fwhm, fwhm, np.pi, np.inf])
-
-    x = np.linspace(0, ny - 1, ny)
-    y = np.linspace(0, nx - 1, nx)
-    xx, yy = np.meshgrid(x, y, indexing='ij')
-    popt, _ = curve_fit(datacube.gaussian2D, (xx, yy), image.ravel(), bounds=bounds,
-                        p0=initial_guess)
-    xpos_gauss, ypos_gauss = popt[1], popt[2]
-    yobj, xobj = xpos_gauss, ypos_gauss  # extract_point_source's pre-fix unpack
-    return xobj, yobj
-
-
-def _pre_fix_manual_position(manual_position):
-    """
-    Reproduces the pre-fix (``kcwi_dec_2024_weights``) handling of a
-    user-supplied ``manual_position`` inside ``extract_point_source``:
-    ``yobj, xobj = manual_position`` instead of the corrected
-    ``xobj, yobj = manual_position``.  Kept only to lock in a regression test
-    for the ``fix-cube-manual-coords-kbw`` fix -- do not "fix" this helper.
-
-    TEMPORARY: remove this helper (and its one caller) before merging this
-    branch stack into `develop`; see the module note above.
-    """
-    yobj, xobj = manual_position
-    return xobj, yobj
-
-
-@photutils_required
-def test_fitgaussian2d_autodetect_unaffected_by_bugfix():
-    """The manual-coordinate bugfix must not change the auto-detection result.
-
-    The pre-fix code's internal (x, y) mislabeling was self-consistent for
-    auto-detected positions (see `_pre_fix_auto_position`), so the final
-    position handed to the extraction code should be numerically identical
-    before and after the fix.
-
-    TEMPORARY: this comparative test should be removed (or refactored into an
-    ordinary convention test, without the `_pre_fix_auto_position` reference
-    implementation) before merging this branch stack into `develop`; see the
-    module note above `_pre_fix_auto_position`.
-    """
-    ny, nx = 20, 28
-    row0, col0 = 12, 17
-    sigma_pix = 1.4
-    fwhm_pix = sigma_pix * 2.0 * np.sqrt(2.0 * np.log(2.0))
-    yimg, ximg = np.mgrid[0:ny, 0:nx]
-    image = np.exp(-0.5 * (((ximg - col0) / sigma_pix) ** 2 + ((yimg - row0) / sigma_pix) ** 2))
-
-    popt, *_ = datacube.fitGaussian2D(image, fwhm=fwhm_pix, mask_edge=2, norm=False)
-    x_new, y_new = popt[1], popt[2]
-    x_old, y_old = _pre_fix_auto_position(image, fwhm=fwhm_pix, mask_edge=2)
-
-    assert np.isclose(x_new, x_old, atol=1e-4), \
-        'auto-detected x position changed between the pre-fix and current code'
-    assert np.isclose(y_new, y_old, atol=1e-4), \
-        'auto-detected y position changed between the pre-fix and current code'
-    # Sanity check both still recover the true, known source position.
-    assert np.isclose(x_new, col0, atol=0.2), \
-        'current fitGaussian2D did not recover the true source column (x) position'
-    assert np.isclose(y_new, row0, atol=0.2), \
-        'current fitGaussian2D did not recover the true source row (y) position'
-
-
-def test_manual_position_bugfix_regression():
-    """Lock in the fix-cube-manual-coords-kbw fix for manual extraction positions.
-
-    Pre-fix, a user-supplied ``manual_position=(x, y)`` (Ginga/DS9 convention)
-    was silently transposed before use.  Choose x != y so the swap is
-    detectable.
-
-    TEMPORARY: this comparative test should be removed before merging this
-    branch stack into `develop`, since `test_fitgaussian2d_ginga_xy_convention`
-    above already covers the correct (non-comparative) behavior going forward;
-    see the module note above `_pre_fix_auto_position`.
-    """
-    manual_position = (17, 6)  # (x, y): column 17, row 6
-
-    x_new, y_new = manual_position  # current (fixed) unpack in extract_point_source
-    assert (x_new, y_new) == manual_position, \
-        'the current (fixed) unpack must return manual_position unchanged, i.e. (x, y) with no swap'
-
-    x_old, y_old = _pre_fix_manual_position(manual_position)
-    assert (x_old, y_old) == (manual_position[1], manual_position[0]), \
-        'the pre-fix reference implementation should reproduce the x/y swap bug'
-    assert (x_old, y_old) != manual_position, \
-        'pre-fix code should have gotten the manual position wrong (x/y swapped)'
-
-
 @photutils_required
 def test_extract_point_source_manual_position_selects_correct_source():
     """`extract_point_source` must extract the source at `manual_position`,
@@ -596,18 +451,17 @@ def test_extract_point_source_manual_position_selects_correct_source():
 
 
 # ---------------------------------------------------------------------------
-# Phase 1b -- decomposing the bundled develop -> kcwi_dec_2024 WCS axis-order
-# and sign-convention changes (see kcwi_wcs.md, open question [Q3]).  Each
-# test below isolates one of the four changes that were bundled into that
-# rewrite (RA/Dec offset sign, voxedges axis order, the sky-right crpix/cdelt
-# convention, and the world2pix axis reversal in `subpixellate`), so a future
-# regression in any one of them is caught without needing a full cube build.
+# The cube-axis-order rewrite bundled four separate WCS axis-order/sign
+# changes into one commit. Each test below isolates one of them (RA/Dec
+# offset sign, voxedges axis order, the sky-right crpix/cdelt convention, and
+# the world2pix axis reversal in `subpixellate`), so a future regression in
+# any one of them is caught without needing a full cube build.
 # ---------------------------------------------------------------------------
 
 def test_wcs_bounds_subtracts_offsets():
     """`wcs_bounds` must SUBTRACT ra_offsets/dec_offsets from the pixel
-    coordinates, matching the sign convention introduced in `kcwi_dec_2024`
-    (previously `+=`, now `-=`).  Uses a nonzero, asymmetric offset so an
+    coordinates, matching the current sign convention (previously `+=`, now
+    `-=`).  Uses a nonzero, asymmetric offset so an
     accidental sign flip back to addition is guaranteed to produce a
     different (and thus detectable) result.
     """
@@ -647,10 +501,8 @@ def test_create_wcs_voxedges_axis_order():
     dspat = 1.0e-4  # deg/pixel
     dwave = 1.0     # Angstrom/pixel
 
-    # create_wcs() rounds the pixel-count calculation UP (np.ceil), rather
-    # than truncating, so that the full requested bounds are always covered
-    # (see kcwi_wcs.md, Inconsistencies item 13) -- hence e.g. a 6.5-pixel
-    # span below rounds up to 7 bins, not down to 6.
+    # create_wcs() rounds the pixel-count calculation UP (np.ceil) rather
+    # than truncating, so a 6.5-pixel span below rounds up to 7 bins, not 6.
     dec_min, dec_max = 10.0, 10.0 + 6.5 * dspat          # -> numdec = 7
     cosdec = np.cos(np.radians(0.5 * (dec_min + dec_max)))
     ra_min = 150.0
@@ -726,18 +578,18 @@ def test_subpixellate_world2pix_axis_reversal():
 
 
 # ---------------------------------------------------------------------------
-# Phase 2 -- a full synthetic cube through subpixellate()/generate_cube_subpixel(),
-# still cheap (no real calibrations). Covers both bullets: a single synthetic
-# exposure, and combining a second exposure with a known RA/Dec registration
-# offset. The two tests below share the same synthetic 3-slit detector
-# geometry, built once by `_make_synthetic_three_slit_detector`.
+# Full synthetic-cube tests through subpixellate()/generate_cube_subpixel(),
+# still cheap (no real calibrations): a single synthetic exposure, and
+# combining a second exposure with a known RA/Dec registration offset. The
+# tests below share the same synthetic 3-slit detector geometry, built once
+# by `_make_synthetic_three_slit_detector`.
 # ---------------------------------------------------------------------------
 
 def _make_synthetic_three_slit_detector():
     """
     Build the minimal synthetic 3-slit IFU detector geometry (`SlitTraceSet`,
     tilts, `AlignmentSplines`) and a two-point-source science image shared by
-    the Phase 2 `subpixellate`/`generate_cube_subpixel` tests below.
+    the `subpixellate`/`generate_cube_subpixel` tests below.
 
     Returns
     -------
@@ -828,8 +680,8 @@ SYNTH_SLICE_SCALE_DEG = 0.5 / 3600.0
 def _make_synthetic_frame_wcs(ra0, dec0, wave0, dwv):
     """
     Construct the simple per-exposure "instrument" WCS (slit index, along-slit
-    pixel, spectral row) -> (RA, Dec, wavelength) used by the Phase 2 tests
-    below, with no rotation (diagonal CD matrix) for simplicity.
+    pixel, spectral row) -> (RA, Dec, wavelength) used by the tests below,
+    with no rotation (diagonal CD matrix) for simplicity.
     """
     frame_wcs = WCS(naxis=3)
     frame_wcs.wcs.crval = [ra0, dec0, wave0]
@@ -847,8 +699,7 @@ def _build_synthetic_single_exposure_cube():
     Build a single-exposure synthetic datacube from
     `_make_synthetic_three_slit_detector`/`_make_synthetic_frame_wcs`, using
     the cheapest possible setup (nearest-grid-point sampling, no DAR), shared
-    by the Phase 2 single-exposure test and the Phase 3 orientation test
-    below.
+    by the position-recovery test and the orientation test below.
 
     Returns
     -------
@@ -893,16 +744,8 @@ def _build_synthetic_single_exposure_cube():
     # frame, no offsets). ----
     dspat_cube = 0.15 / 3600.0  # deg/pixel; finer than the slice spacing above
 
-    # `create_wcs`'s bin-count calculation truncates (`int(...)`) rather than
-    # rounds up, which can silently place a source sitting exactly at the
-    # extreme edge of the RA/Dec range outside the nominal pixel grid by up
-    # to ~1 pixel (see kcwi_wcs.md, "Inconsistencies" item on numra/numdec
-    # truncation). For continuous, real illumination this only clips a
-    # negligible sliver at the true edge; here, with all of a slit's flux
-    # sitting at a single discrete RA value at that edge, it can lose an
-    # entire source. Padding the explicit bounds by a few cube pixels avoids
-    # exercising that truncation edge case, which is not what this test is
-    # meant to probe.
+    # Pad the explicit bounds so a source sitting at the extreme edge of the
+    # RA/Dec range stays safely inside the pixel grid.
     onslit = slitid_img_gpm > 0
     ra_pad = 3 * dspat_cube / np.cos(np.radians(np.mean(decimg[onslit])))
     dec_pad = 3 * dspat_cube
@@ -977,11 +820,9 @@ def test_generate_cube_subpixel_combines_offset_frames_correctly():
     """A known, already-measured RA/Dec registration correction must be
     applied with the correct sign when co-adding two frames.
 
-    This is the second bullet of the Phase 2 test plan: it exercises the
-    multi-frame `ra_offset`/`dec_offset` combination path inside
-    `subpixellate` (the `+=` -> `-=` sign flip introduced in
-    `kcwi_dec_2024`) end-to-end, extending the single-frame position-recovery
-    test above.
+    Exercises the multi-frame `ra_offset`/`dec_offset` combination path
+    inside `subpixellate` (the `+=` -> `-=` sign flip) end-to-end, extending
+    the single-frame position-recovery test above.
 
     Frame 1 and frame 2 share identical detector data (`sciImg` et al.) and
     identical slit/tilt/alignment geometry -- only their per-exposure WCS
@@ -1040,9 +881,8 @@ def test_generate_cube_subpixel_combines_offset_frames_correctly():
     dspat_cube = 0.15 / 3600.0  # deg/pixel
 
     def build_cube(ra_offsets, dec_offsets):
-        # `create_wcs`'s bin-count truncation (see the single-frame test
-        # above, and kcwi_wcs.md item 13) can drop a source sitting at the
-        # extreme edge of the range; pad the explicit bounds to avoid it.
+        # Pad the explicit bounds so a source sitting at the extreme edge of
+        # the range stays safely inside the pixel grid.
         ra_min, ra_max, dec_min, dec_max, wave_min, wave_max = datacube.wcs_bounds(
             [raimg1, raimg2], [decimg1, decimg2], [waveImg, waveImg],
             [slitid_img_gpm, slitid_img_gpm], ra_offsets=ra_offsets, dec_offsets=dec_offsets
@@ -1076,7 +916,7 @@ def test_generate_cube_subpixel_combines_offset_frames_correctly():
         return int(np.round(iy[0])), int(np.round(ix[0]))
 
     # ---- Correct sign: the offset should be SUBTRACTED from each frame's
-    # RA/Dec (per the kcwi_dec_2024 `+=` -> `-=` change), which corrects
+    # RA/Dec (per the `+=` -> `-=` convention), which corrects
     # frame 2's mis-registration and stacks it exactly onto frame 1's true
     # (reference, offset=0) position. ----
     cube_wcs, whitelight = build_cube([0.0, ra_off2], [0.0, dec_off2])
@@ -1143,10 +983,9 @@ def test_generate_cube_subpixel_combines_genuine_dither_with_zero_offset():
 
     A **sensitivity check** then applies that same one-slice shift with the
     WRONG sign (as a per-slicer offset bug, e.g. in `keck_kcwi.py`'s
-    `off1`/`off2` values -- Inconsistencies item 11 -- might produce), and
-    confirms the two frames' flux lands at two distinct, separated
-    positions instead of co-registering, proving this test would actually
-    catch such a bug.
+    `off1`/`off2` values, might produce), and confirms the two frames' flux
+    lands at two distinct, separated positions instead of co-registering,
+    proving this test would actually catch such a bug.
     """
     slits, tilts, astrom_trans, _, ivarImg, wghtImg, waveImg, wave0, dwv, _, _ = \
         _make_synthetic_three_slit_detector()
@@ -1254,13 +1093,12 @@ def test_generate_cube_subpixel_combines_genuine_dither_with_zero_offset():
 
 
 # ---------------------------------------------------------------------------
-# Phase 2a -- cross-correlation alignment sign convention [Q2]. Unlike
-# test_align_phase above (which builds its own ad hoc 2D WCS), this test
-# builds the white-light image WCS via the REAL create_wcs()/generate_WCS()
-# pipeline, so it jointly exercises the actual cdelt[0]=-dspat sky-right
-# convention (kcwi_dec_2024) together with SlicerIFUCoAdd3D.run_align()'s
-# pixel-shift -> RA/Dec-offset conversion, exactly as they are coupled in
-# production (coadd3d.py's run_align()).
+# Cross-correlation alignment sign convention. Unlike test_align_phase above
+# (which builds its own ad hoc 2D WCS), this test builds the white-light
+# image WCS via the REAL create_wcs()/generate_WCS() pipeline, so it jointly
+# exercises the actual cdelt[0]=-dspat sky-right convention together with
+# SlicerIFUCoAdd3D.run_align()'s pixel-shift -> RA/Dec-offset conversion,
+# exactly as they are coupled in production (coadd3d.py's run_align()).
 # ---------------------------------------------------------------------------
 
 def test_align_phase_offset_sign_convention_via_real_wcs_pipeline():
@@ -1275,7 +1113,7 @@ def test_align_phase_offset_sign_convention_via_real_wcs_pipeline():
     asymmetric RA/Dec amount (different in RA than in Dec), so a residual
     RA/Dec swap or sign error cannot hide behind a symmetric shift. The
     "true" offset is measured via `SlitTraceSet.get_radec_image()`, the same
-    oracle used by the Phase 2 tests above.
+    oracle used by the tests above.
 
     A single pass of `calculate_image_phase` (mirroring
     `SlicerIFUCoAdd3D.run_align()`'s 'phase' branch, coadd3d.py line ~1669)
@@ -1283,7 +1121,7 @@ def test_align_phase_offset_sign_convention_via_real_wcs_pipeline():
     -dspat/cosdec`) recovers the injected offset to within a fraction of the
     (coarse) synthetic detector's along-slit pixel scale -- iterating further
     does not meaningfully improve on this for this synthetic setup, so a
-    single pass is used, matching the plan's "cheap first" philosophy.
+    single pass is used.
     """
     slits, tilts, astrom_trans, sciImg, ivarImg, wghtImg, waveImg, wave0, dwv, bright, faint = \
         _make_synthetic_three_slit_detector()
@@ -1393,12 +1231,12 @@ def test_align_phase_offset_sign_convention_via_real_wcs_pipeline():
 
 
 # ---------------------------------------------------------------------------
-# Phase 3 -- imshow/orientation sanity check. Turns the "does it look
-# sky-right" visual question into a programmatic assertion that runs in CI.
+# imshow/orientation sanity check: turns the "does it look sky-right" visual
+# question into a programmatic assertion that runs in CI.
 # ---------------------------------------------------------------------------
 
 def test_whitelight_imshow_is_sky_right_and_north_up():
-    """A whitelight image collapsed from the Phase 2 synthetic cube must be
+    """A whitelight image collapsed from a synthetic cube must be
     "sky-right" when displayed with `imshow(origin='lower')`: RA increasing
     to the left (East left) and Dec increasing upward (North up).
 

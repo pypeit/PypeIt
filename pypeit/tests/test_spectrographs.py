@@ -289,7 +289,7 @@ def test_ifu_get_datacube_bins_wavelength_axis_first():
     updated to this order when `datacube.py`'s cube-axis convention was
     reworked, but `gemini_gnirs.py`'s `GNIRSIFUSpectrograph` and
     `gtc_osiris.py`'s `GTCMAATSpectrograph` were not (a TODO to that effect
-    was left in `keck_kcwi.py` but never actioned) -- see kcwi_wcs.md item 5.
+    was left in `keck_kcwi.py` but never actioned).
     `num_wave` and `slitlength` are chosen distinct from every spectrograph's
     (fixed) number of IFU slices, so a bin-order swap is guaranteed to be
     caught by a bin-count mismatch rather than accidentally matching.
