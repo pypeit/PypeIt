@@ -18,9 +18,7 @@ from astropy.stats import sigma_clipped_stats
 
 from IPython import embed
 
-# CANNOT INCLUDE log IN THIS MODULE AS
-#  THE HTML GENERATION OCCURS FROM log
-#from pypeit import log
+from pypeit import log
 
 # TODO: Move these names to the appropriate class.  This always writes
 # to QA directory, even if the user sets something else...
