@@ -35,6 +35,20 @@ def target_match_key(target):
 def target_matches(value, target):
     """
     Compare target names, allowing either the literal or sanitized form.
+
+    Parameters
+    ----------
+    value : :obj:`str`
+        Target name to test, e.g. as read from a PypeIt file data table.
+    target : :obj:`str`
+        Target name to compare against, e.g. as provided on the command
+        line.
+
+    Returns
+    -------
+    :obj:`bool`
+        True if ``value`` and ``target`` are identical, or if their
+        :func:`target_match_key`-normalized forms are identical.
     """
     _value = str(value).strip()
     _target = str(target).strip()
@@ -44,6 +58,25 @@ def target_matches(value, target):
 def validate_whitelight_range(value):
     """
     Validate and normalize a command-line white-light wavelength range.
+
+    Parameters
+    ----------
+    value : :obj:`str`
+        Comma-separated wavelength range, e.g. ``9400,10000``. Either entry
+        may instead be ``none`` (case-insensitive) to leave that bound
+        unset.
+
+    Returns
+    -------
+    :obj:`str`
+        The comma-separated range, with each entry stripped of surrounding
+        whitespace.
+
+    Raises
+    ------
+    PypeItError
+        If ``value`` does not contain exactly two comma-separated entries,
+        or if a non-``none`` entry cannot be parsed as a float.
     """
     entries = [v.strip() for v in value.split(',')]
     if len(entries) != 2:
@@ -64,6 +97,18 @@ def validate_whitelight_range(value):
 def spec2d_target(spec2d_file):
     """
     Read the target name from a spec2d primary header.
+
+    Parameters
+    ----------
+    spec2d_file : :obj:`str`, `Path`_
+        Path to a spec2d FITS file.
+
+    Returns
+    -------
+    :obj:`str`
+        The first non-empty value found among the ``TARGET``, ``TARGNAME``,
+        and ``OBJECT`` header keywords, in that order. Returns None if none
+        of those keywords are present or non-empty.
     """
     header = fits.getheader(spec2d_file, 0)
     for key in ('TARGET', 'TARGNAME', 'OBJECT'):
@@ -75,6 +120,17 @@ def spec2d_target(spec2d_file):
 def science_directory(pypeit_file):
     """
     Determine the default Science directory for a PypeIt reduction file.
+
+    Parameters
+    ----------
+    pypeit_file : :obj:`str`, `Path`_
+        Path to a PypeIt reduction file.
+
+    Returns
+    -------
+    `Path`_
+        Absolute path to the ``Science`` directory expected alongside
+        ``pypeit_file``.
     """
     return Path(pypeit_file).absolute().parent / 'Science'
 
@@ -82,6 +138,26 @@ def science_directory(pypeit_file):
 def matching_science_rows(pypeit_file, target):
     """
     Select science rows matching a target from a PypeIt input file.
+
+    Parameters
+    ----------
+    pypeit_file : :class:`~pypeit.inputfiles.PypeItFile`
+        The parsed PypeIt reduction file.
+    target : :obj:`str`
+        Target name to match against the data block's ``target`` column;
+        see :func:`target_matches`.
+
+    Returns
+    -------
+    :obj:`list`
+        List of data-table rows with frame type ``science`` whose target
+        matches ``target``.
+
+    Raises
+    ------
+    PypeItError
+        If ``pypeit_file`` has no data block, the data block has no
+        ``target`` column, or no matching science rows are found.
     """
     if pypeit_file.data is None:
         raise PypeItError('The PypeIt file has no data block.')
@@ -105,6 +181,18 @@ def matching_science_rows(pypeit_file, target):
 def group_science_rows(rows):
     """
     Group science rows by comb_id, using the first row in each group as the expected spec2d stem.
+
+    Parameters
+    ----------
+    rows : :obj:`list`
+        Science rows to group, e.g. as returned by :func:`matching_science_rows`.
+
+    Returns
+    -------
+    :obj:`list`
+        List of groups, where each group is a :obj:`list` of rows sharing
+        the same ``comb_id`` (or, if a row has no usable ``comb_id``, a
+        single-row group keyed by its own ``filename``).
     """
     def group_key(row):
         if 'comb_id' not in row.colnames:
@@ -127,6 +215,24 @@ def group_science_rows(rows):
 def find_reduced_spec2d(science_dir, raw_filename, target):
     """
     Find the existing spec2d product for a raw file and target.
+
+    Parameters
+    ----------
+    science_dir : :obj:`str`, `Path`_
+        Directory to search for spec2d files, e.g. as returned by
+        :func:`science_directory`.
+    raw_filename : :obj:`str`
+        Name of the raw science file whose reduced spec2d product is sought.
+    target : :obj:`str`
+        Target name that the spec2d file's header must match; see
+        :func:`target_matches`.
+
+    Returns
+    -------
+    `Path`_
+        Path to the matching spec2d file. If more than one candidate
+        matches, the first (alphabetically sorted) is used and a warning is
+        logged. Returns None if no candidate matches.
     """
     raw_stem = Path(str(raw_filename).strip()).stem
     candidates = sorted(Path(science_dir).glob(f'spec2d_{raw_stem}-*.fits'))
@@ -150,6 +256,27 @@ def find_reduced_spec2d(science_dir, raw_filename, target):
 def existing_spec2d_files(pypeit_file, target, science_dir):
     """
     Find the current reduced spec2d products expected for a target.
+
+    Parameters
+    ----------
+    pypeit_file : :class:`~pypeit.inputfiles.PypeItFile`
+        The parsed PypeIt reduction file.
+    target : :obj:`str`
+        Target name to match; see :func:`target_matches`.
+    science_dir : :obj:`str`, `Path`_
+        Directory to search for reduced spec2d files.
+
+    Returns
+    -------
+    files : :obj:`list`
+        Paths to the reduced spec2d files found for the target, one per
+        combination group.
+    missing : :obj:`list`
+        Raw-file stems (see :func:`group_science_rows`) for combination
+        groups whose spec2d product has not yet been reduced.
+    target_name : :obj:`str`
+        The literal target name as recorded in the PypeIt file's data
+        block.
     """
     rows = matching_science_rows(pypeit_file, target)
     files = []
@@ -169,6 +296,33 @@ def write_coadd3d_file(
         sensfile, spatial_delta=None, det=1):
     """
     Write a .coadd3d file for datacube construction.
+
+    Parameters
+    ----------
+    coadd3d_file : :obj:`str`, `Path`_
+        Output path for the ``.coadd3d`` file. Any existing file at this
+        path is overwritten.
+    spectrograph : :obj:`str`
+        PypeIt name of the spectrograph, written to ``[rdx] spectrograph``.
+    target_stub : :obj:`str`
+        Target name used to set the ``output_filename`` cube parameter.
+    science_dir : :obj:`str`, `Path`_
+        Directory containing the reduced spec2d files, written as the
+        ``spec2d read`` block's ``path``.
+    spec2d_files : :obj:`list`
+        Paths to the reduced spec2d files to list in the ``spec2d read``
+        block.
+    whitelight_range : :obj:`str`
+        Comma-separated white-light wavelength range; see
+        :func:`validate_whitelight_range`.
+    sensfile : :obj:`str`, `Path`_, None
+        Sensitivity function file to set as ``sensfile``. If None, no
+        ``sensfile`` line is written and the cube is left unfluxed.
+    spatial_delta : :obj:`float`, optional
+        Output cube spatial sampling in arcsec. If None, no
+        ``spatial_delta`` line is written and the code default is used.
+    det : :obj:`int`, optional
+        Detector number, written to ``[rdx] detnum``.
     """
     spatial_delta_line = (
         '' if spatial_delta is None else f'        spatial_delta = {spatial_delta}\n'
@@ -215,6 +369,26 @@ def append_spec2d_files(coadd3d_file, spec2d_files):
 
     This preserves all existing file contents except for inserting new filenames
     immediately before the ``spec2d end`` line.
+
+    Parameters
+    ----------
+    coadd3d_file : :obj:`str`, `Path`_
+        Path to an existing ``.coadd3d`` file to modify in place.
+    spec2d_files : :obj:`list`
+        Paths to spec2d files to append. Any whose filename already appears
+        in the file's ``spec2d read`` block is skipped.
+
+    Returns
+    -------
+    :obj:`list`
+        Filenames (not full paths) that were newly appended. Empty if all
+        of ``spec2d_files`` were already present.
+
+    Raises
+    ------
+    PypeItError
+        If ``coadd3d_file`` does not exist, or if it has no ``spec2d
+        read``/``spec2d end`` block.
     """
     coadd3d_path = Path(coadd3d_file)
     if not coadd3d_path.is_file():
@@ -258,6 +432,26 @@ def validate_manual(manual):
     The PypeIt configuration parser treats comma-separated values as lists, but
     the datacube extraction parser expects the manual position as one string in
     x:y format.
+
+    Parameters
+    ----------
+    manual : :obj:`str`, None
+        Manual extraction position(s), as one or more semicolon-separated
+        ``x:y`` pairs, e.g. ``10.0:14.0`` or ``10.0:14.0;20.0:25.0``. If
+        None, no validation is performed.
+
+    Returns
+    -------
+    :obj:`str`, None
+        The stripped, validated position string, or None if ``manual`` is
+        None.
+
+    Raises
+    ------
+    PypeItError
+        If ``manual`` contains a comma, if any ``;``-separated entry is not
+        a single ``:``-separated pair, or if either field of a pair is not
+        numeric.
     """
     if manual is None:
         return None
@@ -293,6 +487,27 @@ def write_extract_file(extract_file, target_stub, whitelight_range, manual=None,
                        snr_thresh=4.0):
     """
     Write a .extract file for point-source datacube extraction.
+
+    Parameters
+    ----------
+    extract_file : :obj:`str`, `Path`_
+        Output path for the ``.extract`` file. Any existing file at this
+        path is overwritten.
+    target_stub : :obj:`str`
+        Target name used to set the ``output_filename`` extraction
+        parameter (with ``_extract`` appended).
+    whitelight_range : :obj:`str`
+        Comma-separated white-light wavelength range; see
+        :func:`validate_whitelight_range`.
+    manual : :obj:`str`, optional
+        Manual extraction position(s) in ``x:y`` format; see
+        :func:`validate_manual`. If provided, ``opt_prof_method`` is set to
+        ``user_gauss`` and a ``manual`` line is written; otherwise
+        ``opt_prof_method`` is ``fit_gauss``.
+    fwhm : :obj:`float`, optional
+        Extraction FWHM in arcsec.
+    snr_thresh : :obj:`float`, optional
+        S/N threshold for automatic source finding.
     """
     manual = validate_manual(manual)
     opt_prof_method = 'fit_gauss' if manual is None else 'user_gauss'
@@ -395,10 +610,6 @@ class SetupDataCube(scriptbase.ScriptBase):
         source_dir = pypeit_path.parent / 'sources' / target_stub
         source_dir.mkdir(parents=True, exist_ok=True)
 
-        spatial_delta = args.spatial_delta
-        if spatial_delta is None and spectrograph == 'keck_kcrm':
-            spatial_delta = 0.678924
-
         coadd3d_file = source_dir / f'{target_stub}.coadd3d'
         extract_file = source_dir / f'{target_stub}.extract'
         if args.append:
@@ -415,7 +626,7 @@ class SetupDataCube(scriptbase.ScriptBase):
 
         write_coadd3d_file(
             coadd3d_file, spectrograph, target_stub, sci_dir, spec2d_files, wl_range, sensfile,
-            spatial_delta=spatial_delta, det=args.det
+            spatial_delta=args.spatial_delta, det=args.det
         )
         log.info(f'Wrote {coadd3d_file}')
 
