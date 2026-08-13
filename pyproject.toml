@@ -32,7 +32,7 @@ classifiers = [
 ]
 requires-python = ">=3.11,<3.14"
 dependencies = [ 
-    "numpy>=2.4.1",
+    "numpy==2.3.0",
     "astropy>=7.0",
     "packaging>=22.0",
     "scipy>=1.9",
@@ -43,7 +43,7 @@ dependencies = [
     "configobj>=5.0.6",
     "scikit-learn>=1.2",
     "IPython>=8.0.0",
-    "ginga>=5.5.1",
+    "ginga==5.5.1",
     "qtpy>=2.2.0",
     "pygithub",
     "bottleneck",
@@ -73,6 +73,10 @@ docs = [
     "sphinx_rtd_theme==3.0.0",
     "sphinx-autodoc-typehints>3.2",
 ]
+qlview = [
+    "flask>=3.0",
+    "requests>=2.28",
+]
 devsuite = [
     "psutil",
     "pytest-qt",
@@ -94,6 +98,8 @@ dev = [
     "sphinx-autodoc-typehints>3.2",
     "psutil",
     "pytest-qt",
+    "flask>=3.0",
+    "requests>=2.28",
 ]
 
 [project.urls]
@@ -154,6 +160,7 @@ pypeit_chk_wavecalib = "pypeit.scripts.chk_wavecalib:ChkWaveCalib.entry_point"
 pypeit_compare_sky = "pypeit.scripts.compare_sky:CompareSky.entry_point"
 pypeit_identify = "pypeit.scripts.identify:Identify.entry_point"
 pypeit_ql_multislit = "pypeit.scripts.ql_multislit:QL_MOS.entry_point"
+pypeit_qlview = "pypeit.scripts.qlview:QLViewer.entry_point"
 pypeit_show_1dspec = "pypeit.scripts.show_1dspec:Show1DSpec.entry_point"
 pypeit_show_2dspec = "pypeit.scripts.show_2dspec:Show2DSpec.entry_point"
 pypeit_skysub_regions = "pypeit.scripts.skysub_regions:SkySubRegions.entry_point"
@@ -164,6 +171,7 @@ pypeit_show_pixflat = "pypeit.scripts.show_pixflat:ShowPixFlat.entry_point"
 
 SlitWavelength = "pypeit.display:setup_SlitWavelength"
 Spec1dView = "pypeit.display:setup_Spec1dView"
+QLView = "pypeit.display:setup_QLView"
 
 [project.entry-points."ginga_modes"]
 

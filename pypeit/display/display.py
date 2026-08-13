@@ -28,7 +28,7 @@ from pypeit import io
 from pypeit import utils
 
 def connect_to_ginga(host='localhost', port=grc.default_rc_port,
-                     raise_err=False, allow_new=False):
+                     raise_err=False, allow_new=False, disable_plugins=None):
     """
     Connect to a RC Ginga.
 
@@ -43,6 +43,11 @@ def connect_to_ginga(host='localhost', port=grc.default_rc_port,
         allow_new (:obj:`bool`, optional):
             Allow a subprocess to be called to execute a new ginga
             viewer if one is not already running.
+        disable_plugins (:obj:`list`, optional):
+            List of ginga plugin names to pass to ``--disable-plugins``
+            when spawning a new viewer.  Has no effect if a viewer is
+            already running.  Pass ``None`` (default) to leave all
+            plugins enabled.
 
     Returns:
         `ginga.RemoteClient`_: connection to ginga viewer.
@@ -55,8 +60,10 @@ def connect_to_ginga(host='localhost', port=grc.default_rc_port,
         tmp = sh.get_current_workspace()
     except:
         if allow_new:
-            subprocess.Popen(['ginga', f'--rcport={port}',
-                              '--modules=RC,SlitWavelength'])
+            cmd = ['ginga', f'--rcport={port}', '--modules=RC,SlitWavelength']
+            if disable_plugins:
+                cmd.append('--disable-plugins={0}'.format(','.join(disable_plugins)))
+            subprocess.Popen(cmd)
 
             # NOTE: time.sleep(3) is now insufficient. The loop below
             # continues to try to connect with the ginga viewer that
@@ -90,8 +97,8 @@ def connect_to_ginga(host='localhost', port=grc.default_rc_port,
     return viewer
 
 
-def show_image(inp, chname='Image', waveimg=None, mask=None, exten=0, cuts=None, clear=False,
-               wcs_match=False):
+def show_image(inp, chname='Image', waveimg=None, rms_img=None, mask=None, exten=0, cuts=None,
+               clear=False, wcs_match=False):
     """
     Display an image using Ginga.
 
@@ -106,7 +113,13 @@ def show_image(inp, chname='Image', waveimg=None, mask=None, exten=0, cuts=None,
         chname (:obj:`str`, optional):
             The name of the ginga channel to use.
         waveimg (:obj:`numpy.ndarray`, optional):
-            Wavelength image
+            Wavelength image.
+        rms_img (:obj:`numpy.ndarray`, optional):
+            Per-pixel wavelength-fit RMS image with the same shape as
+            *waveimg*.  When provided the DEC readout in the ginga info bar
+            is overloaded to show the local wavelength-solution RMS.  Pixels
+            outside all slits should be zero or ``nan``; those values are
+            suppressed in the display.  Ignored when *waveimg* is ``None``.
         mask (:class:`~pypeit.images.ImageBitMaskArray`, optional):
             A bitmask array that designates a pixel as being masked.  Currently
             this is only used when displaying the spectral extraction result.
@@ -158,7 +171,11 @@ def show_image(inp, chname='Image', waveimg=None, mask=None, exten=0, cuts=None,
     if waveimg is not None:
         args = [chname, chname, grc.Blob(img.tobytes()), img.shape, img.dtype.name, header,
                 grc.Blob(waveimg.tobytes()), waveimg.dtype.name, {}]
-        sh.call_global_plugin_method('SlitWavelength', 'load_buffer', args, {})
+        kwargs = {}
+        if rms_img is not None:
+            kwargs['rms_buf'] = grc.Blob(rms_img.astype(np.float32).tobytes())
+            kwargs['rms_dtype'] = 'float32'
+        sh.call_global_plugin_method('SlitWavelength', 'load_buffer', args, kwargs)
     else:
         ch.load_np(chname, img, 'fits', header)
 
@@ -686,6 +703,9 @@ def show_1dspec(filename, ext=0, masked=True, fluxed=False, extraction='OPT'):
     """
     viewer = connect_to_ginga(raise_err=True, allow_new=True)
     sh = viewer.shell()
+    # NOTE: ext may be a numpy integer, which doesn't marshall over the
+    # RPC interface that Ginga currently uses--coerce to a regular Python int
+    ext = int(ext)
 
     chname, plname = "Spec1d", "Spec1dView"
     sh.add_channel(chname)
@@ -697,3 +717,33 @@ def show_1dspec(filename, ext=0, masked=True, fluxed=False, extraction='OPT'):
     sh.start_local_plugin(chname, plname)
     # load the file
     sh.load_file(filename, chname=chname)
+
+
+def launch_qlview():
+    """
+    Launch the PypeIt quicklook viewer (QLView) in a new or existing Ginga instance.
+
+    Opens the QLView local plugin on a dedicated ``"QuickLook"`` channel.
+    QLView is self-contained: it provides its own raw-data and
+    calibration file browsers and drives the ``pypeit_ql`` reduction
+    pipeline from within the viewer.
+
+    Configuration (initial paths, instrument, reduction backend, file
+    filters, etc.) is read from ``~/.quicklook.cfg`` at plugin start-up.
+    See ``pypeit_qlview --help`` and the QLView plugin documentation for
+    details.
+    """
+    # Ginga global plugins to disable for the quicklook session.
+    # TODO: add more plugins that we don't need to load
+    _DISABLED_PLUGINS = ["SAMP","Catalogs"]
+
+    viewer = connect_to_ginga(raise_err=True, allow_new=True,
+                              disable_plugins=_DISABLED_PLUGINS)
+
+    # viewer = connect_to_ginga(raise_err=True, allow_new=True)
+    sh = viewer.shell()
+
+    chname, plname = "QuickLook", "QLView"
+    sh.add_channel(chname)
+    sh.start_local_plugin(chname, plname)
+    sh.change_channel(chname)

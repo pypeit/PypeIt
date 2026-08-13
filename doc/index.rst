@@ -113,6 +113,7 @@ PypeIt BibTeX Entries
    frametype
    scripts
    bitmasks
+   Quicklook Viewer <quicklook_viewer>
 
 .. toctree::
    :caption: Project Information
