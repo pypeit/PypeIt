@@ -17,6 +17,7 @@ import numpy as np
 from pypeit import inputfiles
 from pypeit import qa
 from pypeit import log
+from pypeit import PypeItError
 from pypeit import calibrations
 from pypeit import utils
 from pypeit.history import History
@@ -104,8 +105,30 @@ class PypeIt:
         #   - Interpret automated or user-provided data from the PypeIt
         #   file
         self.fitstbl.finalize_usr_build(
-            self.pypeItFile.frametypes, 
+            self.pypeItFile.frametypes,
             self.pypeItFile.setup_name)
+
+        # SlicerIFU reductions do not use the standard spec1d-based flux
+        # calibration pathway; flux calibration is instead performed later,
+        # during datacube construction (see coadd3d.py). Any frame typed
+        # 'standard' would otherwise pass through the reduction unnoticed
+        # (IFU pypelines skip 1D extraction, so no spec1d file is ever
+        # written for it) and only fail later, deep in the science-frame
+        # reduction loop, with an obscure "could not find standard file"
+        # error. Catch it here instead, before any reduction begins.
+        if (
+            self.spectrograph.pypeline == 'SlicerIFU'
+            and np.any(self.fitstbl.find_frames('standard'))
+        ):
+            raise PypeItError(
+                f'{self.spectrograph.name} uses the SlicerIFU pypeline, for which '
+                'standard-star observations must be typed as science, not standard. Flux '
+                'calibration for IFU data is performed separately during datacube '
+                'construction, not via the spec1d sensfunc pathway; see the Flux '
+                f'calibration section of the {self.spectrograph.name} documentation and the '
+                f'3D coadding section. Please update the frame type(s) in {pypeit_file} and '
+                'rerun.'
+            )
 
         # Other Internals
         self.overwrite = overwrite
