@@ -202,6 +202,9 @@ minversion = 7.0
 testpaths = [
     "pypeit",
 ]
+addopts = [
+    "--remote-data",
+]
 
 [tool.coverage]
 
