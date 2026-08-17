@@ -572,6 +572,17 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             fitstbl['dithpat'][idx] = ''.join(dict.fromkeys(seq))
         return fitstbl
 
+    def pypeit_file_keys(self):
+        """
+        Define the list of columns written to the pypeit file, adding the
+        derived dither columns so the A-B nod grouping is visible/editable.
+
+        Returns:
+            :obj:`list`: Column keywords for the pypeit file.
+        """
+        return super().pypeit_file_keys() + ['dithpat', 'dithpos', 'dithoff',
+                                             'frameno']
+
     def bpm(self, filename, det, shape=None, msbias=None):
         """
         Generate a default bad-pixel mask.
