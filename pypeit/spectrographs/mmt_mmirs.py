@@ -275,7 +275,13 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
                      f'dark(s): {", ".join(names)}')
             weights = 1.0 / errs ** 2
             sig = float(np.sum(weights * sigs) / np.sum(weights))
-            comb_err = float(np.sqrt(1.0 / np.sum(weights)))
+            # Report the larger of the inverse-variance (within-dark) error and
+            # the between-dark standard error of the mean, so real dark-to-dark
+            # scatter is not hidden by tiny per-dark bootstrap uncertainties.
+            ivar_err = float(np.sqrt(1.0 / np.sum(weights)))
+            sem = float(np.std(sigs, ddof=1) / np.sqrt(len(sigs))) \
+                if len(sigs) > 1 else 0.0
+            comb_err = max(ivar_err, sem)
             self._ramp_sigma = float(np.clip(sig, *self.ramp_sig_range))
             log.info(f'Calibrated single-read noise: {self._ramp_sigma:.2f} '
                      f'+/- {comb_err:.2f} e-')

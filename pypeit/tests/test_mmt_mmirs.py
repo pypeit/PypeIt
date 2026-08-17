@@ -278,6 +278,34 @@ def test_ramp_sigma_weighted_mean_over_darks(tmp_path, monkeypatch):
     assert spec._ramp_sigma == sig            # cached
 
 
+def test_ramp_sigma_reports_max_of_ivar_err_and_sem(tmp_path, monkeypatch):
+    """The logged combined uncertainty is max(inverse-variance err, SEM), so
+    the larger between-dark scatter is not hidden by tiny within-dark errors."""
+    sci = _write_synth(synth_ramp_hdulist(6, seed=221), tmp_path / 'sci.fits')
+    d1 = _write_synth(synth_ramp_hdulist(12, imagetyp='dark', seed=222),
+                      tmp_path / 'd1.fits')
+    d2 = _write_synth(synth_ramp_hdulist(15, imagetyp='dark', seed=223),
+                      tmp_path / 'd2.fits')
+    spec, _ = _metadata_for([sci, d1, d2], ['object', 'dark', 'dark'])
+
+    controlled = {11: (8.0, 1.0), 14: (6.0, 2.0)}
+
+    def fake_calib(diffs, covar, **kwargs):
+        return controlled[diffs.shape[0]]
+    monkeypatch.setattr(mmt_mmirs, 'mmirs_calibrate_sigma', fake_calib)
+
+    infos = []
+    monkeypatch.setattr(log, 'info',
+                        lambda message, *a, **k: infos.append(message))
+
+    covar = fitramp.Covar([2. * (i + 1) for i in range(6)])
+    spec.get_ramp_sigma(np.zeros((5, 4, 4)), covar)
+
+    # inverse-variance err = sqrt(1/(1+0.25)) = 0.894; SEM (ddof=1) over
+    # {8,6} = sqrt(2)/sqrt(2) = 1.000 -> the SEM wins.
+    assert any('+/- 1.00 e-' in m for m in infos)
+
+
 def test_ramp_sigma_ignores_darks_with_too_few_reads(tmp_path, monkeypatch):
     """A dark with fewer than ramp_min_cal_groups reads is not calibrated
     and does not contribute to the combined read noise."""
