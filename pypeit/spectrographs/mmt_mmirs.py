@@ -381,6 +381,12 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
+        # Read the instantaneous read noise from the header (RDNOISE, ext 1);
+        # it comes from the instrument and is the ground truth.  Fall back to
+        # the long-standing value only when no header is available.
+        ronoise = 3.14
+        if hdu is not None and len(hdu) > 1:
+            ronoise = float(hdu[1].header.get('RDNOISE', ronoise))
         # Detector 1
         detector_dict = dict(
             binning='1,1',
@@ -396,7 +402,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             mincounts       = -1e10,
             numamplifiers   = 1,
             gain            = np.atleast_1d(0.95),
-            ronoise         = np.atleast_1d(3.14),
+            ronoise         = np.atleast_1d(ronoise),
             datasec         = np.atleast_1d('[:,:]'),
             oscansec        = None, #np.atleast_1d('[:,:]')
             )

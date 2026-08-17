@@ -393,6 +393,16 @@ def test_ramp_sigma_floored_at_header_rdnoise(tmp_path, monkeypatch):
     assert np.isclose(sig, 3.14)
 
 
+def test_get_detector_par_reads_rdnoise_from_header():
+    """The detector read noise is taken from the header RDNOISE (ground truth),
+    falling back to the built-in default only when no header is available."""
+    spec = load_spectrograph('mmt_mmirs')
+    assert spec.get_detector_par(1)['ronoise'][0] == 3.14      # no hdu -> default
+    hdu = synth_ramp_hdulist(6, seed=271)
+    hdu[1].header['RDNOISE'] = 4.5
+    assert spec.get_detector_par(1, hdu=hdu)['ronoise'][0] == 4.5
+
+
 def test_ramp_sigma_selfcal_fallback(tmp_path):
     """No darks recorded, but enough groups -> self-calibrate from the frame."""
     sig_true = 8.
