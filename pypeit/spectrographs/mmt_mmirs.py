@@ -72,6 +72,14 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
     _ramp_sigma = None
     _ramp_output_dir = None
 
+    nod_min_offset = 1.0
+    """
+    float: Minimum peak-to-peak along-slit dither offset (arcsec) for a
+    sequence to be treated as nodded.  Below this, frames are assumed to be a
+    stare and are not paired for A-B subtraction.  Comfortably above typical
+    pointing jitter (< 0.5") and below any real MMIRS nod throw (several ").
+    """
+
     def init_meta(self):
         """
         Define how metadata are derived from the spectrograph files.
@@ -476,6 +484,93 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'dark')
         log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
+
+    def get_comb_group(self, fitstbl):
+        """
+        Automatically assign A-B nod combination/background groups from the
+        derived along-slit dither offsets.
+
+        Called by
+        :func:`~pypeit.metadata.PypeItMetaData.set_combination_groups` after a
+        unique ``comb_id`` has been assigned to every science/standard frame.
+        For each instrument configuration, frames are split into two nods by the
+        midpoint of the observed ``dithoff`` range, and each frame is paired --
+        by greedy walk in time order -- with the temporally-adjacent still-
+        unpaired frame on the opposite nod side.  The pair's ``bkg_id`` values
+        are cross-linked so PypeIt subtracts one from the other.  A sequence
+        whose peak-to-peak ``dithoff`` range is below :attr:`nod_min_offset` is
+        treated as a stare and left unpaired.  Works identically for long-slit
+        and MOS (it does not use any mask/decker metadata).
+
+        Args:
+            fitstbl (`astropy.table.Table`_):
+                Metadata table for all frames.  Modified in place.
+
+        Returns:
+            `astropy.table.Table`_: The modified table.
+        """
+        sci_std = np.array(['science' in ft or 'standard' in ft
+                            for ft in fitstbl['frametype']])
+        if not np.any(sci_std):
+            return fitstbl
+        # Make sure the label columns exist even if a config is a stare.
+        for col in ['dithpat', 'dithpos']:
+            if col not in fitstbl.colnames:
+                fitstbl[col] = np.full(len(fitstbl), 'None', dtype=object)
+
+        setups = np.unique(fitstbl['setup'][sci_std]) \
+            if 'setup' in fitstbl.colnames else np.array(['A'])
+        for setup in setups:
+            in_cfg = sci_std & (fitstbl['setup'] == setup) \
+                if 'setup' in fitstbl.colnames else sci_std
+            idx = np.where(in_cfg)[0]
+            if idx.size < 2:
+                continue
+            dithoff = np.asarray(fitstbl['dithoff'][idx], dtype=float)
+            if dithoff.max() - dithoff.min() < self.nod_min_offset:
+                # Stare / not nodded: leave bkg_id = -1.
+                continue
+
+            midpoint = 0.5 * (dithoff.max() + dithoff.min())
+            side = dithoff > midpoint                      # True = "A" side
+            order = np.argsort(np.asarray(fitstbl['mjd'][idx], dtype=float))
+            combid = np.asarray(fitstbl['comb_id'][idx])
+            bkgid = np.asarray(fitstbl['bkg_id'][idx])
+            paired = np.zeros(idx.size, dtype=bool)
+
+            # Greedy sequential pairing across the nod split, in time order.
+            for a in range(idx.size):
+                i = order[a]
+                if paired[i]:
+                    continue
+                for b in range(a + 1, idx.size):
+                    j = order[b]
+                    if paired[j] or side[j] == side[i]:
+                        continue
+                    bkgid[i] = combid[j]
+                    bkgid[j] = combid[i]
+                    paired[i] = paired[j] = True
+                    break
+            fitstbl['bkg_id'][idx] = bkgid
+
+            # Informational A/B (+prime) labels: within each nod side, distinct
+            # dithoff values (rounded to 0.1") get a prime suffix by first
+            # appearance in time.
+            dithpos = np.array(['None'] * idx.size, dtype=object)
+            for is_A, base in [(True, 'A'), (False, 'B')]:
+                grp = np.where(side == is_A)[0]
+                grp = grp[np.argsort(order.argsort()[grp])]   # time order
+                seen = []
+                for g in grp:
+                    val = round(float(dithoff[g]), 1)
+                    if val not in seen:
+                        seen.append(val)
+                    dithpos[g] = base + "'" * seen.index(val)
+            fitstbl['dithpos'][idx] = np.asarray(dithpos, dtype=str)
+            # Pattern string = unique labels in time order, e.g. "ABA'B'".
+            seq = list(np.asarray(dithpos)[order])
+            fitstbl['dithpat'][idx] = ''.join(dict.fromkeys(seq))
+        return fitstbl
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
