@@ -931,3 +931,31 @@ def test_get_maskdef_slitedges_linear_geometry():
     widths = right - left
     assert np.allclose(widths, np.asarray(slits['height_mm']) * arcsec_per_mm / ps)
     assert np.array_equal(sortindx, np.argsort(left))
+
+
+def test_config_specific_par_enables_maskdesign(tmp_path, monkeypatch):
+    import shutil
+    from pypeit.spectrographs.mmt_mmirs import MMTMMIRSSpectrograph
+    spec = MMTMMIRSSpectrograph()
+    # place a .msk named by the mask label next to a fake sci file
+    shutil.copy(MSK, tmp_path / 'nep.as1.msk')
+    scifile = tmp_path / 'nep.as1_mos.1822.fits'
+    scifile.write_text('')  # presence only
+    monkeypatch.setattr(spec, 'get_meta_value',
+                        lambda inp, key, **kw: 'nep.as1' if key == 'decker' else None)
+    par = spec.config_specific_par(str(scifile))
+    assert par['calibrations']['slitedges']['use_maskdesign'] is True
+    assert Path(par['calibrations']['slitedges']['maskdesign_filename']).name == 'nep.as1.msk'
+    assert par['reduce']['slitmask']['assign_obj'] is True
+    assert par['reduce']['slitmask']['extract_missing_objs'] is True
+
+
+def test_config_specific_par_no_maskfile_is_noop(tmp_path, monkeypatch):
+    from pypeit.spectrographs.mmt_mmirs import MMTMMIRSSpectrograph
+    spec = MMTMMIRSSpectrograph()
+    scifile = tmp_path / 'nep.as1_mos.1822.fits'
+    scifile.write_text('')
+    monkeypatch.setattr(spec, 'get_meta_value',
+                        lambda inp, key, **kw: 'nep.as1' if key == 'decker' else None)
+    par = spec.config_specific_par(str(scifile))
+    assert par['calibrations']['slitedges']['use_maskdesign'] is False

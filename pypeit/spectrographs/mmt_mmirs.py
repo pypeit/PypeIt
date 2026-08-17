@@ -528,7 +528,54 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'mmt_mmirs_J_zJ.fits'
 
+        # Auto-enable slitmask design if a <decker>.msk file sits next to the
+        # data.  Never fatal: any problem falls back to generic tracing and the
+        # SLIT-id keyed coadd workflow.
+        maskfile = self._find_maskfile(inp)
+        if maskfile is not None:
+            par['calibrations']['slitedges']['use_maskdesign'] = True
+            par['calibrations']['slitedges']['maskdesign_filename'] = str(maskfile)
+            par['reduce']['slitmask']['assign_obj'] = True
+            par['reduce']['slitmask']['extract_missing_objs'] = True
+            par['reduce']['slitmask']['use_alignbox'] = True
+
         return par
+
+    def _find_maskfile(self, inp):
+        """
+        Locate a ``<decker>.msk`` mask-design file next to the input frame.
+
+        The mask label is the ``decker`` metadata value (header ``APERTURE`` ==
+        ``MOSID``); the discovery file is ``<decker>.msk`` in the same directory
+        as the frame.  Any failure to resolve the label or directory returns
+        ``None`` so the caller falls back to generic slit tracing.
+
+        Parameters
+        ----------
+        inp : :obj:`str`, `Path`_, `astropy.io.fits.Header`_, or `astropy.table.Table`_
+            The input passed to :func:`config_specific_par`.
+
+        Returns
+        -------
+        `Path`_ or :obj:`None`
+            Path to the mask file if found, else ``None``.
+        """
+        try:
+            label = self.get_meta_value(inp, 'decker')
+        except Exception:
+            return None
+        if label is None:
+            return None
+        # Resolve the directory of the frame
+        directory = None
+        if isinstance(inp, (str, Path)):
+            directory = Path(inp).parent
+        elif isinstance(inp, Table) and 'directory' in inp.colnames:
+            directory = Path(inp['directory'][0])
+        if directory is None:
+            return None
+        maskfile = directory / f'{label}.msk'
+        return maskfile if maskfile.exists() else None
 
     def get_slitmask(self, filename, det=1):
         """
