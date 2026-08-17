@@ -1069,7 +1069,7 @@ def _fit_ramp_rows(diffs, nb, workers, worker):
 
 
 def mmirs_calibrate_sigma(diffs, covar, sig_guess=11.0, nrows=200, workers=None,
-                          nb=16):
+                          nb=16, return_err=False, n_boot=200, seed=1234):
     """
     Calibrate the single-read noise from ramp differences.
 
@@ -1095,11 +1095,22 @@ def mmirs_calibrate_sigma(diffs, covar, sig_guess=11.0, nrows=200, workers=None,
     nb : :obj:`int`, optional
         Number of subsampled rows fit per :func:`~pypeit.ext.fitramp.fitramp.fit_ramps`
         call.
+    return_err : :obj:`bool`, optional
+        If True, also return a bootstrap estimate of the uncertainty on the
+        calibrated noise (see ``n_boot``), for inverse-variance weighting when
+        combining multiple darks.
+    n_boot : :obj:`int`, optional
+        Number of bootstrap resamples of the per-pixel chi-squared ensemble
+        used to estimate the uncertainty when ``return_err`` is True.
+    seed : :obj:`int`, optional
+        Seed for the bootstrap resampling, so the uncertainty is deterministic.
 
     Returns
     -------
-    :obj:`float`
-        Calibrated single-read noise in electrons (unclamped).
+    :obj:`float` or :obj:`tuple`
+        Calibrated single-read noise in electrons (unclamped).  If
+        ``return_err`` is True, a ``(sigma, sigma_err)`` tuple is returned
+        instead, with ``sigma_err`` the bootstrap standard deviation.
     """
     ndiffs, ny, nx = diffs.shape
     margin = int(ny * 0.10)
@@ -1123,9 +1134,21 @@ def mmirs_calibrate_sigma(diffs, covar, sig_guess=11.0, nrows=200, workers=None,
         chisq[r0:r1] = result.chisq.reshape(r1 - r0, nx)
 
     _fit_ramp_rows(sub, nb, _resolve_ramp_workers(workers), worker)
-    median_chisq = float(np.median(chisq))
     expected_chisq = float(ndiffs - 1)
-    return sig_guess * np.sqrt(median_chisq / expected_chisq)
+    flat_chisq = chisq.ravel()
+    sigma = sig_guess * np.sqrt(float(np.median(flat_chisq)) / expected_chisq)
+    if not return_err:
+        return sigma
+    # Bootstrap the per-pixel chi-squared ensemble to estimate the uncertainty
+    # on the calibrated noise.  Looped (rather than a (n_boot, Npix) array) to
+    # avoid a large allocation for full-detector calibrations.
+    npix = flat_chisq.size
+    rng = np.random.default_rng(seed)
+    boot = np.empty(n_boot, dtype=np.float64)
+    for b in range(n_boot):
+        m_b = np.median(flat_chisq[rng.integers(0, npix, npix)])
+        boot[b] = sig_guess * np.sqrt(m_b / expected_chisq)
+    return sigma, float(np.std(boot))
 
 
 def mmirs_fit_ramp(diffs, covar, sig, workers=None, nb=16):

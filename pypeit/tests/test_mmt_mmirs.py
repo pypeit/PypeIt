@@ -83,6 +83,25 @@ def test_calibrate_sigma_recovers_truth():
     assert np.abs(sig_cal - sig) < 1.5
 
 
+def test_calibrate_sigma_returns_uncertainty():
+    """With return_err=True the calibration also returns a finite, positive
+    bootstrap uncertainty, and the point estimate still recovers the truth."""
+    ngroups, sig, gain, grptime = 15, 8., 0.95, 2.
+    hdu = synth_ramp_hdulist(ngroups, rate=2., sig=sig, gain=gain,
+                             grptime=grptime, seed=7)
+    reads, head1 = mmt_mmirs.mmirs_load_ramp(hdu)
+    reads *= gain
+    covar = fitramp.Covar([grptime * (i + 1) for i in range(ngroups)])
+    diffs = mmt_mmirs.mmirs_ramp_diffs(reads, covar)
+    sig_cal, sig_err = mmt_mmirs.mmirs_calibrate_sigma(diffs, covar,
+                                                       return_err=True)
+    assert np.abs(sig_cal - sig) < 1.5
+    assert np.isfinite(sig_err) and sig_err > 0.
+    # Deterministic: same seed -> identical uncertainty.
+    _, sig_err2 = mmt_mmirs.mmirs_calibrate_sigma(diffs, covar, return_err=True)
+    assert sig_err == sig_err2
+
+
 def test_fit_ramp_recovers_rate():
     ngroups, rate, sig, gain, grptime = 8, 20., 8., 0.95, 2.
     hdu = synth_ramp_hdulist(ngroups, rate=rate, sig=sig, gain=gain,
