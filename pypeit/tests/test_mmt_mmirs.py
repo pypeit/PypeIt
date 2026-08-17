@@ -892,3 +892,20 @@ def test_read_mmirs_maskfile_bad_file_raises(tmp_path):
     from pypeit import PypeItError
     with pytest.raises(PypeItError):
         mmirs_maskfile.read_mmirs_maskfile(bad)
+
+
+def test_get_slitmask_science_align_and_objects():
+    from pypeit.spectrographs.mmt_mmirs import MMTMMIRSSpectrograph
+    spec = MMTMMIRSSpectrograph()
+    sm = spec.get_slitmask(str(MSK))
+    assert sm is spec.slitmask
+    assert sm.nslits == 29
+    # 24 science TARGET, 5 alignment BOX
+    assert int(sm.science_slit.sum()) == 24
+    assert int(sm.alignment_slit.sum()) == 5
+    # object names present and RA/DEC finite
+    assert '172220.249+655613.04' in list(sm.object_names)
+    assert np.all(np.isfinite(sm.onsky[:, 0]))   # RA
+    assert np.all(sm.onsky[:, 2] > 0)            # slit length arcsec
+    # objects table has the required 9 columns
+    assert sm.objects.shape[1] == 9

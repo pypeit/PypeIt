@@ -27,6 +27,8 @@ from pypeit.core import framematch
 from pypeit.ext.fitramp import fitramp
 from pypeit.images import detector_container
 from pypeit.spectrographs import spectrograph
+from pypeit.spectrographs.slitmask import SlitMask
+from pypeit.spectrographs import mmirs_maskfile
 from pypeit.par import parset
 
 
@@ -527,6 +529,84 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'mmt_mmirs_J_zJ.fits'
 
         return par
+
+    def get_slitmask(self, filename, det=1):
+        """
+        Parse an MMIRS ``.msk`` mask-design file into :attr:`slitmask`.
+
+        The mask ``y`` coordinate (mm) maps to the detector spatial direction
+        and ``x`` to the spectral direction; slit corners are built as
+        rectangles in on-sky arcseconds with the spatial axis anti-aligned to
+        mask ``y`` (see :func:`get_maskdef_slitedges`).  ``BOX`` slits are
+        flagged as alignment slits and ``TARGET`` slits as science slits.
+
+        Parameters
+        ----------
+        filename : :obj:`str` or `Path`_
+            Path to the ``.msk`` file.
+        det : :obj:`int`, optional
+            1-indexed detector number.  Ignored (MMIRS is single-detector),
+            retained for API compatibility.
+
+        Returns
+        -------
+        :class:`~pypeit.spectrographs.slitmask.SlitMask`
+            The slitmask, also stored in :attr:`slitmask`.
+        """
+        header, slits = mmirs_maskfile.read_mmirs_maskfile(filename)
+
+        arcsec_per_mm = 1.0 / header['arc2mm']
+        n = len(slits)
+
+        # SlitMask corners: shape (N, 4, 2), (x=spatial, y=spectral).
+        # Spatial axis is -y_mm, spectral axis is x_mm (see spec geometry).
+        # Build a rectangle centered on each slit from height (spatial) and
+        # width (spectral), in arcsec.
+        half_len = 0.5 * np.asarray(slits['height_mm'], dtype=float) * arcsec_per_mm
+        half_wid = 0.5 * np.asarray(slits['width_mm'], dtype=float) * arcsec_per_mm
+        cx = -np.asarray(slits['y_mm'], dtype=float) * arcsec_per_mm   # spatial center
+        cy = np.asarray(slits['x_mm'], dtype=float) * arcsec_per_mm    # spectral center
+        corners = np.zeros((n, 4, 2), dtype=float)
+        # top-right, bottom-right, bottom-left, top-left (clockwise): the input
+        # order SlitMask expects (high x/low y, low x/low y, low x/high y,
+        # high x/high y).
+        corners[:, 0, :] = np.column_stack([cx + half_len, cy - half_wid])
+        corners[:, 1, :] = np.column_stack([cx - half_len, cy - half_wid])
+        corners[:, 2, :] = np.column_stack([cx - half_len, cy + half_wid])
+        corners[:, 3, :] = np.column_stack([cx + half_len, cy + half_wid])
+
+        is_target = np.array([t == 'TARGET' for t in slits['type']])
+        # top/bottom object distances from the slit edges (arcsec); the target
+        # sits at the slit center, so both are the half-length.
+        top = half_len.copy()
+        bot = half_len.copy()
+        objects = np.array([
+            np.array(slits['slit'], dtype=int),
+            np.array(slits['target'], dtype=int),
+            np.array(slits['ra_deg'], dtype=float),
+            np.array(slits['dec_deg'], dtype=float),
+            np.array(slits['object'], dtype=object),
+            np.zeros(n, dtype=float),               # no magnitude
+            np.array(['None'] * n, dtype=object),   # no band
+            top, bot], dtype=object).T
+
+        onsky = np.column_stack([
+            np.array(slits['ra_deg'], dtype=float),
+            np.array(slits['dec_deg'], dtype=float),
+            np.asarray(slits['height_mm'], dtype=float) * arcsec_per_mm,  # length arcsec
+            np.asarray(slits['width_mm'], dtype=float) * arcsec_per_mm,   # width arcsec
+            np.full(n, header['pa'], dtype=float)])
+
+        self.slitmask = SlitMask(corners,
+                                 slitid=np.array(slits['slit'], dtype=int),
+                                 align=~is_target,
+                                 science=is_target,
+                                 onsky=onsky,
+                                 objects=objects,
+                                 object_names=np.array(slits['object'], dtype=object),
+                                 mask_radec=(header['ra_deg'], header['dec_deg']),
+                                 posx_pa=header['pa'])
+        return self.slitmask
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
