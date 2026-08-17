@@ -17,6 +17,7 @@ from astropy.table import Table
 from pypeit import PypeItError
 
 
+@pytest.mark.remote_data
 def test_read_combid():
 
     # ------------------------------------------------------------------
@@ -180,6 +181,7 @@ def test_multiple_setups():
         os.remove(fil)
 
 
+@pytest.mark.remote_data
 def test_get_row_for_filename():
     ## Clone of above test, just trying to get a metadata object
     config_dir = Path(tstutils.data_output_path('shane_kast_blue_A')).absolute()
