@@ -126,3 +126,25 @@ order spectrum and therefore are important for some science
 cases. Currently, PypeIt only reduces the second order spectrum
 of this setup.
 
+A-B nod background subtraction
+++++++++++++++++++++++++++++++
+
+MMIRS science frames are commonly taken as an A-B nod sequence (dithering the
+target along the slit between exposures), for both long-slit and multi-object
+(MOS) masks. PypeIt derives the along-slit dither offset of each frame from the
+telescope pointing relative to the catalog target (the MMIRS header has no
+dither keyword) and records it in the ``dithoff`` column, along with ``dithpos``
+(A/B/A'/B' labels), ``dithpat`` (e.g. ``ABA'B'``), and ``frameno``.
+
+During :ref:`pypeit_setup`, PypeIt automatically fills the ``comb_id`` and
+``bkg_id`` columns so that each science frame is background-subtracted using the
+temporally-adjacent frame at the opposite nod position. Each frame keeps a
+unique ``comb_id`` (frames are not 2D-coadded across the small sub-dither), so
+PypeIt produces one ``spec2d``/``spec1d`` per nod pair. See
+:ref:`a-b_differencing` for how to edit these columns by hand.
+
+A sequence whose dither offsets span less than ~1 arcsec is treated as a stare
+and left unpaired (``bkg_id = -1``).
+
+Combine the resulting 1D spectra with :ref:`pypeit_coadd_1dspec`.
+
