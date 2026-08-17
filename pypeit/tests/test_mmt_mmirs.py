@@ -855,3 +855,40 @@ def test_pypeit_file_keys_include_dither_columns():
     keys = spec.pypeit_file_keys()
     for col in ['dithpat', 'dithpos', 'dithoff', 'frameno']:
         assert col in keys
+
+
+# ---------------------------------------------------------------------------
+# Mask-definition (.msk) support
+# ---------------------------------------------------------------------------
+
+from pypeit import dataPaths
+from pypeit.spectrographs import mmirs_maskfile
+
+MSK = dataPaths.tests.get_file_path('nep.as1.msk')
+
+
+def test_read_mmirs_maskfile_counts_and_header():
+    header, slits = mmirs_maskfile.read_mmirs_maskfile(MSK)
+    assert header['label'] == 'nep.as1'
+    assert abs(header['arc2mm'] - 0.165) < 1e-3
+    assert len(slits) == 29
+    assert (slits['type'] == 'TARGET').sum() == 24
+    assert (slits['type'] == 'BOX').sum() == 5
+
+
+def test_read_mmirs_maskfile_target_row():
+    header, slits = mmirs_maskfile.read_mmirs_maskfile(MSK)
+    row = slits[slits['slit'] == 1][0]
+    assert row['object'] == '172220.249+655613.04'
+    assert row['type'] == 'TARGET'
+    # RA 17:22:20.2490 hours -> deg
+    assert abs(row['ra_deg'] - (17 + 22/60 + 20.2490/3600) * 15.) < 1e-4
+    assert abs(row['dec_deg'] - (65 + 56/60 + 13.040/3600)) < 1e-4
+
+
+def test_read_mmirs_maskfile_bad_file_raises(tmp_path):
+    bad = tmp_path / 'bad.msk'
+    bad.write_text('not a mask file\n')
+    from pypeit import PypeItError
+    with pytest.raises(PypeItError):
+        mmirs_maskfile.read_mmirs_maskfile(bad)
