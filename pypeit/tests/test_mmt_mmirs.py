@@ -253,6 +253,55 @@ def test_ramp_sigma_from_dark_and_cached(tmp_path):
     assert spec.get_ramp_sigma(diffs, covar) == sig
 
 
+def test_ramp_sigma_weighted_mean_over_darks(tmp_path, monkeypatch):
+    """Read noise is the inverse-variance weighted mean over all darks with
+    enough reads, weighted by each dark's calibrated-noise uncertainty."""
+    sci = _write_synth(synth_ramp_hdulist(6, seed=201), tmp_path / 'sci.fits')
+    d1 = _write_synth(synth_ramp_hdulist(12, imagetyp='dark', seed=202),
+                      tmp_path / 'd1.fits')
+    d2 = _write_synth(synth_ramp_hdulist(15, imagetyp='dark', seed=203),
+                      tmp_path / 'd2.fits')
+    spec, _ = _metadata_for([sci, d1, d2], ['object', 'dark', 'dark'])
+
+    # Controlled (sigma, err) per dark, keyed by ndiffs (= nreads - 1).
+    controlled = {11: (8.0, 1.0), 14: (6.0, 2.0)}
+
+    def fake_calib(diffs, covar, **kwargs):
+        return controlled[diffs.shape[0]]
+    monkeypatch.setattr(mmt_mmirs, 'mmirs_calibrate_sigma', fake_calib)
+
+    covar = fitramp.Covar([2. * (i + 1) for i in range(6)])
+    sig = spec.get_ramp_sigma(np.zeros((5, 4, 4)), covar)
+    w1, w2 = 1. / 1.0 ** 2, 1. / 2.0 ** 2
+    expected = (w1 * 8.0 + w2 * 6.0) / (w1 + w2)
+    assert np.isclose(sig, expected)
+    assert spec._ramp_sigma == sig            # cached
+
+
+def test_ramp_sigma_ignores_darks_with_too_few_reads(tmp_path, monkeypatch):
+    """A dark with fewer than ramp_min_cal_groups reads is not calibrated
+    and does not contribute to the combined read noise."""
+    sci = _write_synth(synth_ramp_hdulist(6, seed=211), tmp_path / 'sci.fits')
+    good = _write_synth(synth_ramp_hdulist(12, imagetyp='dark', seed=212),
+                        tmp_path / 'good.fits')
+    few = load_spectrograph('mmt_mmirs').ramp_min_cal_groups - 1
+    shallow = _write_synth(synth_ramp_hdulist(few, imagetyp='dark', seed=213),
+                           tmp_path / 'shallow.fits')
+    spec, _ = _metadata_for([sci, good, shallow], ['object', 'dark', 'dark'])
+
+    seen = []
+
+    def fake_calib(diffs, covar, **kwargs):
+        seen.append(diffs.shape[0])
+        return (7.0, 1.0)
+    monkeypatch.setattr(mmt_mmirs, 'mmirs_calibrate_sigma', fake_calib)
+
+    covar = fitramp.Covar([2. * (i + 1) for i in range(6)])
+    sig = spec.get_ramp_sigma(np.zeros((5, 4, 4)), covar)
+    assert seen == [11]                       # only the 12-read dark calibrated
+    assert np.isclose(sig, 7.0)
+
+
 def test_ramp_sigma_selfcal_fallback(tmp_path):
     """No darks recorded, but enough groups -> self-calibrate from the frame."""
     sig_true = 8.

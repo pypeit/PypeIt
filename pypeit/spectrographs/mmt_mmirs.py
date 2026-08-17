@@ -199,38 +199,60 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
                                                  tbl['filename'][indx])
                                  if not str(f).startswith('#')]
 
-    def _best_ramp_dark(self):
+    def _ramp_dark_sigmas(self):
         """
-        Select the recorded dark frame with the most reads.
+        Calibrate the single-read noise and its uncertainty from every
+        recorded dark frame with enough reads.
+
+        Each dark with at least :attr:`ramp_min_cal_groups` reads is fit
+        independently; darks that cannot be opened, or that yield a
+        non-finite noise or a non-positive uncertainty, are skipped.
 
         Returns:
-            `Path`_: Path to the best dark, or None if no recorded dark
-            exists with at least :attr:`ramp_min_cal_groups` reads.
+            :obj:`list`: List of ``(name, sigma, sigma_err)`` tuples (in
+            electrons) for the qualifying darks; empty if none qualify.
         """
-        best, best_n = None, 0
+        results = []
         for f in self._ramp_dark_files or []:
             try:
                 with io.fits_open(f) as dhdu:
-                    n = mmirs_count_reads(dhdu)
+                    if mmirs_count_reads(dhdu) < self.ramp_min_cal_groups:
+                        continue
+                    dreads, dhead = mmirs_load_ramp(dhdu)
             except (OSError, PypeItError):
                 log.warning(f'Could not open recorded dark frame {f}; skipping it '
                             'for read-noise calibration.')
                 continue
-            if n >= self.ramp_min_cal_groups and n > best_n:
-                best, best_n = f, n
-        return best
+            ngroups = dreads.shape[0]
+            dcovar = fitramp.Covar([dhead['GRPTIME'] * (i + 1)
+                                    for i in range(ngroups)])
+            ddiffs = mmirs_ramp_diffs(dreads * dhead['GAIN'], dcovar)
+            sig, err = mmirs_calibrate_sigma(ddiffs, dcovar,
+                                             sig_guess=self.ramp_sig_guess,
+                                             workers=self.ramp_fit_workers,
+                                             return_err=True)
+            if np.isfinite(sig) and np.isfinite(err) and err > 0:
+                results.append((Path(f).name, float(sig), float(err)))
+            else:
+                log.warning(f'Dark {Path(f).name} gave an unusable read-noise '
+                            f'calibration (sigma={sig}, err={err}); skipping it.')
+        return results
 
     def get_ramp_sigma(self, diffs, covar):
         """
         Determine the single-read noise for up-the-ramp fitting.
 
-        Preferentially calibrates the noise from a dark frame recorded by
-        :func:`cache_metadata` (the result is cached for the rest of the
-        run).  If no suitable dark is available and the frame has at least
-        :attr:`ramp_min_cal_groups` reads, self-calibrates from the provided
-        ramp differences (not cached); with fewer reads the fit is too poorly
-        constrained, so the published guess (:attr:`ramp_sig_guess`) is used.
-        A calibrated result is clamped to :attr:`ramp_sig_range`.
+        Preferentially calibrates the noise from the dark frames recorded by
+        :func:`cache_metadata`: every dark with at least
+        :attr:`ramp_min_cal_groups` reads is calibrated independently and the
+        results are combined as an inverse-variance weighted mean, weighting
+        each dark by the (bootstrap) uncertainty on its own calibrated noise
+        (the result is cached for the rest of the run).  If no suitable dark is
+        available and the frame has at least :attr:`ramp_min_cal_groups` reads,
+        self-calibrates from the provided ramp differences (not cached); with
+        fewer reads the fit is too poorly constrained, so the published guess
+        (:attr:`ramp_sig_guess`) is used.  A calibrated result is clamped to
+        :attr:`ramp_sig_range`.
 
         Args:
             diffs (`numpy.ndarray`_):
@@ -244,20 +266,19 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         """
         if self._ramp_sigma is not None:
             return self._ramp_sigma
-        dark = self._best_ramp_dark()
-        if dark is not None:
-            log.info(f'Calibrating MMIRS single-read noise from dark: {dark.name}')
-            with io.fits_open(dark) as dhdu:
-                dreads, dhead = mmirs_load_ramp(dhdu)
-            ngroups = dreads.shape[0]
-            dcovar = fitramp.Covar([dhead['GRPTIME'] * (i + 1)
-                                    for i in range(ngroups)])
-            ddiffs = mmirs_ramp_diffs(dreads * dhead['GAIN'], dcovar)
-            sig = mmirs_calibrate_sigma(ddiffs, dcovar,
-                                        sig_guess=self.ramp_sig_guess,
-                                        workers=self.ramp_fit_workers)
+        darks = self._ramp_dark_sigmas()
+        if darks:
+            names = [d[0] for d in darks]
+            sigs = np.array([d[1] for d in darks])
+            errs = np.array([d[2] for d in darks])
+            log.info(f'Calibrating MMIRS single-read noise from {len(darks)} '
+                     f'dark(s): {", ".join(names)}')
+            weights = 1.0 / errs ** 2
+            sig = float(np.sum(weights * sigs) / np.sum(weights))
+            comb_err = float(np.sqrt(1.0 / np.sum(weights)))
             self._ramp_sigma = float(np.clip(sig, *self.ramp_sig_range))
-            log.info(f'Calibrated single-read noise: {self._ramp_sigma:.2f} e-')
+            log.info(f'Calibrated single-read noise: {self._ramp_sigma:.2f} '
+                     f'+/- {comb_err:.2f} e-')
             return self._ramp_sigma
         ngroups = diffs.shape[0] + 1
         if ngroups < self.ramp_min_cal_groups:
