@@ -24,18 +24,32 @@ was inspired by the prototype at
 `mmt-mmirs-up-the-ramp-pypeit
 <https://github.com/zhechenghu/mmt-mmirs-up-the-ramp-pypeit>`__.
 
-The single-read noise needed by the fit is calibrated from a dark frame
-listed in the :ref:`pypeit_file` when one with at least 10 reads is
-available (include darks in your raw-data directory when running
-:ref:`pypeit_setup` to enable this).  With no suitable dark, a frame with at
-least 10 reads self-calibrates its own noise by rescaling the fit
-chi-squared; a frame with fewer reads is too poorly constrained to
-self-calibrate and instead uses the measured per-read noise of 11 e- (at
-gain 1) reported on the `MMIRS instrument statistics page
-<https://lweb.cfa.harvard.edu/mmti/mmirs/instrstats.html>`__ (which is also
-the starting guess for the dark and self-calibrated fits).  The effective read noise of
-the fitted image, ``sigma * sqrt(12 (N-1) / (N (N+1)))`` for ``N`` reads, is
-propagated to the detector parameters.
+The per-read noise needed by the fit is not the instantaneous detector read
+noise but an **effective** noise: the read noise plus the shot noise from dark
+current (and any flux) that accumulates over the ramp.  It therefore *grows
+with exposure time* -- measured on MMIRS darks, roughly 5.7 e- for a 3-read
+(3 s) ramp, 8.3 e- for 8 reads (10 s), and 9.4 e- for 69 reads (300 s) -- so it
+must be measured at the science exposure time.
+
+PypeIt calibrates it from the dark frames listed in the :ref:`pypeit_file`
+(include darks in your raw-data directory when running :ref:`pypeit_setup` to
+enable this).  Only darks whose exposure time matches the science frame and
+which have at least 10 reads are used; each is calibrated independently by
+rescaling the ramp-fit chi-squared, and the results are combined as an
+**inverse-variance weighted mean** (each dark weighted by the bootstrap
+uncertainty on its own calibrated noise).  With no matching dark, a frame with
+at least 10 reads self-calibrates from itself; a frame with fewer reads is too
+poorly constrained and instead uses a starting-guess effective noise of 9 e-.
+
+The calibrated value is floored at the instantaneous read noise from the header
+``RDNOISE`` card (a derived noise below the physical read noise is unphysical);
+``RDNOISE`` is also used as the correlated-double-sampling read noise for
+short-ramp frames.  The effective read noise of the fitted image,
+``sigma * sqrt(12 (N-1) / (N (N+1)))`` for ``N`` reads, is propagated to the
+detector parameters.
+
+An explicit dark supplied to ``pypeit_fit_ramp --dark`` is used as given,
+without the exposure-time match.
 
 The per-pixel fit is independent across the detector, so it is performed in
 parallel: the rows are split into small blocks that are fit concurrently in a
