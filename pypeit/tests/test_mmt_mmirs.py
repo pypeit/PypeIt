@@ -330,6 +330,52 @@ def test_ramp_sigma_ignores_darks_with_too_few_reads(tmp_path, monkeypatch):
     assert np.isclose(sig, 7.0)
 
 
+def test_ramp_sigma_matches_dark_exptime_to_science(tmp_path, monkeypatch):
+    """Only darks whose EXPTIME matches the science frame are calibrated, so
+    the effective read noise is measured at the science ramp depth."""
+    # synth EXPTIME = grptime*(ngroups-1); grptime defaults to 2 s.
+    sci = _write_synth(synth_ramp_hdulist(20, seed=241), tmp_path / 'sci.fits')
+    match = _write_synth(synth_ramp_hdulist(20, imagetyp='dark', seed=242),
+                         tmp_path / 'match.fits')          # EXPTIME 38 s
+    other = _write_synth(synth_ramp_hdulist(12, imagetyp='dark', seed=243),
+                         tmp_path / 'other.fits')          # EXPTIME 22 s
+    spec, _ = _metadata_for([sci, match, other], ['object', 'dark', 'dark'])
+
+    seen = []
+
+    def fake_calib(diffs, covar, **kwargs):
+        seen.append(diffs.shape[0])
+        return (9.0, 1.0)
+    monkeypatch.setattr(mmt_mmirs, 'mmirs_calibrate_sigma', fake_calib)
+
+    covar = fitramp.Covar([2. * (i + 1) for i in range(20)])
+    sig = spec.get_ramp_sigma(np.zeros((19, 4, 4)), covar, exptime=2. * 19)
+    assert seen == [19]                       # only the 20-read (matched) dark
+    assert np.isclose(sig, 9.0)
+
+
+def test_ramp_sigma_no_exptime_match_falls_back(tmp_path):
+    """Darks are recorded but none match the science EXPTIME -> self-calibrate
+    from the frame rather than use a mismatched-depth dark."""
+    sig_true = 8.
+    gain, grptime = 0.95, 2.
+    sci = _write_synth(synth_ramp_hdulist(15, rate=2., sig=sig_true, gain=gain,
+                                          grptime=grptime, seed=251),
+                       tmp_path / 'sci.fits')              # EXPTIME 28 s
+    dark = _write_synth(synth_ramp_hdulist(12, rate=0.1, sig=sig_true,
+                                           imagetyp='dark', seed=252),
+                        tmp_path / 'dark.fits')            # EXPTIME 22 s
+    spec, _ = _metadata_for([sci, dark], ['object', 'dark'])
+
+    reads, head1 = mmt_mmirs.mmirs_load_ramp(fits.open(sci))
+    covar = fitramp.Covar([grptime * (i + 1) for i in range(15)])
+    diffs = mmt_mmirs.mmirs_ramp_diffs(reads * gain, covar)
+
+    sig = spec.get_ramp_sigma(diffs, covar, exptime=grptime * 14)
+    assert np.abs(sig - sig_true) < 1.5       # self-caled from the science frame
+    assert spec._ramp_sigma is None           # self-cal not cached
+
+
 def test_ramp_sigma_selfcal_fallback(tmp_path):
     """No darks recorded, but enough groups -> self-calibrate from the frame."""
     sig_true = 8.

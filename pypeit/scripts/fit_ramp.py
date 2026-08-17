@@ -92,8 +92,10 @@ class FitRamp(scriptbase.ScriptBase):
                             'required for read-noise calibration; '
                             'self-calibration will be used instead')
             # Reuse the reduction's dark-calibration path (calibrated on
-            # first use, then cached)
+            # first use, then cached).  An explicitly supplied dark is used as
+            # given, without filtering by the science exposure time.
             spec._ramp_dark_files = [dark]
+            spec._ramp_match_dark_exptime = False
 
         for f in args.files:
             raw = Path(f)

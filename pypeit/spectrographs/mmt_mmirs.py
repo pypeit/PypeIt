@@ -71,6 +71,14 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
     _ramp_dark_files = None
     _ramp_sigma = None
     _ramp_output_dir = None
+    _ramp_match_dark_exptime = True
+    """
+    bool: Restrict read-noise-calibration darks to those matching the science
+    exposure time.  True for the reduction (darks are auto-discovered and may
+    span several exposure times); set False when a dark is supplied explicitly
+    (e.g. ``pypeit_fit_ramp --dark``), where the user's choice should be used
+    as given.
+    """
 
     nod_min_offset = 1.0
     """
@@ -199,14 +207,24 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
                                                  tbl['filename'][indx])
                                  if not str(f).startswith('#')]
 
-    def _ramp_dark_sigmas(self):
+    def _ramp_dark_sigmas(self, exptime=None):
         """
         Calibrate the single-read noise and its uncertainty from every
-        recorded dark frame with enough reads.
+        recorded dark frame that matches the science ramp depth.
 
         Each dark with at least :attr:`ramp_min_cal_groups` reads is fit
-        independently; darks that cannot be opened, or that yield a
-        non-finite noise or a non-positive uncertainty, are skipped.
+        independently.  When ``exptime`` is provided, only darks whose own
+        ``EXPTIME`` matches it (within ``rtol=1e-3``) are used, because the
+        calibrated noise is the effective per-read noise -- instantaneous read
+        noise plus accumulated dark-current/flux shot noise -- which grows with
+        ramp length, so it must be measured at the science exposure time.
+        Darks that cannot be opened, or that yield a non-finite noise or a
+        non-positive uncertainty, are skipped.
+
+        Args:
+            exptime (:obj:`float`, optional):
+                Science-frame exposure time in seconds.  If given, darks with a
+                different ``EXPTIME`` are excluded from the calibration.
 
         Returns:
             :obj:`list`: List of ``(name, sigma, sigma_err)`` tuples (in
@@ -223,6 +241,9 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
                 log.warning(f'Could not open recorded dark frame {f}; skipping it '
                             'for read-noise calibration.')
                 continue
+            if exptime is not None and not np.isclose(dhead.get('EXPTIME', np.nan),
+                                                      exptime, rtol=1e-3):
+                continue
             ngroups = dreads.shape[0]
             dcovar = fitramp.Covar([dhead['GRPTIME'] * (i + 1)
                                     for i in range(ngroups)])
@@ -238,21 +259,24 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
                             f'calibration (sigma={sig}, err={err}); skipping it.')
         return results
 
-    def get_ramp_sigma(self, diffs, covar):
+    def get_ramp_sigma(self, diffs, covar, exptime=None):
         """
         Determine the single-read noise for up-the-ramp fitting.
 
         Preferentially calibrates the noise from the dark frames recorded by
-        :func:`cache_metadata`: every dark with at least
-        :attr:`ramp_min_cal_groups` reads is calibrated independently and the
-        results are combined as an inverse-variance weighted mean, weighting
+        :func:`cache_metadata` that match the science ramp depth: every dark
+        with the same ``EXPTIME`` as the science frame (see ``exptime``) and at
+        least :attr:`ramp_min_cal_groups` reads is calibrated independently and
+        the results are combined as an inverse-variance weighted mean, weighting
         each dark by the (bootstrap) uncertainty on its own calibrated noise
-        (the result is cached for the rest of the run).  If no suitable dark is
-        available and the frame has at least :attr:`ramp_min_cal_groups` reads,
-        self-calibrates from the provided ramp differences (not cached); with
-        fewer reads the fit is too poorly constrained, so the published guess
-        (:attr:`ramp_sig_guess`) is used.  A calibrated result is clamped to
-        :attr:`ramp_sig_range`.
+        (the result is cached for the rest of the run).  Matching the exposure
+        time matters because the calibrated value is the effective per-read
+        noise, which includes accumulated dark-current/flux shot noise and so
+        grows with ramp length.  If no matching dark is available and the frame
+        has at least :attr:`ramp_min_cal_groups` reads, self-calibrates from the
+        provided ramp differences (not cached); with fewer reads the fit is too
+        poorly constrained, so the published guess (:attr:`ramp_sig_guess`) is
+        used.  A calibrated result is clamped to :attr:`ramp_sig_range`.
 
         Args:
             diffs (`numpy.ndarray`_):
@@ -260,13 +284,18 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
                 shape ``(ndiffs, ny, nx)``, in electrons.
             covar (:class:`~pypeit.ext.fitramp.fitramp.Covar`):
                 Covariance object matching ``diffs``.
+            exptime (:obj:`float`, optional):
+                Science-frame exposure time in seconds, used to select darks of
+                the same ramp depth.  If ``None``, darks are not filtered by
+                exposure time.
 
         Returns:
             :obj:`float`: Single-read noise in electrons.
         """
         if self._ramp_sigma is not None:
             return self._ramp_sigma
-        darks = self._ramp_dark_sigmas()
+        match_exptime = exptime if self._ramp_match_dark_exptime else None
+        darks = self._ramp_dark_sigmas(exptime=match_exptime)
         if darks:
             names = [d[0] for d in darks]
             sigs = np.array([d[1] for d in darks])
@@ -805,7 +834,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
                                for i in range(ngroups)])
         diffs = mmirs_ramp_diffs(reads, covar)
         del reads
-        sig = self.get_ramp_sigma(diffs, covar)
+        sig = self.get_ramp_sigma(diffs, covar, exptime=head1.get('EXPTIME'))
         log.info(f'Up-the-ramp fitting {ngroups} reads '
                  f'(single-read noise {sig:.2f} e-)')
         countrate = mmirs_fit_ramp(diffs, covar, sig,
