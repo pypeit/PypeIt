@@ -608,6 +608,81 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
                                  posx_pa=header['pa'])
         return self.slitmask
 
+    def get_maskdef_slitedges(self, filename=None, det=1, debug=None,
+                              binning=None, trc_path=None):
+        """
+        Predict slit-edge spatial-pixel positions from the ``.msk`` design.
+
+        The mask ``y`` coordinate (mm) maps linearly and anti-aligned to the
+        detector spatial pixel; the global offset/registration is fit
+        downstream by
+        :func:`~pypeit.edgetrace.EdgeTraceSet.maskdesign_matching`, so only the
+        relative scale must be correct here.  The scale is
+        ``(1/arc2mm)/platescale/bin_spat`` pixels per mm.  The mask ``x``
+        coordinate is the dispersion axis and does not enter the spatial edge
+        prediction.
+
+        Parameters
+        ----------
+        filename : :obj:`str` or :obj:`list`
+            Path to the ``.msk`` file (a list uses the first element).
+        det : :obj:`int`, optional
+            1-indexed detector number.
+        debug : :obj:`bool`, optional
+            Unused; retained for API compatibility.
+        binning : :obj:`str`, optional
+            ``'spec,spat'`` binning of the trace image.
+        trc_path : :obj:`str`, optional
+            Directory of the trace image, used to resolve a relative
+            ``filename``.
+
+        Returns
+        -------
+        left_edges : `numpy.ndarray`_
+            Predicted left slit edges in spatial pixels, ordered to match
+            ``slitmask.slitid``.
+        right_edges : `numpy.ndarray`_
+            Predicted right slit edges in spatial pixels, ordered to match
+            ``slitmask.slitid``.
+        sortindx : `numpy.ndarray`_
+            Indices ordering the slits left to right.
+        slitmask : :class:`~pypeit.spectrographs.slitmask.SlitMask`
+            The mask design, also stored in :attr:`slitmask`.
+        """
+        _fname = filename[0] if isinstance(filename, (list, tuple)) else filename
+        _fname = str(_fname)
+        if trc_path is not None and not Path(_fname).exists():
+            _fname = str(Path(trc_path) / Path(_fname).name)
+        if not Path(_fname).exists():
+            raise PypeItError(f'The mask design file {_fname} does not exist.')
+
+        bin_spat = 1
+        if binning is not None:
+            _, bin_spat = parse.parse_binning(binning)
+        platescale = self.get_detector_par(det=det)['platescale']
+
+        header, slits = mmirs_maskfile.read_mmirs_maskfile(_fname)
+        self.get_slitmask(_fname)
+
+        arcsec_per_mm = 1.0 / header['arc2mm']
+        scale = arcsec_per_mm / platescale / bin_spat        # px/mm
+        y = np.asarray(slits['y_mm'], dtype=float)
+        # arbitrary constant; absolute registration is fit by the matcher
+        const = 1024.0 - scale * np.median(y)
+        centers = const - scale * y
+        half = 0.5 * np.asarray(slits['height_mm'], dtype=float) * arcsec_per_mm \
+            / platescale / bin_spat
+        left_edges = centers - half
+        right_edges = centers + half
+
+        # order edges to match slitmask.slitid, as GMOS does
+        idx = utils.index_of_x_eq_y(np.asarray(slits['slit'], dtype=int),
+                                    self.slitmask.slitid, strict=True)
+        left_edges = left_edges[idx]
+        right_edges = right_edges[idx]
+        sortindx = np.argsort(left_edges)
+        return left_edges, right_edges, sortindx, self.slitmask
+
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.

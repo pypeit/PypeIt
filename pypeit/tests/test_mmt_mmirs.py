@@ -909,3 +909,25 @@ def test_get_slitmask_science_align_and_objects():
     assert np.all(sm.onsky[:, 2] > 0)            # slit length arcsec
     # objects table has the required 9 columns
     assert sm.objects.shape[1] == 9
+
+
+def test_get_maskdef_slitedges_linear_geometry():
+    from pypeit.spectrographs.mmt_mmirs import MMTMMIRSSpectrograph
+    spec = MMTMMIRSSpectrograph()
+    left, right, sortindx, sm = spec.get_maskdef_slitedges(filename=str(MSK),
+                                                           det=1, binning='1,1')
+    assert left.size == right.size == 29
+    ps = spec.get_detector_par(det=1)['platescale']
+    arcsec_per_mm = 1.0 / 0.165
+    scale = arcsec_per_mm / ps          # px per mm
+    centers = 0.5 * (left + right)
+    # centers must be an exact linear (negative) function of y_mm
+    _, slits = mmirs_maskfile.read_mmirs_maskfile(str(MSK))
+    y = np.asarray(slits['y_mm'])
+    fit = np.polyfit(y, centers, 1)
+    assert abs(fit[0] + scale) < 0.5              # slope == -scale
+    assert np.std(centers - np.polyval(fit, y)) < 1e-6   # perfectly linear
+    # edge width matches height
+    widths = right - left
+    assert np.allclose(widths, np.asarray(slits['height_mm']) * arcsec_per_mm / ps)
+    assert np.array_equal(sortindx, np.argsort(left))
