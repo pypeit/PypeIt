@@ -45,6 +45,7 @@ def synth_ramp_hdulist(ngroups, ny=64, nx=64, rate=20., sig=8., gain=0.95,
         h.header['FILTER'] = 'zJ'
         h.header['DISPERSE'] = 'J'
         h.header['GAIN'] = gain
+        h.header['RDNOISE'] = 3.14
         h.header['GRPTIME'] = grptime
         h.header['EXPTIME'] = exptime
         h.header['IMAGETYP'] = imagetyp
@@ -374,6 +375,22 @@ def test_ramp_sigma_no_exptime_match_falls_back(tmp_path):
     sig = spec.get_ramp_sigma(diffs, covar, exptime=grptime * 14)
     assert np.abs(sig - sig_true) < 1.5       # self-caled from the science frame
     assert spec._ramp_sigma is None           # self-cal not cached
+
+
+def test_ramp_sigma_floored_at_header_rdnoise(tmp_path, monkeypatch):
+    """A derived noise below the header RDNOISE floor is clamped up to it, since
+    values below the instantaneous read noise are unphysical."""
+    sci = _write_synth(synth_ramp_hdulist(12, seed=261), tmp_path / 'sci.fits')
+    dark = _write_synth(synth_ramp_hdulist(12, imagetyp='dark', seed=262),
+                        tmp_path / 'dark.fits')
+    spec, _ = _metadata_for([sci, dark], ['object', 'dark'])
+    monkeypatch.setattr(mmt_mmirs, 'mmirs_calibrate_sigma',
+                        lambda d, c, **k: (2.0, 1.0))     # below the 3.14 floor
+
+    covar = fitramp.Covar([2. * (i + 1) for i in range(12)])
+    sig = spec.get_ramp_sigma(np.zeros((11, 4, 4)), covar, exptime=2. * 11,
+                              ron_floor=3.14)
+    assert np.isclose(sig, 3.14)
 
 
 def test_ramp_sigma_selfcal_fallback(tmp_path):

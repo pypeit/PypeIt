@@ -43,13 +43,17 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
     supported = True
 
     # Up-the-ramp fitting configuration
-    ramp_sig_guess = 11.0
-    """Initial guess for the single-read noise in electrons.  This is the
-    measured per-read noise at gain=1, from the MMIRS instrument statistics
-    (https://lweb.cfa.harvard.edu/mmti/mmirs/instrstats.html); the value
-    used by the fit is refined from darks or self-calibrated per frame."""
+    ramp_sig_guess = 9.0
+    """Initial guess for the *effective* single-read noise in electrons (the
+    instantaneous read noise plus accumulated dark-current/flux shot noise),
+    used to seed the chi-square rescaling and as the fallback when a frame has
+    too few reads to calibrate.  Refined from darks or self-calibrated per
+    frame; the header ``RDNOISE`` is used as a physical floor (see
+    :func:`get_ramp_sigma`)."""
     ramp_sig_range = (3.0, 50.0)
-    """Allowed range for the calibrated single-read noise (electrons)."""
+    """Absolute sanity range for the calibrated single-read noise (electrons).
+    The lower bound is raised to the header ``RDNOISE`` when available, since a
+    derived noise below the instantaneous read noise is unphysical."""
     ramp_min_reads = 5
     """Minimum number of reads for up-the-ramp fitting.  Frames with fewer
     reads do not sample the ramp well enough to fit reliably and fall back to
@@ -259,7 +263,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
                             f'calibration (sigma={sig}, err={err}); skipping it.')
         return results
 
-    def get_ramp_sigma(self, diffs, covar, exptime=None):
+    def get_ramp_sigma(self, diffs, covar, exptime=None, ron_floor=None):
         """
         Determine the single-read noise for up-the-ramp fitting.
 
@@ -276,7 +280,12 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         has at least :attr:`ramp_min_cal_groups` reads, self-calibrates from the
         provided ramp differences (not cached); with fewer reads the fit is too
         poorly constrained, so the published guess (:attr:`ramp_sig_guess`) is
-        used.  A calibrated result is clamped to :attr:`ramp_sig_range`.
+        used.
+
+        A calibrated result is clamped to :attr:`ramp_sig_range`, with the lower
+        bound raised to ``ron_floor`` (the header ``RDNOISE``, the instantaneous
+        read noise) when provided: a derived noise below the instantaneous read
+        noise is unphysical, so such values are floored.
 
         Args:
             diffs (`numpy.ndarray`_):
@@ -288,12 +297,19 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
                 Science-frame exposure time in seconds, used to select darks of
                 the same ramp depth.  If ``None``, darks are not filtered by
                 exposure time.
+            ron_floor (:obj:`float`, optional):
+                Instantaneous read noise in electrons (header ``RDNOISE``) used
+                as the physical lower bound on the derived noise.  If ``None``,
+                the lower bound of :attr:`ramp_sig_range` is used.
 
         Returns:
             :obj:`float`: Single-read noise in electrons.
         """
         if self._ramp_sigma is not None:
             return self._ramp_sigma
+        lo = self.ramp_sig_range[0] if ron_floor is None \
+            else max(self.ramp_sig_range[0], float(ron_floor))
+        hi = self.ramp_sig_range[1]
         match_exptime = exptime if self._ramp_match_dark_exptime else None
         darks = self._ramp_dark_sigmas(exptime=match_exptime)
         if darks:
@@ -311,21 +327,22 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             sem = float(np.std(sigs, ddof=1) / np.sqrt(len(sigs))) \
                 if len(sigs) > 1 else 0.0
             comb_err = max(ivar_err, sem)
-            self._ramp_sigma = float(np.clip(sig, *self.ramp_sig_range))
+            self._ramp_sigma = float(np.clip(sig, lo, hi))
             log.info(f'Calibrated single-read noise: {self._ramp_sigma:.2f} '
                      f'+/- {comb_err:.2f} e-')
             return self._ramp_sigma
         ngroups = diffs.shape[0] + 1
         if ngroups < self.ramp_min_cal_groups:
+            guess = float(max(lo, self.ramp_sig_guess))
             log.info(f'No suitable dark listed and only {ngroups} reads '
-                     f'(< {self.ramp_min_cal_groups}); using the published '
-                     f'single-read noise of {self.ramp_sig_guess:.2f} e-')
-            return self.ramp_sig_guess
+                     f'(< {self.ramp_min_cal_groups}); using the guess '
+                     f'single-read noise of {guess:.2f} e-')
+            return guess
         log.info('No suitable dark listed; self-calibrating MMIRS single-read '
                  'noise from the frame itself')
         sig = mmirs_calibrate_sigma(diffs, covar, sig_guess=self.ramp_sig_guess,
                                     workers=self.ramp_fit_workers)
-        sig = float(np.clip(sig, *self.ramp_sig_range))
+        sig = float(np.clip(sig, lo, hi))
         log.info(f'Self-calibrated single-read noise: {sig:.2f} e-')
         return sig
 
@@ -834,7 +851,8 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
                                for i in range(ngroups)])
         diffs = mmirs_ramp_diffs(reads, covar)
         del reads
-        sig = self.get_ramp_sigma(diffs, covar, exptime=head1.get('EXPTIME'))
+        sig = self.get_ramp_sigma(diffs, covar, exptime=head1.get('EXPTIME'),
+                                  ron_floor=head1.get('RDNOISE'))
         log.info(f'Up-the-ramp fitting {ngroups} reads '
                  f'(single-read noise {sig:.2f} e-)')
         countrate = mmirs_fit_ramp(diffs, covar, sig,
@@ -1124,7 +1142,7 @@ def _fit_ramp_rows(diffs, nb, workers, worker):
         list(ex.map(worker, ranges))
 
 
-def mmirs_calibrate_sigma(diffs, covar, sig_guess=11.0, nrows=200, workers=None,
+def mmirs_calibrate_sigma(diffs, covar, sig_guess=9.0, nrows=200, workers=None,
                           nb=16, return_err=False, n_boot=200, seed=1234):
     """
     Calibrate the single-read noise from ramp differences.
