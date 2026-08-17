@@ -513,10 +513,16 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
                             for ft in fitstbl['frametype']])
         if not np.any(sci_std):
             return fitstbl
-        # Make sure the label columns exist even if a config is a stare.
+        # Make sure the label columns exist and can hold arbitrary-length
+        # strings.  init_meta seeds them from the 4-char default 'None', giving
+        # a width-4 unicode column that would silently truncate longer labels
+        # (e.g. "ABA'B'" -> "ABA'"), so coerce any fixed-width string column to
+        # object dtype before writing.
         for col in ['dithpat', 'dithpos']:
             if col not in fitstbl.colnames:
                 fitstbl[col] = np.full(len(fitstbl), 'None', dtype=object)
+            elif fitstbl[col].dtype.kind in ('U', 'S'):
+                fitstbl[col] = np.asarray(fitstbl[col], dtype=object)
 
         setups = np.unique(fitstbl['setup'][sci_std]) \
             if 'setup' in fitstbl.colnames else np.array(['A'])

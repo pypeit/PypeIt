@@ -638,6 +638,11 @@ def _nod_table(dithoffs, frametype='science', setup='A'):
         'mjd': 59000.0 + np.arange(n) / 1440.0,   # 1-min cadence, time-ordered
         'comb_id': np.arange(n, dtype=int) + 1,
         'bkg_id': np.full(n, -1, dtype=int),
+        # init_meta seeds these from the 4-char default 'None', so the real
+        # metadata table carries them as width-4 unicode; mirror that here so
+        # the tests catch truncation of longer labels (e.g. "ABA'B'").
+        'dithpat': np.full(n, 'None'),
+        'dithpos': np.full(n, 'None'),
     })
 
 
