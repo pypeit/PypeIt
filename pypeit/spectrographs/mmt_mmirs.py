@@ -14,6 +14,8 @@ from astropy.table import Table
 from astropy.time import Time
 from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
+from astropy.coordinates import Angle
+from astropy import units
 
 from pypeit import log
 from pypeit import PypeItError
@@ -94,6 +96,16 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         self.meta['idname'] = dict(ext=1, card='IMAGETYP')
         self.meta['instrument'] = dict(ext=1, card='INSTRUME')
 
+        # Dither metadata for automatic A-B nod pairing.  MMIRS has no dither
+        # header card, so the along-slit offset is derived (see compound_meta).
+        self.meta['dithoff'] = dict(ext=1, card=None, compound=True)
+        self.meta['frameno'] = dict(ext=1, card=None, compound=True)
+        self.meta['posang'] = dict(ext=1, card='POSANGLE')
+        # Labels filled in by get_comb_group; default keeps the columns present
+        # even when the user has pre-set comb_id (get_comb_group is skipped).
+        self.meta['dithpat'] = dict(ext=1, card=None, default='None')
+        self.meta['dithpos'] = dict(ext=1, card=None, default='None')
+
     def compound_meta(self, headarr, meta_key):
         """
         Methods to generate metadata requiring interpretation of the header
@@ -114,6 +126,32 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             time = headarr[1]['DATE-OBS']
             ttime = Time(time, format='isot')
             return ttime.mjd
+        if meta_key == 'dithoff':
+            # Along-slit dither offset in arcsec: projection of the telescope
+            # pointing (RA in hours, DEC in deg) minus the catalog target
+            # (CAT-RA/CAT-DEC, sexagesimal deg) onto the slit PA (POSANGLE).
+            hdr = headarr[1]
+            try:
+                ra = float(hdr['RA']) * 15.0
+                dec = float(hdr['DEC'])
+                catra = Angle(hdr['CAT-RA'], unit=units.deg).deg
+                catdec = Angle(hdr['CAT-DEC'], unit=units.deg).deg
+                pa = float(hdr['POSANGLE'])
+            except (KeyError, TypeError, ValueError):
+                return 0.0
+            dra = (ra - catra) * np.cos(np.radians(dec)) * 3600.0
+            ddec = (dec - catdec) * 3600.0
+            return dra * np.sin(np.radians(pa)) + ddec * np.cos(np.radians(pa))
+        if meta_key == 'frameno':
+            # Frame number is the trailing token of the ext-1 FILENAME card
+            # (e.g. 'MMIRS/2019.0913/nep.as1_mos.1822' -> 1822).
+            fname = headarr[1].get('FILENAME')
+            if fname is None:
+                return -1
+            try:
+                return int(str(fname).split('.')[-1])
+            except (ValueError, IndexError):
+                return -1
         raise PypeItError("Not ready for this compound meta")
 
     def cache_metadata(self, fitstbl):

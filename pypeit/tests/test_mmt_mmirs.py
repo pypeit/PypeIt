@@ -575,3 +575,109 @@ def test_fit_ramp_script_rejects_unsupported_spectrograph(tmp_path, monkeypatch)
     with pytest.raises(PypeItError):
         FitRamp.main(FitRamp.parse_args(['shane_kast_blue',
                                          str(tmp_path / 'nonexistent.fits')]))
+
+
+# ---------------------------------------------------------------------------
+# A-B nod dither support
+# ---------------------------------------------------------------------------
+
+def _dither_header(ra_deg, dec_deg, catra_deg, catdec_deg, posang, frameno):
+    """Build a 2-element headarr with MMIRS dither cards in ext 1."""
+    from astropy.coordinates import Angle
+    from astropy import units
+    h1 = fits.Header()
+    h1['RA'] = str(ra_deg / 15.0)                       # stored in hours
+    h1['DEC'] = str(dec_deg)
+    h1['CAT-RA'] = Angle(catra_deg, unit=units.deg).to_string(unit=units.deg, sep=':')
+    h1['CAT-DEC'] = Angle(catdec_deg, unit=units.deg).to_string(unit=units.deg, sep=':')
+    h1['POSANGLE'] = posang
+    h1['FILENAME'] = f'MMIRS/2019.0913/nep.as1_mos.{frameno}'
+    return [fits.Header(), h1]
+
+
+def test_dithoff_recovers_abab_pattern():
+    spec = load_spectrograph('mmt_mmirs')
+    # Catalog target at the nod midpoint; slit PA 166.382 deg (nep.as1 geometry).
+    catra, catdec, pa = 260.614, 65.8828, 166.382
+    # Four positions offset ALONG the slit by {+1.8, -1.4, +1.4, -1.8} arcsec.
+    expected = [1.8, -1.4, 1.4, -1.8]
+    par = np.radians(pa)
+    cosd = np.cos(np.radians(catdec))
+    offs = []
+    for off in expected:
+        # place pointing at catalog + off arcsec along the slit axis
+        dra_as = off * np.sin(par)
+        ddec_as = off * np.cos(par)
+        ra_deg = catra + (dra_as / 3600.0) / cosd
+        dec_deg = catdec + ddec_as / 3600.0
+        headarr = _dither_header(ra_deg, dec_deg, catra, catdec, pa, 1822)
+        offs.append(spec.compound_meta(headarr, 'dithoff'))
+    assert np.allclose(offs, expected, atol=0.02)
+
+
+def test_frameno_parsed_from_filename():
+    spec = load_spectrograph('mmt_mmirs')
+    headarr = _dither_header(260.614, 65.8828, 260.614, 65.8828, 166.382, 1823)
+    assert spec.compound_meta(headarr, 'frameno') == 1823
+
+
+def test_dithoff_missing_card_returns_zero():
+    spec = load_spectrograph('mmt_mmirs')
+    headarr = [fits.Header(), fits.Header()]   # no dither cards
+    assert spec.compound_meta(headarr, 'dithoff') == 0.0
+
+
+def _nod_table(dithoffs, frametype='science', setup='A'):
+    """Minimal table mimicking what set_combination_groups passes to
+    get_comb_group: unique comb_id per frame, bkg_id=-1, increasing mjd."""
+    n = len(dithoffs)
+    return Table({
+        'frametype': [frametype] * n,
+        'setup': [setup] * n,
+        'dithoff': np.array(dithoffs, dtype=float),
+        'mjd': 59000.0 + np.arange(n) / 1440.0,   # 1-min cadence, time-ordered
+        'comb_id': np.arange(n, dtype=int) + 1,
+        'bkg_id': np.full(n, -1, dtype=int),
+    })
+
+
+def test_get_comb_group_pairs_ababprime():
+    spec = load_spectrograph('mmt_mmirs')
+    tbl = _nod_table([1.8, -1.4, 1.4, -1.8, 1.8, -1.4, 1.4, -1.8])
+    out = spec.get_comb_group(tbl)
+    # Greedy sequential pairing across the midpoint (0.0): (0,1),(2,3),(4,5),(6,7)
+    assert out['bkg_id'].tolist() == [2, 1, 4, 3, 6, 5, 8, 7]
+    assert out['dithpos'].tolist() == ["A", "B", "A'", "B'", "A", "B", "A'", "B'"]
+    assert set(out['dithpat']) == {"ABA'B'"}
+
+
+def test_get_comb_group_stare_no_pairing():
+    spec = load_spectrograph('mmt_mmirs')
+    # Peak-to-peak 0.3" < nod_min_offset (1.0") -> treated as a stare.
+    tbl = _nod_table([0.0, 0.1, -0.1, 0.2])
+    out = spec.get_comb_group(tbl)
+    assert out['bkg_id'].tolist() == [-1, -1, -1, -1]
+
+
+def test_get_comb_group_odd_frame_unpaired():
+    spec = load_spectrograph('mmt_mmirs')
+    tbl = _nod_table([1.8, -1.4, 1.8])
+    out = spec.get_comb_group(tbl)
+    # (0,1) pair; frame 2 has no remaining opposite-nod partner.
+    assert out['bkg_id'].tolist() == [2, 1, -1]
+
+
+def test_get_comb_group_longslit_simple_ab():
+    spec = load_spectrograph('mmt_mmirs')
+    # No mask/decker columns present -> logic is slit-count agnostic.
+    tbl = _nod_table([2.5, -2.5])
+    out = spec.get_comb_group(tbl)
+    assert out['bkg_id'].tolist() == [2, 1]
+    assert out['dithpos'].tolist() == ["A", "B"]
+
+
+def test_pypeit_file_keys_include_dither_columns():
+    spec = load_spectrograph('mmt_mmirs')
+    keys = spec.pypeit_file_keys()
+    for col in ['dithpat', 'dithpos', 'dithoff', 'frameno']:
+        assert col in keys
