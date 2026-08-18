@@ -248,7 +248,7 @@ def test_ramp_sigma_from_dark_and_cached(tmp_path):
 
     sig = spec.get_ramp_sigma(diffs, covar)
     assert np.abs(sig - sig_true) < 1.5
-    assert spec._ramp_sigma == sig
+    assert spec._ramp_sigma_cache[(None, None)] == sig
     # Cached: works even after the dark file disappears
     dark.unlink()
     assert spec.get_ramp_sigma(diffs, covar) == sig
@@ -276,7 +276,7 @@ def test_ramp_sigma_weighted_mean_over_darks(tmp_path, monkeypatch):
     w1, w2 = 1. / 1.0 ** 2, 1. / 2.0 ** 2
     expected = (w1 * 8.0 + w2 * 6.0) / (w1 + w2)
     assert np.isclose(sig, expected)
-    assert spec._ramp_sigma == sig            # cached
+    assert spec._ramp_sigma_cache[(None, None)] == sig    # cached
 
 
 def test_ramp_sigma_reports_max_of_ivar_err_and_sem(tmp_path, monkeypatch):
@@ -305,6 +305,30 @@ def test_ramp_sigma_reports_max_of_ivar_err_and_sem(tmp_path, monkeypatch):
     # inverse-variance err = sqrt(1/(1+0.25)) = 0.894; SEM (ddof=1) over
     # {8,6} = sqrt(2)/sqrt(2) = 1.000 -> the SEM wins.
     assert any('+/- 1.00 e-' in m for m in infos)
+
+
+def test_ramp_sigma_cached_per_exptime(monkeypatch):
+    """The dark-calibrated noise is cached per (exptime, ron_floor): frames of
+    different EXPTIME must not share a value (effective noise grows with the
+    ramp length), and a repeat lookup at the same exptime hits the cache."""
+    spec = load_spectrograph('mmt_mmirs')
+    calls = []
+
+    def fake_darks(exptime=None):
+        calls.append(exptime)
+        # Effective per-read noise grows with ramp length / exposure time.
+        return [('d', 6.0 if exptime == 10.0 else 9.0, 1.0)]
+    monkeypatch.setattr(spec, '_ramp_dark_sigmas', fake_darks)
+
+    covar = fitramp.Covar([2. * (i + 1) for i in range(6)])
+    diffs = np.zeros((5, 4, 4))
+    s10 = spec.get_ramp_sigma(diffs, covar, exptime=10.0)
+    s300 = spec.get_ramp_sigma(diffs, covar, exptime=300.0)
+    assert (s10, s300) == (6.0, 9.0)            # distinct per exptime
+    assert calls == [10.0, 300.0]
+    # A repeat at an already-seen exptime is served from the cache.
+    assert spec.get_ramp_sigma(diffs, covar, exptime=10.0) == s10
+    assert calls == [10.0, 300.0]               # no new dark lookup
 
 
 def test_ramp_sigma_ignores_darks_with_too_few_reads(tmp_path, monkeypatch):

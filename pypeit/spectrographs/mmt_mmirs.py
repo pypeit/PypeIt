@@ -76,6 +76,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
     the empirical sweet spot."""
     _ramp_dark_files = None
     _ramp_sigma = None
+    _ramp_sigma_cache = None
     _ramp_output_dir = None
     _ramp_match_dark_exptime = True
     """
@@ -307,8 +308,19 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         Returns:
             :obj:`float`: Single-read noise in electrons.
         """
+        # An explicitly forced value (e.g. pypeit_fit_ramp --sig) is global
+        # and always wins.
         if self._ramp_sigma is not None:
             return self._ramp_sigma
+        # Automatic dark calibration is cached per (exptime, ron_floor): the
+        # effective per-read noise grows with ramp length, so science and
+        # standard frames of different EXPTIME (or with different RDNOISE
+        # floors) must not share a single cached value.
+        if self._ramp_sigma_cache is None:
+            self._ramp_sigma_cache = {}
+        cache_key = (exptime, ron_floor)
+        if cache_key in self._ramp_sigma_cache:
+            return self._ramp_sigma_cache[cache_key]
         lo = self.ramp_sig_range[0] if ron_floor is None \
             else max(self.ramp_sig_range[0], float(ron_floor))
         hi = self.ramp_sig_range[1]
@@ -329,10 +341,11 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             sem = float(np.std(sigs, ddof=1) / np.sqrt(len(sigs))) \
                 if len(sigs) > 1 else 0.0
             comb_err = max(ivar_err, sem)
-            self._ramp_sigma = float(np.clip(sig, lo, hi))
-            log.info(f'Calibrated single-read noise: {self._ramp_sigma:.2f} '
+            result = float(np.clip(sig, lo, hi))
+            self._ramp_sigma_cache[cache_key] = result
+            log.info(f'Calibrated single-read noise: {result:.2f} '
                      f'+/- {comb_err:.2f} e-')
-            return self._ramp_sigma
+            return result
         ngroups = diffs.shape[0] + 1
         if ngroups < self.ramp_min_cal_groups:
             guess = float(max(lo, self.ramp_sig_guess))
