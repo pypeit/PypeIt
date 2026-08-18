@@ -147,6 +147,13 @@ followed by a list of spec1d files. An example configuration file is shown below
     # Exclude any object with a wavelength wave_rms > than this threshold
     # wv_rms_thresh = 0.2
 
+    # How to name the coadded output files. 'coord' (the default) names each
+    # file after the source sky coordinate (J<hmsdms>) or spatial pixel
+    # position. 'maskdef_objname' names each file after the slitmask-design
+    # object name (MASKDEF_OBJNAME), falling back to 'coord' for sources with
+    # no mask-design name (e.g. serendips).
+    #outfile_from = coord
+
     # Where to place coadded files and report files. Defaults to
     # current directory.
     #outdir = /work/output

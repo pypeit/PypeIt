@@ -192,6 +192,18 @@ absolute registration offset is fit by PypeIt's
 :func:`~pypeit.edgetrace.EdgeTraceSet.maskdesign_matching` from the detected
 slits, so only the relative scale must be correct.
 
+The ``SpecObj`` name stays ``SPATxxxx-SLITyyyy-DET`` (PypeIt's internal object
+identifier, as for every multislit spectrograph); the catalog identity lives in
+the ``MASKDEF_OBJNAME``, ``MASKDEF_ID``, ``RA``, and ``DEC`` attributes. Those
+are printed alongside the name by ``pypeit_show_1dspec <spec1d> --list`` and in
+the ``.txt`` object summary written next to each ``spec1d`` file.
+
+To coadd across nod pairs by target, use :ref:`collate1d`, which groups objects
+by sky coordinate. For MMIRS the ``[collate1d] outfile_from`` parameter defaults
+to ``maskdef_objname``, so each coadded file is named after the catalog target
+(e.g. ``qso_172239.955+655201.69_MMIRS_<date>.fits``) rather than its sky
+coordinate; set ``outfile_from = coord`` to restore coordinate-based names.
+
 When no ``.msk`` file is present, PypeIt falls back to generic edge tracing with
 ``SPATxxxx-SLITyyyy`` object names; group the resulting 1D spectra for coaddition
 by slit id in the :ref:`pypeit_coadd_1dspec` input file.

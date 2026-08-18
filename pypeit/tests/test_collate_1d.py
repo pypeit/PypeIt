@@ -345,6 +345,23 @@ def test_build_coadd_file_name():
                            spectrograph, 'pixel')
     assert build_coadd_file_name(source2) == 'SPAT1234_DEIMOS_20200130_20200130.fits'
 
+    # outfile_from='maskdef_objname' names the file from MASKDEF_OBJNAME
+    source3 = SourceObject(mock_sobjs.specobjs[0], mock_sobjs.header, 'spec1d_file1',
+                           spectrograph, 'ra/dec', outfile_from='maskdef_objname')
+    assert build_coadd_file_name(source3) == 'object1_DEIMOS_20200130_20200130.fits'
+
+    # SERENDIP objects have no unique mask-design name, so they fall back to
+    # coordinate naming even when outfile_from='maskdef_objname'
+    serendip_sobj = [s for s in mock_sobjs.specobjs if s.MASKDEF_OBJNAME == 'SERENDIP'][0]
+    source4 = SourceObject(serendip_sobj, mock_sobjs.header, 'spec1d_file1',
+                           spectrograph, 'ra/dec', outfile_from='maskdef_objname')
+    assert build_coadd_file_name(source4).startswith('J')
+
+    # The default (outfile_from='coord') preserves the coordinate naming
+    source5 = SourceObject(mock_sobjs.specobjs[0], mock_sobjs.header, 'spec1d_file1',
+                           spectrograph, 'ra/dec')
+    assert build_coadd_file_name(source5) == 'J132436.41+271928.56_DEIMOS_20200130_20200130.fits'
+
 def test_find_slits_to_exclude(monkeypatch):
 
     # Return mock data structure that contains what

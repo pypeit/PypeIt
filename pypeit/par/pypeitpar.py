@@ -5647,7 +5647,7 @@ class Collate1DPar(ParSet):
     """
     def __init__(self, tolerance=None, dry_run=None, ignore_flux=None, flux=None, match_using=None,
                  exclude_slit_trace_bm=[], exclude_serendip=False, wv_rms_thresh=None, outdir=None,
-                 spec1d_outdir=None, refframe=None):
+                 spec1d_outdir=None, refframe=None, outfile_from=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -5726,6 +5726,18 @@ class Collate1DPar(ParSet):
         descr['refframe'] = 'Perform reference frame correction prior to coadding. ' \
                          'Options are: {0}'.format(', '.join(options['refframe']))
 
+        # How to name the coadded output files
+        defaults['outfile_from'] = 'coord'
+        options['outfile_from'] = ['coord', 'maskdef_objname']
+        dtypes['outfile_from'] = str
+        descr['outfile_from'] = "Determines how the coadded output files are named. 'coord' " \
+                                "(the default) names each file after the sky coordinate of the " \
+                                "source (when match_using is 'ra/dec') or its spatial pixel " \
+                                "position (when match_using is 'pixel'). 'maskdef_objname' names " \
+                                "each file after the slitmask-design object name (MASKDEF_OBJNAME); " \
+                                "sources without a mask-design name (e.g. serendips) fall back to " \
+                                "the 'coord' naming."
+
         # Instantiate the parameter set
         super(Collate1DPar, self).__init__(list(pars.keys()),
                                            values=list(pars.values()),
@@ -5739,7 +5751,7 @@ class Collate1DPar(ParSet):
         k = [*cfg.keys()]
         parkeys = ['tolerance', 'dry_run', 'ignore_flux', 'flux', 'match_using',
                    'exclude_slit_trace_bm', 'exclude_serendip', 'outdir', 'spec1d_outdir',
-                   'wv_rms_thresh', 'refframe']
+                   'wv_rms_thresh', 'refframe', 'outfile_from']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

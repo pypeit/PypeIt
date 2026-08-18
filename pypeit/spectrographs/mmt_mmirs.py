@@ -487,6 +487,11 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         # ToDo: replace the telluric grid file for MMT site.
         par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
 
+        # Name collated coadd outputs after the slitmask-design object name
+        # (MASKDEF_OBJNAME) when a mask is used, so per-target coadds carry the
+        # real catalog target names rather than sky coordinates.
+        par['collate1d']['outfile_from'] = 'maskdef_objname'
+
         return par
 
     def config_specific_par(
