@@ -543,7 +543,12 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
 
         par["sensfunc"]["algorithm"] = "IR"
         par["sensfunc"]["polyorder"] = 8
+        par["sensfunc"]["extrap_red"]=0.4
+        par["sensfunc"]["extrap_blu"]=0.4
         par["sensfunc"]["IR"]["telgridfile"] = "TellPCA_3000_26000_R25000.fits"
+        par["sensfunc"]["IR"]["maxiter"] = 5
+        par["sensfunc"]["IR"]["lower"]=3.
+        par["sensfunc"]["IR"]["upper"]=3.
         par["sensfunc"]["UVIS"]["nresln"] = 15
         par["sensfunc"]["UVIS"]["polycorrect"] = False
 
