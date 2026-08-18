@@ -950,6 +950,26 @@ def test_config_specific_par_enables_maskdesign(tmp_path, monkeypatch):
     assert par['reduce']['slitmask']['extract_missing_objs'] is True
 
 
+def test_config_specific_par_enables_maskdesign_from_table_row(tmp_path, monkeypatch):
+    # The full run_pypeit path passes a single-row Table whose 'filename'
+    # column holds the full path (no 'directory' column). Discovery must
+    # derive the raw-data directory from that filename.
+    import shutil
+    from astropy.table import Table as _Table
+    from pypeit.spectrographs.mmt_mmirs import MMTMMIRSSpectrograph
+    spec = MMTMMIRSSpectrograph()
+    shutil.copy(MSK, tmp_path / 'nep.as1.msk')
+    scifile = tmp_path / 'nep.as1_mos.1822.fits'
+    scifile.write_text('')
+    row = _Table()
+    row['filename'] = [str(scifile)]
+    monkeypatch.setattr(spec, 'get_meta_value',
+                        lambda inp, key, **kw: 'nep.as1' if key == 'decker' else None)
+    par = spec.config_specific_par(row)
+    assert par['calibrations']['slitedges']['use_maskdesign'] is True
+    assert Path(par['calibrations']['slitedges']['maskdesign_filename']).name == 'nep.as1.msk'
+
+
 def test_config_specific_par_no_maskfile_is_noop(tmp_path, monkeypatch):
     from pypeit.spectrographs.mmt_mmirs import MMTMMIRSSpectrograph
     spec = MMTMMIRSSpectrograph()

@@ -162,3 +162,37 @@ and left unpaired (``bkg_id = -1``).
 
 Combine the resulting 1D spectra with :ref:`pypeit_coadd_1dspec`.
 
+Mask definition (MOS)
++++++++++++++++++++++
+
+For multi-object (MOS) masks, PypeIt can ingest the MMIRS ``.msk`` mask-design
+file (the xfitmask output delivered with the raw data) so that every slit,
+``SpecObj``, and coadd carries the real target identity. During
+:ref:`pypeit_setup`, if a file named ``<MOSID>.msk`` (matching the ``APERTURE``
+header keyword and the ``decker`` metadata column) is found in the raw-data
+directory, PypeIt automatically:
+
+- enables slitmask-design tracing
+  (``[calibrations][slitedges] use_maskdesign = True``,
+  ``maskdesign_filename`` pointing at the ``.msk``);
+- stamps ``MASKDEF_ID``, ``RA``, ``DEC``, and ``MASKDEF_OBJNAME`` (the catalog
+  target name) on each extracted object
+  (``[reduce][slitmask] assign_obj = True``);
+- flags the alignment-box (``BOX``) slits as alignment rather than science, and
+  uses them to register the mask-to-detector offset
+  (``use_alignbox = True``); and
+- force-extracts designed targets that were not auto-detected, at their
+  predicted positions (``extract_missing_objs = True``).
+
+The mask ``y`` coordinate (mm) maps linearly, and anti-aligned, to the detector
+spatial pixel (``spat = C - scale * y``, with
+``scale = (1/arc2mm)/platescale/bin_spat`` px/mm); the mask ``x`` coordinate is
+the dispersion axis and does not enter the spatial edge prediction. The
+absolute registration offset is fit by PypeIt's
+:func:`~pypeit.edgetrace.EdgeTraceSet.maskdesign_matching` from the detected
+slits, so only the relative scale must be correct.
+
+When no ``.msk`` file is present, PypeIt falls back to generic edge tracing with
+``SPATxxxx-SLITyyyy`` object names; group the resulting 1D spectra for coaddition
+by slit id in the :ref:`pypeit_coadd_1dspec` input file.
+

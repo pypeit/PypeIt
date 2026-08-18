@@ -566,12 +566,18 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             return None
         if label is None:
             return None
-        # Resolve the directory of the frame
+        # Resolve the directory of the frame.  The full run_pypeit path sends a
+        # single-row metadata Table whose 'filename' column holds the full path
+        # (there is no 'directory' column at this stage), while scripts may send
+        # a filename string/Path directly.
         directory = None
         if isinstance(inp, (str, Path)):
             directory = Path(inp).parent
-        elif isinstance(inp, Table) and 'directory' in inp.colnames:
-            directory = Path(inp['directory'][0])
+        elif isinstance(inp, Table):
+            if 'directory' in inp.colnames:
+                directory = Path(str(inp['directory'][0]))
+            elif 'filename' in inp.colnames:
+                directory = Path(str(inp['filename'][0])).parent
         if directory is None:
             return None
         maskfile = directory / f'{label}.msk'
