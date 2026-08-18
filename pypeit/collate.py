@@ -563,6 +563,45 @@ def build_coadd_file_name(source_object):
 
     return f'{coord_portion}_{instrument_name}_{date_portion}.fits'
 
+
+def disambiguate_coadd_file_name(source, base_name, used_names):
+    """Ensure the coadd output name is unique across distinct sources.
+
+    :func:`build_coadd_file_name` can return the same name for two distinct
+    collated sources -- e.g. when ``outfile_from == 'maskdef_objname'`` and two
+    sources separated by coordinates happen to share a ``MASKDEF_OBJNAME`` and
+    date range. Since the coadd is written with ``overwrite=True``, an
+    unresolved collision would silently drop one source. When ``base_name`` is
+    already taken, append a coordinate/position token (and, if necessary, a
+    counter) so each source lands in its own file.
+
+    Args:
+        source (:class:`SourceObject`):
+            The source whose output file is being named.
+        base_name (:obj:`str`):
+            The name from :func:`build_coadd_file_name`.
+        used_names (:obj:`set`):
+            Names already claimed by earlier sources; not modified here.
+
+    Returns:
+        :obj:`str`: A name not present in ``used_names``.
+    """
+    if base_name not in used_names:
+        return base_name
+    stem, ext = os.path.splitext(base_name)
+    if source.match_type == 'ra/dec':
+        token = 'J' + source.coord.to_string('hmsdms', sep='',
+                                              precision=2).replace(' ', '')
+    else:
+        token = source.spec_obj_list[0]['NAME'].split('_')[0]
+    candidate = f'{stem}_{token}{ext}'
+    suffix = 1
+    while candidate in used_names:
+        candidate = f'{stem}_{token}_{suffix}{ext}'
+        suffix += 1
+    return candidate
+
+
 def refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_log):
 
     refframe = par['collate1d']['refframe']
@@ -824,9 +863,15 @@ def collate_1d(par, spectrograph, tolerance, spec1d_files):
     # Coadd the spectra
     successful_source_list = []
     failed_source_log = []
+    # Track output names already claimed so two distinct sources can never
+    # collide onto the same file (which would silently overwrite one).
+    used_coadd_names = set()
     for source in source_list:
 
-        coaddfile = os.path.join(par['collate1d']['outdir'], build_coadd_file_name(source))
+        coadd_name = disambiguate_coadd_file_name(source,
+                                                  build_coadd_file_name(source),
+                                                  used_coadd_names)
+        coaddfile = os.path.join(par['collate1d']['outdir'], coadd_name)
         log.info(f'Creating {coaddfile} from the following sources:')
         for i in range(len(source.spec_obj_list)):
             log.info(f'    {source.spec1d_file_list[i]}: {source.spec_obj_list[i].NAME} '
@@ -836,6 +881,9 @@ def collate_1d(par, spectrograph, tolerance, spec1d_files):
         if len(source.spec_obj_list) == 1:
             excluded_obj_log.append(f"Excluding {source.spec_obj_list[0].NAME} in {source.spec1d_file_list[0]} because there's no other SpecObj to coadd with.")
             continue
+
+        # Claim the name only for sources that are actually written.
+        used_coadd_names.add(coadd_name)
 
         if not par['collate1d']['dry_run']:
             try:

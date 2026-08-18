@@ -12,7 +12,7 @@ from pypeit import specobjs
 from pypeit.spec2dobj import AllSpec2DObj
 from pypeit.collate import collate_spectra_by_source, SourceObject
 from pypeit.collate import find_spec2d_from_spec1d,find_slits_to_exclude, exclude_source_objects
-from pypeit.collate import flux, coadd, build_coadd_file_name, get_report_metadata, refframe_correction
+from pypeit.collate import flux, coadd, build_coadd_file_name, disambiguate_coadd_file_name, get_report_metadata, refframe_correction
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.sensfilearchive import SensFileArchive
 from pypeit.par import pypeitpar
@@ -361,6 +361,30 @@ def test_build_coadd_file_name():
     source5 = SourceObject(mock_sobjs.specobjs[0], mock_sobjs.header, 'spec1d_file1',
                            spectrograph, 'ra/dec')
     assert build_coadd_file_name(source5) == 'J132436.41+271928.56_DEIMOS_20200130_20200130.fits'
+
+def test_disambiguate_coadd_file_name():
+    # Two distinct sources that happen to build the same output name (e.g. a
+    # shared MASKDEF_OBJNAME and date range) must not overwrite each other.
+    mock_sobjs = mock_specobjs('spec1d_file1')
+    spectrograph = load_spectrograph('keck_deimos')
+    source = SourceObject(mock_sobjs.specobjs[0], mock_sobjs.header, 'spec1d_file1',
+                          spectrograph, 'ra/dec', outfile_from='maskdef_objname')
+    base = build_coadd_file_name(source)          # object1_DEIMOS_...fits
+
+    used = set()
+    # The first source keeps the base name.
+    n1 = disambiguate_coadd_file_name(source, base, used)
+    assert n1 == base
+    used.add(n1)
+    # A second, distinct source with the same base name gets a coordinate token.
+    n2 = disambiguate_coadd_file_name(source, base, used)
+    assert n2 != base and n2 not in used
+    assert n2.startswith('object1_DEIMOS_20200130_20200130_J')
+    used.add(n2)
+    # A third collision still resolves to a fresh, unused name.
+    n3 = disambiguate_coadd_file_name(source, base, used)
+    assert n3 not in used and n3 not in (base, n2)
+
 
 def test_find_slits_to_exclude(monkeypatch):
 
