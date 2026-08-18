@@ -796,15 +796,27 @@ def test_dithoff_missing_card_returns_zero():
     assert spec.compound_meta(headarr, 'dithoff') == 0.0
 
 
-def _nod_table(dithoffs, frametype='science', setup='A'):
+def _nod_table(dithoffs, frametype='science', setup='A', target=None,
+               mjd=None):
     """Minimal table mimicking what set_combination_groups passes to
-    get_comb_group: unique comb_id per frame, bkg_id=-1, increasing mjd."""
+    get_comb_group: unique comb_id per frame, bkg_id=-1, increasing mjd.
+
+    ``frametype``, ``setup``, and ``target`` may be a scalar (broadcast to all
+    frames) or a per-frame sequence.  ``mjd`` overrides the default 1-min
+    time-ordered cadence when a specific interleaving is needed.
+    """
     n = len(dithoffs)
-    return Table({
-        'frametype': [frametype] * n,
-        'setup': [setup] * n,
+
+    def _col(val):
+        return list(val) if isinstance(val, (list, tuple, np.ndarray)) \
+            else [val] * n
+
+    tbl = Table({
+        'frametype': _col(frametype),
+        'setup': _col(setup),
         'dithoff': np.array(dithoffs, dtype=float),
-        'mjd': 59000.0 + np.arange(n) / 1440.0,   # 1-min cadence, time-ordered
+        'mjd': (59000.0 + np.arange(n) / 1440.0) if mjd is None
+            else np.asarray(mjd, dtype=float),
         'comb_id': np.arange(n, dtype=int) + 1,
         'bkg_id': np.full(n, -1, dtype=int),
         # init_meta seeds these from the 4-char default 'None', so the real
@@ -813,6 +825,9 @@ def _nod_table(dithoffs, frametype='science', setup='A'):
         'dithpat': np.full(n, 'None'),
         'dithpos': np.full(n, 'None'),
     })
+    if target is not None:
+        tbl['target'] = _col(target)
+    return tbl
 
 
 def test_get_comb_group_pairs_ababprime():
@@ -848,6 +863,38 @@ def test_get_comb_group_longslit_simple_ab():
     out = spec.get_comb_group(tbl)
     assert out['bkg_id'].tolist() == [2, 1]
     assert out['dithpos'].tolist() == ["A", "B"]
+
+
+def test_get_comb_group_isolates_targets_in_shared_setup():
+    spec = load_spectrograph('mmt_mmirs')
+    # Two long-slit targets sharing one setup (same slit/disperser), each an
+    # odd A-B-A / B-A-B sequence, interleaved in time.  Pooling them would let
+    # the greedy walk pair target1's leftover frame with target2's first frame.
+    tbl = _nod_table([2.5, -2.5, 2.5, -2.5, 2.5, -2.5],
+                     target=['star1', 'star1', 'star1',
+                             'star2', 'star2', 'star2'])
+    out = spec.get_comb_group(tbl)
+    bkg = out['bkg_id'].tolist()
+    # Each target pairs within itself; the odd frame in each is left unpaired.
+    assert bkg == [2, 1, -1, 5, 4, -1]
+    # No pairing crosses the target boundary.
+    comb = out['comb_id'].tolist()
+    tgt = list(out['target'])
+    for i, b in enumerate(bkg):
+        if b != -1:
+            assert tgt[i] == tgt[comb.index(b)]
+
+
+def test_get_comb_group_does_not_pair_science_with_standard():
+    spec = load_spectrograph('mmt_mmirs')
+    # A science nod and a standard-star nod share the setup and interleave in
+    # time; each must pair only within itself, never science<->standard.
+    tbl = _nod_table([2.5, 2.5, -2.5, -2.5],
+                     frametype=['science', 'standard', 'science', 'standard'],
+                     target=['sci', 'std', 'sci', 'std'])
+    out = spec.get_comb_group(tbl)
+    # science frames (idx 0,2) pair together; standards (idx 1,3) pair together
+    assert out['bkg_id'].tolist() == [3, 4, 1, 2]
 
 
 def test_pypeit_file_keys_include_dither_columns():

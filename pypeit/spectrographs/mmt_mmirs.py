@@ -816,12 +816,22 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             elif fitstbl[col].dtype.kind in ('U', 'S'):
                 fitstbl[col] = np.asarray(fitstbl[col], dtype=object)
 
-        setups = np.unique(fitstbl['setup'][sci_std]) \
-            if 'setup' in fitstbl.colnames else np.array(['A'])
-        for setup in setups:
-            in_cfg = sci_std & (fitstbl['setup'] == setup) \
-                if 'setup' in fitstbl.colnames else sci_std
-            idx = np.where(in_cfg)[0]
+        # Partition frames so nod pairing never crosses instrument
+        # configurations (setup) *or* distinct targets.  A single long-slit
+        # setup can hold several science targets and standard stars that share
+        # the same disperser/slit (hence the same setup); greedily pairing
+        # across them could background-subtract an unrelated object.  MOS masks
+        # are already separated by the decker (part of the setup); within a
+        # setup we additionally split on the target name, which is constant
+        # across a nod sequence.
+        setup_col = np.asarray(fitstbl['setup']) if 'setup' in fitstbl.colnames \
+            else np.full(len(fitstbl), 'A')
+        target_col = np.asarray(fitstbl['target']) if 'target' in fitstbl.colnames \
+            else np.full(len(fitstbl), '')
+        part_key = np.array(['{0}\x00{1}'.format(s, t)
+                             for s, t in zip(setup_col, target_col)])
+        for gk in np.unique(part_key[sci_std]):
+            idx = np.where(sci_std & (part_key == gk))[0]
             if idx.size < 2:
                 continue
             dithoff = np.asarray(fitstbl['dithoff'][idx], dtype=float)

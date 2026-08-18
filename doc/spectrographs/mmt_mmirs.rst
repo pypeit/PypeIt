@@ -154,10 +154,13 @@ dither keyword) and records it in the ``dithoff`` column, along with ``dithpos``
 
 During :ref:`pypeit_setup`, PypeIt automatically fills the ``comb_id`` and
 ``bkg_id`` columns so that each science frame is background-subtracted using the
-temporally-adjacent frame at the opposite nod position. Each frame keeps a
-unique ``comb_id`` (frames are not 2D-coadded across the small sub-dither), so
-PypeIt produces one ``spec2d``/``spec1d`` per nod pair. See
-:ref:`a-b_differencing` for how to edit these columns by hand.
+temporally-adjacent frame at the opposite nod position. Pairing is done
+separately for each target within an instrument configuration (so a standard
+star, or a second target sharing the same long-slit setup, is never paired
+against an unrelated object). Each frame keeps a unique ``comb_id`` (frames are
+not 2D-coadded across the small sub-dither), so PypeIt produces one
+``spec2d``/``spec1d`` per nod pair. See :ref:`a-b_differencing` for how to edit
+these columns by hand.
 
 A sequence whose dither offsets span less than ~1 arcsec is treated as a stare
 and left unpaired (``bkg_id = -1``).
