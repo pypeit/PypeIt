@@ -258,6 +258,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             sig, err = mmirs_calibrate_sigma(ddiffs, dcovar,
                                              sig_guess=self.ramp_sig_guess,
                                              workers=self.ramp_fit_workers,
+                                             nb=self.ramp_fit_chunk_rows,
                                              return_err=True)
             if np.isfinite(sig) and np.isfinite(err) and err > 0:
                 results.append((Path(f).name, float(sig), float(err)))
@@ -356,7 +357,8 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         log.info('No suitable dark listed; self-calibrating MMIRS single-read '
                  'noise from the frame itself')
         sig = mmirs_calibrate_sigma(diffs, covar, sig_guess=self.ramp_sig_guess,
-                                    workers=self.ramp_fit_workers)
+                                    workers=self.ramp_fit_workers,
+                                    nb=self.ramp_fit_chunk_rows)
         sig = float(np.clip(sig, lo, hi))
         log.info(f'Self-calibrated single-read noise: {sig:.2f} e-')
         return sig
@@ -1098,7 +1100,8 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         log.info(f'Up-the-ramp fitting {ngroups} reads '
                  f'(single-read noise {sig:.2f} e-)')
         countrate = mmirs_fit_ramp(diffs, covar, sig,
-                                   workers=self.ramp_fit_workers)
+                                   workers=self.ramp_fit_workers,
+                                   nb=self.ramp_fit_chunk_rows)
         eff_ronoise = mmirs_effective_ronoise(sig, ngroups)
         log.info(f'Effective read noise: {eff_ronoise:.2f} e-')
         return countrate, sig, eff_ronoise

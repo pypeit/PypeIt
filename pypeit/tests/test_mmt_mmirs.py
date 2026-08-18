@@ -138,6 +138,26 @@ def test_fit_ramp_threaded_matches_serial():
     assert sig_serial == sig_threaded
 
 
+def test_ramp_fit_forwards_configured_chunk_rows(monkeypatch):
+    """A [rdx] ramp_fit_chunk_rows override must reach the ramp-fitting helper
+    (previously it was stored but never passed, so it had no effect)."""
+    spec = load_spectrograph('mmt_mmirs')
+    spec.ramp_fit_chunk_rows = 7
+    spec._ramp_sigma = 8.0                       # force noise; skip calibration
+
+    seen = {}
+
+    def fake_fit(diffs, covar, sig, workers=None, nb=16):
+        seen['nb'] = nb
+        return np.zeros(diffs.shape[1:])
+    monkeypatch.setattr(mmt_mmirs, 'mmirs_fit_ramp', fake_fit)
+
+    hdu = synth_ramp_hdulist(6, seed=31)
+    detector_par = spec.get_detector_par(1, hdu=hdu)
+    spec._ramp_fit_image(hdu, detector_par)
+    assert seen['nb'] == 7
+
+
 def test_effective_ronoise_formula():
     """Monte-Carlo check: total-count noise of a fitted pure-noise ramp."""
     rng = np.random.default_rng(99)
