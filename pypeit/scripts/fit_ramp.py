@@ -123,7 +123,8 @@ class FitRamp(scriptbase.ScriptBase):
                 try:
                     mmt_mmirs.mmirs_write_rampfit(rampfit_file, rate, hdu,
                                                   sig, eff_ronoise,
-                                                  raw.stat().st_mtime)
+                                                  raw.stat().st_mtime,
+                                                  raw_file=raw)
                 except OSError as e:
                     log.error(f'{raw.name}: could not write {rampfit_file} '
                               f'({e}); skipping')

@@ -540,6 +540,37 @@ def test_write_rampfit_roundtrip(tmp_path):
     assert not mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw)
 
 
+def test_rampfit_fresh_rejects_mismatched_source(tmp_path):
+    """A sidecar records its source raw cube (RAWPATH); a same-named raw file
+    from a different directory must not be treated as a fresh match, even when
+    the modification times happen to agree.  MMIRS raw names are only unique
+    within a program, so two directories can hold the same file name."""
+    ngroups = 6
+    (tmp_path / 'night1').mkdir()
+    (tmp_path / 'night2').mkdir()
+    raw1 = _write_synth(synth_ramp_hdulist(ngroups, rate=20., seed=81),
+                        tmp_path / 'night1' / 'sci.0001.fits')
+    raw2 = _write_synth(synth_ramp_hdulist(ngroups, rate=20., seed=82),
+                        tmp_path / 'night2' / 'sci.0001.fits')
+    # Force identical mtimes so only RAWPATH can distinguish the two cubes.
+    st = raw1.stat()
+    os.utime(raw2, (st.st_atime, st.st_mtime))
+
+    spec = load_spectrograph('mmt_mmirs')
+    with fits.open(raw1) as hdu:
+        detpar = spec.get_detector_par(1, hdu=hdu)
+        rate, sig, eff = spec._ramp_fit_image(hdu, detpar)
+        sidecar = mmt_mmirs.mmirs_rampfit_path(raw1, tmp_path)
+        mmt_mmirs.mmirs_write_rampfit(sidecar, rate, hdu, sig, eff,
+                                      raw1.stat().st_mtime, raw_file=raw1)
+    # Both cubes map to the same sidecar path (identical basename).
+    assert mmt_mmirs.mmirs_rampfit_path(raw2, tmp_path) == sidecar
+    assert fits.getval(sidecar, 'RAWPATH') == str(raw1.resolve())
+    # Fresh for its own source, stale for the same-named cube elsewhere.
+    assert mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw1)
+    assert not mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw2)
+
+
 def test_write_rampfit_atomic_on_failure(tmp_path, monkeypatch):
     """A crash/full-disk mid-writeto must not leave a truncated sidecar."""
     ngroups = 6

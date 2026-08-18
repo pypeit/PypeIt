@@ -1022,7 +1022,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             rampfit_file = mmirs_rampfit_path(fil, redux_path)
             try:
                 mmirs_write_rampfit(rampfit_file, rate, hdu, sig, eff_ronoise,
-                                    Path(fil).stat().st_mtime)
+                                    Path(fil).stat().st_mtime, raw_file=fil)
                 log.info(f'Wrote preprocessed ramp image: {rampfit_file}')
             except OSError as e:
                 log.warning(f'Could not write preprocessed ramp image '
@@ -1233,22 +1233,36 @@ def mmirs_rampfit_fresh(rampfit_file, raw_file):
     if not rampfit_file.exists():
         return False
     try:
-        mtime = float(fits.getval(rampfit_file, 'RAWMTIME'))
+        header = fits.getheader(rampfit_file)
+        mtime = float(header['RAWMTIME'])
         raw_mtime = Path(raw_file).stat().st_mtime
     except (KeyError, OSError):
+        return False
+    # If the sidecar records which raw cube it came from, require it to match:
+    # a same-named raw file from a different directory (MMIRS names are only
+    # unique within a program) must never reuse this image.  Sidecars written
+    # by older versions carry no RAWPATH and fall back to the mtime check.
+    raw_path = header.get('RAWPATH')
+    if raw_path is not None \
+            and str(raw_path) != str(Path(raw_file).resolve()):
         return False
     return abs(mtime - raw_mtime) < 1.
 
 
-def mmirs_write_rampfit(rampfit_file, rate, hdu, sig, eff_ronoise, raw_mtime):
+def mmirs_write_rampfit(rampfit_file, rate, hdu, sig, eff_ronoise, raw_mtime,
+                        raw_file=None):
     """
     Write a preprocessed MMIRS 2D count-rate image.
 
     The output carries a copy of the raw primary header plus the cards
-    ``RAMPFIT`` (marker), ``RAMPSIG``, ``RAMPRON``, ``NGROUPS`` and
-    ``RAWMTIME``, and a single image extension holding the fitted count
-    rate in e-/s (float32) under a copy of the raw final-read header, so
-    all metadata used by ``pypeit_setup`` is preserved.
+    ``RAMPFIT`` (marker), ``RAMPSIG``, ``RAMPRON``, ``NGROUPS``,
+    ``RAWMTIME``, and ``RAWPATH`` (the resolved path of the source raw
+    cube), and a single image extension holding the fitted count rate in
+    e-/s (float32) under a copy of the raw final-read header, so all
+    metadata used by ``pypeit_setup`` is preserved.  ``RAWPATH`` lets the
+    freshness check reject a sidecar that a same-named raw cube from a
+    *different* directory would otherwise map onto (MMIRS raw file names
+    are only unique within a program, not globally).
 
     The file is written atomically: the FITS data are first written to a
     temporary file in the same directory, which is then renamed onto the
@@ -1287,6 +1301,9 @@ def mmirs_write_rampfit(rampfit_file, rate, hdu, sig, eff_ronoise, raw_mtime):
                           'Number of reads in the source ramp')
     prihead['RAWMTIME'] = (float(raw_mtime),
                            'Modification time of the source raw cube')
+    if raw_file is not None:
+        prihead['RAWPATH'] = (str(Path(raw_file).resolve()),
+                              'Resolved path of the source raw cube')
     head1 = hdu[1].header.copy()
     head1['DATASEC'] = f'[1:{rate.shape[0]},1:{rate.shape[1]}]'
     head1['BUNIT'] = 'e-/s'
