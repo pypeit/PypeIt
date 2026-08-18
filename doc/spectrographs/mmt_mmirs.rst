@@ -1,3 +1,5 @@
+.. include:: ../include/links.rst
+
 *********
 MMT MMIRS
 *********
@@ -203,6 +205,24 @@ by sky coordinate. For MMIRS the ``[collate1d] outfile_from`` parameter defaults
 to ``maskdef_objname``, so each coadded file is named after the catalog target
 (e.g. ``qso_172239.955+655201.69_MMIRS_<date>.fits``) rather than its sky
 coordinate; set ``outfile_from = coord`` to restore coordinate-based names.
+
+.. note::
+
+    A coadded 1D spectrum (``OneSpec``) can contain masked bins where no input
+    exposure contributed a good pixel (e.g. a persistent bad pixel or an OH
+    residual that lands at the same wavelength in every flexure-controlled nod
+    exposure). These bins are correctly flagged in the good-pixel mask (``flux``,
+    ``ivar``, and ``mask`` are all zero there), but their stored wavelength is
+    left at 0 rather than the grid wavelength. A viewer that plots the raw
+    ``wave`` array *without* honoring the mask (such as ``lt_xspec``) therefore
+    draws a spurious spike back toward ``wave = 0``. The data are fine — this is
+    purely a display artifact. Load the file through `specutils`_ instead, which
+    applies the mask and returns a strictly monotonic wavelength axis::
+
+        from specutils import Spectrum
+        import pypeit.specutils   # registers the PypeIt loaders
+        spec = Spectrum.read('coadd/qso_172239.955+655201.69_MMIRS_<date>.fits')
+        # spec.spectral_axis (Angstrom) and spec.flux have the masked bins dropped
 
 When no ``.msk`` file is present, PypeIt falls back to generic edge tracing with
 ``SPATxxxx-SLITyyyy`` object names; group the resulting 1D spectra for coaddition
