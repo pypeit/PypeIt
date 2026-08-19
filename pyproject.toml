@@ -203,7 +203,7 @@ testpaths = [
     "pypeit",
 ]
 addopts = [
-    "--remote-data",
+    "--remote-data=any",
 ]
 
 [tool.coverage]
