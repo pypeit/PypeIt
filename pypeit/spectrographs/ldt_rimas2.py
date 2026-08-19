@@ -374,6 +374,22 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
 
         log.error("Not ready for compound meta %s for LDT/RIMAS", meta_key)
 
+    @staticmethod
+    def _mode_compatible_darks(
+        fitstbl: astropy.table.Table, mode_idx: np.ndarray
+    ) -> np.ndarray:
+        """Select darks matching an arm/readout geometry used by the mode."""
+        mode_geometry = set(zip(fitstbl["arm"][mode_idx], fitstbl["rawshape"][mode_idx]))
+        is_dark = fitstbl["filter1"] == "blank"
+        geometry_matches = np.array(
+            [
+                (arm, rawshape) in mode_geometry
+                for arm, rawshape in zip(fitstbl["arm"], fitstbl["rawshape"])
+            ],
+            dtype=bool,
+        )
+        return is_dark & geometry_matches
+
     def config_independent_frames(self) -> dict[str, str | list[str] | None]:
         """
         Define frame types that are independent of the fully defined
@@ -1068,13 +1084,16 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
         `astropy.table.Table`_
             The validated metadata table.
         """
-        # Only keep frames with one of the VPH gratings -- no slitless mode!
+        is_dark = fitstbl["filter1"] == "blank"
+
+        # Only keep non-dark frames with one of the VPH gratings -- no slitless mode!
         vph_idx = (
             (fitstbl["dispname"] == "Vph300") | (fitstbl["dispname"] == "Vph30")
-        ) & (fitstbl["decker"] != "open")
+        ) & (fitstbl["decker"] != "open") & np.logical_not(is_dark)
 
-        # Dark frames are universal, so always include them
-        dark_idx = fitstbl["filter1"] == "blank"
+        # Include darks taken in other optical configurations only when their
+        # detector arm and raw readout geometry match data selected above.
+        dark_idx = self._mode_compatible_darks(fitstbl, vph_idx)
 
         # Return the corrected table
         return fitstbl[vph_idx | dark_idx]
@@ -1700,11 +1719,18 @@ class LDTRIMASGrismSpectrograph(LDTRIMASSpectrograph):
         `astropy.table.Table`_
             The validated metadata table.
         """
-        # Only keep frames with the echelle grism -- no IFU mode!
-        grism_idx = (fitstbl["dispname"] == "Grism") & (fitstbl["decker"] != "open")
+        is_dark = fitstbl["filter1"] == "blank"
 
-        # Dark frames are universal, so always include them
-        dark_idx = fitstbl["filter1"] == "blank"
+        # Only keep non-dark frames with the echelle grism -- no IFU mode!
+        grism_idx = (
+            (fitstbl["dispname"] == "Grism")
+            & (fitstbl["decker"] != "open")
+            & np.logical_not(is_dark)
+        )
+
+        # Include darks taken in other optical configurations only when their
+        # detector arm and raw readout geometry match data selected above.
+        dark_idx = self._mode_compatible_darks(fitstbl, grism_idx)
 
         # Return the corrected table
         return fitstbl[grism_idx | dark_idx]

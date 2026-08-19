@@ -137,8 +137,8 @@ def test_ldt_rimas_flat_exptime():
         ('Grism', "2.0''", 'YJ', 120.12),
     ]
     rejected_rows = [
-        ('Vph30', "1.0''", 'HK', 9.0),
-        ('Vph30', "2.0''", 'HK', 6.0),
+        ('Vph30', "1.0''", 'HK', 16.0),
+        ('Vph30', "2.0''", 'HK', 11.0),
         ('Vph300', "1.2'' long", 'HK', 60.06),
     ]
     rows = flat_rows + rejected_rows
@@ -154,6 +154,29 @@ def test_ldt_rimas_flat_exptime():
 
     fitstbl['idname'] = ['DOME_BACKGROUND'] * len(rows)
     assert np.array_equal(rimas.check_frame_type('lampoffflats', fitstbl), expected)
+
+
+def test_ldt_rimas_mode_compatible_darks():
+    """RIMAS modes only retain darks with compatible detector geometry."""
+    fitstbl = astropy.table.Table(
+        rows=[
+            ('vph30.fits', 'Vph30', "1.2'' long", 'Vph30', 'HK', '4096,4230'),
+            ('vph300.fits', 'Vph300', "1.2'' long", 'Vph300', 'YJ', '500,2000'),
+            ('grism.fits', 'Grism', "1.0''", 'Grism', 'HK', '2000,2000'),
+            # The darks deliberately have optical configurations from other modes;
+            # compatibility is determined by detector arm and raw readout geometry.
+            ('dark_vph30.fits', 'Grism', "1.0''", 'blank', 'HK', '4096,4230'),
+            ('dark_grism.fits', 'Vph30', "1.2'' long", 'blank', 'HK', '2000,2000'),
+            ('dark_wrong_arm.fits', 'Grism', "1.0''", 'blank', 'YJ', '4096,4230'),
+        ],
+        names=('filename', 'dispname', 'decker', 'filter1', 'arm', 'rawshape'),
+    )
+
+    vph = load_spectrograph('ldt_rimas_vph').validate_fitstbl(fitstbl)
+    assert set(vph['filename']) == {'vph30.fits', 'vph300.fits', 'dark_vph30.fits'}
+
+    grism = load_spectrograph('ldt_rimas_grism').validate_fitstbl(fitstbl)
+    assert set(grism['filename']) == {'grism.fits', 'dark_grism.fits'}
 
 
 def test_configs():
