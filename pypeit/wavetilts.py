@@ -408,7 +408,7 @@ class BuildWaveTilts:
         """
         arccen, arccen_bpm, arc_maskslit = arc.get_censpec(self.slitcen, self.slitmask,
                                                            self.mstilt.image, gpm=self.gpm,
-                                                           slit_bpm=self.tilt_bpm)
+                                                           slit_bpm=self.tilt_bpm, box_rad=self.wavepar['boxcar_radius'])
             #, nonlinear_counts=self.nonlinear_counts)
         # Step
         self.steps.append(inspect.stack()[0][3])
