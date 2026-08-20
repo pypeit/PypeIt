@@ -39,6 +39,8 @@ class RunToCalibStep(scriptbase.ScriptBase):
     @classmethod
     def main(cls, args):
 
+        scriptbase.configure_matplotlib(args.show)
+
         import numpy as np
         from IPython import embed
         from pathlib import Path
