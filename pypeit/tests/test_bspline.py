@@ -1696,6 +1696,7 @@ def test_value_interpolate_training_x_fast_path():
 # iterative_bspline_fit — integration tests against reference data
 # ---------------------------------------------------------------------------
 
+@pytest.mark.remote_data
 def test_iterative_bspline_fit_spec():
     """
     iterative_bspline_fit reproduces the spectral flat-field reference fit
@@ -1719,6 +1720,7 @@ def test_iterative_bspline_fit_spec():
             'Bad spectral iterative_bspline_fit result'
 
 
+@pytest.mark.remote_data
 def test_iterative_bspline_fit_spat():
     """
     iterative_bspline_fit reproduces the spatial flat-field reference fit
@@ -1742,6 +1744,7 @@ def test_iterative_bspline_fit_spat():
             'Bad spatial iterative_bspline_fit result'
 
 
+@pytest.mark.remote_data
 def test_iterative_bspline_fit_twod():
     """
     iterative_bspline_fit reproduces the 2D flat-field reference fit
