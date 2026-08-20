@@ -3,6 +3,9 @@ Instrument                    Det  specaxis  specflip  spatflip  namp      gain 
 ============================  ===  ========  ========  ========  ========  ==========================  ======================  ========  ========  ============  =========  ==========
 ``aat_uhrf``                  1    0         False     False     1         1.0                         0.0                     0.0       -1.0e+10  65535.0       0.7600     0.0500    
 ``apf_levy``                  1    0         True      True      1         1.031                       3.75                    0.0008    -1.0e+10  65535.0       0.9900     0.4320    
+``arc_arces``                 1    1         True      True      1         3.8                         7.0                     0.0       -1.0e+10  65535.0       0.8600     0.5200    
+``arc_kosmos``                1    0         True      False     2         0.6, 0.6                    5.0, 5.0                0.0       -1.0e+10  262144.0      0.8600     0.2580    
+``arc_tspec``                 1    1         True      False     1         3.5                         3.5                     306.0     -1.0e+10  28000         0.9000     0.3900    
 ``bok_bc``                    1    1         False     False     1         1.5                         3.0                     5.4       -1.0e+10  65535.0       1.0000     0.2000    
 ``gemini_flamingos1``         1    0         False     False     1         3.8                         6.0                     1080.0    -1.0e+10  320000.0      0.8750     0.1500    
 ``gemini_flamingos2``         1    0         True      False     1         4.44                        5.0                     1800.0    -1.0e+10  700000.0      1.0000     0.1787    
@@ -68,11 +71,14 @@ Instrument                    Det  specaxis  specflip  spatflip  namp      gain 
 ``ldt_deveny``                1    1         True      False     1         1.52                        4.9                     4.5       -1.0e+10  65535.0       0.9700     0.3400    
 ``magellan_fire``             1    1         True      False     1         1.2                         5.0                     3.06      -1.0e+10  100000.0      1.0000     0.1800    
 ``magellan_fire_long``        1    0         False     False     1         3.8                         6.0                     3.06      -1.0e+10  320000.0      0.8750     0.1500    
+``magellan_ldss3``            1    0         False     False     2         1.65, 1.47                  4.67, 5.06              25.0      -1.0e+10  205000.0      0.8500     0.1890    
 ``magellan_mage``             1    1         True      False     1         1.02                        2.9                     1.0       -1.0e+10  65535.0       0.9900     0.3000    
 ``mdm_modspec``               1    0         True      False     1         1.3                         7.9                     0.0       -1.0e+10  65535.0       0.9700     0.2800    
 ``mdm_osmos_mdm4k``           1    1         True      False     4         2.2, 2.2, 2.2, 2.2          5.0, 5.0, 5.0, 5.0      0.0       -1.0e+10  65535.0       0.8600     0.2730    
 ``mdm_osmos_r4k``             1    1         True      False     4         2.2, 2.2, 2.2, 2.2          3.0, 3.0, 3.0, 3.0      0.0       -1.0e+10  65535.0       0.8600     0.2730    
 ``mmt_binospec``              1    0         False     False     4         1.085, 1.046, 1.042, 0.975  3.2, 3.2, 3.2, 3.2      3.6       -1.0e+10  65535.0       0.9500     0.2400    
+...                           2    0         False     False     4         1.028, 1.115, 1.047, 1.045  3.6, 3.6, 3.6, 3.6      3.6       -1.0e+10  65535.0       0.9500     0.2400    
+``mmt_binospec_ifu``          1    0         False     False     4         1.085, 1.046, 1.042, 0.975  3.2, 3.2, 3.2, 3.2      3.6       -1.0e+10  65535.0       0.9500     0.2400    
 ...                           2    0         False     False     4         1.028, 1.115, 1.047, 1.045  3.6, 3.6, 3.6, 3.6      3.6       -1.0e+10  65535.0       0.9500     0.2400    
 ``mmt_bluechannel``           1    0         False     False     1         ``None``                    ``None``                0.0       -1.0e+10  65535.0       0.9500     0.3000    
 ``mmt_mmirs``                 1    0         False     False     1         0.95                        3.14                    36.0      -1.0e+10  700000.0      1.0000     0.2012    
@@ -81,19 +87,25 @@ Instrument                    Det  specaxis  specflip  spatflip  namp      gain 
 ``ntt_efosc2``                1    0         False     False     1         0.91                        10.0                    0.0       -1.0e+10  65535         0.8000     0.1200    
 ``p200_dbsp_blue``            1    0         True      False     1         0.72                        2.5                     0.0       -1.0e+10  65000.0       0.9538     0.3890    
 ``p200_dbsp_red``             1    1         False     False     1         2.8                         8.5                     0.0       -1.0e+10  45000.0       0.8889     0.2930    
-``p200_ngps_i``               1    1         False     False     1         2.8                         8.5                     0.0       -1.0e+10  65000.0       0.8889     0.5000    
-``p200_ngps_r``               1    1         False     False     1         2.8                         8.5                     0.0       -1.0e+10  65000.0       0.8889     0.5000    
+``p200_ngps_g``               1    1         True      False     1         2.88                        8.5                     0.0       -1.0e+10  40000.0       0.8889     0.1870    
+``p200_ngps_i``               1    1         False     False     1         0.86                        8.5                     0.0       -1.0e+10  40000.0       0.8889     0.1870    
+``p200_ngps_r``               1    1         False     False     1         0.9                         8.5                     0.0       -1.0e+10  40000.0       0.8889     0.1870    
+``p200_ngps_u``               1    0         True      False     1         0.755                       8.5                     0.0       -1.0e+10  40000.0       0.8889     0.1870    
 ``p200_tspec``                1    1         True      False     1         3.8                         3.5                     306.0     -1.0e+10  28000         0.9000     0.3700    
 ``shane_kast_blue``           1    1         False     False     2         1.2, 1.2                    3.7, 3.7                0.0       -1.0e+10  65535.0       0.7600     0.4300    
 ``shane_kast_red``            1    0         False     False     2         1.9, 1.9                    3.8, 3.8                0.0       -1.0e+10  65535.0       0.7600     0.4300    
 ``shane_kast_red_ret``        1    1         False     False     1         3.0                         12.5                    0.0       -1.0e+10  120000.0      0.7600     0.7740    
 ``soar_goodman_blue``         1    1         False     False     1         ``None``                    ``None``                0.0       -1.0e+10  65535.0       1.0000     0.1500    
 ``soar_goodman_red``          1    1         False     False     1         ``None``                    ``None``                0.0       -1.0e+10  65535.0       1.0000     0.1500    
+``soar_tspec``                1    0         False     False     1         3.8                         3.5                     306.0     -1.0e+10  28000         0.9000     0.3700    
 ``subaru_focas``              1    0         True      False     4         2.081, 2.047, 2.111, 2.087  4.2, 3.8, 3.6, 4.0      0.8       -1.0e+10  65535.0       0.6104     0.1038    
 ``tng_dolores``               1    1         False     False     1         0.97                        9.0                     0.0       -1.0e+10  65500.0       0.9900     0.2520    
 ``vlt_fors2``                 1    1         False     False     1         0.7                         2.9                     2.1       -1.0e+10  200000.0      0.8000     0.1260    
 ...                           2    1         False     False     1         0.7                         3.15                    1.4       -1.0e+10  200000.0      0.8000     0.1260    
 ``vlt_sinfoni``               1    0         True      False     1         2.42                        7.0                     540.0     -1.0e+10  1000000000.0  1.0000     0.0125    
+``vlt_uves_blue``             1    0         True      False     1         0.54                        3.8                     0.0       -1.0e+10  65535.0       0.7000     0.2200    
+``vlt_uves_red``              1    0         True      True      1         ``None``                    ``None``                0.0       -1.0e+10  65535.0       0.7000     0.1350    
+...                           2    0         True      True      1         ``None``                    ``None``                0.0       -1.0e+10  65535.0       0.7000     0.1350    
 ``vlt_xshooter_nir``          1    1         False     False     1         2.29                        8.0                     72.0      -1.0e+10  200000.0      0.8600     0.2450    
 ``vlt_xshooter_uvb``          1    0         True      True      1         ``None``                    ``None``                0.0       -1.0e+10  65000.0       0.8600     0.1640    
 ``vlt_xshooter_vis``          1    0         False     False     1         ``None``                    ``None``                0.0       -1.0e+10  65535.0       0.8600     0.1540    

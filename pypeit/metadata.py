@@ -23,9 +23,9 @@ from pypeit import inputfiles
 from pypeit.core import framematch
 from pypeit.core import parse
 from pypeit.core import meta
+from pypeit.core.bitmask import BitMask
 from pypeit.io import dict_to_lines
 from pypeit.par import PypeItPar
-from pypeit.bitmask import BitMask
 
 
 # TODO: Turn this into a DataContainer
@@ -87,7 +87,7 @@ class PypeItMetaData:
             A dictionary of the unique configurations identified.
         type_bitmask (:class:`~pypeit.core.framematch.FrameTypeBitMask`):
             The bitmask used to set the frame type of each fits file.
-        calib_bitmask (:class:`~pypeit.bitmask.BitMask`):
+        calib_bitmask (:class:`~pypeit.core.bitmask.BitMask`):
             The bitmask used to keep track of the calibration group bits.
         table (`astropy.table.Table`_):
             The table with the relevant metadata for each fits file to
@@ -122,7 +122,7 @@ class PypeItMetaData:
             self.merge(usrdata)
 
         # Impose types on specific columns
-        self._impose_types(['comb_id', 'bkg_id', 'manual', 'shift'], [int, int, str, float])
+        self._impose_types(['comb_id', 'bkg_id', 'manual', 'shift'], [int, int, str, str])
 
         # Initialize internal attributes
         self.configs = None
@@ -1514,7 +1514,9 @@ class PypeItMetaData:
         if 'bkg_id' not in self.keys():
             self['bkg_id'] = -1
         if 'shift' not in self.keys():
-            self['shift'] = 0
+            # Blank means no manual spatial flexure; any numeric value
+            # (including 0.) is a user-requested override.
+            self['shift'] = ''
 
         # NOTE: Importantly, this if statement means that, if the user has
         # defined any non-negative combination IDs in their pypeit file, none of
@@ -1550,7 +1552,9 @@ class PypeItMetaData:
         if 'manual' not in self.keys():
             self['manual'] = ''
         if 'shift' not in self.keys():
-            self['shift'] = 0
+            # Blank means no manual spatial flexure; any numeric value
+            # (including 0.) is a user-requested override.
+            self['shift'] = ''
 
     def write_sorted(self, ofile, overwrite=True, ignore=None, 
                      write_bkg_pairs=False, write_manual=False):

@@ -9,6 +9,7 @@ import inspect
 
 from IPython import embed
 from pathlib import Path
+import gc
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -23,9 +24,11 @@ from pypeit import calibframe
 from pypeit import slittrace, wavecalib
 from pypeit.display import display
 from pypeit.core import arc
+from pypeit.core import fitting
 from pypeit.core import tracewave
 from pypeit.core.wavecal import autoid
 from pypeit.images import buildimage
+from pypeit.qa import arc_tilts_2d_qa, arc_tilts_spat_qa, arc_tilts_spec_qa
 
 
 class WaveTilts(calibframe.CalibFrame):
@@ -144,17 +147,25 @@ class WaveTilts(calibframe.CalibFrame):
 
         _flexure = 0. if flexure is None else flexure
 
-        final_tilts = np.zeros_like(slitmask).astype(float)
-        gdslit_spat = np.unique(slitmask[slitmask >= 0]).astype(int)
+        final_tilts = np.zeros_like(slitmask, dtype=float)
+        # NOTE: -1 is the only off-slit sentinel used by SlitTraceSet.slit_img;
+        # valid slit IDs can be negative (e.g. Echelle edge orders whose spat_id
+        # extrapolates below zero), so this must test against -1 and NOT `>= 0`.
+        gdslit_spat = np.unique(slitmask[slitmask != -1]).astype(int)
         # Loop
         for slit_spat in gdslit_spat:
             slit_idx = self.spatid_to_zero(slit_spat)
-            # Calculate
             coeff_out = self.coeffs[:self.spec_order[slit_idx]+1,:self.spat_order[slit_idx]+1,slit_idx]
-            _tilts = tracewave.fit2tilts(final_tilts.shape, coeff_out, self.func2d, spat_shift=-1*_flexure)
-            # Fill
             thismask_science = slitmask == slit_spat
+            _tilts = tracewave.fit2tilts(final_tilts.shape, coeff_out, self.func2d,
+                                         spat_shift=-1*_flexure,
+                                         slit_mask=thismask_science)
+            # Fill
             final_tilts[thismask_science] = _tilts[thismask_science]
+
+            # This is a work around for the Python memory usage issues
+            _tilts = None
+            gc.collect(2)        
         # Return
         return final_tilts
 
@@ -240,7 +251,7 @@ class WaveTilts(calibframe.CalibFrame):
 
         # Show
         # tilt image
-        tilt_img = tilt_img_dict.image * (slitmask > -1) if slitmask is not None else tilt_img_dict.image
+        tilt_img = tilt_img_dict.image * (slitmask != -1) if slitmask is not None else tilt_img_dict.image
         # set cuts
         zmax = stats.sigma_clip(tilt_img, sigma=10, return_bounds=True)[2]
         zmin = stats.sigma_clip(tilt_img, sigma=5, return_bounds=True)[1] * 2
@@ -361,8 +372,11 @@ class BuildWaveTilts:
         # TODO -- Discuss further with JFH
         self.slitmask_science = self.slits.slit_img(initial=True, flexure=self.spat_flexure, exclude_flag=['BOXSLIT'])  # All unmasked slits
         # Resize
-        # TODO: Should this be the bpm or *any* flag?
-        gpm = self.mstilt.select_flag(flag='BPM', invert=True) if self.mstilt is not None \
+        # Mask BPM and CR-flagged pixels: when residual CR rejection runs without
+        # filling, CR pixels still carry their original (contaminated) values, so
+        # they must be excluded from tilt centroiding.
+        gpm = self.mstilt.select_flag(flag=['BPM', 'CR'], invert=True) \
+                    if self.mstilt is not None \
                     else np.ones_like(self.slitmask_science, dtype=bool)
         self.shape_science = self.slitmask_science.shape
         self.shape_tilt = self.mstilt.image.shape
@@ -492,10 +506,33 @@ class BuildWaveTilts:
                 = tracewave.fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=spat_order,
                                       spec_order=spec_order,maxdev=self.par['maxdev2d'],
                                       sigrej=self.par['sigrej2d'], func2d=self.par['func2d'],
-                                      doqa=doqa, calib_key=self.mstilt.calib_key,
-                                      slitord_id=self.slits.slitord_id[slit_idx],
-                                      minmax_extrap=self.par['minmax_extrap'],
-                                      show_QA=show_QA, out_dir=self.qa_path)
+                                      minmax_extrap=self.par['minmax_extrap'])
+
+        # Now do some QA
+        if doqa:
+            trc_tilt_dict_out = self.all_trace_dict[slit_idx]
+            calib_key=self.mstilt.calib_key
+            slitord_id=self.slits.slitord_id[slit_idx]
+            tilts_dspat = trc_tilt_dict_out['tilts_dspat']  # spatial offset from the central trace
+            tilts = trc_tilt_dict_out['tilts']  # legendre polynomial fit
+            tilts_2dfit = trc_tilt_dict_out['tilt_2dfit']
+            fwhm = trc_tilt_dict_out['fwhm']
+            tot_mask = trc_tilt_dict_out['tot_mask']
+            tilts_spec = trc_tilt_dict_out['tilts_spec']
+            rms_fit = trc_tilt_dict_out['rms_fit']
+            # Compute a rejection mask that we will use later. These are
+            # locations that were fit but were rejected
+            rej_mask = tot_mask & np.logical_not(trc_tilt_dict_out['fit_mask'])
+
+            # tot mask from the output mask
+            # rej mask and rms_fit not in any output, recompute, or put into output from fit_tilts?
+            arc_tilts_2d_qa(tilts_dspat, tilts, tilts_2dfit, tot_mask, rej_mask, spat_order, spec_order,
+                        rms_fit, fwhm, slitord_id=slitord_id, setup=calib_key, show_QA=show_QA, out_dir=self.qa_path)
+            arc_tilts_spat_qa(tilts_dspat, tilts, tilts_2dfit, tilts_spec, tot_mask, rej_mask, spat_order,
+                        spec_order, rms_fit, fwhm, slitord_id=slitord_id, setup=calib_key, show_QA=show_QA,
+                        out_dir=self.qa_path)
+            arc_tilts_spec_qa(tilts_spec, tilts, tilts_2dfit, tot_mask, rej_mask, rms_fit, fwhm,
+                        slitord_id=slitord_id, setup=calib_key, show_QA=show_QA, out_dir=self.qa_path)
 
         self.steps.append(inspect.stack()[0][3])
         return self.all_fit_dict[slit_idx]['coeff2']
@@ -814,24 +851,40 @@ class BuildWaveTilts:
             # Tilts are created with the size of the original slitmask,
             # which corresonds to the same binning as the science
             # images, trace images, and pixelflats etc.
+            thismask_science = self.slitmask_science == slit_spat
             self.tilts = tracewave.fit2tilts(self.slitmask_science.shape, coeff_out,
-                                             self.par['func2d'])
-            # Check that the tilts image has values that span a reasonable range
-            # TODO: Is this the right threshold?
-            if np.nanmax(self.tilts) - np.nanmin(self.tilts) < 0.8:
+                                             self.par['func2d'],
+                                             slit_mask=thismask_science)
+            # Check that the tilts image has values that span a reasonable range.
+            # Tilts are normalized by (nspec - 1), so a slit/order that covers
+            # the full spectral direction has an expected within-slit range of 1.
+            # For echelle orders that only cover part of the spectral direction
+            # (specmin/specmax from the spectrograph), the expected range is
+            # smaller, so scale the threshold to 80% of that expected range.
+            nspec = self.slitmask_science.shape[0]
+            xnspecmin1 = float(nspec - 1)
+            spec_lo = np.clip(self.slits.specmin[slit_idx], 0.0, xnspecmin1)
+            spec_hi = np.clip(self.slits.specmax[slit_idx], 0.0, xnspecmin1)
+            expected_range = (spec_hi - spec_lo) / xnspecmin1
+            _slit_tilts = self.tilts[thismask_science]
+            if np.nanmax(_slit_tilts) - np.nanmin(_slit_tilts) < 0.8 * expected_range:
                 log.warning('Tilts image fit not good. This slit/order will not be reduced!')
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADTILTCALIB')
                 continue
             # Save to final image
-            thismask_science = self.slitmask_science == slit_spat
             self.final_tilts[thismask_science] = self.tilts[thismask_science]
 
+            
+            # This is a work around for the Python memory usage issues
+            self.tilts = None
+            gc.collect(2)
+    
         if show:
-            viewer, ch = display.show_image(self.mstilt.image * (self.slitmask > -1), chname='tilts')
+            viewer, ch = display.show_image(self.mstilt.image * (self.slitmask != -1), chname='tilts')
             display.show_tilts(viewer, ch, self.make_tbl_tilt_traces())
 
         if debug:
-            show_tilts_mpl(self.mstilt.image*(self.slitmask > -1), self.make_tbl_tilt_traces())
+            show_tilts_mpl(self.mstilt.image*(self.slitmask != -1), self.make_tbl_tilt_traces())
 
         # Record the Mask
         bpmtilts = np.zeros_like(self.slits.mask, dtype=self.slits.bitmask.minimum_dtype())

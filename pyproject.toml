@@ -29,8 +29,9 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
-requires-python = ">=3.11,<3.14"
+requires-python = ">=3.11,<3.15"
 dependencies = [ 
     "numpy>=2.4.1",
     "astropy>=7.0",
@@ -48,6 +49,7 @@ dependencies = [
     "pygithub",
     "bottleneck",
     "pyqt6",
+    "pydantic>=2.0",
 ]
 
 [project.optional-dependencies]
@@ -63,6 +65,7 @@ test = [
     "pytest-astropy",
     "tox",
     "pytest-cov",
+    "pytest-qt",
     "coverage",
 ]
 docs = [
@@ -72,10 +75,10 @@ docs = [
     "sphinx-design",
     "sphinx_rtd_theme==3.0.0",
     "sphinx-autodoc-typehints>3.2",
+    "sphinxcontrib-mermaid",
 ]
 devsuite = [
     "psutil",
-    "pytest-qt",
 ]
 dev = [
     "scikit-image>=0.23",
@@ -92,6 +95,7 @@ dev = [
     "sphinx-design",
     "sphinx_rtd_theme==3.0.0",
     "sphinx-autodoc-typehints>3.2",
+    "sphinxcontrib-mermaid",
     "psutil",
     "pytest-qt",
 ]
@@ -102,9 +106,11 @@ Documentation = "https://pypeit.readthedocs.io/"
 
 [project.scripts]
 
+#  
 # non-GUI scripts
 pypeit_rectify_2dspec = "pypeit.scripts.rectify_2dspec:Rectify2DSpec.entry_point"
 pypeit_arxiv_solution = "pypeit.scripts.arxiv_solution:ArxivSolution.entry_point"
+pypeit_binospec_ifu_cube = "pypeit.scripts.binospec_ifu_cube:BinospecIFUCube.entry_point"
 pypeit_cache_github_data = "pypeit.scripts.cache_github_data:CacheGithubData.entry_point"
 pypeit_clean_cache = "pypeit.scripts.clean_cache:CleanCache.entry_point"
 pypeit_chk_flexure = "pypeit.scripts.chk_flexure:ChkFlexure.entry_point"
@@ -134,11 +140,13 @@ pypeit_parse_slits = "pypeit.scripts.parse_slits:ParseSlits.entry_point"
 pypeit_print_bpm = "pypeit.scripts.print_bpm:PrintBPM.entry_point"
 pypeit_qa_html = "pypeit.scripts.qa_html:QAHtml.entry_point"
 pypeit_ql = "pypeit.scripts.ql:QL.entry_point"
+pypeit_status = "pypeit.scripts.status:PypeItStatus.entry_point"
 run_pypeit = "pypeit.scripts.run_pypeit:RunPypeIt.entry_point"
 pypeit_run_to_calibstep = "pypeit.scripts.run_to_calibstep:RunToCalibStep.entry_point"
 pypeit_reduce_by_step = "pypeit.scripts.reduce_by_step:ReducebyStep.entry_point"
 pypeit_sensfunc = "pypeit.scripts.sensfunc:SensFunc.entry_point"
 pypeit_setup = "pypeit.scripts.setup:Setup.entry_point"
+pypeit_dashboard = "pypeit.scripts.dashboard:PypeItDashboard.entry_point"
 pypeit_setup_coadd2d = "pypeit.scripts.setup_coadd2d:SetupCoAdd2D.entry_point"
 pypeit_show_arxiv = "pypeit.scripts.show_arxiv:ShowArxiv.entry_point"
 pypeit_version = "pypeit.scripts.version:Version.entry_point"
@@ -146,6 +154,7 @@ pypeit_show_wvcalib = "pypeit.scripts.show_wvcalib:ShowWvCalib.entry_point"
 pypeit_tellfit = "pypeit.scripts.tellfit:TellFit.entry_point"
 pypeit_trace_edges = "pypeit.scripts.trace_edges:TraceEdges.entry_point"
 # GUI scripts
+pypeit_binospec_ifu_extract = "pypeit.scripts.binospec_ifu_extract:BinospecIFUExtract.entry_point"
 pypeit_chk_alignments = "pypeit.scripts.chk_alignments:ChkAlignments.entry_point"
 pypeit_chk_edges = "pypeit.scripts.chk_edges:ChkEdges.entry_point"
 pypeit_chk_flats = "pypeit.scripts.chk_flats:ChkFlats.entry_point"
@@ -191,6 +200,9 @@ version_file = "pypeit/pkg/version.py"
 minversion = 7.0
 testpaths = [
     "pypeit",
+]
+addopts = [
+    "--remote-data=any",
 ]
 
 [tool.coverage]
