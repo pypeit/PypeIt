@@ -470,7 +470,7 @@ from astropy.table import Table
 from pypeit import io
 from pypeit import log
 from pypeit import PypeItDataModelError
-from pypeit.par.util import eval_tuple
+from pypeit.utils import eval_tuple
 
 # TODO: There are methods in, e.g., doc/scripts/build_specobj_rst.py that output
 # datamodels for specific datacontainers.  It would be useful if we had
@@ -1221,7 +1221,7 @@ class DataContainer:
                             f"Allowed type(s) are: {self.datamodel[item]['otype']}")
         # Array?
         if 'atype' in self.datamodel[item].keys():
-            if not isinstance(value.flat[0], self.datamodel[item]['atype']):
+            if value.size > 0 and not isinstance(value.flat[0], self.datamodel[item]['atype']):
                 raise TypeError(f'Cannot assign array with data type {type(value.flat[0])} to '
                                 f'{item} array.\nAllowed type(s) for the array are: '
                                 f"{self.datamodel[item]['atype']}")

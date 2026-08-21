@@ -5,16 +5,17 @@ General utility functions.
 .. include:: ../include/links.rst
 
 """
+import ast
 import os
 import json
 import gzip
 import inspect
-import pickle
 import pathlib
 import itertools
 import glob
 import colorsys
 import collections.abc
+from typing import Type
 
 from astropy import convolution
 from astropy import stats
@@ -31,7 +32,7 @@ from scipy import signal
 
 from pypeit import log
 from pypeit import PypeItError
-from pypeit.move_median import move_median
+from pypeit.core.move_median import move_median
 from pypeit import dataPaths
 
 
@@ -1035,42 +1036,6 @@ def occurrences(inarr):
     return cnt[idx]
 
 
-def pyplot_rcparams():
-    """
-    params for pretty matplotlib plots
-    """
-    # set some plotting parameters
-    plt.rcParams["xtick.top"] = True
-    plt.rcParams["ytick.right"] = True
-    plt.rcParams["xtick.minor.visible"] = True
-    plt.rcParams["ytick.minor.visible"] = True
-    plt.rcParams["ytick.direction"] = 'in'
-    plt.rcParams["xtick.direction"] = 'in'
-    plt.rcParams["xtick.major.size"] = 6
-    plt.rcParams["ytick.major.size"] = 6
-    plt.rcParams["xtick.minor.size"] = 3
-    plt.rcParams["ytick.minor.size"] = 3
-    plt.rcParams["xtick.major.width"] = 1
-    plt.rcParams["ytick.major.width"] = 1
-    plt.rcParams["xtick.minor.width"] = 1
-    plt.rcParams["ytick.minor.width"] = 1
-    plt.rcParams["axes.linewidth"] = 1
-    plt.rcParams["lines.linewidth"] = 3
-    plt.rcParams["lines.markeredgewidth"] = 2
-    plt.rcParams["patch.linewidth"] = 3
-    plt.rcParams["hatch.linewidth"] = 3
-    plt.rcParams["font.size"] = 13
-    plt.rcParams["legend.frameon"] = False
-    plt.rcParams["legend.handletextpad"] = 1
-
-
-def pyplot_rcparams_default():
-    """
-    restore default rcparams
-    """
-    matplotlib.rcParams.update(matplotlib.rcParamsDefault)
-
-
 def smooth(x, window_len, window='flat'):
     """smooth the data using a window with requested size.
 
@@ -1306,23 +1271,6 @@ def inverse(array):
         `numpy.ndarray`_: Result of controlled ``1/array`` calculation.
     """
     return (array > 0.0) / (np.abs(array) + (array == 0.0))
-
-
-def calc_ivar(varframe):
-    """
-
-    Calculate the inverse variance based on the input array
-
-    Wrapper to inverse()
-
-    Args:
-        varframe (`numpy.ndarray`_):  Variance image
-
-    Returns:
-        `numpy.ndarray`_:  Inverse variance image
-    """
-    # THIS WILL BE DEPRECATED!!
-    return inverse(varframe)
 
 
 def robust_meanstd(array):
@@ -1694,41 +1642,6 @@ def recursive_update(d, u):
     for k, v in u.items():
         d[k] = recursive_update(d.get(k, {}), v) if isinstance(v, collections.abc.Mapping) else v
     return d
-
-
-def save_pickle(fname, obj):
-    """Save an object to a python pickle file
-
-    Parameters
-    ----------
-    fname : :class:`str`
-        Filename
-    obj : :class:`object`
-        An object suitable for pickle serialization.
-    """
-    if fname.split(".")[-1] != 'pkl':
-        fname += '.pkl'
-    with open(fname, 'wb') as f:
-        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
-        log.info('File saved: {0:s}'.format(fname))
-
-
-def load_pickle(fname):
-    """Load a python pickle file
-
-    Parameters
-    ----------
-    fname : :class:`str`
-        Filename
-
-    Returns
-    -------
-    :class:`object`
-        An object suitable for pickle serialization.
-    """
-    log.info('Loading file: {0:s}'.format(fname))
-    with open(fname, 'rb') as f:
-        return pickle.load(f)
 
 
 ##
@@ -2255,3 +2168,90 @@ def loadjson(filename):
             return json.loads(f.read().decode("ascii"))
     with open(_file, 'rt') as f:
         return json.load(f)
+
+
+def ast_literal_eval(inp):
+    """
+    A wrapper for :func:`ast.literal_eval` that returns the input if it raises a
+    ValueError.
+    """
+    try:
+        return ast.literal_eval(inp)
+    except ValueError:
+        return inp
+
+
+def _eval_iter(inp:list[str], left:str, right:str, otype:Type) -> list:
+    """
+    Convenience function used to abstract the core functionality of
+    :func:`eval_tuple` and :func:`eval_list`.
+
+    Parameters
+    ----------
+    inp
+        Input list of strings
+    left
+        Left bracket delimeter
+    right
+        Right bracket delimeter
+    otype
+        Return type for the components of the list
+
+    Returns
+    -------
+        A list of objects with type ``otype`` as converted from the provided
+        strings.
+    """
+    grps = [
+        i for i in list(itertools.chain(*[s.split(right) for s in ','.join(inp).split(left)]))
+        if len(i) > 1
+    ]
+    return list(otype(map(ast_literal_eval, g.split(','))) for g in grps)
+
+
+def eval_tuple(inp:list[str]) -> list[tuple]:
+    """
+    Evaluate the input to one or more tuples.
+
+    This allows conversion of one or more tuples provided to a configuration
+    parameters.
+
+    .. warning::
+
+        - Currently can only handle tuples with integers, floats, or strings!
+
+    Parameters
+    ----------
+    inp 
+        A list of strings that are converted into a list of tuples.  The
+        parentheses must be within the list of elements.
+
+    Returns
+    -------
+        A list of tuples with the converted elements.
+    """
+    return _eval_iter(inp, '(', ')', tuple)
+
+
+def eval_list(inp:list[str]) -> list[list]:
+    """
+    Evaluate the input to one or more lists.
+
+    This allows conversion of one or more lists provided to a configuration
+    parameters.
+
+    .. warning::
+
+        - Currently can only handle lists with integers, floats, or strings!
+
+    Parameters
+    ----------
+    inp 
+        A list of strings that are converted into a list of lists.  The square
+        brackets must be within the list of elements.
+
+    Returns
+    -------
+        A list of lists with the converted elements.
+    """
+    return _eval_iter(inp, '[', ']', list)

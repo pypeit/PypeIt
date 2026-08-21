@@ -20,6 +20,7 @@ from pypeit import log
 from pypeit import PypeItError
 from pypeit import utils
 from pypeit.core import fitting
+from pypeit.core.plot import pyplot_rcparams, pyplot_rcparams_default
 from IPython import embed
 
 
@@ -67,7 +68,7 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
 
     if debug:
         # set some plotting parameters
-        utils.pyplot_rcparams()
+        pyplot_rcparams()
         plt.figure(figsize=(7,5))
         log.info("Plot identified lines")
         cm = plt.get_cmap('RdYlBu_r')
@@ -115,7 +116,7 @@ def fit2darc_global_qa(pypeitFit, nspec, outfile=None):
     """
     log.info("Creating QA for 2D wavelength solution")
 
-    utils.pyplot_rcparams()
+    pyplot_rcparams()
 
     # Extract info from pypeitFit
     xnspecmin1 = float(nspec - 1)
@@ -186,7 +187,7 @@ def fit2darc_global_qa(pypeitFit, nspec, outfile=None):
         plt.show()
 
     # restore default rcparams
-    utils.pyplot_rcparams_default()
+    pyplot_rcparams_default()
 
 
 def fit2darc_orders_qa(pypeitFit, nspec, outfile=None):
@@ -208,7 +209,7 @@ def fit2darc_orders_qa(pypeitFit, nspec, outfile=None):
 
     log.info("Creating QA for 2D wavelength solution")
 
-    utils.pyplot_rcparams()
+    pyplot_rcparams()
 
     # Extract info from pypeitFit
     xnspecmin1 = float(nspec - 1)
@@ -466,7 +467,8 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
         Shape is (nslits,).
     """
     # Initialize the good pixel mask
-    _gpm = slitmask > -1 if gpm is None else gpm & (slitmask > -1)
+    # TODO :: This is a bug... In echelle spectrographs, slitmask can equal -1 for a valid slit that is just off the detector. We need a different mask value for being off the slitmask.
+    _gpm = (slitmask != -1) if gpm is None else gpm & (slitmask != -1)
     # Mask saturated parts of the arc image for the extraction
     _gpm = _gpm & (arcimg < nonlinear_counts)
 
@@ -489,7 +491,7 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
             continue
         if verbose:
             log.info(f'Extracting approximate arc spectrum of slit {islit+1}/{nslits}')
-        # Create a mask for the pixels that will contribue to the arc
+        # Create a mask for the pixels that will contribute to the arc
         arcmask = _gpm & (np.absolute(spat[None,:] - slit_cen[:,islit,None]) < box_rad)
         # Trimming the image makes this much faster
         indx = np.nonzero(np.any(arcmask, axis=0))[0]

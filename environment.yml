@@ -2,7 +2,7 @@ name: pypeit
 channels:
   - conda-forge
 dependencies:
-  - python>=3.11,<3.14
+  - python>=3.11,<3.15
   - numpy
   - astropy
   - scipy
@@ -12,6 +12,8 @@ dependencies:
   - pyside6
   - llvm-openmp
   - pip
+  - specutils>=2.0
+  - ginga
+  - bottleneck
   - pip:
     - pypeit
-    - specutils>=2.0

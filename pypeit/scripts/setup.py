@@ -8,7 +8,7 @@ import argparse
 from IPython import embed
 
 from pypeit.scripts import scriptbase
-from pypeit.spectrographs import available_spectrographs
+from pypeit.spectrographs.util import available_spectrographs
 
 
 class Setup(scriptbase.ScriptBase):
@@ -94,7 +94,7 @@ class Setup(scriptbase.ScriptBase):
 
         if args.gui:
             # Start the GUI
-            from pypeit.setup_gui.controller import start_gui
+            from pypeit.gui.setup_gui.controller import start_gui
             start_gui(args)
         else:
             # Initialize the log

@@ -64,7 +64,7 @@ if __name__ == '__main__':
     # TODO: automate this?
     from pypeit.alignframe import Alignments
     from pypeit.edgetrace import EdgeTraceSet
-    from pypeit.flatfield import FlatImages
+    from pypeit.flatfield import FlatImages, FiberFlatImages
     from pypeit.manual_extract import ManualExtractionObj
     from pypeit.onespec import OneSpec
     from pypeit.orderstack import OrderStack
@@ -76,19 +76,19 @@ if __name__ == '__main__':
     from pypeit.tracepca import TracePCA
     from pypeit.wavecalib import WaveCalib
     from pypeit.wavetilts import WaveTilts
-    from pypeit.bspline import bspline
+    from pypeit.containers.bspline import BSplineContainer, BSpline2DContainer
     from pypeit.coadd3d import DataCube
     from pypeit.core.fitting import PypeItFit
-    from pypeit.core.flexure import MultiSlitFlexure
     from pypeit.core.telluric import Telluric
     from pypeit.core.wavecal.wv_fitting import WaveFit
     from pypeit.images.detector_container import DetectorContainer
     from pypeit.images.mosaic import Mosaic
     from pypeit.images.pypeitimage import PypeItImage
+    from pypeit.multislit_flexure import MultiSlitFlexure
 
-    datacontainers = [Alignments, EdgeTraceSet, FlatImages, ManualExtractionObj, OneSpec, OrderStack, ScatteredLight,
+    datacontainers = [Alignments, EdgeTraceSet, FlatImages, FiberFlatImages, ManualExtractionObj, OneSpec, OrderStack, ScatteredLight,
                       SensFunc, SlitTraceSet, Spec2DObj, SpecObj, TracePCA, WaveCalib, WaveTilts,
-                      bspline, DataCube, PypeItFit, MultiSlitFlexure, Telluric, DetectorContainer,
+                      BSplineContainer, BSpline2DContainer, DataCube, PypeItFit, MultiSlitFlexure, Telluric, DetectorContainer,
                       Mosaic, PypeItImage, WaveFit]
 
     for obj in datacontainers:

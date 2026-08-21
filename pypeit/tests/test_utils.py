@@ -25,13 +25,13 @@ def _cleanup_file(path):
         pass
 
 
-def test_calc_ivar():
+def test_inverse():
     """ Run the parameter setup script
     """
     x = np.array([-1.0, -0.1, 0.0, 0.1, 1.0])
     res = utils.inverse(x)
     assert np.array_equal(res, np.array([0.0, 0.0, 0.0, 10.0, 1.0]))
-    assert np.array_equal(utils.calc_ivar(res), np.array([0.0, 0.0, 0.0, 0.1, 1.0]))
+    assert np.array_equal(utils.inverse(res), np.array([0.0, 0.0, 0.0, 0.1, 1.0]))
 
 
 def test_nearest_unmasked():
@@ -243,3 +243,33 @@ def test_loadjson_bad_gzip_container():
             utils.loadjson(fn)
     finally:
         _cleanup_file(fn)
+
+
+def test_eval_tuple():
+    # one tuple
+    t = ['(1', '2', '3)']
+    assert utils.eval_tuple(t) == [(1,2,3)], 'Bad tuple evaluation'
+    # two tuples
+    t = ['(1', '2)', '(3', '4)']
+    assert utils.eval_tuple(t) == [(1,2),(3,4)], 'Bad tuple evaluation'
+    # a tuple with a mix of int and float types
+    t = ['(1', '2.3)', '(3', '4)']
+    assert utils.eval_tuple(t) == [(1,2.3),(3,4)], 'Bad tuple evaluation'
+    # a tuple with a string
+    t = ['(1', '2.3)', '(test', '4)']
+    assert utils.eval_tuple(t) == [(1, 2.3), ('test', 4)], 'Bad tuple evaluation'
+
+
+def test_eval_list():
+    # one list
+    t = ['[1', '2', '3]']
+    assert utils.eval_list(t) == [[1,2,3]], 'Bad list evaluation'
+    # two lists
+    t = ['[1', '2]', '[3', '4]']
+    assert utils.eval_list(t) == [[1,2],[3,4]], 'Bad list evaluation'
+    # a list with a mix of int and float types
+    t = ['[1', '2.3]', '[3', '4]']
+    assert utils.eval_list(t) == [[1,2.3],[3,4]], 'Bad list evaluation'
+    # a list with a string
+    t = ['[1', '2.3]', '[test', '4]']
+    assert utils.eval_list(t) == [[1, 2.3], ['test', 4]], 'Bad list evaluation'

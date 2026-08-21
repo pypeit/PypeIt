@@ -145,3 +145,39 @@ def test_boxcar():
     assert np.array_equal(procimg.boxcar_average(arep, 2), a), 'Bad replicate/average'
     assert np.array_equal(utils.rebinND(arep, a.shape), a), 'Bad replicate/rebin'
 
+
+def test_lacosmic_spatial_median_residual():
+    """Diagonal CR trail must be flagged without harming horizontal arc lines."""
+    rng = np.random.default_rng(7)
+    image = 10.0 + rng.normal(scale=1.0, size=(120, 160))
+    image[35, :] += 500.0
+    image[85, :] += 300.0
+    xs = np.arange(20, 135)
+    ys = np.rint(15 + 0.48 * xs).astype(int)
+    image[ys, xs] += 1000.0
+
+    crmask = procimg.lacosmic_spatial_median_residual(
+        image, median_width=51,
+        sigclip=10.0, sigfrac=0.3, objlim=0.0,
+        remove_compact_obj=False, maxiter=2, grow=2.0,
+    )
+
+    # Most of the diagonal trail must be flagged.
+    assert crmask[ys, xs].mean() > 0.5, 'Diagonal CR trail not detected.'
+
+    # The bulk of each bright arc row must remain unflagged -- the point of
+    # subtracting the row-local median is to leave arc lines intact.
+    for row in (35, 85):
+        unflagged_frac = float((~crmask[row]).mean())
+        assert unflagged_frac > 0.9, \
+            f'Arc row {row} over-flagged: only {unflagged_frac:.1%} unflagged'
+
+
+def test_lacosmic_spatial_median_residual_disabled():
+    """median_width <= 1 returns an empty mask."""
+    rng = np.random.default_rng(0)
+    image = rng.normal(size=(20, 30))
+    crmask = procimg.lacosmic_spatial_median_residual(image, median_width=1)
+    assert not np.any(crmask)
+    assert crmask.shape == image.shape
+

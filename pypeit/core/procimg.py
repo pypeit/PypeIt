@@ -301,6 +301,86 @@ def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, m
     return grow_mask(crmask, grow) if grow > 0 else crmask
 
 
+def lacosmic_spatial_median_residual(image, median_width, varframe=None, bpm=None,
+                                     sigclip=5.0, sigfrac=0.3, objlim=5.0,
+                                     remove_compact_obj=True, maxiter=1, grow=1.5):
+    r"""
+    Identify cosmic rays by running L.A.Cosmic on the residual obtained
+    by subtracting a row-local median filter from the input image.
+
+    The image is filtered with a 1D median of width ``median_width`` along
+    axis 1 (i.e., ``size=(1, median_width)``), and L.A.Cosmic is run on
+    ``image - median_image``.  This catches the extended bodies of long,
+    narrow CR trails that the standard 3x3 Laplacian misses, while
+    leaving sharp, line-like calibration signal (arc/tilt lines) intact
+    because the moving median subtracts it.
+
+    Like :func:`cr_screen`, the median is taken along axis 1; unlike
+    :func:`cr_screen`, it is a windowed median rather than a single
+    per-row median, so slowly-varying structure along axis 1 is
+    preserved in the residual.
+
+    This method works best for frames with small tilts, where the lines are
+    nearly horizontal and the row-local median can effectively capture the
+    line signal.  For frames with large tilts, the row-local median will
+    struggle to capture the line signal, and the residual image will be
+    dominated by line residuals rather than CR features, leading to many
+    false positives.  In that case, set ``median_width`` to :math:`\leq 1`
+    to disable the residual path and fall back to the standard L.A.Cosmic
+    approach.
+
+    Where this method is applicable, sensible ``median_width`` values are
+    typically in the range 21--51 pixels: large enough to span individual
+    emission lines (so the row-local median captures the line rather than
+    fighting it), but small enough that long, smooth CR features still stand
+    out against the row-local background.
+
+    Args:
+        image (`numpy.ndarray`_):
+            2D image to process.
+        median_width (:obj:`int`):
+            Width of the 1D median window applied along axis 1.  Values
+            of :math:`\leq 1` disable the filter and the function
+            returns an empty CR mask.
+        varframe (`numpy.ndarray`_, optional):
+            Variance frame to pass through to :func:`lacosmic`.  If
+            None, ``numpy.maximum(numpy.abs(image), 1.0)`` is used,
+            providing a conservative shot-noise floor derived from the
+            input image rather than the residual.
+        bpm (`numpy.ndarray`_, optional):
+            Bad-pixel mask to pass through to :func:`lacosmic`.
+        sigclip (:obj:`float`, optional):
+            See :func:`lacosmic`.
+        sigfrac (:obj:`float`, optional):
+            See :func:`lacosmic`.
+        objlim (:obj:`float`, optional):
+            See :func:`lacosmic`.
+        remove_compact_obj (:obj:`bool`, optional):
+            See :func:`lacosmic`.
+        maxiter (:obj:`int`, optional):
+            See :func:`lacosmic`.
+        grow (:obj:`float`, optional):
+            See :func:`lacosmic`.
+
+    Returns:
+        `numpy.ndarray`_: Boolean array flagging detected cosmic rays
+        (True where a CR was identified).  If ``median_width <= 1`` the
+        returned mask is all False.
+    """
+    if median_width is None or int(median_width) <= 1:
+        return np.zeros(image.shape, dtype=bool)
+    median_image = scipy.ndimage.median_filter(
+        image, size=(1, int(median_width)), mode='nearest')
+    if varframe is None:
+        varframe = np.maximum(np.abs(image), 1.0)
+    return lacosmic(
+        image - median_image, varframe=varframe, bpm=bpm,
+        sigclip=sigclip, sigfrac=sigfrac, objlim=objlim,
+        remove_compact_obj=remove_compact_obj,
+        maxiter=maxiter, grow=grow,
+    )
+
+
 def boxcar_fill(img, width, bpm=None, maxiter=None, fill_value=np.nan):
     """
     Use convolution with a boxcar kernel to iteratively fill masked regions of
@@ -585,6 +665,46 @@ def rect_slice_with_mask(image, mask, mask_val=1):
     pix = np.where(mask == mask_val)
     slices = (slice(np.min(pix[0]), np.max(pix[0])+1), slice(np.min(pix[1]), np.max(pix[1])+1))
     return image[slices], slices
+
+
+def clean_overscan_vector(overscan, w=9, nsig=1.0, rdnoise=4.0):
+    """
+    Clean a 1D overscan vector by median-filtering and interpolating
+    over outliers.
+
+    Replicates the IDL ``clean_overscan_vector`` function from the
+    Binospec ``bino_mosaic.pro`` pipeline.
+
+    Parameters
+    ----------
+    overscan : `numpy.ndarray`_
+        1D overscan vector to clean.
+    w : :obj:`int`, optional
+        Window size for median filtering. Must be >= 3. Default is 9.
+    nsig : :obj:`float`, optional
+        Sigma threshold for outlier rejection. Pixels deviating from
+        the median-filtered vector by more than ``nsig * rdnoise`` are
+        replaced by interpolation. Default is 1.0.
+    rdnoise : :obj:`float`, optional
+        Read noise in ADU, used to set the outlier threshold.
+        Default is 4.0.
+
+    Returns
+    -------
+    clean : `numpy.ndarray`_
+        Cleaned overscan vector with outliers interpolated over.
+    """
+    w = max(w, 3)
+    m_overscan = scipy.ndimage.median_filter(overscan, size=w, mode='reflect')
+    bad = np.abs(overscan - m_overscan) > rdnoise * nsig
+    good = np.logical_not(bad)
+    if np.all(good) or np.all(bad):
+        return overscan.copy()
+    clean = overscan.copy()
+    good_idx = np.where(good)[0]
+    bad_idx = np.where(bad)[0]
+    clean[bad_idx] = np.interp(bad_idx, good_idx, overscan[good_idx])
+    return clean
 
 
 def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', params=[5,65],

@@ -9,6 +9,9 @@ Submodules
 
    pypeit.spectrographs.aat_uhrf
    pypeit.spectrographs.apf_levy
+   pypeit.spectrographs.arc_arces
+   pypeit.spectrographs.arc_kosmos
+   pypeit.spectrographs.arc_tspec
    pypeit.spectrographs.bok_bc
    pypeit.spectrographs.gemini_flamingos
    pypeit.spectrographs.gemini_gmos
@@ -28,6 +31,7 @@ Submodules
    pypeit.spectrographs.lbt_mods
    pypeit.spectrographs.ldt_deveny
    pypeit.spectrographs.magellan_fire
+   pypeit.spectrographs.magellan_ldss3
    pypeit.spectrographs.magellan_mage
    pypeit.spectrographs.mdm_modspec
    pypeit.spectrographs.mdm_osmos
@@ -43,12 +47,14 @@ Submodules
    pypeit.spectrographs.shane_kast
    pypeit.spectrographs.slitmask
    pypeit.spectrographs.soar_goodman
+   pypeit.spectrographs.soar_tspec
    pypeit.spectrographs.spectrograph
    pypeit.spectrographs.subaru_focas
    pypeit.spectrographs.tng_dolores
    pypeit.spectrographs.util
    pypeit.spectrographs.vlt_fors
    pypeit.spectrographs.vlt_sinfoni
+   pypeit.spectrographs.vlt_uves
    pypeit.spectrographs.vlt_xshooter
    pypeit.spectrographs.wht_isis
 
