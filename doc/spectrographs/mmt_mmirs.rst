@@ -1,5 +1,7 @@
 .. include:: ../include/links.rst
 
+.. _mmt_mmirs:
+
 *********
 MMT MMIRS
 *********

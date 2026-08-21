@@ -52,6 +52,15 @@ Functionality/Performance Improvements and Additions
 - Adds ability to select the specific archive of standard stars to use when
   searching for a match to an observed standard.  This is particularly import
   for LBT/MODS.
+- Added the ``[collate1d] outfile_from`` parameter, which chooses how coadded
+  output files are named: ``'coord'`` (the previous behavior, from the object
+  sky coordinate) or ``'maskdef_objname'`` (the catalog target name from the
+  mask design).  MMIRS defaults to ``'maskdef_objname'`` so coadds are named
+  after the target.
+- ``pypeit_collate_1d`` now disambiguates coadded output files that would
+  otherwise collide on the same name (e.g. two targets mapping to the same
+  ``maskdef_objname``), appending a coordinate/pixel token so no coadd
+  silently overwrites another.
 
 Instrument-specific Updates
 ---------------------------
@@ -143,6 +152,32 @@ Instrument-specific Updates
   ``RampFit`` directory inside the reduction directory (each ramp is fit at
   most once per dataset), and a new ``pypeit_fit_ramp`` script preprocesses
   and inspects them ahead of a reduction.
+- The MMIRS single-read noise calibration was refined to account for the fact
+  that the effective per-read noise (read noise plus accumulated dark/shot
+  noise) grows with ramp length.  Only darks whose exposure time matches the
+  science frame are used, each is calibrated independently, and the results are
+  combined as an inverse-variance weighted mean; the calibrated value is floored
+  at the header ``RDNOISE``.  See the :ref:`mmt_mmirs` documentation for details.
+- MMIRS up-the-ramp fitting is now performed in parallel across detector-row
+  blocks, giving roughly a 3x speed-up on a many-read cube.  Two ``[rdx]``
+  parameters expose the tuning: ``ramp_fit_cores`` (worker threads) and
+  ``ramp_fit_chunk_rows`` (rows fit per call).  See the performance-tuning
+  section of the :ref:`mmt_mmirs` documentation.
+- MMIRS science frames taken as an A-B nod sequence are now automatically
+  background-subtracted.  ``pypeit_setup`` derives the along-slit dither offset
+  of each frame from the telescope pointing (recorded in new ``dithoff``,
+  ``dithpos``, ``dithpat``, and ``frameno`` metadata columns) and fills the
+  ``comb_id``/``bkg_id`` columns so each frame is paired with the
+  temporally-adjacent frame at the opposite nod position.  Pairing is done
+  separately for each target within an instrument configuration, and a sequence
+  spanning less than ~1 arcsec is left unpaired as a stare.  See the A-B nod
+  section of the :ref:`mmt_mmirs` documentation.
+- MMIRS multi-object (MOS) masks: ``pypeit_setup`` now ingests the MMIRS
+  ``.msk`` mask-design file (the ``xfitmask`` output) when a matching
+  ``<MOSID>.msk`` is found in the raw-data directory, enabling slitmask-design
+  tracing, alignment-box registration, and stamping of ``MASKDEF_ID``, ``RA``,
+  ``DEC``, and ``MASKDEF_OBJNAME`` (the catalog target name) on each extracted
+  object.  See the mask-definition section of the :ref:`mmt_mmirs` documentation.
 
 Script Changes
 --------------
@@ -264,3 +299,8 @@ Bug Fixes
   (``IMGTYPE`` = ``DOMEFLAT``) and no longer includes the internal continuum
   (``IMGTYPE`` = ``CONT``) lamp flats, whose different illumination contaminated
   the combined pixel/illumination flat when both were present in a night.
+- ``pypeit_setup`` no longer crashes on MMIRS raw files that are missing the
+  expected image extensions; such files are skipped with a warning.
+- Keep the user-supplied metadata rows aligned with the frame table when
+  unreadable files are skipped during ``pypeit_setup``, so metadata is no longer
+  mis-associated with the wrong frames.
