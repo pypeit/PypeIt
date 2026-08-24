@@ -304,3 +304,22 @@ Bug Fixes
 - Keep the user-supplied metadata rows aligned with the frame table when
   unreadable files are skipped during ``pypeit_setup``, so metadata is no longer
   mis-associated with the wrong frames.
+- MMIRS mask-design ingest now retains the ``.msk`` per-slit ``offset`` and
+  ``theta`` fields (previously silently dropped): the slit-design geometry
+  honors the slit tilt, and a target's ``OBJ_TOPDIST``/``OBJ_BOTDIST`` reflect
+  its along-slit offset instead of assuming every target is centered in an
+  axis-aligned slit.  (All masks tested so far have zero offset/tilt, so this
+  is a defensive correction with no effect on current reductions.)
+- MMIRS A-B nod pairing now wraps the RA difference when deriving each frame's
+  along-slit dither offset, so a sequence that straddles 0h RA yields a small
+  offset rather than one near +/-360 deg (which would mis-pair the nods in
+  ``comb_id``/``bkg_id``).
+- ``pypeit_collate_1d`` now sanitizes the ``MASKDEF_OBJNAME`` used for
+  ``outfile_from = 'maskdef_objname'`` coadd names to a single safe filename
+  component, so a catalog target name containing a path separator or other
+  invalid character can no longer fail the source or write outside the output
+  directory.
+- ``pypeit_collate_1d`` now records the disambiguated coadd file name in
+  ``collate_report.dat``, so the report points each source at the file that was
+  actually written rather than a recomputed base name that could collide with
+  another source.
