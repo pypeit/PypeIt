@@ -74,8 +74,10 @@ def read_mmirs_maskfile(path):
         One row per slit with columns ``slit`` (int), ``ra_deg`` (float),
         ``dec_deg`` (float), ``x_mm`` (float), ``y_mm`` (float), ``target``
         (int), ``object`` (str), ``type`` (str), ``height_mm`` (float),
-        ``width_mm`` (float), ``bbox`` (float, shape ``(N, 4)``), ``polygon``
-        (float, shape ``(N, 8)``).
+        ``width_mm`` (float), ``offset_mm`` (float, target displacement from
+        the slit center along the slit long axis), ``theta_deg`` (float, slit
+        tilt), ``bbox`` (float, shape ``(N, 4)``), ``polygon`` (float, shape
+        ``(N, 8)``).
 
     Raises
     ------
@@ -127,6 +129,8 @@ def read_mmirs_maskfile(path):
                 type=fields[7].strip(),
                 height_mm=float(fields[8]),
                 width_mm=float(fields[9]),
+                offset_mm=float(fields[10]),
+                theta_deg=float(fields[11]),
                 bbox=[float(v) for v in fields[12].split()],
                 polygon=[float(v) for v in fields[13].split()],
             ))
@@ -147,6 +151,8 @@ def read_mmirs_maskfile(path):
     slits['type'] = np.array([r['type'] for r in rows], dtype=object)
     slits['height_mm'] = np.array([r['height_mm'] for r in rows], dtype=float)
     slits['width_mm'] = np.array([r['width_mm'] for r in rows], dtype=float)
+    slits['offset_mm'] = np.array([r['offset_mm'] for r in rows], dtype=float)
+    slits['theta_deg'] = np.array([r['theta_deg'] for r in rows], dtype=float)
     slits['bbox'] = np.array([r['bbox'] for r in rows], dtype=float)
     slits['polygon'] = np.array([r['polygon'] for r in rows], dtype=float)
     return header, slits

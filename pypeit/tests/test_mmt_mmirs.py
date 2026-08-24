@@ -1055,6 +1055,102 @@ def test_get_maskdef_slitedges_linear_geometry():
     assert np.array_equal(sortindx, np.argsort(left))
 
 
+def _write_synthetic_msk(path, offset_mm=0.1, theta_deg=10.0):
+    """Write a minimal 2-slit ``.msk`` (one TARGET, one BOX) for geometry tests.
+
+    The TARGET slit carries the requested ``offset``/``theta``; the BOX slit is
+    centered and axis-aligned (both zero), giving a within-file control.
+    """
+    bbox = '0.0 0.0 0.2 1.0'
+    poly = '0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0'
+    cols = ['slit', 'ra', 'dec', 'x', 'y', 'target', 'object', 'type',
+            'height', 'width', 'offset', 'theta', 'bbox', 'polygon']
+    lines = [
+        'label\tsynthetic',
+        'ra\t17:22:20.0',
+        'dec\t65:56:13.0',
+        'pa\t45.0',
+        'arc2mm\t0.165',
+        '\t'.join(cols),
+        '\t'.join(['1', '17:22:20.0', '65:56:13.0', '0.0', '0.0', '100', 'tgt',
+                   'TARGET', '1.0', '0.2', f'{offset_mm}', f'{theta_deg}',
+                   bbox, poly]),
+        '\t'.join(['2', '17:22:21.0', '65:56:14.0', '0.0', '5.0', '900',
+                   'boxstar', 'BOX', '1.0', '0.3', '0.0', '0.0', bbox, poly]),
+    ]
+    Path(path).write_text('\n'.join(lines) + '\n')
+
+
+def test_read_mmirs_maskfile_retains_offset_theta(tmp_path):
+    msk = tmp_path / 'synthetic.msk'
+    _write_synthetic_msk(msk, offset_mm=0.1, theta_deg=10.0)
+    _, slits = mmirs_maskfile.read_mmirs_maskfile(str(msk))
+    # Fields 10 (offset) and 11 (theta) are retained, not silently dropped.
+    assert 'offset_mm' in slits.colnames and 'theta_deg' in slits.colnames
+    assert abs(slits['offset_mm'][0] - 0.1) < 1e-9
+    assert abs(slits['theta_deg'][0] - 10.0) < 1e-9
+    assert slits['offset_mm'][1] == 0.0 and slits['theta_deg'][1] == 0.0
+
+
+def test_get_slitmask_offset_and_theta(tmp_path):
+    msk = tmp_path / 'synthetic.msk'
+    _write_synthetic_msk(msk, offset_mm=0.1, theta_deg=10.0)
+
+    spec = mmt_mmirs.MMTMMIRSSpectrograph()
+    sm = spec.get_slitmask(str(msk))
+
+    arcsec_per_mm = 1.0 / 0.165
+    half_len = 0.5 * 1.0 * arcsec_per_mm
+    off_as = 0.1 * arcsec_per_mm
+
+    # TARGET (slit 1, row 0): the offset makes OBJ_TOPDIST/OBJ_BOTDIST (columns
+    # 7/8) asymmetric about the slit center, but their sum is preserved.
+    top, bot = float(sm.objects[0, 7]), float(sm.objects[0, 8])
+    assert abs(top - (half_len - off_as)) < 1e-6
+    assert abs(bot - (half_len + off_as)) < 1e-6
+    assert abs((top + bot) - 2 * half_len) < 1e-6
+
+    # BOX (slit 2, row 1): offset 0 -> the target stays centered.
+    assert abs(float(sm.objects[1, 7]) - float(sm.objects[1, 8])) < 1e-9
+
+    # theta rotates the TARGET rectangle: the top-right (corner 0) and
+    # bottom-right (corner 1) corners share a spectral coordinate only at
+    # theta == 0; here they differ by 2*half_len*sin(theta).
+    spectral_diff = sm.corners[0, 0, 1] - sm.corners[0, 1, 1]
+    assert abs(spectral_diff - 2 * half_len * np.sin(np.radians(10.0))) < 1e-6
+    # The theta == 0 BOX slit stays axis-aligned (a within-file control).
+    assert abs(sm.corners[1, 0, 1] - sm.corners[1, 1, 1]) < 1e-9
+
+
+def test_get_slitmask_zero_offset_theta_matches_centered(tmp_path):
+    # Regression guard: offset == theta == 0 reproduces the previous centered,
+    # axis-aligned geometry exactly.
+    msk = tmp_path / 'centered.msk'
+    _write_synthetic_msk(msk, offset_mm=0.0, theta_deg=0.0)
+    spec = mmt_mmirs.MMTMMIRSSpectrograph()
+    sm = spec.get_slitmask(str(msk))
+    half_len = 0.5 * 1.0 / 0.165
+    for row in range(2):
+        assert abs(float(sm.objects[row, 7]) - half_len) < 1e-6
+        assert abs(float(sm.objects[row, 8]) - half_len) < 1e-6
+        # Axis-aligned: right-side corners share a spectral coordinate.
+        assert abs(sm.corners[row, 0, 1] - sm.corners[row, 1, 1]) < 1e-9
+
+
+def test_dithoff_wraps_ra_across_zero():
+    # An A-B nod sequence straddling 0h RA must yield a small along-slit offset,
+    # not one near +/-360 deg (which would corrupt get_comb_group pairing).
+    spec = mmt_mmirs.MMTMMIRSSpectrograph()
+    hdr = {'RA': 0.02 / 15.0,     # telescope RA in hours -> 0.02 deg
+           'DEC': 0.0,
+           'CAT-RA': '359.99',    # catalog target just west of 0h (deg)
+           'CAT-DEC': '0.0',
+           'POSANGLE': 90.0}      # projects onto the RA offset only
+    dithoff = spec.compound_meta([None, hdr], 'dithoff')
+    # Wrapped RA difference is 0.03 deg = 108 arcsec (not ~-1.3e6 arcsec).
+    assert abs(dithoff - 108.0) < 1e-6
+
+
 def test_config_specific_par_enables_maskdesign(tmp_path, monkeypatch):
     import shutil
     from pypeit.spectrographs.mmt_mmirs import MMTMMIRSSpectrograph

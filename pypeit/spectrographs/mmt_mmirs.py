@@ -162,7 +162,10 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
                 pa = float(hdr['POSANGLE'])
             except (KeyError, TypeError, ValueError):
                 return 0.0
-            dra = (ra - catra) * np.cos(np.radians(dec)) * 3600.0
+            # Wrap the RA difference into (-180, 180] deg so a sequence that
+            # straddles 0h RA yields a small offset instead of one near +/-360.
+            dra_deg = (ra - catra + 180.0) % 360.0 - 180.0
+            dra = dra_deg * np.cos(np.radians(dec)) * 3600.0
             ddec = (dec - catdec) * 3600.0
             return dra * np.sin(np.radians(pa)) + ddec * np.cos(np.radians(pa))
         if meta_key == 'frameno':
@@ -634,25 +637,48 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         # SlitMask corners: shape (N, 4, 2), (x=spatial, y=spectral).
         # Spatial axis is -y_mm, spectral axis is x_mm (see spec geometry).
         # Build a rectangle centered on each slit from height (spatial) and
-        # width (spectral), in arcsec.
+        # width (spectral), in arcsec, then rotate it by the design tilt theta.
         half_len = 0.5 * np.asarray(slits['height_mm'], dtype=float) * arcsec_per_mm
         half_wid = 0.5 * np.asarray(slits['width_mm'], dtype=float) * arcsec_per_mm
         cx = -np.asarray(slits['y_mm'], dtype=float) * arcsec_per_mm   # spatial center
         cy = np.asarray(slits['x_mm'], dtype=float) * arcsec_per_mm    # spectral center
+
+        # Base (unrotated) corner offsets from the slit center, ordered
+        # top-right, bottom-right, bottom-left, top-left (the input order
+        # SlitMask expects): axis 0 is spatial (slit length, +/- half_len),
+        # axis 1 is spectral (slit width, +/- half_wid).
+        sign_len = np.array([+1., -1., -1., +1.])
+        sign_wid = np.array([-1., -1., +1., +1.])
+        doff_len = sign_len[None, :] * half_len[:, None]   # (n, 4) spatial
+        doff_wid = sign_wid[None, :] * half_wid[:, None]   # (n, 4) spectral
+
+        # Rotate each slit's rectangle by its design tilt theta (deg) about the
+        # slit center, in the detector (spatial, spectral) plane.  theta = 0
+        # (the usual MOS case) leaves the rectangle axis-aligned, reproducing
+        # the previous behavior exactly.
+        theta = np.radians(np.asarray(slits['theta_deg'], dtype=float))
+        ct = np.cos(theta)[:, None]
+        st = np.sin(theta)[:, None]
+        rot_len = doff_len * ct - doff_wid * st
+        rot_wid = doff_len * st + doff_wid * ct
+
         corners = np.zeros((n, 4, 2), dtype=float)
-        # top-right, bottom-right, bottom-left, top-left (clockwise): the input
-        # order SlitMask expects (high x/low y, low x/low y, low x/high y,
-        # high x/high y).
-        corners[:, 0, :] = np.column_stack([cx + half_len, cy - half_wid])
-        corners[:, 1, :] = np.column_stack([cx - half_len, cy - half_wid])
-        corners[:, 2, :] = np.column_stack([cx - half_len, cy + half_wid])
-        corners[:, 3, :] = np.column_stack([cx + half_len, cy + half_wid])
+        corners[:, :, 0] = cx[:, None] + rot_len
+        corners[:, :, 1] = cy[:, None] + rot_wid
 
         is_target = np.array([t == 'TARGET' for t in slits['type']])
-        # top/bottom object distances from the slit edges (arcsec); the target
-        # sits at the slit center, so both are the half-length.
-        top = half_len.copy()
-        bot = half_len.copy()
+        # top/bottom object distances from the slit edges (arcsec).  The design
+        # `offset` (mm) displaces the target from the slit center along the slit
+        # long axis; positive offset is toward +mask-y, which maps to smaller
+        # spatial pixel (spatial = -y_mm), i.e. toward the left/top edge, so it
+        # decreases OBJ_TOPDIST (distance from the left edge) and increases
+        # OBJ_BOTDIST.  offset = 0 (the usual case) leaves the target centered
+        # (top == bot == half_len).  (Sign convention follows the same
+        # -y -> spatial mapping validated for the slit centers; it should be
+        # re-checked against a real off-center mask when one is available.)
+        off_as = np.asarray(slits['offset_mm'], dtype=float) * arcsec_per_mm
+        top = np.clip(half_len - off_as, 0.0, 2.0 * half_len)
+        bot = np.clip(half_len + off_as, 0.0, 2.0 * half_len)
         objects = np.array([
             np.array(slits['slit'], dtype=int),
             np.array(slits['target'], dtype=int),

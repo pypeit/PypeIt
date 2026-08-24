@@ -11,6 +11,7 @@ This module contains code for collating multiple 1d spectra by source object.
 
 import copy
 import os.path
+import re
 import shutil
 import traceback
 from functools import partial
@@ -78,6 +79,10 @@ class SourceObject:
         self._spectrograph = spectrograph
         self.match_type = match_type
         self.outfile_from = outfile_from
+        # Basename of the coadd output actually written for this source, set by
+        # the coadd loop once collisions have been disambiguated.  Used by the
+        # report so it records the real output file (see get_report_metadata).
+        self.coaddfile = None
 
         if (match_type == 'ra/dec'):
             try:
@@ -281,7 +286,9 @@ def get_report_metadata(object_header_keys, spec_obj_keys, file_info):
     if not isinstance(file_info, SourceObject):
         return (None, None)
 
-    coaddfile = build_coadd_file_name(file_info)
+    # Prefer the disambiguated basename assigned when the coadd was written;
+    # fall back to recomputing it (e.g. for a dry run that never wrote a file).
+    coaddfile = getattr(file_info, 'coaddfile', None) or build_coadd_file_name(file_info)
     result_rows = []
     for i in range(len(file_info.spec1d_header_list)):
 
@@ -520,6 +527,28 @@ def flux(par, spectrograph, spec1d_files, failed_fluxing_log):
     # Return the succesfully fluxed files
     return flux_calibrated_files
 
+def _safe_name_component(name):
+    """Sanitize a string for use as a single output-filename component.
+
+    The slitmask-design object name (``MASKDEF_OBJNAME``) is catalog-supplied
+    and may contain path separators (``/``, ``\\``), a drive/stream colon, or
+    other characters that are invalid or dangerous in a filename.  Replace any
+    character outside a conservative safe set (letters, digits, ``.``, ``+``,
+    ``-``, ``_``) with an underscore, so the result is always a single,
+    portable path component that cannot escape the output directory.
+
+    Args:
+        name (:obj:`str`): The raw name.
+
+    Returns:
+        :obj:`str`: A filename-safe component (never empty; ``'_'`` if the
+        input reduces to nothing).
+    """
+    safe = re.sub(r'[^A-Za-z0-9.+_-]', '_', str(name).strip())
+    # Avoid a component that is empty or only dots (e.g. '', '.', '..').
+    return safe if safe.strip('.') else '_'
+
+
 def build_coadd_file_name(source_object):
     """Build the output file name for coadding.
     The filename convention is J<hmsdms+dms>_<instrument name>_<YYYYMMDD>.fits
@@ -552,7 +581,7 @@ def build_coadd_file_name(source_object):
     if getattr(source_object, 'outfile_from', 'coord') == 'maskdef_objname':
         objname = source_object.spec_obj_list[0]['MASKDEF_OBJNAME']
         if objname is not None and str(objname).strip() not in ('', 'None', 'SERENDIP'):
-            coord_portion = str(objname).strip().replace(' ', '_')
+            coord_portion = _safe_name_component(objname)
 
     if coord_portion is None:
         if source_object.match_type == 'ra/dec':
@@ -871,6 +900,9 @@ def collate_1d(par, spectrograph, tolerance, spec1d_files):
         coadd_name = disambiguate_coadd_file_name(source,
                                                   build_coadd_file_name(source),
                                                   used_coadd_names)
+        # Remember the disambiguated basename so the report points at the file
+        # actually written, not the (possibly colliding) base name.
+        source.coaddfile = coadd_name
         coaddfile = os.path.join(par['collate1d']['outdir'], coadd_name)
         log.info(f'Creating {coaddfile} from the following sources:')
         for i in range(len(source.spec_obj_list)):

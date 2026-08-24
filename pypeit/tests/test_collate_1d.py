@@ -386,6 +386,58 @@ def test_disambiguate_coadd_file_name():
     assert n3 not in used and n3 not in (base, n2)
 
 
+def test_build_coadd_file_name_sanitizes_maskdef_objname():
+    # A catalog MASKDEF_OBJNAME with path separators / invalid characters must
+    # not produce a multi-component or directory-escaping output name.
+    from pypeit.collate import _safe_name_component
+    spectrograph = load_spectrograph('keck_deimos')
+    header = mock_header('spec1d_file1')
+    sobj = MockSpecObj(MASKDEF_OBJNAME='foo/../bar:baz qux', MASKDEF_ID='1',
+                       DET=1, RA=201.0, DEC=27.0, SPAT_PIXPOS=1234.0,
+                       NAME='SPAT1234-SLIT1-DET01', WAVE_RMS=0.01)
+    source = SourceObject(sobj, header, 'spec1d_file1', spectrograph,
+                          'ra/dec', outfile_from='maskdef_objname')
+    name = build_coadd_file_name(source)
+    # The whole name is a single, safe path component.
+    assert '/' not in name and '\\' not in name
+    assert ':' not in name and ' ' not in name
+    assert os.path.basename(name) == name          # cannot escape outdir
+    # The helper itself maps disallowed characters to underscores.
+    assert _safe_name_component('foo/../bar:baz qux') == 'foo_.._bar_baz_qux'
+    assert _safe_name_component('...') == '_'
+    assert _safe_name_component('  spaced name ') == 'spaced_name'
+
+
+def test_get_report_metadata_uses_disambiguated_name():
+    # The report must record the file actually written (the disambiguated
+    # basename), not a recomputed base name that could collide.
+    from pypeit.collate import get_report_metadata
+    spectrograph = load_spectrograph('keck_deimos')
+    mock_sobjs = mock_specobjs('spec1d_file1')
+    source = SourceObject(mock_sobjs.specobjs[0], mock_sobjs.header,
+                          'spec1d_file1', spectrograph, 'ra/dec',
+                          outfile_from='maskdef_objname')
+    base = build_coadd_file_name(source)
+
+    # Simulate the coadd loop assigning a disambiguated output basename.
+    disamb = base.replace('.fits', '_JXXXX.fits')
+    source.coaddfile = disamb
+    rows, files = get_report_metadata(['MJD'], ['MASKDEF_OBJNAME'], source)
+    assert files is None
+    assert len(rows) >= 1
+    assert all(r[0] == disamb for r in rows)       # column 0 is the coadd file
+    assert rows[0][0] != base
+
+    # With no assigned name (e.g. a dry run), it falls back to the base name.
+    source.coaddfile = None
+    rows2, _ = get_report_metadata(['MJD'], ['MASKDEF_OBJNAME'], source)
+    assert rows2[0][0] == base
+
+    # Non-SourceObject inputs are unaffected.
+    assert get_report_metadata(['MJD'], ['MASKDEF_OBJNAME'], 'not a source') \
+        == (None, None)
+
+
 def test_find_slits_to_exclude(monkeypatch):
 
     # Return mock data structure that contains what
