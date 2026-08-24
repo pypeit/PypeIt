@@ -462,9 +462,14 @@ class VLTUVESBlueSpectrograph(VLTUVESSpectrograph):
         # Return
         return par
 
-    def get_echelle_angle_files(self):
+    def get_echelle_angle_files(self, meta_dict=None):
         """ Pass back the files required
-        to run the echelle method of wavecalib
+        to run the echelle method of wavecalib.
+
+        Args:
+            meta_dict (:obj:`dict`, optional):
+                Metadata of the arc frame being calibrated (unused here;
+                see the base class).
 
         Returns:
             list: List of files
@@ -749,9 +754,14 @@ class VLTUVESRedSpectrograph(VLTUVESSpectrograph):
         detector_dicts = [detector_dict1, detector_dict2]
         return detector_container.DetectorContainer( **detector_dicts[det-1])
 
-    def get_echelle_angle_files(self):
+    def get_echelle_angle_files(self, meta_dict=None):
         """ Pass back the files required
-        to run the echelle method of wavecalib
+        to run the echelle method of wavecalib.
+
+        Args:
+            meta_dict (:obj:`dict`, optional):
+                Metadata of the arc frame being calibrated (unused here;
+                see the base class).
 
         Returns:
             list: List of files
