@@ -23,7 +23,6 @@ from pypeit.core import arc
 from pypeit.core import fitting
 from pypeit.core import parse
 from pypeit.core.wavecal import autoid, wv_fitting, wvutils
-from pypeit.gui.identify import Identify
 from pypeit import datamodel
 from pypeit import calibframe
 from pypeit.core.wavecal import echelle
