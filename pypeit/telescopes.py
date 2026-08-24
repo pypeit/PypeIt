@@ -85,6 +85,15 @@ class WHTTelescopePar(TelescopePar):
                                               elevation=loc.height.to(units.m).value,
                                               diameter=4.2)
 
+class INTTelescopePar(TelescopePar):
+    def __init__(self):
+        loc = EarthLocation.of_site('Roque de los Muchachos')
+        super(INTTelescopePar, self).__init__(name='INT',
+                                              longitude=loc.lon.to(units.deg).value,
+                                              latitude=loc.lat.to(units.deg).value,
+                                              elevation=loc.height.to(units.m).value,
+                                              diameter=2.5)
+
 class APFTelescopePar(TelescopePar):
     def __init__(self):
         loc = EarthLocation.of_site('Lick Observatory')
