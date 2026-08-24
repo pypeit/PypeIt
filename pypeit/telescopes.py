@@ -65,6 +65,7 @@ class MagellanTelescopePar(TelescopePar):
                                                elevation=loc.height.to(units.m).value,
                                                diameter=6.5)
 
+
 class ShaneTelescopePar(TelescopePar):
     def __init__(self):
         loc = EarthLocation.of_site('Lick Observatory')
@@ -92,7 +93,8 @@ class INTTelescopePar(TelescopePar):
                                               longitude=loc.lon.to(units.deg).value,
                                               latitude=loc.lat.to(units.deg).value,
                                               elevation=loc.height.to(units.m).value,
-                                              diameter=2.5)
+                                              diameter=2.54)
+
 
 class APFTelescopePar(TelescopePar):
     def __init__(self):
