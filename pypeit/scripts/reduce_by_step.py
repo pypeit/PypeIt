@@ -46,6 +46,8 @@ class ReducebyStep(scriptbase.ScriptBase):
     @classmethod
     def main(cls, args):
 
+        scriptbase.configure_matplotlib(args.show)
+
         import numpy as np
         from pathlib import Path
 
