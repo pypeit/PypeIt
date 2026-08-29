@@ -167,6 +167,7 @@ def define_additional_meta(nlamps=20):
                        'oscansec': dict(dtype=str, comment='Overscan section (windowing)'),
                        'parangle': dict(dtype=float, comment='Parallactic angle (units.radian)'),
                        'pressure': dict(dtype=float, comment='Pressure (units.pascal) at observation time'),
+                       'rawshape': dict(dtype=str, comment='Raw image shape written to disk'),
                        'seq_expno': dict(dtype=int, comment='Number of exposure in observing sequence'),
                        'slitwid': dict(dtype=float, comment='Slit width, sometimes distinct from decker'),
                        'slitlength': dict(dtype=float, comment='Slit length, used only for long slits'),
@@ -229,4 +230,3 @@ def get_meta_data_model(nlamps=20):
         raise ValueError('CODING ERROR: Keys in core and additional meta data are not unique!')
     core.update(add)
     return core
-

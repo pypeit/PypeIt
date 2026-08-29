@@ -3155,7 +3155,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
 
     sci_list_rebin, var_list_rebin, norm_rebin_stack, nsmp_rebin_stack, obj_list_rebin \
             = rebin2d(wave_bins, dspat_bins, waveimg_stack, dspat_stack, thismask_stack,
-                      inmask_stack, sci_list, var_list)
+                      inmask_stack, sci_list, var_list, obj_coord=None)
     # Now compute the final stack with sigma clipping
     sigrej = 3.0
     maxiters = 10

@@ -37,6 +37,25 @@ from pypeit import __version__
 
 # TODO -- Move this module to core/
 
+
+def runtime_versions():
+    """
+    Return the runtime versions reported in PypeIt output FITS headers.
+
+    Returns:
+        :obj:`tuple`: A tuple of tuples, each with the package name, FITS header
+        keyword, version string, and FITS header comment.
+    """
+    return (
+        ('Python', 'VERSPYT', '.'.join([str(v) for v in sys.version_info[:3]]), 'Python version'),
+        ('NumPy', 'VERSNPY', numpy.__version__, 'Numpy version'),
+        ('SciPy', 'VERSSCI', scipy.__version__, 'Scipy version'),
+        ('Astropy', 'VERSAST', astropy.__version__, 'Astropy version'),
+        ('Scikit-learn', 'VERSSKL', sklearn.__version__, 'Scikit-learn version'),
+        ('PypeIt', 'VERSPYP', __version__, 'PypeIt version'),
+    )
+
+
 def init_record_array(shape, dtype):
     r"""
     Utility function that initializes a record array using a provided
@@ -301,13 +320,8 @@ def initialize_header(hdr=None):
         hdr = fits.Header()
 
     # Add versioning
-    # TODO: Include additional packages?
-    hdr['VERSPYT'] = ('.'.join([str(v) for v in sys.version_info[:3]]), 'Python version')
-    hdr['VERSNPY'] = (numpy.__version__, 'Numpy version')
-    hdr['VERSSCI'] = (scipy.__version__, 'Scipy version')
-    hdr['VERSAST'] = (astropy.__version__, 'Astropy version')
-    hdr['VERSSKL'] = (sklearn.__version__, 'Scikit-learn version')
-    hdr['VERSPYP'] = (__version__, 'PypeIt version')
+    for _, keyword, package_version, comment in runtime_versions():
+        hdr[keyword] = (package_version, comment)
 
     # Save the date of the reduction
     hdr['DATE'] = (time.strftime('%Y-%m-%d',time.gmtime()), 'UTC date created')
@@ -342,21 +356,13 @@ def header_version_check(hdr, warning_only=True):
             Raised if `warning_only` is False and the system versions
             are different from those logged in the header.
     """
-    # Compile the packages and versions to check
-    packages = ['python', 'numpy', 'scipy', 'astropy', 'sklearn', 'pypeit']
-    hdr_versions = [hdr['VERSPYT'], hdr['VERSNPY'], hdr['VERSSCI'], hdr['VERSAST'], hdr['VERSSKL'],
-                    hdr['VERSPYP']]
-    sys_versions = ['.'.join([ str(v) for v in sys.version_info[:3]]), numpy.__version__,
-                    scipy.__version__, astropy.__version__, sklearn.__version__,
-                    __version__]
-
     # Run the check and either issue warnings or exceptions
     all_identical = True
-    for package, hdr_version, sys_version in zip(packages, hdr_versions, sys_versions):
-        if version.parse(hdr_version) != version.parse(sys_version):
+    for package, keyword, sys_version, _ in runtime_versions():
+        if version.parse(hdr[keyword]) != version.parse(sys_version):
             all_identical = False
-            msg = '{0} version used to create the file ({1}) '.format(package, hdr_version) \
-                        + 'does not match the current system version ({0})!'.format(sys_version)
+            msg = f'{package} version used to create the file ({hdr[keyword]}) ' \
+                  f'does not match the current system version ({sys_version})!'
             if warning_only:
                 warnings.warn(msg)
             else:
@@ -970,4 +976,3 @@ def load_thar_spec():
         `astropy.io.fits.HDUList`_: ThAr Spectrum FITS HDU list
     """
     return fits_open(dataPaths.arclines.get_file_path('thar_spec_MM201006.fits'))
-

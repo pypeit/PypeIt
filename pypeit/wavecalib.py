@@ -636,7 +636,8 @@ class BuildWaveCalib:
         # TODO nsample should be a parameter
         fwhm_map = autoid.map_fwhm(self.msarc.image, self.gpm, self.slits_left, self.slits_right, self.slitmask,
                                    nsample=10, slit_bpm=self.wvc_bpm, specord=self.par['fwhm_spec_order'],
-                                   spatord=self.par['fwhm_spat_order'])
+                                   spatord=self.par['fwhm_spat_order'],
+                                   sigdetect=self.par['sigdetect'], fwhm=self.par['fwhm'])
         # Calculate the typical spectral FWHM down the centre of the slit
         measured_fwhms = np.zeros(arccen.shape[1], dtype=object)
         for islit in range(arccen.shape[1]):
@@ -729,7 +730,14 @@ class BuildWaveCalib:
             # Grab arxiv for redo later?
             if self.par['echelle']: 
                 # Hold for later usage
-                self.slits.ech_order = order_vec[:self.slits.nslits]
+                if order_vec is not None and order_vec.size == self.slits.nslits:
+                    self.slits.ech_order = order_vec
+                elif self.slits.ech_order is None or self.slits.ech_order.size != self.slits.nslits:
+                    raise PypeItError('Full-template wavelength calibration did not return an '
+                                      'echelle order vector matching the traced slits.')
+                else:
+                    log.warning('Full-template arxiv order vector does not match the traced '
+                                'slits; keeping the existing slit echelle order IDs.')
                 self.arccen = arccen
         elif self.par['method'] == 'echelle':
             # Echelle calibration files
@@ -1269,4 +1277,3 @@ class BuildWaveCalib:
             txt = txt[:-2]+']'  # Trim the trailing comma
         txt += '>'
         return txt
-

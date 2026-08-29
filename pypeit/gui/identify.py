@@ -735,6 +735,49 @@ class Identify:
         order_vec = np.arange(start_order, end_order+1)
         return order_vec
 
+    @staticmethod
+    def has_fitted_wvcalib(wvcalib):
+        """Check if a multi-trace :class:`~pypeit.wavecalib.WaveCalib` has a fitted order.
+
+        Args:
+            wvcalib (:class:`~pypeit.wavecalib.WaveCalib`):
+                Wavelength calibration container.
+
+        Returns:
+            :obj:`bool`: At least one order has a fitted wavelength solution.
+        """
+        if wvcalib is None or wvcalib.wv_fits is None:
+            return False
+
+        return any(wvfit is not None and wvfit.pypeitfit is not None
+                   for wvfit in wvcalib.wv_fits)
+
+    @staticmethod
+    def has_saveable_multi_solution(wvcalib=None, fits_dicts=None, custom_wav=None):
+        """Check if a multi-trace wavelength solution has anything to save.
+
+        Args:
+            wvcalib (:class:`~pypeit.wavecalib.WaveCalib`, optional):
+                Wavelength calibration container.
+            fits_dicts (:obj:`list`, optional):
+                List of per-order fitting dictionaries.
+            custom_wav (`numpy.ndarray`_, optional):
+                Estimated linear solutions for orders without full fits.
+
+        Returns:
+            :obj:`bool`: The multi-trace solution contains at least one full fit or
+            estimated wavelength row.
+        """
+        if Identify.has_fitted_wvcalib(wvcalib):
+            return True
+
+        if fits_dicts is not None:
+            for fitdict in fits_dicts:
+                if fitdict is not None and fitdict.get('full_fit') is not None:
+                    return True
+
+        return custom_wav is not None and np.size(custom_wav) > 0
+
     def store_solution(self, final_fit, binspec, rmstol=0.15,
                        force_save=False, wvcalib=None, multi=False,
                        fits_dicts=None, specdata_multi=None, slits=None,
@@ -790,10 +833,17 @@ class Identify:
             if ans == 'y':
                 self.save_IDs()
         # Solution
-        if 'rms' not in final_fit.keys():
+        if multi:
+            has_solution = self.has_saveable_multi_solution(
+                wvcalib=wvcalib, fits_dicts=fits_dicts, custom_wav=custom_wav)
+            if not has_solution:
+                log.warning("No wavelength solution available")
+                return
+        elif 'rms' not in final_fit.keys():
             log.warning("No wavelength solution available")
             return
-        elif final_fit['rms'] < rmstol or multi:
+
+        if multi or final_fit['rms'] < rmstol:
             ans = ''
             if not force_save:
                 while ans != 'y' and ans != 'n':
@@ -855,8 +905,12 @@ class Identify:
                                 if fitdict is not None and fitdict['full_fit'] is not None:
                                     wavelengths[iord,:] = fitdict['full_fit'].eval(np.arange(specdata_multi[iord,:].size) /
                                                                             (specdata_multi[iord,:].size - 1))
-                                elif wvcalib is not None and wvcalib.wv_fits[iord] is None and iord in custom_wav_ind:
-                                    wavelengths[iord,:] = custom_wav[np.where(iord == custom_wav_ind)[0]]
+                                elif wvcalib is not None and (wvcalib.wv_fits[iord] is None
+                                                              or wvcalib.wv_fits[iord].pypeitfit is None):
+                                    if iord in custom_wav_ind:
+                                        wavelengths[iord,:] = custom_wav[np.where(iord == custom_wav_ind)[0]]
+                                    else:
+                                        wavelengths[iord,:] = np.nan
                     else:
                         wavelengths = self._fitdict['full_fit'].eval(np.arange(self.specdata.size) /
                                                                     (self.specdata.size - 1))

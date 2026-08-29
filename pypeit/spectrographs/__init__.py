@@ -26,6 +26,8 @@ __all__ = [
     'lbt_luci',
     'lbt_mods',
     'ldt_deveny',
+    'ldt_rimas',
+    'ldt_rimas2',
     'magellan_fire',
     'magellan_ldss3',
     'magellan_mage',

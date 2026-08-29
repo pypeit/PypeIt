@@ -810,6 +810,10 @@ class PypeItMetaData:
             self['setup'] = fill
             return
 
+        # If `configs` were not passed in, get spectrograph-defined configurations (may be `None`)
+        if configs is None:
+            configs = self.spectrograph.configuration_list()
+
         _configs = self.unique_configurations() if configs is None else configs
         for k, cfg in _configs.items():
             if len(set(cfg.keys()) - set(self.keys())) > 0:
@@ -819,7 +823,7 @@ class PypeItMetaData:
         ignore_frames, ignore_indx = self.ignore_frames()
         # define the column 'setup' in self.table
         nrows = len(self)
-        col = table.Column(data=['None'] * nrows, name='setup', dtype='U25')
+        col = table.Column(data=['None'] * nrows, name='setup', dtype='U256')
         self.table.add_column(col)
         is_science = self.find_frames('science')    # Science frames can only have one configuration
         for i in range(nrows):
@@ -856,6 +860,8 @@ class PypeItMetaData:
         # the ignored frame types should be assigned to it:
         for cfg_key in _configs.keys():
             in_cfg = np.array([cfg_key in _setup.split(',') for _setup in self.table['setup']])
+            if not np.any(in_cfg):
+                continue
             for ftype, metakey in ignore_frames.items():
 
                 # TODO: For now, use this assert to check that the
@@ -1304,8 +1310,8 @@ class PypeItMetaData:
             `astropy.table.Table`_: Table with two columns, the frame
             type name and bits.
         """
-        # Making Columns to pad string array
-        ftype_colmA = table.Column(self.type_bitmask.type_names(type_bits), name='frametype')
+        # Making Columns to pad string array (force dtype=str)
+        ftype_colmA = table.Column(self.type_bitmask.type_names(type_bits), name='frametype', dtype=str)
 
         # KLUDGE ME
         #
@@ -1390,7 +1396,7 @@ class PypeItMetaData:
         # Start
         log.info("Typing files")
         type_bits = np.zeros(len(self), dtype=self.type_bitmask.minimum_dtype())
-    
+
         # Use the user-defined frame types from the input dictionary
         if user is not None:
             if len(user.keys()) != len(self):
@@ -1408,14 +1414,14 @@ class PypeItMetaData:
                         f'Improper frame type supplied!l\n{err}\nCheck your PypeIt Reduction File'
                     )
             return self.set_frame_types(type_bits, merge=merge)
-    
+
         # Loop over the frame types
         for i, ftype in enumerate(self.type_bitmask.keys()):
     
             # Include a combination of instrument-specific checks using
             # combinations of the full set of metadata
             exprng = self.par['scienceframe']['exprng'] if ftype == 'science' \
-                else self.par['calibrations']['{0}frame'.format(ftype)]['exprng']
+                else self.par['calibrations'][f'{ftype}frame']['exprng']
             # TODO: Use & or | ?  Using idname above gets overwritten by
             # this if the frames to meet the other checks in this call.
 #            indx &= self.spectrograph.check_frame_type(ftype, self.table, exprng=exprng)
@@ -1424,7 +1430,7 @@ class PypeItMetaData:
             type_bits[indx] = self.type_bitmask.turn_on(type_bits[indx], flag=ftype)
 
         # Vet assigned frame types (this can be spectrograph dependent)
-        self.spectrograph.vet_assigned_ftypes(type_bits, self)
+        type_bits = self.spectrograph.vet_assigned_ftypes(type_bits, self)
 
         # Find the files without any types
         indx = np.logical_not(self.type_bitmask.flagged(type_bits))

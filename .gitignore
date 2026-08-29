@@ -13,6 +13,8 @@ keck_lris_blue_A/
 Calibrations/
 Science/
 QA/
+/bin/
+/lib/
 
 # Compiled source #
 ###################
@@ -92,3 +94,6 @@ pypeit/tests/files/setup_files/*
 
 # Local Claude Code configuration
 .claude/
+
+# added by TEB
+AGENTS.md
