@@ -228,17 +228,6 @@ class PypeItLogger(logging.Logger):
         self.sh.setLevel(level)
         self.addHandler(self.sh)
 
-        if capture_warnings:
-            logging.captureWarnings(True)
-
-            # Only enable the sh handler if none is attached to the warnings
-            # logger yet. Prevents duplicated prints of the warnings.
-            for handler in self.warnings_logger.handlers:
-                if isinstance(handler, logging.StreamHandler):
-                    return
-
-            self.warnings_logger.addHandler(self.sh)
-
         # Get the file handler
         if log_file is None:
             self.fh = None
@@ -252,7 +241,19 @@ class PypeItLogger(logging.Logger):
             self.fh.setLevel(log_file_level)
             self.addHandler(self.fh)
 
-            if self.warnings_logger:
+        if capture_warnings:
+            logging.captureWarnings(True)
+
+            # Only enable the sh handler if none is attached to the warnings
+            # logger yet. Prevents duplicated prints of the warnings.
+            sh_already_attached = any(
+                isinstance(h, logging.StreamHandler)
+                for h in self.warnings_logger.handlers
+            )
+            if not sh_already_attached:
+                self.warnings_logger.addHandler(self.sh)
+
+            if self.fh is not None:
                 self.warnings_logger.addHandler(self.fh)
 
     def _excepthook(self, etype, value, trace):
