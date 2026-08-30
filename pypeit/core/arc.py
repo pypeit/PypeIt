@@ -388,6 +388,7 @@ def resize_slits2arc(shape_arc, shape_orig, trace_orig):
     return trace
 
 
+# TODO: This should use resampling, not linear interpolation.
 def resize_spec(spec_from, nspec_to):
     """
     Resize the input spectrum (usually an arc spectrum)
@@ -854,10 +855,12 @@ def iter_continuum(spec, gpm=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_
     return cont_now, cont_mask
 
 
-def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thresh=None,
-                 cont_subtract=True, cont_frac_fwhm=1.0, max_frac_fwhm=3.0,
-                 min_pkdist_frac_fwhm=0.75, cont_samp=30, nonlinear_counts=1e10, niter_cont=3,
-                 nfind=None, bpm=None, verbose=False, debug=False, debug_peak_find=False, debug_cont=False):
+def detect_lines(
+    censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thresh=None, cont_subtract=True,
+    cont_frac_fwhm=1.0, max_frac_fwhm=3.0, min_pkdist_frac_fwhm=0.75, cont_samp=30,
+    nonlinear_counts=1e10, niter_cont=3, nfind=None, bpm=None, verbose=False, debug=False,
+    debug_peak_find=False, debug_cont=False
+):
     """
     Identify peaks in an input arc spectrum that satisfy a series of criteria:
 
@@ -1039,9 +1042,10 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     #   - The Gaussian-fitted center and the center from `detect_lines`
     #     are not different by more than 0.75*FWHM
     #   - Width is finite, greater than 0, and less than FWHM_MAX/2.35
-    good = np.logical_not(np.isnan(twid)) & (twid > 0.0) & (twid < fwhm_max/2.35) & (tcent > 0.0) \
-                & (tcent < xrng[-1]) & (tampl_true < nonlinear_counts) \
-                & (np.abs(tcent-pixt) < fwhm*0.75)
+    good = (
+        np.logical_not(np.isnan(twid)) & (twid > 0.0) & (twid < fwhm_max/2.35) & (tcent > 0.0)
+        & (tcent < xrng[-1]) & (tampl_true < nonlinear_counts) & (np.abs(tcent-pixt) < fwhm*0.75)
+    )
     # Get the indices of the good measurements
     ww = np.where(good)[0]
     # Compute the significance of each line, set the significance of bad lines to be -1
@@ -1051,8 +1055,9 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     # requested, then grab and return only these lines
     if nfind is not None:
         if nfind > len(nsig):
-            log.warning('Requested {0} peaks but only found {1}.  '.format(nfind, len(tampl)) +
-                      ' Returning all the peaks found.')
+            log.warning(
+                f'Requested {nfind} peaks but only found {len(tampl)}.  Returning all peaks found.'
+            )
         else:
             ikeep = (nsig.argsort()[::-1])[0:nfind]
             tampl_true = tampl_true[ikeep]
@@ -1141,8 +1146,6 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
         except RuntimeError:
             pass
     return ampl, cent, widt, centerr
-
-
 
 
 def find_lines_qa(spec, cen, amp, good, bpm=None, thresh=None, nonlinear=None):

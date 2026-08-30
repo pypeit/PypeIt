@@ -1467,11 +1467,11 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
                                    input_thresh=peak_thresh, max_frac_fwhm=4.0,
                                    min_pkdist_frac_fwhm=min_pkdist_frac_fwhm, debug=show_peaks)
 
-        if len(_cen) == 0 or not np.any(best):
-            log.warning('No good {0}s found!'.format(l))
+        # NOTE: "best" is a list of line indices, NOT a boolean array!
+        if len(_cen) == 0 or len(best) == 0:
+            log.warning(f'No good {l}s found!')
             continue
-        log.info('Found {0} good {1}(s) in the rectified, collapsed image'.format(
-                    len(_cen[best]),l))
+        log.info(f'Found {len(_cen[best])} good {l}(s) in the rectified, collapsed image')
 
         # Set the reference spatial locations to use for tracing the
         # detected peaks
