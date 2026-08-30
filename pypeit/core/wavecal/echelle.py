@@ -54,7 +54,7 @@ def predict_ech_order_coverage(angle_fits_params, xd_angle_coeffs,
 
 def predict_ech_wave_soln(angle_fits_params, ech_angle_coeffs, ech_angle, order_vec, nspec):
     """
-    Predict an echelle spectrum wavelength solution for each order by evluating the polynomial fits of
+    Predict an echelle spectrum wavelength solution for each order by evaluating the polynomial fits of
     wavelength solution coefficients vs echelle angle at the given echelle angle.
 
     Args:
@@ -66,7 +66,7 @@ def predict_ech_wave_soln(angle_fits_params, ech_angle_coeffs, ech_angle, order_
         ech_angle (float):
             Echelle angle
         order_vec (`numpy.ndarray`_):
-            Array of order numbers for the deisred predicted spectrum. Shape = (norders,)
+            Array of order numbers for the desired predicted spectrum. Shape = (norders,)
         nspec (int):
             Number of spectral pixels in the echelle spectrum
 
