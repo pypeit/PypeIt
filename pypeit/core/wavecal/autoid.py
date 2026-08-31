@@ -1449,9 +1449,6 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
             wv_calib[str(iord)] = None
             all_patt_dict[str(iord)] = None
             continue
-        # NOTE: removed a leftover debug block here that skipped every order
-        # except 90-95 (it was marked "REMOVE THIS!!!" and also used the
-        # unmigrated `msgs`); it crippled the echelle wavecal. See Report 05.
         if np.all(spec_arxiv[:, iord] == 0.0):
             log.warning(f"Order = {orders[iord]} ({iord+1}/{norders}) cannot be reidentified "
                       f"because this order is not present in the arxiv")
@@ -1468,15 +1465,10 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
         rms_thresh = round(par['rms_thresh_frac_fwhm'] * fwhm, 3)
         log.info(f"Using RMS threshold = {rms_thresh} (pixels); RMS/FWHM threshold = {par['rms_thresh_frac_fwhm']}")
 
-        # NOTE: removed a leftover per-order debug block here (an embed(), a
-        # forced `debug_all = True`, and a blocking plt.show() of the arxiv vs
-        # observed arc) that halted the reduction and popped a figure for every
-        # order.  See Report 05.
         detections[str(iord)], spec_cont_sub[:, iord], all_patt_dict[str(iord)] = reidentify(
             spec[:, iord], spec_arxiv[:, iord], wave_arxiv[:, iord], tot_line_list, par['nreid_min'],
-            cont_sub=par['reid_cont_sub'], match_toler=par['match_toler'], 
-            #cc_shift_range=par['cc_shift_range'],
-            cc_shift_range=(-200., 200.),
+            cont_sub=par['reid_cont_sub'], match_toler=par['match_toler'],
+            cc_shift_range=par['cc_shift_range'],
             cc_thresh=cc_thresh, cc_local_thresh=par['cc_local_thresh'], nlocal_cc=par['nlocal_cc'],
             nonlinear_counts=nonlinear_counts, sigdetect=sigdetect, fwhm=fwhm,
             percent_ceil=par['cc_percent_ceil'], max_lag_frac=par['cc_offset_minmax'],

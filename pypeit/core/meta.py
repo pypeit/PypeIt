@@ -57,7 +57,7 @@ def convert_radec(ra, dec):
         return ra, dec
 
 
-def airmass(ra, dec, obstime, longitude, latitude, elevation):
+def airmass(ra, dec, obstime, longitude, latitude, elevation, exptime=None):
     """
     Compute the airmass of an observation from its pointing, time, and the
     observatory location, using `astropy`.
@@ -89,6 +89,11 @@ def airmass(ra, dec, obstime, longitude, latitude, elevation):
             Latitude of the observatory in decimal degrees.
         elevation (:obj:`float`):
             Elevation of the observatory in meters.
+        exptime (:obj:`float`, optional):
+            Exposure time in seconds.  If provided, ``obstime`` is taken to
+            be the *start* of the exposure and the airmass is computed at
+            the exposure midpoint (``obstime + exptime/2``).  If None, the
+            airmass is computed at ``obstime``.
 
     Returns:
         :obj:`float`: The airmass (:math:`\\sec z`) of the observation.
@@ -105,6 +110,9 @@ def airmass(ra, dec, obstime, longitude, latitude, elevation):
         time = Time(obstime, format='mjd')
     else:
         time = Time(obstime)
+    # Compute at the midpoint of the exposure, if the exposure time is given
+    if exptime is not None:
+        time = time + (exptime/2.)*units.s
     # Target coordinate and its altitude/azimuth as seen from the site
     coord = coordinates.SkyCoord(ra*units.deg, dec*units.deg)
     altaz = coord.transform_to(

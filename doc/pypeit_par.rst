@@ -480,6 +480,7 @@ Key                       Type                       Options                    
 ``cc_shift_range``        tuple                      ..                                                                            ..                Range of pixel shifts allowed when cross-correlating the input arc spectrum with the archive spectrum.  If None, ``cc_offset_minmax`` will be used to determine this range.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
 ``cc_thresh``             float, list, ndarray       ..                                                                            0.7               Threshold for the *global* cross-correlation coefficient between an input spectrum and member of the archive required to attempt reidentification.  Spectra from the archive with a lower cross-correlation are not used for reidentification. This can be a single number or a list/array providing the value for each slit.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
 ``ech_2dfit``             bool                       ..                                                                            True              By default, a 2D fit to the echelle orders will be performed. If set to False, then even if this is an echelle spectrograph, the 2-d fit will not be generated. Set this to False if you wish to use the arxiv solution exactly as it was saved with pypeit_identify.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+``ech_direct_cc``         bool                       ..                                                                            False             For the echelle method order identification, cross-correlate the stacked arc spectra directly instead of first building synthetic line-only arcs and continuum-subtracting the correlation function. Much faster for large spectral formats (e.g., 4k detectors with ~100 orders, such as Shane/Hamspec); the default (False) preserves the original behavior.                                                                                                                                                                                                                                                                                                                                                                                                                                               
 ``ech_norder_coeff``      int                        ..                                                                            4                 For echelle spectrographs, this is the order of the final 2d fit to the order dimension.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 ``ech_nspec_coeff``       int                        ..                                                                            4                 For echelle spectrographs, this is the order of the final 2d fit to the spectral dimension.  You should choose this to be the n_final of the fits to the individual orders.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
 ``ech_separate_2d``       bool                       ..                                                                            False             For echelle spectrographs, fit the 2D solutions on separate detectors separately                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
@@ -493,6 +494,7 @@ Key                       Type                       Options                    
 ``fwhm_spat_order``       int                        ..                                                                            0                 This parameter determines the spatial polynomial order to use in the 2D polynomial fit to the FWHM of the arc lines. See also, fwhm_spec_order.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
 ``fwhm_spec_order``       int                        ..                                                                            1                 This parameter determines the spectral polynomial order to use in the 2D polynomial fit to the FWHM of the arc lines. See also, fwhm_spat_order.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
 ``lamps``                 list                       ..                                                                            ..                Name of one or more ions used for the wavelength calibration.  Use ``None`` for no calibration. Choose ``use_header`` to use the list of lamps recorded in the header of the arc frames (this is currently available only for Keck DEIMOS, Keck LRIS, MMT Blue Channel, and LDT DeVeny).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+``lamps_wvrng``           list                       ..                                                                            ..                Wavelength range of the lines to use from each lamp in ``lamps``, allowing a subset of a shipped line list to be used without copying it.  Must be the same length as ``lamps``.  Each element is ``min:max`` in Angstroms, where either bound may be ``None``; an element of ``None`` uses the full list.  E.g., ``3400:None`` drops all lines below 3400 angstroms from the corresponding lamp.                                                                                                                                                                                                                                                                                                                                                                                                            
 ``match_toler``           float                      ..                                                                            2.0               Matching tolerance in pixels when searching for new lines. This is the difference in pixels between the wavlength assigned to an arc line by an iteration of the wavelength solution to the wavelength in the line list.  This parameter is also used as the matching tolerance in pixels for a line reidentification.  A good line match must match within this tolerance to the shifted and stretched archive spectrum, and the archive wavelength solution at this match must be within match_toler dispersion elements from the line in line list.                                                                                                                                                                                                                                                       
 ``method``                str                        ``holy-grail``, ``identify``, ``reidentify``, ``echelle``, ``full_template``  ``holy-grail``    Method to use to fit the individual arc lines.  Note that some of the available methods should not be used; they are unstable and require significant parameter tweaking to succeed.  You should use one of 'holy-grail', 'reidentify', or 'full_template'.  'holy-grail' attempts to get a first guess at line IDs by looking for patterns in the line locations.  It is fully automated.  When it works, it works well; however, it can fail catastrophically.  Instead, 'reidentify' and 'full_template' are the preferred methods.  They require an archived wavelength solution for your specific instrument/grating combination as a reference.  This is used to anchor the wavelength solution for the data being reduced.  All options are: holy-grail, identify, reidentify, echelle, full_template.
 ``n_final``               int, float, list, ndarray  ..                                                                            4                 Order of final fit to the wavelength solution (there are n_final+1 parameters in the fit). This can be a single number or a list/array providing the value for each slit                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
@@ -791,6 +793,7 @@ Key                          Type        Options  Default  Description
 ``find_numiterfit``          int         ..       9        Number of iterations to perform on the trace fitting.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
 ``find_trim_edge``           list        ..       5, 5     Trim the slit by this number of pixels left/right before finding objects                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 ``fof_link``                 int, float  ..       1.5      The linking distance, in arcseconds, for the Friends of Friends algorithm to link objects across traces in Echelle spectrographs.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
+``force_center_obj``         bool        ..       False    If True, skip automated (peak-detection) object finding and instead force a single object at the center of each slit/order, with the FWHM and boxcar radius set by the slit width. Use this for spectrographs where the target always fills the slit (e.g., Shane/Hamspec), so the smashed spatial profile has no peak for the object finder to detect. Currently only implemented for Echelle reductions; it is ignored by the other pipelines.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
 ``maxnumber_sci``            int         ..       10       Maximum number of objects to extract in a science frame.  Use None for no limit. This parameter can be useful in situations where systematics lead to spurious extra objects. Setting this parameter means they will be trimmed. For mulitslit maxnumber applies per slit, for echelle observations this applies per order. Note that objects on a slit/order impact the sky-modeling and so maxnumber should never be lower than the true number of detectable objects on your slit. For image differenced observations with positive and negative object traces, maxnumber applies to the number of positive (or negative) traces individually. In other words, if you had two positive objects and one negative object, then you would set maxnumber to be equal to two (not three). Note that if manually extracted apertures are explicitly requested, they do not count against this maxnumber. If more than maxnumber objects are detected, then highest S/N ratio objects will be the ones that are kept. For multislit observations the choice here depends on the slit length. For echelle observations with short slits we set the default to be 1
 ``maxnumber_std``            int         ..       5        Maximum number of objects to extract in a standard star frame.  Same functionality as maxnumber_sci documented above. For multislit observations the default here is 5, for echelle observations the default is 1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
 ``skip_final_global``        bool        ..       False    If True, do not update initial sky to get global sky using updated noise model. This should be True for quicklook to save time. This should also be True for near-IR reductions which perform difference imaging, since there we fit sky-residuals rather than the sky itself, so there is no noise model to update.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
@@ -9496,9 +9499,10 @@ Alterations to the default parameters are:
           slit_illum_finecorr = False
       [[wavelengths]]
           method = full_template
-          lamps = ThAr,
+          lamps = ThAr, HeI_NGPS,
+          lamps_wvrng = 3400:None, None,
           fwhm_fromlines = False
-          reid_arxiv = wvarxiv_p200_ngps_u_thar_central.fits
+          reid_arxiv = wvarxiv_p200_ngps_u_thar_central_blueanchor.fits
           cc_thresh = 0.6
           cc_local_thresh = 0.6
           rms_thresh_frac_fwhm = 1.0
@@ -9689,6 +9693,175 @@ Alterations to the default parameters are:
       polyorder = 8
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+
+.. _instr_par-shane_hamspec:
+
+SHANE Hamspec (``shane_hamspec``)
+---------------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = shane_hamspec
+  [calibrations]
+      [[biasframe]]
+          exprng = None, 0.001,
+          [[[process]]]
+              overscan_method = median
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          exprng = 999999, None,
+          [[[process]]]
+              overscan_method = median
+              mask_cr = True
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          exprng = None, 61,
+          [[[process]]]
+              overscan_method = median
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              overscan_method = median
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          exprng = 0, None,
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          exprng = 999999, None,
+          [[[process]]]
+              overscan_method = median
+              use_biasimage = False
+      [[alignframe]]
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          exprng = 0, None,
+          [[[process]]]
+              overscan_method = median
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              overscan_method = median
+              combine = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              overscan_method = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              overscan_method = median
+              mask_cr = True
+              use_biasimage = False
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = 1, 301,
+          [[[process]]]
+              overscan_method = median
+              mask_cr = True
+              use_biasimage = False
+              noise_floor = 0.01
+      [[flatfield]]
+          tweak_slits_thresh = 0.9
+          slit_illum_finecorr = False
+      [[wavelengths]]
+          method = echelle
+          echelle = True
+          ech_nspec_coeff = 5
+          ech_norder_coeff = 3
+          lamps = ThAr,
+          bad_orders_maxfrac = 0.5
+          reid_cont_sub = False
+          cc_shift_range = (-200.0, 200.0)
+          cc_thresh = 0.6
+          cc_local_thresh = 0.25
+          rms_thresh_frac_fwhm = 0.25
+          match_toler = 1.5
+          n_first = 3
+          ech_direct_cc = True
+      [[slitedges]]
+          edge_thresh = 8.0
+          max_shift_adj = 0.5
+          left_right_pca = True
+          trace_thresh = 10.0
+          max_nudge = 0.0
+          dlength_range = 0.25
+          length_range = 0.3
+          overlap = True
+      [[tilts]]
+          tracethresh = 15
+          spat_order = 1
+          spec_order = 5
+  [scienceframe]
+      exprng = 301, None,
+      [[process]]
+          overscan_method = median
+          mask_cr = True
+          use_biasimage = False
+          noise_floor = 0.01
+  [reduce]
+      [[findobj]]
+          find_trim_edge = 1, 1,
+          skip_skysub = True
+          force_center_obj = True
+      [[skysub]]
+          global_sky_std = False
+          no_local_sky = True
+      [[extraction]]
+          model_full_slit = True
+  [coadd1d]
+      wave_method = log10
+  [sensfunc]
+      algorithm = IR
+      [[IR]]
+          telgridfile = TellPCA_3000_10500_R120000.fits
+          pix_shift_bounds = (-40.0, 40.0)
+  [telluric]
+      resln_frac_bounds = (0.25, 1.25)
+      pix_shift_bounds = (-40.0, 40.0)
 
 .. _instr_par-shane_kast_blue:
 

@@ -52,6 +52,21 @@ Functionality/Performance Improvements and Additions
 - Adds ability to select the specific archive of standard stars to use when
   searching for a match to an observed standard.  This is particularly import
   for LBT/MODS.
+- Added the ``ech_direct_cc`` wavelength-calibration parameter: for the
+  ``echelle`` method order identification, cross-correlate the stacked arc
+  spectra directly instead of first building synthetic line-only arcs and
+  continuum-subtracting the correlation function.  Much faster for large
+  spectral formats (used by ``shane_hamspec``); the default (False) preserves
+  the original behavior.
+- Added the ``force_center_obj`` object-finding parameter (echelle only): skip
+  peak-detection object finding and always extract one object forced at the
+  center of each order, with the FWHM and boxcar radius set by the order
+  width.  Intended for spectrographs where the target fills the (short) slit,
+  so the smashed spatial profile has no peak (used by ``shane_hamspec``).
+- Added the reusable :func:`~pypeit.core.meta.airmass` helper, which computes
+  the airmass from the pointing, observation time, and observatory location
+  (optionally at the exposure midpoint), for instruments whose raw headers
+  record no airmass card.
 
 Instrument-specific Updates
 ---------------------------
@@ -103,6 +118,14 @@ Instrument-specific Updates
   7067.138 (vacuum); cubic fit RMS = 0.04 Å.  Spliced at 6700 Å using
   :func:`~pypeit.core.wavecal.templates.build_template` with continuum
   subtraction on the new segment.
+- Added support for the Shane/Hamspec (Hamilton) echelle spectrograph
+  (``shane_hamspec``), covering both detector eras — the Loral 2Kx2K (through
+  ~2010) and the e2v 4Kx4K (from ~2013) — which are identified automatically
+  from the raw frame size and calibrated against era-matched wavelength
+  archives (``shane_hamspec_{loral,e2v}_*``) using the angle-based ``echelle``
+  order-identification method.  The target fills the very short (~6-12 pixel)
+  Hamspec orders, so the reduction always extracts one object forced at each
+  order center (``force_center_obj``) and performs no sky subtraction.
 - Implemented support for VLT/UVES data reduction.
 - Implemented support for Magellan/LDSS3 VPH-ALL data reduction.
 - Added Palomar / NGPS (Next Generation Spectrograph) support.  Four

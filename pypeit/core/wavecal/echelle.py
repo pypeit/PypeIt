@@ -154,18 +154,12 @@ def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle,
 
     order_vec_guess = predict_ech_order_coverage(angle_fits_params, xd_angle_coeffs, xdisp, xdangle, norders, pad=pad)
 
-    # Remove this hack by X
-    order_vec_guess += 2
-
     norders_guess = order_vec_guess.size
     wave_soln_guess = predict_ech_wave_soln(angle_fits_params, ech_angle_coeffs, echangle, order_vec_guess, nspec)
 
     order_min, order_max = angle_fits_params['order_min'], angle_fits_params['order_max']
 
-    #embed(header='165 of echelle')
-
     arcspec_guess = np.zeros_like(wave_soln_guess)
-    #embed(header='predict_ech_arcspec 161 of echelle.py')
     # Interpolate the composite arc spectrum onto the predicted wavelength solution
     for iord, order in enumerate(order_vec_guess):
         indx = order - order_min
@@ -201,10 +195,10 @@ def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle,
     return order_vec_guess, wave_soln_guess, arcspec_guess
 
 
-def identify_ech_orders(arcspec, echangle, xdangle, dispname, 
-                        angle_fits_file, 
-                        composite_arc_file, debug=False, 
-                        cc_percent_ceil=50.0, pad=3):
+def identify_ech_orders(arcspec, echangle, xdangle, dispname,
+                        angle_fits_file,
+                        composite_arc_file, debug=False,
+                        cc_percent_ceil=50.0, pad=3, direct_cc=False):
     """
     Identify the orders in the echelle spectrum via cross correlation with the best guess predicted arc based
     on echangle, xdangle, and cross-disperser
@@ -229,6 +223,13 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
         Passed to xcorr_shift
     cc_percent_ceil: float, optional
         The percent_ceil value to be used by xcorr_shift to set the percentile to which to normalize the CCF
+    direct_cc : bool, optional
+        If True, cross-correlate the stacked arc spectra directly: skip the
+        synthetic line-arc construction and the continuum subtraction of the
+        correlation function in :func:`~pypeit.core.wavecal.wvutils.xcorr_shift`.
+        This is significantly faster for large spectral formats (e.g., 4k
+        detectors with ~100 orders, such as Shane/Hamspec).  The default
+        (False) preserves the original behavior.
 
     Returns
     -------
@@ -253,25 +254,12 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
     arccen_pad = np.zeros((nspec, norders_guess))
     arccen_pad[:nspec, :norders] = arcspec
 
-    if debug and False:
-        from matplotlib import pyplot as plt
-        fig = plt.figure(figsize=(12, 8))
-        plt.clf()
-        ax = plt.gca()
-        ii = -40
-        ax.plot(arcspec[:,ii])
-        ax.set_ylim(0., 4000)
-        ax.plot(np.roll(arcspec_guess_pad[:,ii],-115))
-        plt.show()
-        embed(header='246 of echelle')
-        # -40 of X's data is Order 95 centered at ~6000Ang
-
     # Cross correlate the data with the predicted arc spectrum
     # TODO Does it make sense for xcorr_shift to continuum subtract here?
     shift_cc, corr_cc = wvutils.xcorr_shift(
-        arccen_pad.flatten('F'), arcspec_guess_pad.flatten('F'), 
-        percent_ceil=cc_percent_ceil, 
-        do_xcorr_arc=False, # JXP ADDED THIS FOR SPEED; iter_continuum in arc_detect_lines is super slow-- Make it optional!
+        arccen_pad.flatten('F'), arcspec_guess_pad.flatten('F'),
+        percent_ceil=cc_percent_ceil,
+        do_xcorr_arc=not direct_cc, cont_subtract=not direct_cc,
         sigdetect=5.0, sig_ceil=10.0, fwhm=4.0, debug=debug)
 
     if debug:

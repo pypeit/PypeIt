@@ -4,8 +4,6 @@ Module for guiding 1D Wavelength Calibration
 .. include:: ../include/links.rst
 
 """
-from importlib import reload
-
 import inspect
 import json
 
@@ -636,27 +634,19 @@ class BuildWaveCalib:
 
         # Generate a map of the instrumental spectral FWHM
         # TODO nsample should be a parameter
-        
-        # Re-enabled: this was commented out on the branch ("TODO PUT THIS
-        # BACK") which left fwhm_map undefined where it is used below.
         fwhm_map = autoid.map_fwhm(self.msarc.image, self.gpm, self.slits_left, self.slits_right, self.slitmask,
                                    nsample=10, slit_bpm=self.wvc_bpm, specord=self.par['fwhm_spec_order'],
                                    spatord=self.par['fwhm_spat_order'])
         # Calculate the typical spectral FWHM down the centre of the slit
         measured_fwhms = np.zeros(arccen.shape[1], dtype=object)
-
-        # TODO -- Put this back
-        '''
         for islit in range(arccen.shape[1]):
             if islit not in ok_mask_idx:
                 continue
             # Measure the spectral FWHM (in pixels) at the midpoint of the slit
             # (i.e. the midpoint in both the spectral and spatial directions)
             measured_fwhms[islit] = fwhm_map[islit].eval(self.msarc.image.shape[0]//2, 0.5)
-        '''
 
         # Save for redo's
-        measured_fwhms[:] = 3. # REMOVE THIS!!
         self.measured_fwhms = measured_fwhms
 
         # Obtain calibration for all slits
@@ -747,15 +737,6 @@ class BuildWaveCalib:
             angle_fits_file, composite_arc_file = \
                     self.spectrograph.get_echelle_angle_files(meta_dict=self.meta_dict)
 
-            # TODO - remove these lines
-            if False:
-                from matplotlib import pyplot as plt    
-                plt.clf()
-                ax = plt.gca()
-                ax.plot(arccen[:, 0])
-                plt.show()
-            
-
             # Identify the echelle orders
             log.info("Finding the echelle orders")
             order_vec, wave_soln_arxiv, arcspec_arxiv = echelle.identify_ech_orders(
@@ -765,16 +746,13 @@ class BuildWaveCalib:
                     angle_fits_file,
                     composite_arc_file,
                     pad=self.par['echelle_pad'],
-                    cc_percent_ceil = self.par['cc_percent_ceil'], 
+                    cc_percent_ceil = self.par['cc_percent_ceil'],
+                    direct_cc=self.par['ech_direct_cc'],
                     debug=False)
             # Put the order numbers in the slit object
             self.slits.ech_order = order_vec
             log.info(f"The observation covers the following orders: {order_vec}")
 
-            # NOTE: leftover debugging calls disabled so the 'echelle' wavecal
-            # path does not halt mid-reduction (see Report 04, Q&A 22).
-            #embed(header='line 741 wavecalib.py')
-            #reload(autoid)
             patt_dict, final_fit = autoid.echelle_wvcalib(
                 arccen, order_vec, arcspec_arxiv, wave_soln_arxiv,
                 self.lamps, self.par, ok_mask=ok_mask_idx,
