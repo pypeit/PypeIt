@@ -205,6 +205,7 @@ class KECKHIRESBaseSpectrograph(spectrograph.Spectrograph):
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
 
         # Extras for config and frametyping
+        self.meta['dateobs'] = dict(ext=0, card='DATE-OBS')
         self.meta['hatch'] = dict(ext=0, card='HATOPEN')
         self.meta['dispname'] = dict(ext=0, card='XDISPERS')
         self.meta['filter1'] = dict(ext=0, card='FIL1NAME')
@@ -912,18 +913,7 @@ class KeckHIRESOrigSpectrograph(KECKHIRESBaseSpectrograph):
 
     name = 'keck_hires_orig'
     ndet = 1
-    comment = 'Pre detector upgrade (~ August 2004). See :doc:`keck_hires` for details. This class supports the original Tektronix CCD.'
-
-    def init_meta(self):
-        """
-        Define how metadata are derived from the spectrograph files.
-
-        That is, this associates the PypeIt-specific metadata keywords
-        with the instrument-specific header cards using :attr:`meta`.
-        """
-        super().init_meta()
-        self.meta['idname'] = dict(ext=0, card='IMAGETYP')
-        # NOTE: This is the native keyword.  IMAGETYP is from KOA.
+    comment = 'Pre detector upgrade (~August 2004). See :doc:`keck_hires` for details. This class supports the original Tektronix CCD.'
 
     @classmethod
     def default_pypeit_par(cls):
@@ -936,8 +926,10 @@ class KeckHIRESOrigSpectrograph(KECKHIRESBaseSpectrograph):
         """
         par = super().default_pypeit_par()
 
+        # Only one detector
         par['rdx']['detnum'] = [(1)]
 
+        # Only one detector, so don't need to separate the 2D wavelength solution by detector
         par['calibrations']['wavelengths']['ech_separate_2d'] = False
 
         return par

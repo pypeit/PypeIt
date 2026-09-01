@@ -248,7 +248,9 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
 
     if debug:
         log.info(f'Cross-correlation for order identification: shift={shift_cc:.3f}, corr={corr_cc:.3f}')
-        from matplotlib import pyplot as plt
+        import matplotlib
+        matplotlib.use('qtagg')  # Sets the interactive backend to QtAgg
+        import matplotlib.pyplot as plt
         xvals = np.arange(arccen_pad.flatten('F').size)
         plt.clf()
         ax = plt.gca()
