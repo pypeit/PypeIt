@@ -183,7 +183,7 @@ class CoAdd1D:
                                         setup_name=setup_val)
                 orderstack.head0 = self.headers[setup_num]
                 orderstack.to_file(
-                    f'{Path(coaddfile).with_suffix('')}_orderstack{setup_val}.fits',
+                    f'{Path(coaddfile).with_suffix("")}_orderstack{setup_val}.fits',
                     history=history, overwrite=overwrite
                 )
 
