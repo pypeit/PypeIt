@@ -6,6 +6,7 @@ Coadding module.
 .. include:: ../include/links.rst
 """
 import inspect
+from pathlib import Path
 
 from IPython import embed
 
@@ -180,7 +181,9 @@ class CoAdd1D:
                                         ext_mode=self.par['ex_value'], fluxed=self.par['flux_value'],
                                         setup_name = setup_val)
                 orderstack.head0 = self.headers[setup_num]
-                orderstack.to_file(coaddfile.split('.fits')[0] + '_orderstack' + setup_val + '.fits', history=history, overwrite=overwrite)
+                orderstack_file = str(Path(coaddfile).with_suffix('')) + '_orderstack' \
+                                    + setup_val + '.fits'
+                orderstack.to_file(orderstack_file, history=history, overwrite=overwrite)
         # Write
         spec.to_file(coaddfile, history=history, overwrite=overwrite)
 
