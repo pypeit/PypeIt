@@ -2,7 +2,6 @@
 Module for constructing output file names and paths for PypeIt reductions.
 
 .. include:: ../include/links.rst
-
 """
 import datetime
 import numpy as np
@@ -19,9 +18,9 @@ def strip_raw_extension(filename, allowed_extensions):
 
     Parameters
     ----------
-    filename : str, `Path`_
+    filename : str, :class:`Path`
         The name of the raw file.  Only the file name is used; see
-        `Path.name`_.
+        :attr:`Path.name`.
     allowed_extensions : list
         List of recognized raw-file extensions for the relevant spectrograph,
         used to correctly strip the extension from ``filename``; see
