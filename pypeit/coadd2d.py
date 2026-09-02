@@ -463,17 +463,25 @@ class CoAdd2D:
         frsthdr = fits.getheader(spec2d_files[0])
         lasthdr = fits.getheader(spec2d_files[-1])
         if 'FILENAME' not in frsthdr:
-            raise PypeItError(f'Missing FILENAME keyword in {spec2d_files[0]}.  Set the basename '
-                        'using the command-line option.')
+            raise PypeItError(
+                f'Missing FILENAME keyword in {spec2d_files[0]}.  Set the basename using the '
+                'command-line option.'
+            )
         if 'FILENAME' not in lasthdr:
-            raise PypeItError(f'Missing FILENAME keyword in {spec2d_files[-1]}.  Set the basename '
-                        'using the command-line option.')
+            raise PypeItError(
+                f'Missing FILENAME keyword in {spec2d_files[-1]}.  Set the basename using the '
+                'command-line option.'
+            )
         if 'TARGET' not in frsthdr:
-            raise PypeItError(f'Missing TARGET keyword in {spec2d_files[0]}.  Set the basename '
-                        'using the command-line option.')
+            raise PypeItError(
+                f'Missing TARGET keyword in {spec2d_files[0]}.  Set the basename using the '
+                'command-line option.'
+            )
         if 'PYP_SPEC' not in frsthdr:
-            raise PypeItError(f'Missing PYP_SPEC keyword in {spec2d_files[0]}.  Set the basename '
-                        'using the command-line option.')
+            raise PypeItError(
+                f'Missing PYP_SPEC keyword in {spec2d_files[0]}.  Set the basename using the '
+                'command-line option.'
+            )
         spec = load_spectrograph(frsthdr['PYP_SPEC'])
         first = outputfiles.strip_raw_extension(frsthdr['FILENAME'], spec.allowed_extensions)
         last = outputfiles.strip_raw_extension(lasthdr['FILENAME'], spec.allowed_extensions)
