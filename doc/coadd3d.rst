@@ -41,7 +41,14 @@ coadd3d file
 ------------
 
 The ``pypeit_coadd_datacube`` script requires an
-input file to guide the process.
+input file to guide the process. PypeIt expects this
+file to be located in the same directory as the ``.pypeit``
+file that was used to reduce the data. By default, this script
+will generate a ``Science_cube`` and a ``QA_cube`` directory and
+the datacubes, whitelight images, and QA plots and frames to these
+directories.
+
+The name of the input file must end with the suffix ``.coadd3d``.
 The format of this type of :doc:`input_files`
 includes a :ref:`parameter_block` (required)
 and a :ref:`data_block` (required).
