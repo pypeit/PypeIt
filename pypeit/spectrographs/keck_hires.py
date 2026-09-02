@@ -988,7 +988,7 @@ class KeckHIRESOrigSpectrograph(KECKHIRESBaseSpectrograph):
             list: List of files
         """
         angle_fits_file = 'keck_hires_orig_angle_fits.fits'
-        composite_arc_file = 'keck_hires_orig_composite_arc.fits'
+        composite_arc_file = 'keck_hires_composite_arc.fits'
 
         return [angle_fits_file, composite_arc_file]
 
