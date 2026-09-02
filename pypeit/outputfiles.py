@@ -13,16 +13,17 @@ from astropy import time
 from pypeit import log
 from pypeit import PypeItError
 
+
 def construct_basename(filename, target, camera, mjd, allowed_extensions):
     """Construct the root name primarily for PypeIt file output.
 
     Parameters
     ----------
-    filename : str or `Path`_
+    filename : str, `Path`_
         The name of the raw file.  The extension is stripped based on
-        `allowed_extensions` before constructing the basename.  If no
-        extension in `allowed_extensions` matches, a warning is issued
-        and the full input name is used unmodified.
+        ``allowed_extensions`` before constructing the basename.  If no
+        extension in ``allowed_extensions`` matches, a warning is issued and the
+        full input name is used unmodified.
     target : str
         The name of the target/object observed.
     camera : str
@@ -31,9 +32,8 @@ def construct_basename(filename, target, camera, mjd, allowed_extensions):
     mjd : float
         The MJD of the observation.
     allowed_extensions : list
-        List of recognized raw-file extensions for the relevant
-        spectrograph, used to correctly strip the extension from
-        `filename`; see
+        List of recognized raw-file extensions for the relevant spectrograph,
+        used to correctly strip the extension from ``filename``; see
         :attr:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_extensions`.
 
     Returns
@@ -43,6 +43,9 @@ def construct_basename(filename, target, camera, mjd, allowed_extensions):
     """
     _filename = Path(filename).name
     root = _filename
+    # NOTE: This for/else python syntax is new to me.  The else clause is only
+    # executed if the for loop completes all of its expected iterations (i.e.,
+    # it never breaks).  Very useful!
     for ext in sorted(allowed_extensions, key=len, reverse=True):
         if _filename.endswith(ext):
             root = _filename[:-len(ext)]
@@ -54,10 +57,11 @@ def construct_basename(filename, target, camera, mjd, allowed_extensions):
         )
     tobs = time.Time(mjd, format='mjd')
     dtime = datetime.datetime.strptime(tobs.isot, '%Y-%m-%dT%H:%M:%S.%f')
-    return '{0}-{1}_{2}_{3}{4}'.format(
-        root, target.replace(' ', ''), camera,
-        datetime.datetime.strftime(dtime, '%Y%m%dT'), tobs.isot.split('T')[1].replace(':', '')
-    )
+    dtime = datetime.datetime.strftime(dtime, '%Y%m%dT')
+    tobs = tobs.isot.split('T')[1].replace(':', '')
+    _target = target.replace(' ', '')
+    return f'{root}-{target}_{camera}_{dtime}{tobs}'
+
 
 def get_std_outfile(fitstbl, par, standard_frames:list):
     """
@@ -108,6 +112,7 @@ def get_std_outfile(fitstbl, par, standard_frames:list):
         raise PypeItError(f'Could not find standard file: {std_outfile}')
     return std_outfile
 
+
 def intermediate_filename(itype:str, basename:str, det_name:str, 
                           inter_path:str='Intermediate'):
     """
@@ -129,6 +134,7 @@ def intermediate_filename(itype:str, basename:str, det_name:str,
     """
     return Path(inter_path) / f'{itype}_{basename}_{det_name}.fits'
 
+
 def science_path(par) -> Path:
     """
     Constructs the path to the science directory based on the provided parameters.
@@ -142,6 +148,7 @@ def science_path(par) -> Path:
         Path: The full path to the science directory as a `Path` object.
     """
     return Path(par['rdx']['redux_path']) / par['rdx']['scidir']
+
 
 def spec_output_file(fitstbl, par, frame:int, twod:bool=False,
                      ext:str='.fits', sci_path:Path=None) -> Path:
