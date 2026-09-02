@@ -100,8 +100,7 @@ def get_sci_metadata(spectrograph, fitstbl, frame:int, det):
 
     # Set binning, obstime, basename, and objtype
     binning = fitstbl['binning'][frame]
-    obstime  = fitstbl.construct_obstime(frame)
-    basename = fitstbl.construct_basename(frame, obstime=obstime)
+    basename = fitstbl.construct_basename(frame)
     types  = fitstbl['frametype'][frame].split(',')
     if 'science' in types:
         objtype_out = 'science'
