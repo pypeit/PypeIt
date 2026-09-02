@@ -4,11 +4,60 @@ Module for constructing output file names and paths for PypeIt reductions.
 .. include:: ../include/links.rst
 
 """
+import datetime
 import numpy as np
 from pathlib import Path
 
+from astropy import time
+
 from pypeit import log
 from pypeit import PypeItError
+
+def construct_basename(filename, target, camera, mjd, allowed_extensions):
+    """Construct the root name primarily for PypeIt file output.
+
+    Parameters
+    ----------
+    filename : str or `Path`_
+        The name of the raw file.  The extension is stripped based on
+        `allowed_extensions` before constructing the basename.  If no
+        extension in `allowed_extensions` matches, a warning is issued
+        and the full input name is used unmodified.
+    target : str
+        The name of the target/object observed.
+    camera : str
+        The camera name; see
+        :attr:`~pypeit.spectrographs.spectrograph.Spectrograph.camera`.
+    mjd : float
+        The MJD of the observation.
+    allowed_extensions : list
+        List of recognized raw-file extensions for the relevant
+        spectrograph, used to correctly strip the extension from
+        `filename`; see
+        :attr:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_extensions`.
+
+    Returns
+    -------
+    str
+        The root name for file output.
+    """
+    _filename = Path(filename).name
+    root = _filename
+    for ext in sorted(allowed_extensions, key=len, reverse=True):
+        if _filename.endswith(ext):
+            root = _filename[:-len(ext)]
+            break
+    else:
+        log.warning(
+            f'{_filename} does not have a recognized extension; expected one of '
+            f'{allowed_extensions}.'
+        )
+    tobs = time.Time(mjd, format='mjd')
+    dtime = datetime.datetime.strptime(tobs.isot, '%Y-%m-%dT%H:%M:%S.%f')
+    return '{0}-{1}_{2}_{3}{4}'.format(
+        root, target.replace(' ', ''), camera,
+        datetime.datetime.strftime(dtime, '%Y%m%dT'), tobs.isot.split('T')[1].replace(':', '')
+    )
 
 def get_std_outfile(fitstbl, par, standard_frames:list):
     """
