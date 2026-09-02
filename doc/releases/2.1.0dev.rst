@@ -147,6 +147,7 @@ Testing
 - Added new tests for :class:`~pypeit.inputfiles.InputFile` objects.
 - Added tests for MMT/Binospec setup grouping and INCAN-based flat/trace frame
   typing.
+- Added new tests for :mod:`~pypeit.core.datacube`.
 
 Under-the-hood Improvements
 ---------------------------
@@ -168,6 +169,8 @@ Under-the-hood Improvements
   development-only files, not suited for the released package.
 - Restructuring of :mod:`~pypeit.core`.
 - Increase the breakpoint spacing when fitting the slit illumination profile.
+- Multiple improvements for datacube generation, including no transpose operations
+  and faster cube generation.
 
 
 Bug Fixes
@@ -238,3 +241,4 @@ Bug Fixes
   (``IMGTYPE`` = ``DOMEFLAT``) and no longer includes the internal continuum
   (``IMGTYPE`` = ``CONT``) lamp flats, whose different illumination contaminated
   the combined pixel/illumination flat when both were present in a night.
+- Fixed bugs with the datacube WCS and datacube alignments.

@@ -10,7 +10,8 @@ DataCube, and use it to flux calibrate the science DataCubes.
 .. include:: ../include/links.rst
 """
 from pypeit.scripts import scriptbase
-
+from pathlib import Path
+from IPython import embed
 
 class ExtractDataCube(scriptbase.ScriptBase):
 
@@ -22,14 +23,27 @@ class ExtractDataCube(scriptbase.ScriptBase):
             width=width, default_log_file=True
         )
         parser.add_argument('file', type = str, default=None, help='spec3d.fits DataCube file')
-        parser.add_argument("-e", "--ext_file", type=str,
-                            help='Configuration file with extraction parameters')
-        parser.add_argument("-s", "--save", type=str,
-                            help='Output spec1d filename')
-        parser.add_argument('-o', '--overwrite', default=False, action='store_true',
-                            help='Overwrite any existing files/directories')
-        parser.add_argument('-b', '--boxcar_radius', type=float, default=None,
-                            help='Radius of the circular boxcar (in arcseconds) to use for the extraction.')
+        parser.add_argument(
+            "-e", "--ext_file", type=str, help='Configuration file with extraction parameters'
+        )
+        parser.add_argument(
+            "-s", "--save", type=str,
+            help=(
+                'Basename for output files, i.e. outputs will be written to spec1d_basename.fits '
+                'and spec2d_basename.fits'
+            )
+        )
+        parser.add_argument(
+            '-o', '--overwrite', default=False, action='store_true',
+            help='Overwrite any existing files/directories'
+        )
+        parser.add_argument(
+            '-b', '--boxcar_radius', type=float, default=None,
+            help='Radius of the circular boxcar (in arcseconds) to use for the extraction.'
+        )
+        parser.add_argument(
+            "--debug", default=False, action="store_true", help="Run in debugging mode"
+        )
         return parser
 
     @classmethod
@@ -38,11 +52,11 @@ class ExtractDataCube(scriptbase.ScriptBase):
 
         from pypeit import log
         from pypeit import PypeItError
-        from pypeit import par
+        from pypeit.par import pypeitpar
         from pypeit import inputfiles
         from pypeit import utils
         from pypeit.spectrographs.util import load_spectrograph
-        from pypeit.coadd3d import DataCube
+        from pypeit.coadd3d import DataCube, CoAdd3D
 
         # Initialize the log
         cls.init_log(args)
@@ -54,27 +68,42 @@ class ExtractDataCube(scriptbase.ScriptBase):
         spectrograph = load_spectrograph(extcube.PYP_SPEC)
 
         if args.ext_file is None:
-            parset = spectrograph.default_pypeit_par()
+            par = spectrograph.default_pypeit_par()
         else:
             # Read in the relevant information from the .extract file
             ext3dfile = inputfiles.ExtractFile.from_file(args.ext_file)
-
             # Parameters
             spectrograph_def_par = spectrograph.default_pypeit_par()
-            parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
-                                                  merge_with=(ext3dfile.cfg_lines,))
+            par = pypeitpar.PypeItPar.from_cfg_lines(
+                cfg_lines=spectrograph_def_par.to_config(), merge_with=(ext3dfile.cfg_lines,)
+            )
 
         # Set the boxcar radius
         boxcar_radius = args.boxcar_radius
 
-        # Set the output name
-        outname = None if args.save is None else args.save
-
+        # Set the output name. If one was provided by the user 
+        if args.save is not None:
+            par['reduce']['cube']['extraction']['output_filename'] = args.save
+        if args.boxcar_radius is not None:
+            par['reduce']['cube']['extraction']['boxcar_radius'] = args.boxcar_radius
+        
         # Load the DataCube
         tstart = time.time()
+        
+        # Get the paths
+        # TODO: I think we should set coadd_dir to the parent of args.file...
+        coadd_scidir, qa_path = map(
+            lambda x : Path(x).absolute(), CoAdd3D.output_paths(
+                args.file, par['rdx']['scidir'], par['rdx']['qadir'],
+                coadd_dir=par['rdx']['redux_path']
+            )
+        )
 
         # Extract the spectrum
-        extcube.extract_spec(parset['reduce'], outname=outname, boxcar_radius=boxcar_radius, overwrite=args.overwrite)
+        extcube.extract_spec(
+            par['reduce'], output_dir=str(coadd_scidir), overwrite=args.overwrite, 
+            debug=args.debug
+        )
 
         # Report the extraction time
         log.info(utils.get_time_string(time.time()-tstart))

@@ -662,7 +662,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         # Calculate the CD Matrix
         cd11 = cdelt1 * np.cos(crota)                          # RA degrees per column
         cd12 = abs(cdelt2) * np.sign(cdelt1) * np.sin(crota)   # RA degrees per row
-        cd21 = -abs(cdelt1) * np.sign(cdelt2) * np.sin(crota)  # DEC degress per column
+        cd21 = -abs(cdelt1) * np.sign(cdelt2) * np.sin(crota)  # DEC degrees per column
         cd22 = cdelt2 * np.cos(crota)                          # DEC degrees per row
         # Get reference pixels (set these to the middle of the FOV)
         crpix1 = 24/2   # i.e. 24 slices/2
@@ -672,19 +672,17 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         porg = hdr['PONAME']
         ifunum = hdr['IFUNUM']
         if 'IFU' in porg:
-            # if ifunum == 1:  # Large slicer
-            #     off1 = 1.0
-            #     off2 = 4.0
-            # elif ifunum == 2:  # Medium slicer
-            #     off1 = 1.0
-            #     off2 = 5.0
-            # elif ifunum == 3:  # Small slicer
-            #     off1 = 0.05
-            #     off2 = 5.6
-            # else:
-            #     log.warning("Unknown IFU number: {0:d}".format(ifunum))
-            off1 = 0.
-            off2 = 0.
+            if ifunum == 1:  # Large slicer
+                off1 = 1.0
+                off2 = 4.0
+            elif ifunum == 2:  # Medium slicer
+                off1 = 1.0
+                off2 = 5.0
+            elif ifunum == 3:  # Small slicer
+                off1 = 0.05
+                off2 = 5.6
+            else:
+                log.warning("Unknown IFU number: {0:d}".format(ifunum))
             off1 /= binspec
             off2 /= binspat
             crpix1 += off1
@@ -726,12 +724,13 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         Args:
             :obj:`tuple`: Three 1D `numpy.ndarray`_ providing the bins to use
             when constructing a histogram of the spec2d files. The elements
-            are :math:`(x,y,\lambda)`.
+            are :math:`(\lambda,y,x)`.
         """
+        # TODO :: Before merging note that this needs to be updated for all IFU spectrographs.
         xbins = np.arange(1 + 24) - 0.5
         ybins = np.linspace(np.min(minmax[:, 0]), np.max(minmax[:, 1]), 1+slitlength) - 0.5
         spec_bins = np.arange(1+num_wave) - 0.5
-        return xbins, ybins, spec_bins
+        return spec_bins, ybins, xbins
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
