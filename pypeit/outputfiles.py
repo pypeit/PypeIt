@@ -136,8 +136,9 @@ def get_std_outfile(fitstbl, par, standard_frames:list):
     return std_outfile
 
 
-def intermediate_filename(itype:str, basename:str, det_name:str, 
-                          inter_path:str='Intermediate'):
+def intermediate_filename(
+    itype:str, basename:str, det_name:str, inter_path:str='Intermediate'
+):
     """
     Construct the intermediate file name for a given type and detector
 
@@ -173,8 +174,9 @@ def science_path(par) -> Path:
     return Path(par['rdx']['redux_path']) / par['rdx']['scidir']
 
 
-def spec_output_file(fitstbl, par, frame:int, twod:bool=False,
-                     ext:str='.fits', sci_path:Path=None) -> Path:
+def spec_output_file(
+    fitstbl, par, frame:int, twod:bool=False, ext:str='.fits', sci_path:Path=None
+) -> Path:
     """
     Return the path to the spectral output data file.
     

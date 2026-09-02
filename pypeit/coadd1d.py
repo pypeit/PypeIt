@@ -178,12 +178,15 @@ class CoAdd1D:
                                         mask_stack=mask_stack, 
                                         sigma_stack=sigma_stack,
                                         PYP_SPEC=self.spectrograph.name, 
-                                        ext_mode=self.par['ex_value'], fluxed=self.par['flux_value'],
-                                        setup_name = setup_val)
+                                        ext_mode=self.par['ex_value'],
+                                        fluxed=self.par['flux_value'],
+                                        setup_name=setup_val)
                 orderstack.head0 = self.headers[setup_num]
-                orderstack_file = str(Path(coaddfile).with_suffix('')) + '_orderstack' \
-                                    + setup_val + '.fits'
-                orderstack.to_file(orderstack_file, history=history, overwrite=overwrite)
+                orderstack.to_file(
+                    f'{Path(coaddfile).with_suffix('')}_orderstack{setup_val}.fits',
+                    history=history, overwrite=overwrite
+                )
+
         # Write
         spec.to_file(coaddfile, history=history, overwrite=overwrite)
 
