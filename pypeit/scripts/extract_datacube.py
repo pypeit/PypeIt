@@ -78,10 +78,7 @@ class ExtractDataCube(scriptbase.ScriptBase):
                 cfg_lines=spectrograph_def_par.to_config(), merge_with=(ext3dfile.cfg_lines,)
             )
 
-        # Set the boxcar radius
-        boxcar_radius = args.boxcar_radius
-
-        # Set the output name. If one was provided by the user 
+        # Set the output name. If one was provided by the user
         if args.save is not None:
             par['reduce']['cube']['extraction']['output_filename'] = args.save
         if args.boxcar_radius is not None:
@@ -90,9 +87,10 @@ class ExtractDataCube(scriptbase.ScriptBase):
         # Load the DataCube
         tstart = time.time()
         
-        # Get the paths
+        # Get the paths. The QA path isn't used here, but output_paths() has
+        # the side effect of creating it, which extract_spec() relies on.
         # TODO: I think we should set coadd_dir to the parent of args.file...
-        coadd_scidir, qa_path = map(
+        coadd_scidir, _ = map(
             lambda x : Path(x).absolute(), CoAdd3D.output_paths(
                 args.file, par['rdx']['scidir'], par['rdx']['qadir'],
                 coadd_dir=par['rdx']['redux_path']

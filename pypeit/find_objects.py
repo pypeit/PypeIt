@@ -1251,7 +1251,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
             basename = f'{self.basename}_global_{self.spectrograph.get_det_name(self.det)}'
             out_dir = os.path.join(self.par['rdx']['redux_path'], 'QA')
             slit_bpm = np.zeros(self.slits.nslits, dtype=bool)
-            flexure.spec_flexure_qa(self.slits.slitord_id, slit_bpm, basename, flex_list, out_dir=out_dir)
+            qa.spec_flexure_qa(self.slits.slitord_id, slit_bpm, basename, flex_list, out_dir=out_dir)
         return new_slitshift
 
     def apply_relative_scale(self, scaleImg):

@@ -1889,7 +1889,8 @@ class Spectrograph:
         Returns:
             :obj:`tuple`: Three 1D `numpy.ndarray`_ providing the bins to use
             when constructing a histogram of the spec2d files. The elements
-            are :math:`(x,y,\lambda)`.
+            are :math:`(\lambda,y,x)`, matching the wavelength-first axis
+            order used throughout :mod:`~pypeit.core.datacube`.
         """
         log.warning("No datacube setup for spectrograph: {0:s}".format(self.name))
         return None
