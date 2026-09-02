@@ -152,7 +152,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         if meta_key == 'dithoff':
             # Along-slit dither offset in arcsec: projection of the telescope
             # pointing (RA in hours, DEC in deg) minus the catalog target
-            # (CAT-RA/CAT-DEC, sexagesimal deg) onto the slit PA (POSANGLE).
+            # (CAT-RA/CAT-DEC) onto the slit PA (POSANGLE).
             hdr = headarr[1]
             try:
                 ra = float(hdr['RA']) * 15.0
@@ -162,6 +162,18 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
                 pa = float(hdr['POSANGLE'])
             except (KeyError, TypeError, ValueError):
                 return 0.0
+            # CAT-RA is written either as sexagesimal degrees ('+260:36:50.55',
+            # written by the MOS mask tool) or as decimal hours ('13.70246500',
+            # matching the hours-valued RA card) depending on the observing
+            # tool.  Astropy parses both as degrees above; since dither throws
+            # are arcsec-scale, pick whichever interpretation -- degrees as-is
+            # or hours*15 -- lands the catalog position within a degree of the
+            # actual pointing, so RA is never mis-scaled by 15x.  CAT-DEC is
+            # always degrees, so it needs no such correction.
+            d_deg = abs((catra - ra + 180.0) % 360.0 - 180.0)
+            d_hrs = abs((catra * 15.0 - ra + 180.0) % 360.0 - 180.0)
+            if d_hrs < d_deg:
+                catra = catra * 15.0
             # Wrap the RA difference into (-180, 180] deg so a sequence that
             # straddles 0h RA yields a small offset instead of one near +/-360.
             dra_deg = (ra - catra + 180.0) % 360.0 - 180.0

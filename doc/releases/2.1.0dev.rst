@@ -314,6 +314,12 @@ Bug Fixes
   along-slit dither offset, so a sequence that straddles 0h RA yields a small
   offset rather than one near +/-360 deg (which would mis-pair the nods in
   ``comb_id``/``bkg_id``).
+- MMIRS dither-offset derivation now handles the two ``CAT-RA`` header formats:
+  sexagesimal degrees (written by the MOS mask tool) and decimal hours (written
+  for long-slit pointings, matching the hours-valued ``RA`` card).  The value is
+  scaled to whichever interpretation places the catalog position within a degree
+  of the actual pointing, so long-slit ``dithoff`` is no longer mis-scaled by 15x
+  into a nonsensical offset.
 - ``pypeit_collate_1d`` now sanitizes the ``MASKDEF_OBJNAME`` used for
   ``outfile_from = 'maskdef_objname'`` coadd names to a single safe filename
   component, so a catalog target name containing a path separator or other

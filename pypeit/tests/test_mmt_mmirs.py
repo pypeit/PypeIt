@@ -859,6 +859,36 @@ def test_dithoff_recovers_abab_pattern():
     assert np.allclose(offs, expected, atol=0.02)
 
 
+def test_dithoff_handles_catra_in_hours():
+    # MMT longslit headers write CAT-RA as a bare decimal in *hours* (matching
+    # the hours-valued RA card), e.g. '13.70246500', while the MOS mask tool
+    # writes it as sexagesimal *degrees* ('+260:36:50.55').  Both formats must
+    # yield the same along-slit offset -- parsing the hours form as degrees
+    # would mis-scale RA by 15x and produce a nonsensical offset.
+    spec = load_spectrograph('mmt_mmirs')
+    catra_deg, catdec_deg, pa = 205.537, 9.482, 34.218   # J_zJ geometry
+    off = 2.4                                            # arcsec along slit
+    par = np.radians(pa)
+    cosd = np.cos(np.radians(catdec_deg))
+    ra_deg = catra_deg + (off * np.sin(par) / 3600.0) / cosd
+    dec_deg = catdec_deg + off * np.cos(par) / 3600.0
+    # Reference: CAT-RA in sexagesimal degrees (as _dither_header writes it).
+    ref = spec.compound_meta(
+        _dither_header(ra_deg, dec_deg, catra_deg, catdec_deg, pa, 5475),
+        'dithoff')
+    # Same pointing, but CAT-RA written as a bare decimal in hours.
+    h1 = fits.Header()
+    h1['RA'] = str(ra_deg / 15.0)
+    h1['DEC'] = str(dec_deg)
+    h1['CAT-RA'] = f'{catra_deg / 15.0:.8f}'    # decimal hours, no ':'
+    h1['CAT-DEC'] = f'{catdec_deg:.8f}'         # decimal degrees
+    h1['POSANGLE'] = pa
+    h1['FILENAME'] = 'MMIRS/2017.0101/PAAlign_longslit.5475'
+    hours = spec.compound_meta([fits.Header(), h1], 'dithoff')
+    assert np.isclose(hours, ref, atol=0.02)
+    assert np.isclose(hours, off, atol=0.05)
+
+
 def test_frameno_parsed_from_filename():
     spec = load_spectrograph('mmt_mmirs')
     headarr = _dither_header(260.614, 65.8828, 260.614, 65.8828, 166.382, 1823)
