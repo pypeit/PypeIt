@@ -25,7 +25,7 @@ from pypeit.core import wave
 
 # local_skyregions
 from pypeit.core import skysub
-from pypeit import io
+from pypeit import outputfiles
 
 from pypeit import slittrace
 from pypeit import calibrations
@@ -100,7 +100,11 @@ def get_sci_metadata(spectrograph, fitstbl, frame:int, det):
 
     # Set binning, obstime, basename, and objtype
     binning = fitstbl['binning'][frame]
-    basename = fitstbl.construct_basename(frame)
+    # NOTE: This determination of obstime is exactly what is done inside of
+    # construct_basename when obstime is not provided.  The only reason this is
+    # done here is because obstime is also returned by this function.
+    obstime  = fitstbl.construct_obstime(frame)
+    basename = fitstbl.construct_basename(frame, obstime=obstime)
     types  = fitstbl['frametype'][frame].split(',')
     if 'science' in types:
         objtype_out = 'science'
@@ -681,8 +685,8 @@ def load_skyregions(spectrograph, fitstbl, user_regions, frame, det,
                             CalibFrame.ingest_calib_id(fitstbl['calib'][frame]),
                             spectrograph.get_det_name(det))
         regfile = buildimage.SkyRegions.construct_file_name(
-            calib_key, calib_dir=calibrations_path, 
-            basename=io.remove_suffix(scifile))
+            calib_key, calib_dir=calibrations_path,
+            basename=outputfiles.strip_raw_extension(scifile, spectrograph.allowed_extensions))
         regfile = Path(regfile).absolute()
         if not regfile.exists():
             raise PypeItError(

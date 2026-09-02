@@ -14,6 +14,43 @@ from pypeit import log
 from pypeit import PypeItError
 
 
+def strip_raw_extension(filename, allowed_extensions):
+    """Strip the raw-file extension from a filename.
+
+    Parameters
+    ----------
+    filename : str, `Path`_
+        The name of the raw file.  Only the file name is used; see
+        `Path.name`_.
+    allowed_extensions : list
+        List of recognized raw-file extensions for the relevant spectrograph,
+        used to correctly strip the extension from ``filename``; see
+        :attr:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_extensions`.
+
+    Returns
+    -------
+    str
+        The file name with the extension removed.  If no extension in
+        ``allowed_extensions`` matches, a warning is issued and the full
+        input name is returned unmodified.
+    """
+    _filename = Path(filename).name
+    root = _filename
+    # NOTE: This for/else python syntax is new to me.  The else clause is only
+    # executed if the for loop completes all of its expected iterations (i.e.,
+    # it never breaks).  Very useful!
+    for ext in sorted(allowed_extensions, key=len, reverse=True):
+        if _filename.endswith(ext):
+            root = _filename[:-len(ext)]
+            break
+    else:
+        log.warning(
+            f'{_filename} does not have a recognized extension; expected one of '
+            f'{allowed_extensions}.'
+        )
+    return root
+
+
 def construct_basename(filename, target, camera, mjd, allowed_extensions):
     """Construct the root name primarily for PypeIt file output.
 
@@ -41,26 +78,13 @@ def construct_basename(filename, target, camera, mjd, allowed_extensions):
     str
         The root name for file output.
     """
-    _filename = Path(filename).name
-    root = _filename
-    # NOTE: This for/else python syntax is new to me.  The else clause is only
-    # executed if the for loop completes all of its expected iterations (i.e.,
-    # it never breaks).  Very useful!
-    for ext in sorted(allowed_extensions, key=len, reverse=True):
-        if _filename.endswith(ext):
-            root = _filename[:-len(ext)]
-            break
-    else:
-        log.warning(
-            f'{_filename} does not have a recognized extension; expected one of '
-            f'{allowed_extensions}.'
-        )
+    root = strip_raw_extension(filename, allowed_extensions)
     tobs = time.Time(mjd, format='mjd')
     dtime = datetime.datetime.strptime(tobs.isot, '%Y-%m-%dT%H:%M:%S.%f')
     dtime = datetime.datetime.strftime(dtime, '%Y%m%dT')
     tobs = tobs.isot.split('T')[1].replace(':', '')
     _target = target.replace(' ', '')
-    return f'{root}-{target}_{camera}_{dtime}{tobs}'
+    return f'{root}-{_target}_{camera}_{dtime}{tobs}'
 
 
 def get_std_outfile(fitstbl, par, standard_frames:list):
