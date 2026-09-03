@@ -425,7 +425,7 @@ def test_two_position_dither_splits_comb_id():
         'the two dither positions must get different comb_ids'
     assert len(set(comb)) == 2, 'a two-position dither yields exactly two comb_ids'
     assert np.all(np.asarray(t['bkg_id']) == -1), \
-        'bkg_id must stay unset for the IFU'
+        'bkg_id must currently stay unset for the IFU'
     assert len(set(str(x) for x in t['dithpos'])) == 2, \
         'two distinct positions yield two dithpos labels'
 
@@ -489,7 +489,7 @@ def test_standard_at_own_pointing_separate():
     assert comb[3] != comb[0], \
         'a standard at a different pointing gets its own comb_id'
     assert np.all(np.asarray(t['bkg_id']) == -1), \
-        'bkg_id must stay unset for the IFU'
+        'bkg_id must currently stay unset for the IFU'
 
 
 def test_calibration_frames_untouched():
