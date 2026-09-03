@@ -207,7 +207,7 @@ class KECKHIRESBaseSpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['dateobs'] = dict(ext=0, card='DATE-OBS')
         self.meta['hatch'] = dict(ext=0, card='HATOPEN')
-        self.meta['dispname'] = dict(ext=0, card='XDISPERS')
+        self.meta['dispname'] = dict(card=None, compound=True)
         self.meta['filter1'] = dict(ext=0, card='FIL1NAME')
         self.meta['echangle'] = dict(ext=0, card='ECHANGL', rtol=1e-3, atol=1e-2)
         self.meta['xdangle'] = dict(ext=0, card='XDANGL', rtol=1e-2, atol=1e-1)
@@ -240,6 +240,13 @@ class KECKHIRESBaseSpectrograph(spectrograph.Spectrograph):
                 return headarr[0]['MJD']
             else:
                 return Time('{}T{}'.format(headarr[0]['DATE-OBS'], headarr[0]['UTC'])).mjd
+        elif meta_key == 'dispname':
+            mjd = float(self.compound_meta(headarr, 'mjd'))
+            if mjd < 50814.0:  # This is midnight on December 31 1997
+                # According to MAKEE DRP, this is the cross-disperser for all data on or before December 31 1997
+                return "RED97"
+            else:
+                return headarr[0]['XDISPERS']
         elif meta_key == 'lampstat01':
             if headarr[0].get('LAMPCAT1') or headarr[0].get('LAMPCAT2'):
                 return 'ThAr1' if headarr[0].get('LAMPCAT1') else 'ThAr2'
@@ -249,33 +256,45 @@ class KECKHIRESBaseSpectrograph(spectrograph.Spectrograph):
                 return 'on'
             else:
                 return 'off'
-
         elif meta_key == 'idname':
             xcovopen = headarr[0].get('XCOVOPEN')
-            collcoveropen = (headarr[0].get('XDISPERS') == 'RED' and headarr[0].get('RCCVOPEN')) or \
-                        (headarr[0].get('XDISPERS') == 'UV' and headarr[0].get('BCCVOPEN'))
+            dispname = self.compound_meta(headarr, 'dispname')
+            if dispname == 'RED97':
+                match headarr[0].get('IMAGETYP'):
+                    case "dark":
+                        return 'Bias' if headarr[0].get('ELAPTIME') < 0.001 else 'Dark'
+                    case "arclamp":
+                        return "Line"
+                    case "flatlamp":
+                        return "IntFlat"
+                    case "object":
+                        return "Object"
+                    case _:
+                        return "None"
+            else:
+                collcoveropen = (dispname == 'RED' and headarr[0].get('RCCVOPEN')) or \
+                            (dispname == 'UV' and headarr[0].get('BCCVOPEN'))
 
-            if xcovopen and collcoveropen and \
-                    not headarr[0].get('LAMPCAT1') and not headarr[0].get('LAMPCAT2') and \
-                    not headarr[0].get('LAMPQTZ2') and not (headarr[0].get('LAMPNAME') == 'quartz1'):
-                if headarr[0].get('HATOPEN') and headarr[0].get('AUTOSHUT'):
-                    return 'Object'
-                elif not headarr[0].get('HATOPEN'):
-                    # Note that the check below ignores the bias exprng set in the
-                    # default pypeit par because that information is not available here
-                    return 'Bias' if headarr[0].get('ELAPTIME') < 0.001 else 'Dark'
-            elif xcovopen and collcoveropen and \
-                    headarr[0].get('AUTOSHUT') and (headarr[0].get('LAMPCAT1') or headarr[0].get('LAMPCAT2')):
-                return 'Line'
-            elif collcoveropen and \
-                    headarr[0].get('AUTOSHUT') and \
-                    (headarr[0].get('LAMPQTZ2') or (headarr[0].get('LAMPNAME') == 'quartz1')) and \
-                    not headarr[0].get('HATOPEN'):
-                if not xcovopen:
-                    return 'slitlessFlat'
-                else:
-                    return 'IntFlat'
-
+                if xcovopen and collcoveropen and \
+                        not headarr[0].get('LAMPCAT1') and not headarr[0].get('LAMPCAT2') and \
+                        not headarr[0].get('LAMPQTZ2') and not (headarr[0].get('LAMPNAME') == 'quartz1'):
+                    if headarr[0].get('HATOPEN') and headarr[0].get('AUTOSHUT'):
+                        return 'Object'
+                    elif not headarr[0].get('HATOPEN'):
+                        # Note that the check below ignores the bias exprng set in the
+                        # default pypeit par because that information is not available here
+                        return 'Bias' if headarr[0].get('ELAPTIME') < 0.001 else 'Dark'
+                elif xcovopen and collcoveropen and \
+                        headarr[0].get('AUTOSHUT') and (headarr[0].get('LAMPCAT1') or headarr[0].get('LAMPCAT2')):
+                    return 'Line'
+                elif collcoveropen and \
+                        headarr[0].get('AUTOSHUT') and \
+                        (headarr[0].get('LAMPQTZ2') or (headarr[0].get('LAMPNAME') == 'quartz1')) and \
+                        not headarr[0].get('HATOPEN'):
+                    if not xcovopen:
+                        return 'slitlessFlat'
+                    else:
+                        return 'IntFlat'
         else:
             raise PypeItError("Not ready for this compound meta")
 
@@ -914,6 +933,18 @@ class KeckHIRESOrigSpectrograph(KECKHIRESBaseSpectrograph):
     name = 'keck_hires_orig'
     ndet = 1
     comment = 'Pre detector upgrade (~August 2004). See :doc:`keck_hires` for details. This class supports the original Tektronix CCD.'
+
+    def init_meta(self):
+        """
+        Define how metadata are derived from the spectrograph files.
+
+        That is, this associates the PypeIt-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
+        """
+        super().init_meta()
+        # self.meta['idname'] = dict(ext=0, card='IMAGETYP')
+        # NOTE: This is the native keyword.  IMAGETYP is from KOA.
+        self.meta['target'] = dict(ext=0, card='OBJECT')
 
     @classmethod
     def default_pypeit_par(cls):
