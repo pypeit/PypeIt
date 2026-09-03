@@ -1433,8 +1433,10 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         next_comb = 1
         for s in np.unique(setup_col[sci_std]):
             idx = np.where(sci_std & (setup_col == s))[0]
-            ra = np.asarray(fitstbl['ra'][idx], dtype=float)
-            dec = np.asarray(fitstbl['dec'][idx], dtype=float)
+            # get_meta_value already normalizes ra/dec to float degrees, so let
+            # SkyCoord handle the on-sky separations directly.
+            coords = SkyCoord(ra=fitstbl['ra'][idx], dec=fitstbl['dec'][idx],
+                              unit=units.deg)
             order = np.argsort(np.asarray(fitstbl['mjd'][idx], dtype=float))
 
             # Greedy single-pass clustering in time order: each frame joins the
@@ -1445,13 +1447,11 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
             clusters = []
             for a in order:
                 for c in clusters:
-                    dde = (ra[a] - c['ra']) * np.cos(np.radians(c['dec'])) * 3600.0
-                    ddn = (dec[a] - c['dec']) * 3600.0
-                    if np.hypot(dde, ddn) < self.comb_pointing_tol:
+                    if coords[a].separation(c['coord']).arcsec < self.comb_pointing_tol:
                         c['members'].append(a)
                         break
                 else:
-                    clusters.append(dict(ra=ra[a], dec=dec[a], members=[a]))
+                    clusters.append(dict(coord=coords[a], members=[a]))
 
             for ci, c in enumerate(clusters):
                 members = idx[c['members']]
@@ -1461,10 +1461,7 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
 
             # Offset (arcsec) of each frame from this setup's earliest pointing,
             # for a quick read of the dither throw in the pypeit file.
-            ref = order[0]
-            off = np.hypot((ra - ra[ref]) * np.cos(np.radians(dec[ref])) * 3600.0,
-                           (dec - dec[ref]) * 3600.0)
-            fitstbl['dithoff'][idx] = off
+            fitstbl['dithoff'][idx] = coords.separation(coords[order[0]]).arcsec
 
         return fitstbl
 
