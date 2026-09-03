@@ -183,7 +183,7 @@ grouping transparent:
 
 - ``dithoff`` — offset in arcsec from the setup's reference pointing (the
   earliest-MJD science/standard frame).
-- ``dithpos`` — the group's ``A``/``B``/... label.
+- ``dithpos`` — the group's ``P01``/``P02``/... label.
 
 .. note::
 

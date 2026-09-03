@@ -1378,14 +1378,6 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
 
         return par
 
-    @staticmethod
-    def _dither_label(index):
-        """
-        Map a 0-based cluster index to a short dither-position label
-        (``A``, ``B``, ... ``Z``, then ``P26``, ``P27``, ...).
-        """
-        return chr(ord('A') + index) if index < 26 else f'P{index}'
-
     def get_comb_group(self, fitstbl):
         """
         Automatically assign combination groups from the science/standard
@@ -1406,7 +1398,8 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
 
         Two informational columns are filled for visibility in the pypeit
         file: ``dithoff`` (arcsec offset of each frame from its setup's
-        earliest pointing) and ``dithpos`` (the cluster's ``A``/``B``/... label).
+        earliest pointing) and ``dithpos`` (the cluster's ``P01``/``P02``/...
+        label).
 
         Args:
             fitstbl (`astropy.table.Table`_):
@@ -1462,7 +1455,7 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
             for ci, c in enumerate(clusters):
                 members = idx[c['members']]
                 fitstbl['comb_id'][members] = next_comb
-                fitstbl['dithpos'][members] = self._dither_label(ci)
+                fitstbl['dithpos'][members] = f'P{ci + 1:02d}'
                 next_comb += 1
 
             # Offset (arcsec) of each frame from this setup's earliest pointing,
