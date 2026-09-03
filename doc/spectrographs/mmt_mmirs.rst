@@ -128,13 +128,16 @@ to re-fit with the new calibration.
 Multislit observations
 ++++++++++++++++++++++
 
-The PypeIt developers only tested MMIRS longslit observations, but,
-in principle, PypeIt should also work for multi-slit data.
+PypeIt supports both MMIRS longslit and multi-object (MOS) slitmask
+observations. For MOS masks, PypeIt ingests the MMIRS ``.msk`` mask-design
+file so that slit tracing, alignment-box registration, and target
+identities all follow the mask design; see the mask-definition section below.
 
 Supported grism/filter modes
 ++++++++++++++++++++++++++++
 
-MMIRS offers several grism/filter combinations for long-slit spectroscopy; see
+MMIRS offers several grism/filter combinations for longslit and slitmask
+spectroscopy; see
 the observatory's `MMIRS recommendations page
 <https://www.mmto.org/mmirs-recommendations/>`__ for the full list and for
 guidance on choosing among them.  For each mode below PypeIt ships an archival
@@ -152,7 +155,7 @@ HK         HK3        1.14-2.51 um
 HK         zJ         0.94-1.29 um (2nd order; below)
 =========  =========  ===============================
 
-All of the observatory's recommended long-slit modes, plus the ``HK``/``zJ``
+All of the observatory's recommended spectroscopic modes, plus the ``HK``/``zJ``
 setup, have been reduced end-to-end and verified against real data in the PypeIt
 development suite.
 
