@@ -180,7 +180,7 @@ def test_load_spectrograph():
 
     # Test the allowed extensions for an oddball spectrograph
     spec5 = load_spectrograph('soar_goodman_red')
-    assert spec5.allowed_extensions == [".fits", ".fits.fz"], 'Found wrong extensions'
+    assert spec5.allowed_extensions == [".fits.fz"], 'Found wrong extensions'
 
     # Call as it from a post-processing script
     spec6 = load_spectrograph('soar_goodman_red', pypeit_fits=True)
