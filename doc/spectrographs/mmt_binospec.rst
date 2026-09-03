@@ -151,6 +151,49 @@ extractions are performed.  The spec1d files can be inspected with
    fiber, which can be time-consuming (~360 fibers per detector).
    A typical reduction with both detectors takes several hours.
 
+Combination groups and dithering
+++++++++++++++++++++++++++++++++
+
+When ``pypeit_setup`` builds the ``.pypeit`` file it automatically assigns
+combination groups (``comb_id``) to the science and standard frames from
+their pointing pattern, so same-pointing frames coadd and each distinct
+dither position reduces to its own spec1d/spec2d.  This removes the need to
+edit ``comb_id`` by hand.
+
+Binospec writes the *commanded* ``RA``/``DEC`` into the header, so repeated
+visits to a position are byte-identical.  Within each setup, PypeIt clusters
+the science/standard pointings and gives every frame within ``0.1`` arcsec of
+a cluster a shared ``comb_id``; frames farther apart start a new cluster with
+its own ``comb_id``.  Clustering never crosses a setup (grating + mask), so
+frames from different configurations are never combined.
+
+This handles the common observing patterns automatically:
+
+- **Same pointing** — all science frames at one position get a single
+  ``comb_id`` and coadd into one spec1d/spec2d.
+- **Sampling dithers** — small offsets to fill in the lenslet sampling: each
+  distinct position gets its own ``comb_id`` and reduces to its own
+  spec1d/spec2d.
+- **Large sky offsets** — an offset far from the target (e.g. to acquire sky
+  for an extended source that would contaminate the sky fibers) lands in its
+  own cluster and is reduced separately, just like any other position.
+
+Two informational columns are written to the ``.pypeit`` file to make the
+grouping transparent:
+
+- ``dithoff`` — offset in arcsec from the setup's reference pointing (the
+  earliest-MJD science/standard frame).
+- ``dithpos`` — the group's ``A``/``B``/... label.
+
+.. note::
+
+   Automatic assignment is skipped entirely if you pre-set any ``comb_id`` in
+   the ``.pypeit`` file, so a hand-tuned grouping is always honored.  To
+   override the automatic result, edit the ``comb_id`` column (and, if
+   pairing frames, ``bkg_id``) directly.  Note that the Binospec IFU takes its
+   sky from the dedicated sky fibers via a joint fit rather than from a nod
+   partner, so ``bkg_id`` is left unset by the automatic assignment.
+
 Fiber throughput correction and sky subtraction
 ++++++++++++++++++++++++++++++++++++++++++++++++
 
