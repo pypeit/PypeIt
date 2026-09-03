@@ -30,6 +30,8 @@ from pypeit.core.wavecal import wvutils
 from pypeit.core.moment import moment1d
 from pypeit.manual_extract import ManualExtractionObj
 from pypeit.spec2dobj import Spec2DObj
+from pypeit import outputfiles
+from pypeit.spectrographs.util import load_spectrograph
 
 
 @dataclasses.dataclass
@@ -461,16 +463,29 @@ class CoAdd2D:
         frsthdr = fits.getheader(spec2d_files[0])
         lasthdr = fits.getheader(spec2d_files[-1])
         if 'FILENAME' not in frsthdr:
-            raise PypeItError(f'Missing FILENAME keyword in {spec2d_files[0]}.  Set the basename '
-                        'using the command-line option.')
+            raise PypeItError(
+                f'Missing FILENAME keyword in {spec2d_files[0]}.  Set the basename using the '
+                'command-line option.'
+            )
         if 'FILENAME' not in lasthdr:
-            raise PypeItError(f'Missing FILENAME keyword in {spec2d_files[-1]}.  Set the basename '
-                        'using the command-line option.')
+            raise PypeItError(
+                f'Missing FILENAME keyword in {spec2d_files[-1]}.  Set the basename using the '
+                'command-line option.'
+            )
         if 'TARGET' not in frsthdr:
-            raise PypeItError(f'Missing TARGET keyword in {spec2d_files[0]}.  Set the basename '
-                        'using the command-line option.')
-        return f"{frsthdr['FILENAME'].split('.fits')[0]}-" \
-                f"{lasthdr['FILENAME'].split('.fits')[0]}-{frsthdr['TARGET'].replace(' ','')}"
+            raise PypeItError(
+                f'Missing TARGET keyword in {spec2d_files[0]}.  Set the basename using the '
+                'command-line option.'
+            )
+        if 'PYP_SPEC' not in frsthdr:
+            raise PypeItError(
+                f'Missing PYP_SPEC keyword in {spec2d_files[0]}.  Set the basename using the '
+                'command-line option.'
+            )
+        spec = load_spectrograph(frsthdr['PYP_SPEC'])
+        first = outputfiles.strip_raw_extension(frsthdr['FILENAME'], spec.allowed_extensions)
+        last = outputfiles.strip_raw_extension(lasthdr['FILENAME'], spec.allowed_extensions)
+        return f"{first}-{last}-{frsthdr['TARGET'].replace(' ', '')}"
 
     @staticmethod
     def output_paths(spec2d_files, par, coadd_dir=None):

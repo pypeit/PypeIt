@@ -2,13 +2,89 @@
 Module for constructing output file names and paths for PypeIt reductions.
 
 .. include:: ../include/links.rst
-
 """
+import datetime
 import numpy as np
 from pathlib import Path
 
+from astropy import time
+
 from pypeit import log
 from pypeit import PypeItError
+
+
+def strip_raw_extension(filename, allowed_extensions):
+    """Strip the raw-file extension from a filename.
+
+    Parameters
+    ----------
+    filename : str, :class:`Path`
+        The name of the raw file.  Only the file name is used; see
+        :attr:`Path.name`.
+    allowed_extensions : list
+        List of recognized raw-file extensions for the relevant spectrograph,
+        used to correctly strip the extension from ``filename``; see
+        :attr:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_extensions`.
+
+    Returns
+    -------
+    str
+        The file name with the extension removed.  If no extension in
+        ``allowed_extensions`` matches, a warning is issued and the full
+        input name is returned unmodified.
+    """
+    _filename = Path(filename).name
+    root = _filename
+    # NOTE: This for/else python syntax is new to me.  The else clause is only
+    # executed if the for loop completes all of its expected iterations (i.e.,
+    # it never breaks).  Very useful!
+    for ext in sorted(allowed_extensions, key=len, reverse=True):
+        if _filename.endswith(ext):
+            root = _filename[:-len(ext)]
+            break
+    else:
+        log.warning(
+            f'{_filename} does not have a recognized extension; expected one of '
+            f'{allowed_extensions}.'
+        )
+    return root
+
+
+def construct_basename(filename, target, camera, mjd, allowed_extensions):
+    """Construct the root name primarily for PypeIt file output.
+
+    Parameters
+    ----------
+    filename : str, `Path`_
+        The name of the raw file.  The extension is stripped based on
+        ``allowed_extensions`` before constructing the basename.  If no
+        extension in ``allowed_extensions`` matches, a warning is issued and the
+        full input name is used unmodified.
+    target : str
+        The name of the target/object observed.
+    camera : str
+        The camera name; see
+        :attr:`~pypeit.spectrographs.spectrograph.Spectrograph.camera`.
+    mjd : float
+        The MJD of the observation.
+    allowed_extensions : list
+        List of recognized raw-file extensions for the relevant spectrograph,
+        used to correctly strip the extension from ``filename``; see
+        :attr:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_extensions`.
+
+    Returns
+    -------
+    str
+        The root name for file output.
+    """
+    root = strip_raw_extension(filename, allowed_extensions)
+    tobs = time.Time(mjd, format='mjd')
+    dtime = datetime.datetime.strptime(tobs.isot, '%Y-%m-%dT%H:%M:%S.%f')
+    dtime = datetime.datetime.strftime(dtime, '%Y%m%dT')
+    tobs = tobs.isot.split('T')[1].replace(':', '')
+    _target = target.replace(' ', '')
+    return f'{root}-{_target}_{camera}_{dtime}{tobs}'
+
 
 def get_std_outfile(fitstbl, par, standard_frames:list):
     """
@@ -59,8 +135,10 @@ def get_std_outfile(fitstbl, par, standard_frames:list):
         raise PypeItError(f'Could not find standard file: {std_outfile}')
     return std_outfile
 
-def intermediate_filename(itype:str, basename:str, det_name:str, 
-                          inter_path:str='Intermediate'):
+
+def intermediate_filename(
+    itype:str, basename:str, det_name:str, inter_path:str='Intermediate'
+):
     """
     Construct the intermediate file name for a given type and detector
 
@@ -80,6 +158,7 @@ def intermediate_filename(itype:str, basename:str, det_name:str,
     """
     return Path(inter_path) / f'{itype}_{basename}_{det_name}.fits'
 
+
 def science_path(par) -> Path:
     """
     Constructs the path to the science directory based on the provided parameters.
@@ -94,8 +173,10 @@ def science_path(par) -> Path:
     """
     return Path(par['rdx']['redux_path']) / par['rdx']['scidir']
 
-def spec_output_file(fitstbl, par, frame:int, twod:bool=False,
-                     ext:str='.fits', sci_path:Path=None) -> Path:
+
+def spec_output_file(
+    fitstbl, par, frame:int, twod:bool=False, ext:str='.fits', sci_path:Path=None
+) -> Path:
     """
     Return the path to the spectral output data file.
     
