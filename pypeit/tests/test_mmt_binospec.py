@@ -399,7 +399,8 @@ def test_same_pointing_shares_comb_id():
         'all same-pointing science frames must share one comb_id so they coadd'
     assert comb[0] > 0, 'the shared comb_id must be a real (positive) group id'
     assert np.all(np.asarray(t['bkg_id']) == -1), \
-        'bkg_id must stay unset: IFU sky comes from sky fibers, not a nod partner'
+        'bkg_id must stay unset: the IFU currently uses sky fibers or a joint ' \
+        'fit using all fibers; nod partners are not currently supported'
     assert np.allclose(np.asarray(t['dithoff'], dtype=float), 0.0, atol=1e-6), \
         'a single pointing has zero dither offset'
     assert len(set(str(x) for x in t['dithpos'])) == 1, \
