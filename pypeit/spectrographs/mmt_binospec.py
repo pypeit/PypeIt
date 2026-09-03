@@ -1420,8 +1420,13 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         if not np.any(sci_std):
             return fitstbl
 
-        setup_col = np.asarray(fitstbl['setup']) if 'setup' in fitstbl.colnames \
-            else np.full(len(fitstbl), 'A')
+        # set_combination_groups always runs after set_configurations, so the
+        # 'setup' column must exist here; its absence means the metadata table
+        # was built out of order.
+        if 'setup' not in fitstbl.colnames:
+            raise PypeItError("'setup' column missing from the metadata table; "
+                              'get_comb_group must run after set_configurations.')
+        setup_col = np.asarray(fitstbl['setup'])
 
         # Cluster within each configuration and hand out contiguous comb_ids
         # across the whole table.  Combination never crosses a setup.
