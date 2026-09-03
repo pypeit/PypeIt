@@ -19,7 +19,9 @@ def _comb_table(rows, setups=None):
     Build a minimal metadata table shaped like the one
     :func:`~pypeit.metadata.PypeItMetaData.set_combination_groups` hands to
     ``get_comb_group``: every science/standard frame already carries a unique
-    ``comb_id`` (1..k in table order) and ``bkg_id`` is -1 everywhere.
+    ``comb_id`` (1..k in table order) and ``bkg_id`` is -1 everywhere.  The
+    ``dithoff``/``dithpos`` columns are seeded with their card defaults, as
+    ``PypeItMetaData._build`` does from the ``init_meta`` definitions.
 
     Args:
         rows (list): sequence of ``(frametype, ra_deg, dec_deg, mjd)`` tuples.
@@ -40,6 +42,8 @@ def _comb_table(rows, setups=None):
     t['mjd'] = [r[3] for r in rows]
     t['comb_id'] = comb
     t['bkg_id'] = np.full(n, -1, dtype=int)
+    t['dithoff'] = np.zeros(n, dtype=float)
+    t['dithpos'] = np.full(n, 'None')
     return t
 
 

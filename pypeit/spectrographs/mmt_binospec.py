@@ -1408,16 +1408,12 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         Returns:
             `astropy.table.Table`_: The modified table.
         """
-        # Make sure the derived columns exist and can hold the written values.
-        # init_meta seeds dithpos from the 4-char default 'None', giving a
-        # width-4 unicode column; coerce it to object dtype so multi-character
-        # labels are never truncated.
-        if 'dithoff' not in fitstbl.colnames:
-            fitstbl['dithoff'] = np.zeros(len(fitstbl), dtype=float)
-        if 'dithpos' not in fitstbl.colnames:
-            fitstbl['dithpos'] = np.full(len(fitstbl), 'None', dtype=object)
-        elif fitstbl['dithpos'].dtype.kind in ('U', 'S'):
-            fitstbl['dithpos'] = np.asarray(fitstbl['dithpos'], dtype=object)
+        # init_meta seeds the dithoff/dithpos columns (registered in the core
+        # meta data model) whenever the metadata table is built, so they always
+        # exist here.  dithpos arrives as a fixed-width unicode column (from its
+        # 'None' default); widen it to object dtype so multi-character labels
+        # are never truncated.
+        fitstbl['dithpos'] = np.asarray(fitstbl['dithpos'], dtype=object)
 
         sci_std = np.array(['science' in ft or 'standard' in ft
                             for ft in fitstbl['frametype']])
