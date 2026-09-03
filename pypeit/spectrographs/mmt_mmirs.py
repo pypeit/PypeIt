@@ -14,7 +14,7 @@ from astropy.table import Table
 from astropy.time import Time
 from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
-from astropy.coordinates import Angle
+from astropy.coordinates import Angle, SkyCoord
 from astropy import units
 
 from pypeit import log
@@ -151,35 +151,46 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             return ttime.mjd
         if meta_key == 'dithoff':
             # Along-slit dither offset in arcsec: projection of the telescope
-            # pointing (RA in hours, DEC in deg) minus the catalog target
-            # (CAT-RA/CAT-DEC) onto the slit PA (POSANGLE).
+            # pointing minus the catalog target (CAT-RA/CAT-DEC) onto the slit
+            # PA (POSANGLE).
             hdr = headarr[1]
             try:
-                ra = float(hdr['RA']) * 15.0
-                dec = float(hdr['DEC'])
-                catra = Angle(hdr['CAT-RA'], unit=units.deg).deg
-                catdec = Angle(hdr['CAT-DEC'], unit=units.deg).deg
+                # The RA card is always in hours (decimal, e.g. '13.70246500',
+                # in 2017-2019 data; sexagesimal, e.g. '+02:59:16.62', in newer
+                # data) and DEC always in degrees; Angle parses both forms.
+                ra = Angle(str(hdr['RA']), unit=units.hourangle).deg
+                dec = Angle(str(hdr['DEC']), unit=units.deg).deg
+                catdec = Angle(str(hdr['CAT-DEC']), unit=units.deg).deg
+                # CAT-RA units are ambiguous: sexagesimal degrees
+                # ('+260:36:50.55', old MOS mask tool), decimal hours
+                # ('13.70246500', old long-slit), or sexagesimal hours
+                # ('+02:59:16.80', newer data).  Parse it both as degrees and as
+                # hours and keep whichever lands closest to the actual pointing,
+                # so RA is never mis-scaled by 15x.
+                cat_cands = []
+                for unit in (units.deg, units.hourangle):
+                    try:
+                        cat_cands.append(Angle(str(hdr['CAT-RA']), unit=unit).deg)
+                    except (ValueError, TypeError):
+                        pass
+                if not cat_cands:
+                    return 0.0
+                catra = min(cat_cands,
+                            key=lambda c: abs((c - ra + 180.0) % 360.0 - 180.0))
                 pa = float(hdr['POSANGLE'])
+                # Signed on-sky offset of the pointing from the catalog target;
+                # spherical_offsets_to applies cos(dec) and wraps the RA
+                # difference, so a sequence straddling 0h RA yields a small
+                # offset.  Off-sky calibrations (darks/flats) carry sentinel
+                # coordinates (e.g. DEC = -100) that make SkyCoord raise; caught
+                # below and returned as a zero offset -- they are never nodded.
+                target = SkyCoord(catra * units.deg, catdec * units.deg)
+                pointing = SkyCoord(ra * units.deg, dec * units.deg)
             except (KeyError, TypeError, ValueError):
                 return 0.0
-            # CAT-RA is written either as sexagesimal degrees ('+260:36:50.55',
-            # written by the MOS mask tool) or as decimal hours ('13.70246500',
-            # matching the hours-valued RA card) depending on the observing
-            # tool.  Astropy parses both as degrees above; since dither throws
-            # are arcsec-scale, pick whichever interpretation -- degrees as-is
-            # or hours*15 -- lands the catalog position within a degree of the
-            # actual pointing, so RA is never mis-scaled by 15x.  CAT-DEC is
-            # always degrees, so it needs no such correction.
-            d_deg = abs((catra - ra + 180.0) % 360.0 - 180.0)
-            d_hrs = abs((catra * 15.0 - ra + 180.0) % 360.0 - 180.0)
-            if d_hrs < d_deg:
-                catra = catra * 15.0
-            # Wrap the RA difference into (-180, 180] deg so a sequence that
-            # straddles 0h RA yields a small offset instead of one near +/-360.
-            dra_deg = (ra - catra + 180.0) % 360.0 - 180.0
-            dra = dra_deg * np.cos(np.radians(dec)) * 3600.0
-            ddec = (dec - catdec) * 3600.0
-            return dra * np.sin(np.radians(pa)) + ddec * np.cos(np.radians(pa))
+            dra, ddec = target.spherical_offsets_to(pointing)
+            return dra.arcsec * np.sin(np.radians(pa)) \
+                + ddec.arcsec * np.cos(np.radians(pa))
         if meta_key == 'frameno':
             # Frame number is the trailing token of the ext-1 FILENAME card
             # (e.g. 'MMIRS/2019.0913/nep.as1_mos.1822' -> 1822).

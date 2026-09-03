@@ -992,6 +992,69 @@ def test_dithoff_handles_catra_in_hours():
         f'the recovered offset should match the commanded throw {off}, got {hours}'
 
 
+def _coord_header(ra, dec, catra, catdec, posang):
+    """A 2-element headarr carrying only the dither coordinate cards."""
+    h1 = fits.Header()
+    h1['RA'] = ra
+    h1['DEC'] = dec
+    h1['CAT-RA'] = catra
+    h1['CAT-DEC'] = catdec
+    h1['POSANGLE'] = posang
+    return [fits.Header(), h1]
+
+
+def test_dithoff_sexagesimal_hours_longslit():
+    # Post-2019 MMIRS headers write RA/CAT-RA as sexagesimal hours
+    # ('+19:59:35.24'), which the former float() parse could not read and so
+    # silently returned a zero offset.  Real HIP98400 long-slit frames (a nod
+    # pair ~7" apart along the slit) must now recover a non-zero, correctly
+    # signed offset.
+    spec = load_spectrograph('mmt_mmirs')
+    a = spec.compound_meta(
+        _coord_header('+19:59:35.24', '+11:52:54.09', '+19:59:35.10',
+                      '+11:53:21.70', 0.13), 'dithoff')
+    b = spec.compound_meta(
+        _coord_header('+19:59:35.24', '+11:52:47.09', '+19:59:35.10',
+                      '+11:53:21.70', 0.13), 'dithoff')
+    assert np.isclose(a, -27.605, atol=0.01), \
+        f'sexagesimal-hours long-slit dithoff must be recovered, got {a}'
+    assert np.isclose(b, -34.605, atol=0.01), \
+        f'sexagesimal-hours long-slit dithoff must be recovered, got {b}'
+    assert abs((b - a) - (-7.0)) < 0.1, \
+        'the two frames must nod ~7 arcsec apart along the slit'
+
+
+def test_dithoff_sexagesimal_hours_mos():
+    # The same sexagesimal-hours format appears in newer MOS data (both modes
+    # changed header format after 2019).  A real HD18571 MOS frame must yield a
+    # genuine offset instead of the silent zero the old parse produced.
+    spec = load_spectrograph('mmt_mmirs')
+    a = spec.compound_meta(
+        _coord_header('+02:59:16.62', '+01:14:50.27', '+02:59:16.80',
+                      '+01:14:40.50', -0.102), 'dithoff')
+    b = spec.compound_meta(
+        _coord_header('+02:59:09.36', '+01:14:27.43', '+02:59:16.80',
+                      '+01:14:40.50', -0.102), 'dithoff')
+    assert np.isclose(a, 9.775, atol=0.01), \
+        f'sexagesimal-hours MOS dithoff must be recovered, got {a}'
+    assert np.isclose(b, -12.871, atol=0.01), \
+        f'sexagesimal-hours MOS dithoff must be recovered, got {b}'
+    assert a != 0.0 and b != 0.0, \
+        'sexagesimal RA must no longer silently zero out dithoff'
+
+
+def test_dithoff_offsky_sentinel_returns_zero():
+    # Darks/flats are taken off-sky with sentinel coordinates (DEC = -100),
+    # which SkyCoord rejects as an invalid latitude.  dithoff must swallow that
+    # and return 0.0 rather than raise -- otherwise metadata building crashes on
+    # every calibration frame.
+    spec = load_spectrograph('mmt_mmirs')
+    off = spec.compound_meta(
+        _coord_header('+02:59:16.62', '-100.0', '+02:59:16.80', '-100.0',
+                      -0.102), 'dithoff')
+    assert off == 0.0, 'an off-sky sentinel coordinate must yield a zero offset'
+
+
 def test_frameno_parsed_from_filename():
     spec = load_spectrograph('mmt_mmirs')
     headarr = _dither_header(260.614, 65.8828, 260.614, 65.8828, 166.382, 1823)
