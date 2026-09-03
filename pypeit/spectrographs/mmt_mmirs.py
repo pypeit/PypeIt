@@ -858,16 +858,13 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
                             for ft in fitstbl['frametype']])
         if not np.any(sci_std):
             return fitstbl
-        # Make sure the label columns exist and can hold arbitrary-length
-        # strings.  init_meta seeds them from the 4-char default 'None', giving
-        # a width-4 unicode column that would silently truncate longer labels
-        # (e.g. "ABA'B'" -> "ABA'"), so coerce any fixed-width string column to
-        # object dtype before writing.
+        # init_meta seeds dithpat/dithpos (registered in the core meta data
+        # model), so _build always creates them; they arrive as fixed-width
+        # unicode columns (from their 'None' default) that would silently
+        # truncate longer labels (e.g. "ABA'B'" -> "ABA'").  Widen to object
+        # dtype before writing.
         for col in ['dithpat', 'dithpos']:
-            if col not in fitstbl.colnames:
-                fitstbl[col] = np.full(len(fitstbl), 'None', dtype=object)
-            elif fitstbl[col].dtype.kind in ('U', 'S'):
-                fitstbl[col] = np.asarray(fitstbl[col], dtype=object)
+            fitstbl[col] = np.asarray(fitstbl[col], dtype=object)
 
         # Partition frames so nod pairing never crosses instrument
         # configurations (setup) *or* distinct targets.  A single long-slit
@@ -877,8 +874,14 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         # are already separated by the decker (part of the setup); within a
         # setup we additionally split on the target name, which is constant
         # across a nod sequence.
-        setup_col = np.asarray(fitstbl['setup']) if 'setup' in fitstbl.colnames \
-            else np.full(len(fitstbl), 'A')
+        # set_combination_groups always runs after set_configurations, so the
+        # 'setup' column must exist here; its absence means the metadata table
+        # was built out of order.  ('target' is a plain header card, so treat a
+        # missing target column as a single unnamed target.)
+        if 'setup' not in fitstbl.colnames:
+            raise PypeItError("'setup' column missing from the metadata table; "
+                              'get_comb_group must run after set_configurations.')
+        setup_col = np.asarray(fitstbl['setup'])
         target_col = np.asarray(fitstbl['target']) if 'target' in fitstbl.colnames \
             else np.full(len(fitstbl), '')
         part_key = np.array(['{0}\x00{1}'.format(s, t)

@@ -856,7 +856,9 @@ def test_dithoff_recovers_abab_pattern():
         dec_deg = catdec + ddec_as / 3600.0
         headarr = _dither_header(ra_deg, dec_deg, catra, catdec, pa, 1822)
         offs.append(spec.compound_meta(headarr, 'dithoff'))
-    assert np.allclose(offs, expected, atol=0.02)
+    assert np.allclose(offs, expected, atol=0.02), \
+        f'along-slit offsets should recover the commanded throws {expected}, ' \
+        f'got {offs}'
 
 
 def test_dithoff_handles_catra_in_hours():
@@ -885,20 +887,25 @@ def test_dithoff_handles_catra_in_hours():
     h1['POSANGLE'] = pa
     h1['FILENAME'] = 'MMIRS/2017.0101/PAAlign_longslit.5475'
     hours = spec.compound_meta([fits.Header(), h1], 'dithoff')
-    assert np.isclose(hours, ref, atol=0.02)
-    assert np.isclose(hours, off, atol=0.05)
+    assert np.isclose(hours, ref, atol=0.02), \
+        'CAT-RA in decimal hours must give the same offset as sexagesimal ' \
+        f'degrees ({ref}), got {hours}'
+    assert np.isclose(hours, off, atol=0.05), \
+        f'the recovered offset should match the commanded throw {off}, got {hours}'
 
 
 def test_frameno_parsed_from_filename():
     spec = load_spectrograph('mmt_mmirs')
     headarr = _dither_header(260.614, 65.8828, 260.614, 65.8828, 166.382, 1823)
-    assert spec.compound_meta(headarr, 'frameno') == 1823
+    assert spec.compound_meta(headarr, 'frameno') == 1823, \
+        'frameno must be parsed from the trailing token of the FILENAME card'
 
 
 def test_dithoff_missing_card_returns_zero():
     spec = load_spectrograph('mmt_mmirs')
     headarr = [fits.Header(), fits.Header()]   # no dither cards
-    assert spec.compound_meta(headarr, 'dithoff') == 0.0
+    assert spec.compound_meta(headarr, 'dithoff') == 0.0, \
+        'missing dither/catalog cards must yield a zero offset, not raise'
 
 
 def _nod_table(dithoffs, frametype='science', setup='A', target=None,
@@ -940,9 +947,13 @@ def test_get_comb_group_pairs_ababprime():
     tbl = _nod_table([1.8, -1.4, 1.4, -1.8, 1.8, -1.4, 1.4, -1.8])
     out = spec.get_comb_group(tbl)
     # Greedy sequential pairing across the midpoint (0.0): (0,1),(2,3),(4,5),(6,7)
-    assert out['bkg_id'].tolist() == [2, 1, 4, 3, 6, 5, 8, 7]
-    assert out['dithpos'].tolist() == ["A", "B", "A'", "B'", "A", "B", "A'", "B'"]
-    assert set(out['dithpat']) == {"ABA'B'"}
+    assert out['bkg_id'].tolist() == [2, 1, 4, 3, 6, 5, 8, 7], \
+        'each frame must be background-paired with its temporally-adjacent ' \
+        'opposite-nod partner'
+    assert out['dithpos'].tolist() == ["A", "B", "A'", "B'", "A", "B", "A'", "B'"], \
+        'nod-side labels must carry a prime for each distinct offset within a side'
+    assert set(out['dithpat']) == {"ABA'B'"}, \
+        'the dither pattern should be the unique labels in time order'
 
 
 def test_get_comb_group_stare_no_pairing():
@@ -950,7 +961,8 @@ def test_get_comb_group_stare_no_pairing():
     # Peak-to-peak 0.3" < nod_min_offset (1.0") -> treated as a stare.
     tbl = _nod_table([0.0, 0.1, -0.1, 0.2])
     out = spec.get_comb_group(tbl)
-    assert out['bkg_id'].tolist() == [-1, -1, -1, -1]
+    assert out['bkg_id'].tolist() == [-1, -1, -1, -1], \
+        'a sequence below nod_min_offset is a stare and must be left unpaired'
 
 
 def test_get_comb_group_odd_frame_unpaired():
@@ -958,7 +970,8 @@ def test_get_comb_group_odd_frame_unpaired():
     tbl = _nod_table([1.8, -1.4, 1.8])
     out = spec.get_comb_group(tbl)
     # (0,1) pair; frame 2 has no remaining opposite-nod partner.
-    assert out['bkg_id'].tolist() == [2, 1, -1]
+    assert out['bkg_id'].tolist() == [2, 1, -1], \
+        'an odd frame with no remaining opposite-nod partner stays unpaired'
 
 
 def test_get_comb_group_longslit_simple_ab():
@@ -966,8 +979,10 @@ def test_get_comb_group_longslit_simple_ab():
     # No mask/decker columns present -> logic is slit-count agnostic.
     tbl = _nod_table([2.5, -2.5])
     out = spec.get_comb_group(tbl)
-    assert out['bkg_id'].tolist() == [2, 1]
-    assert out['dithpos'].tolist() == ["A", "B"]
+    assert out['bkg_id'].tolist() == [2, 1], \
+        'a simple A-B long-slit nod must cross-pair the two frames'
+    assert out['dithpos'].tolist() == ["A", "B"], \
+        'the two nod sides must be labeled A and B'
 
 
 def test_get_comb_group_isolates_targets_in_shared_setup():
@@ -981,13 +996,15 @@ def test_get_comb_group_isolates_targets_in_shared_setup():
     out = spec.get_comb_group(tbl)
     bkg = out['bkg_id'].tolist()
     # Each target pairs within itself; the odd frame in each is left unpaired.
-    assert bkg == [2, 1, -1, 5, 4, -1]
+    assert bkg == [2, 1, -1, 5, 4, -1], \
+        'pairing must stay within each target; the odd frame in each is unpaired'
     # No pairing crosses the target boundary.
     comb = out['comb_id'].tolist()
     tgt = list(out['target'])
     for i, b in enumerate(bkg):
         if b != -1:
-            assert tgt[i] == tgt[comb.index(b)]
+            assert tgt[i] == tgt[comb.index(b)], \
+                'a background pair must never cross the target boundary'
 
 
 def test_get_comb_group_does_not_pair_science_with_standard():
@@ -999,14 +1016,15 @@ def test_get_comb_group_does_not_pair_science_with_standard():
                      target=['sci', 'std', 'sci', 'std'])
     out = spec.get_comb_group(tbl)
     # science frames (idx 0,2) pair together; standards (idx 1,3) pair together
-    assert out['bkg_id'].tolist() == [3, 4, 1, 2]
+    assert out['bkg_id'].tolist() == [3, 4, 1, 2], \
+        'science must pair only with science and standard only with standard'
 
 
 def test_pypeit_file_keys_include_dither_columns():
     spec = load_spectrograph('mmt_mmirs')
     keys = spec.pypeit_file_keys()
     for col in ['dithpat', 'dithpos', 'dithoff', 'frameno']:
-        assert col in keys
+        assert col in keys, f'{col} must be written to the pypeit file'
 
 
 # ---------------------------------------------------------------------------
@@ -1178,7 +1196,9 @@ def test_dithoff_wraps_ra_across_zero():
            'POSANGLE': 90.0}      # projects onto the RA offset only
     dithoff = spec.compound_meta([None, hdr], 'dithoff')
     # Wrapped RA difference is 0.03 deg = 108 arcsec (not ~-1.3e6 arcsec).
-    assert abs(dithoff - 108.0) < 1e-6
+    assert abs(dithoff - 108.0) < 1e-6, \
+        'an RA offset straddling 0h must wrap to a small value (108 arcsec ' \
+        f'here), got {dithoff}'
 
 
 def test_config_specific_par_enables_maskdesign(tmp_path, monkeypatch):
