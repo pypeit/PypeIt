@@ -131,6 +131,31 @@ Multislit observations
 The PypeIt developers only tested MMIRS longslit observations, but,
 in principle, PypeIt should also work for multi-slit data.
 
+Supported grism/filter modes
+++++++++++++++++++++++++++++
+
+MMIRS offers several grism/filter combinations for long-slit spectroscopy; see
+the observatory's `MMIRS recommendations page
+<https://www.mmto.org/mmirs-recommendations/>`__ for the full list and for
+guidance on choosing among them.  For each mode below PypeIt ships an archival
+wavelength solution (``reid_arxiv``) and automatically selects the
+``full_template`` wavelength-calibration method (see
+:func:`~pypeit.spectrographs.mmt_mmirs.MMTMMIRSSpectrograph.config_specific_par`):
+
+=========  =========  ===============================
+Grism      Filter     Approx. coverage
+=========  =========  ===============================
+J          zJ         0.95-1.50 um
+H3000      H          1.44-1.86 um
+K3000      Kspec      1.90-2.51 um
+HK         HK3        1.14-2.51 um
+HK         zJ         0.94-1.29 um (2nd order; below)
+=========  =========  ===============================
+
+All of the observatory's recommended long-slit modes, plus the ``HK``/``zJ``
+setup, have been reduced end-to-end and verified against real data in the PypeIt
+development suite.
+
 HK Grism and zJ filter
 ++++++++++++++++++++++
 

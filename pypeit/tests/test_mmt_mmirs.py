@@ -1043,6 +1043,45 @@ def test_dithoff_sexagesimal_hours_mos():
         'sexagesimal RA must no longer silently zero out dithoff'
 
 
+def test_dithoff_sexagesimal_hours_h3000_longslit():
+    # The H3000-H dev-suite frames (WNTR25gkqzi, 2026) are the first post-2019
+    # sexagesimal-header set in the suite, so they are the real regression for
+    # the along-slit nod offset.  These are the exact header coordinates of the
+    # A/B nod pair (3402/3403); they must recover a ~10" offset along PA=78.1.
+    spec = load_spectrograph('mmt_mmirs')
+    a = spec.compound_meta(
+        _coord_header('+05:41:32.50', '-02:17:33.25', '+05:41:34.73',
+                      '-02:17:24.17', 78.124), 'dithoff')
+    b = spec.compound_meta(
+        _coord_header('+05:41:33.15', '-02:17:31.25', '+05:41:34.73',
+                      '-02:17:24.17', 78.124), 'dithoff')
+    assert np.isclose(a, -34.576, atol=0.01), \
+        f'H3000-H sexagesimal dithoff must be recovered, got {a}'
+    assert np.isclose(b, -24.631, atol=0.01), \
+        f'H3000-H sexagesimal dithoff must be recovered, got {b}'
+    assert abs((b - a) - 9.945) < 0.1, \
+        'the H3000-H nod pair must be offset ~9.9 arcsec along the slit'
+
+
+def test_dithoff_sexagesimal_hours_hk_hk3_longslit():
+    # The HK-HK3 dev-suite frames (SN2026ejy, 2026) are a real faint-target
+    # A/B nod with a ~30" throw and post-2019 sexagesimal headers.  These are the
+    # exact header coordinates of the nod pair (0037/0038).
+    spec = load_spectrograph('mmt_mmirs')
+    a = spec.compound_meta(
+        _coord_header('+16:10:00.41', '+00:42:16.02', '+16:10:00.27',
+                      '+00:42:20.63', 0.132), 'dithoff')
+    b = spec.compound_meta(
+        _coord_header('+16:10:00.40', '+00:41:46.02', '+16:10:00.27',
+                      '+00:42:20.63', 0.132), 'dithoff')
+    assert np.isclose(a, -4.605, atol=0.01), \
+        f'HK-HK3 sexagesimal dithoff must be recovered, got {a}'
+    assert np.isclose(b, -34.605, atol=0.01), \
+        f'HK-HK3 sexagesimal dithoff must be recovered, got {b}'
+    assert abs((b - a) - (-30.0)) < 0.1, \
+        'the HK-HK3 nod pair must be offset ~30 arcsec along the slit'
+
+
 def test_dithoff_offsky_sentinel_returns_zero():
     # Darks/flats are taken off-sky with sentinel coordinates (DEC = -100),
     # which SkyCoord rejects as an invalid latitude.  dithoff must swallow that
@@ -1053,6 +1092,38 @@ def test_dithoff_offsky_sentinel_returns_zero():
         _coord_header('+02:59:16.62', '-100.0', '+02:59:16.80', '-100.0',
                       -0.102), 'dithoff')
     assert off == 0.0, 'an off-sky sentinel coordinate must yield a zero offset'
+
+
+@pytest.mark.parametrize('disp,filt,arxiv', [
+    ('J', 'zJ', 'mmt_mmirs_J_zJ.fits'),
+    ('HK', 'zJ', 'mmt_mmirs_HK_zJ.fits'),
+    ('K3000', 'Kspec', 'mmt_mmirs_K3000_Kspec.fits'),
+    ('H3000', 'H', 'mmt_mmirs_H3000_H.fits'),
+    ('HK', 'HK3', 'mmt_mmirs_HK_HK3.fits'),
+])
+def test_config_specific_par_selects_arxiv(disp, filt, arxiv):
+    # Each supported grism/filter combination must map to its own full_template
+    # wavelength arxiv.  H3000-H and HK-HK3 are the newest modes added for the
+    # observatory's recommended long-slit configurations.
+    spec = load_spectrograph('mmt_mmirs')
+    h1 = fits.Header()
+    h1['DISPERSE'] = disp
+    h1['FILTER'] = filt
+    par = spec.config_specific_par([fits.Header(), h1])
+    wave = par['calibrations']['wavelengths']
+    assert wave['method'] == 'full_template', \
+        f'{disp}-{filt} must use the full_template wavelength method'
+    assert wave['reid_arxiv'] == arxiv, \
+        f'{disp}-{filt} must select {arxiv}, got {wave["reid_arxiv"]}'
+
+
+@pytest.mark.parametrize('arxiv', ['mmt_mmirs_H3000_H.fits', 'mmt_mmirs_HK_HK3.fits'])
+def test_new_mode_arxiv_exists(arxiv):
+    # The arxiv named by config_specific_par must actually ship with the
+    # package, otherwise full_template reidentification fails at run time.
+    from pypeit import dataPaths
+    assert (dataPaths.reid_arxiv.path / arxiv).is_file(), \
+        f'the {arxiv} reid arxiv must be installed in the package'
 
 
 def test_frameno_parsed_from_filename():

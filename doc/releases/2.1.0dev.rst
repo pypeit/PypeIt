@@ -178,6 +178,11 @@ Instrument-specific Updates
   tracing, alignment-box registration, and stamping of ``MASKDEF_ID``, ``RA``,
   ``DEC``, and ``MASKDEF_OBJNAME`` (the catalog target name) on each extracted
   object.  See the mask-definition section of the :ref:`mmt_mmirs` documentation.
+- Added wavelength-solution templates (``mmt_mmirs_H3000_H.fits`` and
+  ``mmt_mmirs_HK_HK3.fits``) and configuration handling for the MMIRS
+  ``H3000``/``H`` and ``HK``/``HK3`` long-slit modes, extending the automatic
+  ``full_template`` wavelength calibration to the remaining observatory-recommended
+  long-slit configurations.
 
 Script Changes
 --------------

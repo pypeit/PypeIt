@@ -573,6 +573,12 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         elif (grating=='J') and (dichroic=='zJ'):
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'mmt_mmirs_J_zJ.fits'
+        elif (grating=='H3000') and (dichroic=='H'):
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'mmt_mmirs_H3000_H.fits'
+        elif (grating=='HK') and (dichroic=='HK3'):
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'mmt_mmirs_HK_HK3.fits'
 
         # Auto-enable slitmask design if a <decker>.msk file sits next to the
         # data.  Never fatal: any problem falls back to generic tracing and the
