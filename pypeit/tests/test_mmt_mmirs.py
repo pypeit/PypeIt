@@ -65,11 +65,14 @@ def test_load_ramp_orders_and_trims():
     ngroups, ny, nx = 5, 64, 64
     hdu = synth_ramp_hdulist(ngroups, ny=ny, nx=nx, sig=0.5, seed=1)
     reads, head1 = mmt_mmirs.mmirs_load_ramp(hdu)
-    assert reads.shape == (ngroups, ny - 8, nx - 8)
-    assert head1['HXRGGRUP'] == ngroups
+    assert reads.shape == (ngroups, ny - 8, nx - 8), \
+        'loaded ramp must be trimmed of the 4-pixel reference border on each side'
+    assert head1['HXRGGRUP'] == ngroups, \
+        'the group count must be read from the metadata header'
     # Reads must be in time order: interior signal strictly accumulates
     interior_means = reads[:, 10:-10, 10:-10].mean(axis=(1, 2))
-    assert np.all(np.diff(interior_means) > 0)
+    assert np.all(np.diff(interior_means) > 0), \
+        'reads must be returned in time order so the interior signal accumulates'
 
 
 def test_calibrate_sigma_recovers_truth():
@@ -81,7 +84,8 @@ def test_calibrate_sigma_recovers_truth():
     covar = fitramp.Covar([grptime * (i + 1) for i in range(ngroups)])
     diffs = mmt_mmirs.mmirs_ramp_diffs(reads, covar)
     sig_cal = mmt_mmirs.mmirs_calibrate_sigma(diffs, covar)
-    assert np.abs(sig_cal - sig) < 1.5
+    assert np.abs(sig_cal - sig) < 1.5, \
+        f'calibrated read noise {sig_cal} must recover the injected sigma {sig}'
 
 
 def test_calibrate_sigma_returns_uncertainty():
@@ -96,11 +100,14 @@ def test_calibrate_sigma_returns_uncertainty():
     diffs = mmt_mmirs.mmirs_ramp_diffs(reads, covar)
     sig_cal, sig_err = mmt_mmirs.mmirs_calibrate_sigma(diffs, covar,
                                                        return_err=True)
-    assert np.abs(sig_cal - sig) < 1.5
-    assert np.isfinite(sig_err) and sig_err > 0.
+    assert np.abs(sig_cal - sig) < 1.5, \
+        f'calibrated read noise {sig_cal} must recover the injected sigma {sig}'
+    assert np.isfinite(sig_err) and sig_err > 0., \
+        f'the bootstrap uncertainty must be finite and positive, got {sig_err}'
     # Deterministic: same seed -> identical uncertainty.
     _, sig_err2 = mmt_mmirs.mmirs_calibrate_sigma(diffs, covar, return_err=True)
-    assert sig_err == sig_err2
+    assert sig_err == sig_err2, \
+        'the uncertainty must be deterministic for a fixed seed'
 
 
 def test_fit_ramp_recovers_rate():
@@ -113,7 +120,8 @@ def test_fit_ramp_recovers_rate():
     diffs = mmt_mmirs.mmirs_ramp_diffs(reads, covar)
     countrate = mmt_mmirs.mmirs_fit_ramp(diffs, covar, sig)
     interior = countrate[10:-10, 10:-10]
-    assert np.abs(np.median(interior) - rate) < 1.0
+    assert np.abs(np.median(interior) - rate) < 1.0, \
+        f'fitted count rate {np.median(interior)} must recover the injected {rate}'
 
 
 def test_fit_ramp_threaded_matches_serial():
@@ -131,11 +139,13 @@ def test_fit_ramp_threaded_matches_serial():
 
     serial = mmt_mmirs.mmirs_fit_ramp(diffs, covar, 8., workers=1)
     threaded = mmt_mmirs.mmirs_fit_ramp(diffs, covar, 8., workers=4)
-    assert np.array_equal(serial, threaded, equal_nan=True)
+    assert np.array_equal(serial, threaded, equal_nan=True), \
+        'threaded, chunked ramp fitting must be numerically identical to serial'
 
     sig_serial = mmt_mmirs.mmirs_calibrate_sigma(diffs, covar, workers=1, nrows=40)
     sig_threaded = mmt_mmirs.mmirs_calibrate_sigma(diffs, covar, workers=4, nrows=40)
-    assert sig_serial == sig_threaded
+    assert sig_serial == sig_threaded, \
+        'threaded noise calibration must match the serial result exactly'
 
 
 def test_ramp_fit_forwards_configured_chunk_rows(monkeypatch):
@@ -155,7 +165,8 @@ def test_ramp_fit_forwards_configured_chunk_rows(monkeypatch):
     hdu = synth_ramp_hdulist(6, seed=31)
     detector_par = spec.get_detector_par(1, hdu=hdu)
     spec._ramp_fit_image(hdu, detector_par)
-    assert seen['nb'] == 7
+    assert seen['nb'] == 7, \
+        'the configured ramp_fit_chunk_rows must be forwarded to mmirs_fit_ramp'
 
 
 def test_effective_ronoise_formula():
@@ -171,7 +182,9 @@ def test_effective_ronoise_formula():
     total_exp = grptime * (ngroups - 1)
     measured = np.std(result.countrate * total_exp)
     expected = mmt_mmirs.mmirs_effective_ronoise(sig, ngroups)
-    assert np.abs(measured / expected - 1.) < 0.06
+    assert np.abs(measured / expected - 1.) < 0.06, \
+        f'the effective read-noise formula ({expected}) must match the ' \
+        f'Monte-Carlo total-count noise ({measured})'
 
 
 def _write_synth(hdulist, path):
@@ -202,8 +215,10 @@ def test_setup_warns_and_skips_single_hdu_file(tmp_path, monkeypatch):
     setup = PypeItSetup.from_file_root(tmp_path, 'mmt_mmirs')
     _, _, fitstbl = setup.run(setup_only=True)
 
-    assert fitstbl['filename'].tolist() == [raw.name]
-    assert any('Skipping this file' in message for message in warnings)
+    assert fitstbl['filename'].tolist() == [raw.name], \
+        'single-HDU files must be skipped, leaving only the valid ramp file'
+    assert any('Skipping this file' in message for message in warnings), \
+        'a warning must be issued for each skipped single-HDU file'
 
     with pytest.raises(IndexError):
         PypeItMetaData(setup.spectrograph, par=setup.par,
@@ -217,9 +232,11 @@ def test_cache_metadata_records_darks(tmp_path):
                         tmp_path / 'dark.fits')
     spec, fitstbl = _metadata_for([sci, dark], ['object', 'dark'])
     # cache_metadata ran inside PypeItMetaData construction (Task 2 hook)
-    assert spec._ramp_dark_files == [dark]
+    assert spec._ramp_dark_files == [dark], \
+        'cache_metadata must record the dark frames for read-noise calibration'
     # ... and recorded the reduction directory for RampFit output
-    assert spec._ramp_output_dir == Path(fitstbl.par['rdx']['redux_path'])
+    assert spec._ramp_output_dir == Path(fitstbl.par['rdx']['redux_path']), \
+        'cache_metadata must record the reduction dir for RampFit output'
 
 
 def test_cache_metadata_applies_rdx_ramp_overrides(tmp_path):
@@ -237,18 +254,24 @@ def test_cache_metadata_applies_rdx_ramp_overrides(tmp_path):
     # Construction triggers the cache_metadata hook.
     PypeItMetaData(spec, par=par, data=data)
 
-    assert spec.ramp_fit_workers == 3
-    assert spec.ramp_fit_chunk_rows == 40
-    assert mmt_mmirs.MMTMMIRSSpectrograph.ramp_fit_workers == default_workers
-    assert mmt_mmirs.MMTMMIRSSpectrograph.ramp_fit_chunk_rows == default_chunk
+    assert spec.ramp_fit_workers == 3, \
+        'the [rdx] ramp_fit_cores override must set the instance worker count'
+    assert spec.ramp_fit_chunk_rows == 40, \
+        'the [rdx] ramp_fit_chunk_rows override must set the instance chunk size'
+    assert mmt_mmirs.MMTMMIRSSpectrograph.ramp_fit_workers == default_workers, \
+        'the override must not mutate the class default'
+    assert mmt_mmirs.MMTMMIRSSpectrograph.ramp_fit_chunk_rows == default_chunk, \
+        'the override must not mutate the class default'
 
 
 def test_cache_metadata_keeps_ramp_defaults_when_unset(tmp_path):
     """With no [rdx] override, the ramp-fit class defaults are left untouched."""
     sci = _write_synth(synth_ramp_hdulist(4, seed=32), tmp_path / 'sci.fits')
     spec, _ = _metadata_for([sci], ['object'])
-    assert spec.ramp_fit_workers == mmt_mmirs.MMTMMIRSSpectrograph.ramp_fit_workers
-    assert spec.ramp_fit_chunk_rows == mmt_mmirs.MMTMMIRSSpectrograph.ramp_fit_chunk_rows
+    assert spec.ramp_fit_workers == mmt_mmirs.MMTMMIRSSpectrograph.ramp_fit_workers, \
+        'with no override the instance must keep the class-default worker count'
+    assert spec.ramp_fit_chunk_rows == mmt_mmirs.MMTMMIRSSpectrograph.ramp_fit_chunk_rows, \
+        'with no override the instance must keep the class-default chunk size'
 
 
 def test_ramp_sigma_from_dark_and_cached(tmp_path):
@@ -267,11 +290,14 @@ def test_ramp_sigma_from_dark_and_cached(tmp_path):
     diffs = mmt_mmirs.mmirs_ramp_diffs(reads * gain, covar)
 
     sig = spec.get_ramp_sigma(diffs, covar)
-    assert np.abs(sig - sig_true) < 1.5
-    assert spec._ramp_sigma_cache[(None, None)] == sig
+    assert np.abs(sig - sig_true) < 1.5, \
+        f'the dark-calibrated read noise {sig} must recover the truth {sig_true}'
+    assert spec._ramp_sigma_cache[(None, None)] == sig, \
+        'the calibrated read noise must be cached'
     # Cached: works even after the dark file disappears
     dark.unlink()
-    assert spec.get_ramp_sigma(diffs, covar) == sig
+    assert spec.get_ramp_sigma(diffs, covar) == sig, \
+        'the cached value must be returned even after the dark file is gone'
 
 
 def test_ramp_sigma_weighted_mean_over_darks(tmp_path, monkeypatch):
@@ -295,8 +321,10 @@ def test_ramp_sigma_weighted_mean_over_darks(tmp_path, monkeypatch):
     sig = spec.get_ramp_sigma(np.zeros((5, 4, 4)), covar)
     w1, w2 = 1. / 1.0 ** 2, 1. / 2.0 ** 2
     expected = (w1 * 8.0 + w2 * 6.0) / (w1 + w2)
-    assert np.isclose(sig, expected)
-    assert spec._ramp_sigma_cache[(None, None)] == sig    # cached
+    assert np.isclose(sig, expected), \
+        'read noise must be the inverse-variance weighted mean over the darks'
+    assert spec._ramp_sigma_cache[(None, None)] == sig, \
+        'the combined read noise must be cached'    # cached
 
 
 def test_ramp_sigma_reports_max_of_ivar_err_and_sem(tmp_path, monkeypatch):
@@ -324,7 +352,8 @@ def test_ramp_sigma_reports_max_of_ivar_err_and_sem(tmp_path, monkeypatch):
 
     # inverse-variance err = sqrt(1/(1+0.25)) = 0.894; SEM (ddof=1) over
     # {8,6} = sqrt(2)/sqrt(2) = 1.000 -> the SEM wins.
-    assert any('+/- 1.00 e-' in m for m in infos)
+    assert any('+/- 1.00 e-' in m for m in infos), \
+        'the logged uncertainty must be max(inverse-variance err, SEM) = 1.00'
 
 
 def test_ramp_sigma_cached_per_exptime(monkeypatch):
@@ -344,11 +373,15 @@ def test_ramp_sigma_cached_per_exptime(monkeypatch):
     diffs = np.zeros((5, 4, 4))
     s10 = spec.get_ramp_sigma(diffs, covar, exptime=10.0)
     s300 = spec.get_ramp_sigma(diffs, covar, exptime=300.0)
-    assert (s10, s300) == (6.0, 9.0)            # distinct per exptime
-    assert calls == [10.0, 300.0]
+    assert (s10, s300) == (6.0, 9.0), \
+        'read noise must be cached per exptime (effective noise grows with ramp length)'
+    assert calls == [10.0, 300.0], \
+        'each distinct exptime must trigger its own dark lookup'
     # A repeat at an already-seen exptime is served from the cache.
-    assert spec.get_ramp_sigma(diffs, covar, exptime=10.0) == s10
-    assert calls == [10.0, 300.0]               # no new dark lookup
+    assert spec.get_ramp_sigma(diffs, covar, exptime=10.0) == s10, \
+        'a repeat lookup at the same exptime must return the cached value'
+    assert calls == [10.0, 300.0], \
+        'a cached exptime must not trigger a new dark lookup'               # no new dark lookup
 
 
 def test_ramp_sigma_ignores_darks_with_too_few_reads(tmp_path, monkeypatch):
@@ -371,8 +404,10 @@ def test_ramp_sigma_ignores_darks_with_too_few_reads(tmp_path, monkeypatch):
 
     covar = fitramp.Covar([2. * (i + 1) for i in range(6)])
     sig = spec.get_ramp_sigma(np.zeros((5, 4, 4)), covar)
-    assert seen == [11]                       # only the 12-read dark calibrated
-    assert np.isclose(sig, 7.0)
+    assert seen == [11], \
+        'a dark with too few reads must be skipped, not calibrated'    # only the 12-read dark calibrated
+    assert np.isclose(sig, 7.0), \
+        'the read noise must come from the single qualifying dark'
 
 
 def test_ramp_sigma_matches_dark_exptime_to_science(tmp_path, monkeypatch):
@@ -395,8 +430,10 @@ def test_ramp_sigma_matches_dark_exptime_to_science(tmp_path, monkeypatch):
 
     covar = fitramp.Covar([2. * (i + 1) for i in range(20)])
     sig = spec.get_ramp_sigma(np.zeros((19, 4, 4)), covar, exptime=2. * 19)
-    assert seen == [19]                       # only the 20-read (matched) dark
-    assert np.isclose(sig, 9.0)
+    assert seen == [19], \
+        'only the dark whose EXPTIME matches the science frame may be calibrated'    # only the 20-read (matched) dark
+    assert np.isclose(sig, 9.0), \
+        'the read noise must come from the exptime-matched dark'
 
 
 def test_ramp_sigma_no_exptime_match_falls_back(tmp_path):
@@ -417,8 +454,10 @@ def test_ramp_sigma_no_exptime_match_falls_back(tmp_path):
     diffs = mmt_mmirs.mmirs_ramp_diffs(reads * gain, covar)
 
     sig = spec.get_ramp_sigma(diffs, covar, exptime=grptime * 14)
-    assert np.abs(sig - sig_true) < 1.5       # self-caled from the science frame
-    assert spec._ramp_sigma is None           # self-cal not cached
+    assert np.abs(sig - sig_true) < 1.5, \
+        'with no exptime-matched dark, sigma must be self-caled from the frame'       # self-caled from the science frame
+    assert spec._ramp_sigma is None, \
+        'a self-calibrated sigma must not be cached'           # self-cal not cached
 
 
 def test_ramp_sigma_floored_at_header_rdnoise(tmp_path, monkeypatch):
@@ -434,17 +473,20 @@ def test_ramp_sigma_floored_at_header_rdnoise(tmp_path, monkeypatch):
     covar = fitramp.Covar([2. * (i + 1) for i in range(12)])
     sig = spec.get_ramp_sigma(np.zeros((11, 4, 4)), covar, exptime=2. * 11,
                               ron_floor=3.14)
-    assert np.isclose(sig, 3.14)
+    assert np.isclose(sig, 3.14), \
+        'a derived noise below the header RDNOISE floor must be clamped up to it'
 
 
 def test_get_detector_par_reads_rdnoise_from_header():
     """The detector read noise is taken from the header RDNOISE (ground truth),
     falling back to the built-in default only when no header is available."""
     spec = load_spectrograph('mmt_mmirs')
-    assert spec.get_detector_par(1)['ronoise'][0] == 3.14      # no hdu -> default
+    assert spec.get_detector_par(1)['ronoise'][0] == 3.14, \
+        'with no hdu the detector read noise must fall back to the default'      # no hdu -> default
     hdu = synth_ramp_hdulist(6, seed=271)
     hdu[1].header['RDNOISE'] = 4.5
-    assert spec.get_detector_par(1, hdu=hdu)['ronoise'][0] == 4.5
+    assert spec.get_detector_par(1, hdu=hdu)['ronoise'][0] == 4.5, \
+        'the detector read noise must be taken from the header RDNOISE card'
 
 
 def test_ramp_sigma_selfcal_fallback(tmp_path):
@@ -459,8 +501,10 @@ def test_ramp_sigma_selfcal_fallback(tmp_path):
 
     spec = load_spectrograph('mmt_mmirs')          # fresh: no darks recorded
     sig = spec.get_ramp_sigma(diffs, covar)
-    assert np.abs(sig - sig_true) < 1.5
-    assert spec._ramp_sigma is None                # self-cal is not cached
+    assert np.abs(sig - sig_true) < 1.5, \
+        'with no darks but enough groups, sigma must self-calibrate to the truth'
+    assert spec._ramp_sigma is None, \
+        'a self-calibrated sigma must not be cached'                # self-cal is not cached
 
 
 def test_ramp_sigma_few_groups_uses_published_guess(tmp_path):
@@ -476,8 +520,10 @@ def test_ramp_sigma_few_groups_uses_published_guess(tmp_path):
     spec = load_spectrograph('mmt_mmirs')          # fresh: no darks recorded
     sig = spec.get_ramp_sigma(diffs, covar)
     # No fit is attempted; the published per-read noise is returned verbatim.
-    assert sig == spec.ramp_sig_guess
-    assert spec._ramp_sigma is None                # not cached
+    assert sig == spec.ramp_sig_guess, \
+        'too few groups and no dark must return the published read-noise guess'
+    assert spec._ramp_sigma is None, \
+        'the published guess must not be cached'                # not cached
 
 
 def test_ramp_sigma_missing_dark_falls_back(tmp_path):
@@ -499,8 +545,10 @@ def test_ramp_sigma_missing_dark_falls_back(tmp_path):
     diffs = mmt_mmirs.mmirs_ramp_diffs(reads * gain, covar)
 
     sig = spec.get_ramp_sigma(diffs, covar)
-    assert np.abs(sig - sig_true) < 1.5
-    assert spec._ramp_sigma is None   # fell back to self-cal, not cached
+    assert np.abs(sig - sig_true) < 1.5, \
+        'a recorded dark that vanishes must fall back to self-cal, recovering the truth'
+    assert spec._ramp_sigma is None, \
+        'the self-cal fallback must not be cached'   # fell back to self-cal, not cached
 
 
 def test_get_rawimage_ramp_path(tmp_path):
@@ -513,14 +561,18 @@ def test_get_rawimage_ramp_path(tmp_path):
     spec = load_spectrograph('mmt_mmirs')
     spec._ramp_output_dir = tmp_path
     detpar, img, hdu, exp, rdsec, oscan = spec.get_rawimage(str(path), 1)
-    assert img.shape == (ny - 8, nx - 8)
-    assert exp == exptime
+    assert img.shape == (ny - 8, nx - 8), \
+        'the ramp-fit image must be trimmed of the reference-pixel border'
+    assert exp == exptime, 'the returned exposure time must match the ramp length'
     # Effective read noise replaced the CDS default of 3.14
-    assert detpar['ronoise'][0] != 3.14
-    assert detpar['ronoise'][0] < 15.
+    assert detpar['ronoise'][0] != 3.14, \
+        'the ramp path must replace the CDS default read noise'
+    assert detpar['ronoise'][0] < 15., \
+        'the effective read noise must be physically reasonable'
     # Rate recovery: image is ADU; convert back to e-/s
     rate_meas = np.median(img) * gain / exptime
-    assert np.abs(rate_meas - rate) < 1.5
+    assert np.abs(rate_meas - rate) < 1.5, \
+        f'the recovered count rate {rate_meas} must match the injected {rate}'
 
 
 @pytest.mark.parametrize('ngroups', [2, 4])
@@ -528,28 +580,36 @@ def test_get_rawimage_cds_path(tmp_path, ngroups):
     """Frames below ramp_min_reads (5) must use the unchanged CDS path; 4 reads
     is above the old threshold of 3, so this guards the raised minimum."""
     spec = load_spectrograph('mmt_mmirs')
-    assert ngroups < spec.ramp_min_reads
+    assert ngroups < spec.ramp_min_reads, \
+        'this test must exercise a read count below the ramp-fit minimum'
     path = _write_synth(synth_ramp_hdulist(ngroups, ny=64, nx=64, rate=20.,
                                            seed=51),
                         tmp_path / 'sci_cds.fits')
     spec._ramp_output_dir = tmp_path
     detpar, img, hdu, exp, rdsec, oscan = spec.get_rawimage(str(path), 1)
-    assert img.shape == (56, 56)
-    assert detpar['ronoise'][0] == 3.14
+    assert img.shape == (56, 56), \
+        'the CDS image must be trimmed of the reference-pixel border'
+    assert detpar['ronoise'][0] == 3.14, \
+        'the CDS path must keep the header/default read noise'
     # CDS frames never get a preprocessed sidecar
-    assert not mmt_mmirs.mmirs_rampfit_path(path, tmp_path).exists()
+    assert not mmt_mmirs.mmirs_rampfit_path(path, tmp_path).exists(), \
+        'a CDS frame must not produce a RampFit sidecar'
 
 
 def test_findobj_trace_defaults():
     par = load_spectrograph('mmt_mmirs').default_pypeit_par()
-    assert par['reduce']['findobj']['trace_npoly'] == 1
-    assert par['reduce']['findobj']['trace_maxdev'] == 50.
-    assert par['reduce']['findobj']['trace_maxshift'] == 20.
+    assert par['reduce']['findobj']['trace_npoly'] == 1, \
+        'MMIRS default trace_npoly must be 1'
+    assert par['reduce']['findobj']['trace_maxdev'] == 50., \
+        'MMIRS default trace_maxdev must be 50'
+    assert par['reduce']['findobj']['trace_maxshift'] == 20., \
+        'MMIRS default trace_maxshift must be 20'
 
 
 def test_rampfit_path():
     p = mmt_mmirs.mmirs_rampfit_path('/data/raw/sci.0001.fits', '/data/rdx')
-    assert p == Path('/data/rdx/RampFit/sci.0001.fits')
+    assert p == Path('/data/rdx/RampFit/sci.0001.fits'), \
+        'the sidecar path must be <redux>/RampFit/<raw basename>'
 
 
 def test_write_rampfit_roundtrip(tmp_path):
@@ -563,25 +623,35 @@ def test_write_rampfit_roundtrip(tmp_path):
         sidecar = mmt_mmirs.mmirs_rampfit_path(raw, tmp_path)
         mmt_mmirs.mmirs_write_rampfit(sidecar, rate, hdu, sig, eff,
                                       raw.stat().st_mtime)
-    assert sidecar == tmp_path / 'RampFit' / 'sci.fits'
-    assert sidecar.exists()
+    assert sidecar == tmp_path / 'RampFit' / 'sci.fits', \
+        'the sidecar must land in the RampFit subdir under the redux path'
+    assert sidecar.exists(), 'mmirs_write_rampfit must create the sidecar file'
     with fits.open(sidecar) as shdu:
-        assert shdu[0].header['RAMPFIT']
-        assert shdu[0].header['NGROUPS'] == ngroups
-        assert np.isclose(shdu[0].header['RAMPSIG'], sig)
-        assert np.isclose(shdu[0].header['RAMPRON'], eff)
-        assert shdu[1].header['BUNIT'] == 'e-/s'
+        assert shdu[0].header['RAMPFIT'], 'the sidecar must be flagged RAMPFIT'
+        assert shdu[0].header['NGROUPS'] == ngroups, \
+            'the sidecar must record the source ramp group count'
+        assert np.isclose(shdu[0].header['RAMPSIG'], sig), \
+            'the sidecar must record the calibrated read noise'
+        assert np.isclose(shdu[0].header['RAMPRON'], eff), \
+            'the sidecar must record the effective read noise'
+        assert shdu[1].header['BUNIT'] == 'e-/s', \
+            'the fitted image is a count rate in e-/s'
         assert shdu[1].header['DATASEC'] == \
-                f'[1:{rate.shape[0]},1:{rate.shape[1]}]'
+                f'[1:{rate.shape[0]},1:{rate.shape[1]}]', \
+            'the sidecar DATASEC must span the full fitted image'
         # Metadata cards preserved for pypeit_setup on RampFit dirs
-        assert shdu[1].header['IMAGETYP'] == 'object'
-        assert shdu[1].header['EXPTIME'] == 10.
+        assert shdu[1].header['IMAGETYP'] == 'object', \
+            'IMAGETYP must be preserved so pypeit_setup can type the sidecar'
+        assert shdu[1].header['EXPTIME'] == 10., \
+            'EXPTIME must be preserved on the sidecar'
         np.testing.assert_allclose(shdu[1].data, rate, rtol=1e-5, atol=1e-3)
-    assert mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw)
+    assert mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw), \
+        'a just-written sidecar must be fresh for its raw source'
     # Bumping the raw mtime makes the sidecar stale
     st = raw.stat()
     os.utime(raw, (st.st_atime, st.st_mtime + 10.))
-    assert not mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw)
+    assert not mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw), \
+        'bumping the raw mtime must make the sidecar stale'
 
 
 def test_rampfit_fresh_rejects_mismatched_source(tmp_path):
@@ -608,11 +678,15 @@ def test_rampfit_fresh_rejects_mismatched_source(tmp_path):
         mmt_mmirs.mmirs_write_rampfit(sidecar, rate, hdu, sig, eff,
                                       raw1.stat().st_mtime, raw_file=raw1)
     # Both cubes map to the same sidecar path (identical basename).
-    assert mmt_mmirs.mmirs_rampfit_path(raw2, tmp_path) == sidecar
-    assert fits.getval(sidecar, 'RAWPATH') == str(raw1.resolve())
+    assert mmt_mmirs.mmirs_rampfit_path(raw2, tmp_path) == sidecar, \
+        'same-named raw cubes map to the same sidecar path'
+    assert fits.getval(sidecar, 'RAWPATH') == str(raw1.resolve()), \
+        'the sidecar must record the resolved path of its source cube'
     # Fresh for its own source, stale for the same-named cube elsewhere.
-    assert mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw1)
-    assert not mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw2)
+    assert mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw1), \
+        'the sidecar must be fresh for the cube it was built from'
+    assert not mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw2), \
+        'RAWPATH must distinguish a same-named cube from another directory'
 
 
 def test_write_rampfit_atomic_on_failure(tmp_path, monkeypatch):
@@ -633,20 +707,24 @@ def test_write_rampfit_atomic_on_failure(tmp_path, monkeypatch):
         with pytest.raises(OSError):
             mmt_mmirs.mmirs_write_rampfit(sidecar, rate, hdu, sig, eff,
                                           raw.stat().st_mtime)
-    assert not sidecar.exists()
-    assert sidecar.parent.exists()
-    assert not list(sidecar.parent.glob('*.tmp*'))
+    assert not sidecar.exists(), \
+        'a failed write must not leave a partial sidecar'
+    assert sidecar.parent.exists(), 'the RampFit directory must still exist'
+    assert not list(sidecar.parent.glob('*.tmp*')), \
+        'a failed atomic write must leave no temporary file behind'
 
 
 def test_rampfit_fresh_missing_or_invalid(tmp_path):
     raw = _write_synth(synth_ramp_hdulist(4, seed=72), tmp_path / 'sci.fits')
     sidecar = mmt_mmirs.mmirs_rampfit_path(raw, tmp_path)
     # No sidecar
-    assert not mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw)
+    assert not mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw), \
+        'a missing sidecar must be reported as not fresh'
     # Sidecar without RAWMTIME card
     sidecar.parent.mkdir()
     fits.PrimaryHDU().writeto(sidecar)
-    assert not mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw)
+    assert not mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw), \
+        'a sidecar lacking the freshness cards must be reported as not fresh'
 
 
 def test_rampfit_fresh_missing_raw_file(tmp_path):
@@ -662,12 +740,14 @@ def test_rampfit_fresh_missing_raw_file(tmp_path):
         mmt_mmirs.mmirs_write_rampfit(sidecar, rate, hdu, sig, eff,
                                       raw.stat().st_mtime)
     raw.unlink()
-    assert mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw) is False
+    assert mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw) is False, \
+        'a sidecar whose raw source is gone must be reported as not fresh'
 
 
 def test_count_reads():
     hdu = synth_ramp_hdulist(5, seed=73)
-    assert mmt_mmirs.mmirs_count_reads(hdu) == 5
+    assert mmt_mmirs.mmirs_count_reads(hdu) == 5, \
+        'mmirs_count_reads must count the ramp reads (image HDUs)'
 
 
 def test_get_rawimage_writes_and_reuses_sidecar(tmp_path, monkeypatch):
@@ -678,8 +758,10 @@ def test_get_rawimage_writes_and_reuses_sidecar(tmp_path, monkeypatch):
     spec = load_spectrograph('mmt_mmirs')
     detpar1, img1, hdu1, exp1, _, _ = spec.get_rawimage(str(path), 1)
     sidecar = mmt_mmirs.mmirs_rampfit_path(path, tmp_path)
-    assert sidecar.exists()
-    assert mmt_mmirs.mmirs_rampfit_fresh(sidecar, path)
+    assert sidecar.exists(), \
+        'the first ramp load must write a sidecar (cwd fallback)'
+    assert mmt_mmirs.mmirs_rampfit_fresh(sidecar, path), \
+        'the freshly-written sidecar must be fresh for its raw source'
 
     # Second load must come from the sidecar: make refitting impossible
     def boom(*args, **kwargs):
@@ -687,12 +769,15 @@ def test_get_rawimage_writes_and_reuses_sidecar(tmp_path, monkeypatch):
     monkeypatch.setattr(mmt_mmirs, 'mmirs_fit_ramp', boom)
     spec2 = load_spectrograph('mmt_mmirs')
     detpar2, img2, hdu2, exp2, _, _ = spec2.get_rawimage(str(path), 1)
-    assert exp2 == exp1
+    assert exp2 == exp1, 'the reused sidecar must yield the same exposure time'
     np.testing.assert_allclose(img2, img1, rtol=1e-4, atol=1e-3)
-    assert np.isclose(detpar2['ronoise'][0], detpar1['ronoise'][0])
+    assert np.isclose(detpar2['ronoise'][0], detpar1['ronoise'][0]), \
+        'the reused sidecar must yield the same effective read noise'
     # Returned hdu is the preprocessed file, with metadata intact
-    assert hdu2[0].header['RAMPFIT']
-    assert hdu2[1].header['IMAGETYP'] == 'object'
+    assert hdu2[0].header['RAMPFIT'], \
+        'the reused load must return the preprocessed (RAMPFIT) file'
+    assert hdu2[1].header['IMAGETYP'] == 'object', \
+        'the preprocessed file must keep its IMAGETYP metadata'
 
 
 def test_get_rawimage_direct_preprocessed(tmp_path, monkeypatch):
@@ -711,7 +796,8 @@ def test_get_rawimage_direct_preprocessed(tmp_path, monkeypatch):
     detpar2, img2, hdu2, exp2, _, _ = spec2.get_rawimage(str(sidecar), 1)
     np.testing.assert_allclose(img2, img1, rtol=1e-4, atol=1e-3)
     assert np.isclose(detpar2['ronoise'][0],
-                      fits.getval(sidecar, 'RAMPRON'))
+                      fits.getval(sidecar, 'RAMPRON')), \
+        'loading a preprocessed file directly must read its stored RAMPRON'
 
 
 def test_get_rawimage_stale_sidecar_refits(tmp_path):
@@ -729,8 +815,10 @@ def test_get_rawimage_stale_sidecar_refits(tmp_path):
     spec2 = load_spectrograph('mmt_mmirs')
     spec2._ramp_output_dir = tmp_path
     spec2.get_rawimage(str(path), 1)
-    assert fits.getval(sidecar, 'RAWMTIME') != old_mtime
-    assert mmt_mmirs.mmirs_rampfit_fresh(sidecar, path)
+    assert fits.getval(sidecar, 'RAWMTIME') != old_mtime, \
+        'a stale sidecar must be refit and its RAWMTIME updated'
+    assert mmt_mmirs.mmirs_rampfit_fresh(sidecar, path), \
+        'the refit sidecar must be fresh again for the changed raw cube'
 
 
 def test_get_rawimage_unwritable_fallback(tmp_path, monkeypatch):
@@ -744,9 +832,12 @@ def test_get_rawimage_unwritable_fallback(tmp_path, monkeypatch):
     spec = load_spectrograph('mmt_mmirs')
     spec._ramp_output_dir = tmp_path
     detpar, img, *_ = spec.get_rawimage(str(path), 1)
-    assert img.shape == (56, 56)
-    assert detpar['ronoise'][0] != 3.14
-    assert not mmt_mmirs.mmirs_rampfit_path(path, tmp_path).exists()
+    assert img.shape == (56, 56), \
+        'the ramp fit must still return a trimmed image when the sidecar write fails'
+    assert detpar['ronoise'][0] != 3.14, \
+        'the in-memory ramp fit must still update the effective read noise'
+    assert not mmt_mmirs.mmirs_rampfit_path(path, tmp_path).exists(), \
+        'a failed sidecar write must leave no sidecar file'
 
 
 def test_mmirs_ramp_script(tmp_path, monkeypatch):
@@ -755,24 +846,28 @@ def test_mmirs_ramp_script(tmp_path, monkeypatch):
                        tmp_path / 'sci.fits')
     FitRamp.main(FitRamp.parse_args(['mmt_mmirs', str(raw), '--sig', '8.0']))
     sidecar = mmt_mmirs.mmirs_rampfit_path(raw, tmp_path)
-    assert sidecar.exists()
-    assert np.isclose(fits.getval(sidecar, 'RAMPSIG'), 8.0)
+    assert sidecar.exists(), 'the fit_ramp script must write a sidecar'
+    assert np.isclose(fits.getval(sidecar, 'RAMPSIG'), 8.0), \
+        'the sidecar must record the --sig read noise passed to the script'
 
     # Re-run without --force: fresh sidecar is skipped, file untouched
     mtime_ns = sidecar.stat().st_mtime_ns
     FitRamp.main(FitRamp.parse_args(['mmt_mmirs', str(raw), '--sig', '8.0']))
-    assert sidecar.stat().st_mtime_ns == mtime_ns
+    assert sidecar.stat().st_mtime_ns == mtime_ns, \
+        'a re-run without --force must skip a fresh sidecar, leaving it untouched'
 
     # --force refits and overwrites
     FitRamp.main(FitRamp.parse_args(['mmt_mmirs', str(raw), '--sig', '9.0', '--force']))
-    assert np.isclose(fits.getval(sidecar, 'RAMPSIG'), 9.0)
+    assert np.isclose(fits.getval(sidecar, 'RAMPSIG'), 9.0), \
+        '--force must refit and overwrite the sidecar with the new read noise'
 
 
 def test_mmirs_ramp_script_skips_few_reads(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     raw = _write_synth(synth_ramp_hdulist(2, seed=92), tmp_path / 'cds.fits')
     FitRamp.main(FitRamp.parse_args(['mmt_mmirs', str(raw)]))    # must not raise
-    assert not mmt_mmirs.mmirs_rampfit_path(raw, tmp_path).exists()
+    assert not mmt_mmirs.mmirs_rampfit_path(raw, tmp_path).exists(), \
+        'a CDS frame (too few reads) must be skipped, writing no sidecar'
 
 
 def test_mmirs_ramp_script_continues_after_write_failure(tmp_path, monkeypatch):
@@ -793,8 +888,10 @@ def test_mmirs_ramp_script_continues_after_write_failure(tmp_path, monkeypatch):
 
     FitRamp.main(FitRamp.parse_args(['mmt_mmirs', str(raw1), str(raw2), '--sig', '8.0',
                                          '--odir', str(tmp_path)]))
-    assert not bad_sidecar.exists()
-    assert mmt_mmirs.mmirs_rampfit_path(raw2, tmp_path).exists()
+    assert not bad_sidecar.exists(), \
+        'the file whose sidecar write failed must have no sidecar'
+    assert mmt_mmirs.mmirs_rampfit_path(raw2, tmp_path).exists(), \
+        'a write failure on one file must not abort processing of the rest'
 
 
 def test_mmirs_ramp_script_dark(tmp_path, monkeypatch):
@@ -807,8 +904,9 @@ def test_mmirs_ramp_script_dark(tmp_path, monkeypatch):
                         tmp_path / 'dark.fits')
     FitRamp.main(FitRamp.parse_args(['mmt_mmirs', str(raw), '--dark', str(dark)]))
     sidecar = mmt_mmirs.mmirs_rampfit_path(raw, tmp_path)
-    assert sidecar.exists()
-    assert np.abs(fits.getval(sidecar, 'RAMPSIG') - sig_true) < 1.5
+    assert sidecar.exists(), 'the script must write a sidecar for the science frame'
+    assert np.abs(fits.getval(sidecar, 'RAMPSIG') - sig_true) < 1.5, \
+        'the --dark read noise must recover the injected sigma'
 
 
 def test_fit_ramp_script_rejects_unsupported_spectrograph(tmp_path, monkeypatch):
@@ -1039,21 +1137,25 @@ MSK = dataPaths.tests.get_file_path('nep.as1.msk')
 
 def test_read_mmirs_maskfile_counts_and_header():
     header, slits = mmirs_maskfile.read_mmirs_maskfile(MSK)
-    assert header['label'] == 'nep.as1'
-    assert abs(header['arc2mm'] - 0.165) < 1e-3
-    assert len(slits) == 29
-    assert (slits['type'] == 'TARGET').sum() == 24
-    assert (slits['type'] == 'BOX').sum() == 5
+    assert header['label'] == 'nep.as1', 'the mask label must be parsed from the header'
+    assert abs(header['arc2mm'] - 0.165) < 1e-3, \
+        'the arc2mm plate scale must be parsed from the header'
+    assert len(slits) == 29, 'the mask must yield all 29 slits'
+    assert (slits['type'] == 'TARGET').sum() == 24, 'the mask has 24 TARGET slits'
+    assert (slits['type'] == 'BOX').sum() == 5, 'the mask has 5 BOX (alignment) slits'
 
 
 def test_read_mmirs_maskfile_target_row():
     header, slits = mmirs_maskfile.read_mmirs_maskfile(MSK)
     row = slits[slits['slit'] == 1][0]
-    assert row['object'] == '172220.249+655613.04'
-    assert row['type'] == 'TARGET'
+    assert row['object'] == '172220.249+655613.04', \
+        'the object name must be parsed for slit 1'
+    assert row['type'] == 'TARGET', 'slit 1 must be typed as a TARGET'
     # RA 17:22:20.2490 hours -> deg
-    assert abs(row['ra_deg'] - (17 + 22/60 + 20.2490/3600) * 15.) < 1e-4
-    assert abs(row['dec_deg'] - (65 + 56/60 + 13.040/3600)) < 1e-4
+    assert abs(row['ra_deg'] - (17 + 22/60 + 20.2490/3600) * 15.) < 1e-4, \
+        'RA must be converted from sexagesimal hours to degrees'
+    assert abs(row['dec_deg'] - (65 + 56/60 + 13.040/3600)) < 1e-4, \
+        'Dec must be parsed from sexagesimal degrees'
 
 
 def test_read_mmirs_maskfile_bad_file_raises(tmp_path):
@@ -1068,17 +1170,18 @@ def test_get_slitmask_science_align_and_objects():
     from pypeit.spectrographs.mmt_mmirs import MMTMMIRSSpectrograph
     spec = MMTMMIRSSpectrograph()
     sm = spec.get_slitmask(str(MSK))
-    assert sm is spec.slitmask
-    assert sm.nslits == 29
+    assert sm is spec.slitmask, 'get_slitmask must cache the SlitMask on the spectrograph'
+    assert sm.nslits == 29, 'the SlitMask must hold all 29 slits'
     # 24 science TARGET, 5 alignment BOX
-    assert int(sm.science_slit.sum()) == 24
-    assert int(sm.alignment_slit.sum()) == 5
+    assert int(sm.science_slit.sum()) == 24, 'the 24 TARGET slits must be flagged science'
+    assert int(sm.alignment_slit.sum()) == 5, 'the 5 BOX slits must be flagged alignment'
     # object names present and RA/DEC finite
-    assert '172220.249+655613.04' in list(sm.object_names)
-    assert np.all(np.isfinite(sm.onsky[:, 0]))   # RA
-    assert np.all(sm.onsky[:, 2] > 0)            # slit length arcsec
+    assert '172220.249+655613.04' in list(sm.object_names), \
+        'object names must be carried onto the SlitMask'
+    assert np.all(np.isfinite(sm.onsky[:, 0])), 'all slit RAs must be finite'   # RA
+    assert np.all(sm.onsky[:, 2] > 0), 'all slit lengths must be positive'            # slit length arcsec
     # objects table has the required 9 columns
-    assert sm.objects.shape[1] == 9
+    assert sm.objects.shape[1] == 9, 'the objects table must have the required 9 columns'
 
 
 def test_get_maskdef_slitedges_linear_geometry():
@@ -1086,7 +1189,8 @@ def test_get_maskdef_slitedges_linear_geometry():
     spec = MMTMMIRSSpectrograph()
     left, right, sortindx, sm = spec.get_maskdef_slitedges(filename=str(MSK),
                                                            det=1, binning='1,1')
-    assert left.size == right.size == 29
+    assert left.size == right.size == 29, \
+        'there must be a left and right edge for each of the 29 slits'
     ps = spec.get_detector_par(det=1)['platescale']
     arcsec_per_mm = 1.0 / 0.165
     scale = arcsec_per_mm / ps          # px per mm
@@ -1095,12 +1199,16 @@ def test_get_maskdef_slitedges_linear_geometry():
     _, slits = mmirs_maskfile.read_mmirs_maskfile(str(MSK))
     y = np.asarray(slits['y_mm'])
     fit = np.polyfit(y, centers, 1)
-    assert abs(fit[0] + scale) < 0.5              # slope == -scale
-    assert np.std(centers - np.polyval(fit, y)) < 1e-6   # perfectly linear
+    assert abs(fit[0] + scale) < 0.5, \
+        'slit centers must vary linearly with y_mm at slope -scale (px per mm)'              # slope == -scale
+    assert np.std(centers - np.polyval(fit, y)) < 1e-6, \
+        'the center-vs-y_mm relation must be perfectly linear'   # perfectly linear
     # edge width matches height
     widths = right - left
-    assert np.allclose(widths, np.asarray(slits['height_mm']) * arcsec_per_mm / ps)
-    assert np.array_equal(sortindx, np.argsort(left))
+    assert np.allclose(widths, np.asarray(slits['height_mm']) * arcsec_per_mm / ps), \
+        'each edge width must equal the slit height converted to pixels'
+    assert np.array_equal(sortindx, np.argsort(left)), \
+        'sortindx must order the slits by left edge'
 
 
 def _write_synthetic_msk(path, offset_mm=0.1, theta_deg=10.0):
@@ -1134,10 +1242,14 @@ def test_read_mmirs_maskfile_retains_offset_theta(tmp_path):
     _write_synthetic_msk(msk, offset_mm=0.1, theta_deg=10.0)
     _, slits = mmirs_maskfile.read_mmirs_maskfile(str(msk))
     # Fields 10 (offset) and 11 (theta) are retained, not silently dropped.
-    assert 'offset_mm' in slits.colnames and 'theta_deg' in slits.colnames
-    assert abs(slits['offset_mm'][0] - 0.1) < 1e-9
-    assert abs(slits['theta_deg'][0] - 10.0) < 1e-9
-    assert slits['offset_mm'][1] == 0.0 and slits['theta_deg'][1] == 0.0
+    assert 'offset_mm' in slits.colnames and 'theta_deg' in slits.colnames, \
+        'the offset and theta columns must be retained, not dropped'
+    assert abs(slits['offset_mm'][0] - 0.1) < 1e-9, \
+        'the TARGET slit offset must be parsed'
+    assert abs(slits['theta_deg'][0] - 10.0) < 1e-9, \
+        'the TARGET slit theta must be parsed'
+    assert slits['offset_mm'][1] == 0.0 and slits['theta_deg'][1] == 0.0, \
+        'the centered BOX slit must have zero offset and theta'
 
 
 def test_get_slitmask_offset_and_theta(tmp_path):
@@ -1154,20 +1266,26 @@ def test_get_slitmask_offset_and_theta(tmp_path):
     # TARGET (slit 1, row 0): the offset makes OBJ_TOPDIST/OBJ_BOTDIST (columns
     # 7/8) asymmetric about the slit center, but their sum is preserved.
     top, bot = float(sm.objects[0, 7]), float(sm.objects[0, 8])
-    assert abs(top - (half_len - off_as)) < 1e-6
-    assert abs(bot - (half_len + off_as)) < 1e-6
-    assert abs((top + bot) - 2 * half_len) < 1e-6
+    assert abs(top - (half_len - off_as)) < 1e-6, \
+        'the offset must shorten the top distance by off_as'
+    assert abs(bot - (half_len + off_as)) < 1e-6, \
+        'the offset must lengthen the bottom distance by off_as'
+    assert abs((top + bot) - 2 * half_len) < 1e-6, \
+        'the offset must preserve the total slit length'
 
     # BOX (slit 2, row 1): offset 0 -> the target stays centered.
-    assert abs(float(sm.objects[1, 7]) - float(sm.objects[1, 8])) < 1e-9
+    assert abs(float(sm.objects[1, 7]) - float(sm.objects[1, 8])) < 1e-9, \
+        'a zero-offset BOX slit must keep the target centered'
 
     # theta rotates the TARGET rectangle: the top-right (corner 0) and
     # bottom-right (corner 1) corners share a spectral coordinate only at
     # theta == 0; here they differ by 2*half_len*sin(theta).
     spectral_diff = sm.corners[0, 0, 1] - sm.corners[0, 1, 1]
-    assert abs(spectral_diff - 2 * half_len * np.sin(np.radians(10.0))) < 1e-6
+    assert abs(spectral_diff - 2 * half_len * np.sin(np.radians(10.0))) < 1e-6, \
+        'theta must rotate the TARGET corners by 2*half_len*sin(theta) in spectral'
     # The theta == 0 BOX slit stays axis-aligned (a within-file control).
-    assert abs(sm.corners[1, 0, 1] - sm.corners[1, 1, 1]) < 1e-9
+    assert abs(sm.corners[1, 0, 1] - sm.corners[1, 1, 1]) < 1e-9, \
+        'the theta==0 BOX slit must stay axis-aligned'
 
 
 def test_get_slitmask_zero_offset_theta_matches_centered(tmp_path):
@@ -1179,10 +1297,13 @@ def test_get_slitmask_zero_offset_theta_matches_centered(tmp_path):
     sm = spec.get_slitmask(str(msk))
     half_len = 0.5 * 1.0 / 0.165
     for row in range(2):
-        assert abs(float(sm.objects[row, 7]) - half_len) < 1e-6
-        assert abs(float(sm.objects[row, 8]) - half_len) < 1e-6
+        assert abs(float(sm.objects[row, 7]) - half_len) < 1e-6, \
+            'zero offset must keep the top distance at half the slit length'
+        assert abs(float(sm.objects[row, 8]) - half_len) < 1e-6, \
+            'zero offset must keep the bottom distance at half the slit length'
         # Axis-aligned: right-side corners share a spectral coordinate.
-        assert abs(sm.corners[row, 0, 1] - sm.corners[row, 1, 1]) < 1e-9
+        assert abs(sm.corners[row, 0, 1] - sm.corners[row, 1, 1]) < 1e-9, \
+            'zero theta must keep the right-side corners axis-aligned'
 
 
 def test_dithoff_wraps_ra_across_zero():
@@ -1212,10 +1333,14 @@ def test_config_specific_par_enables_maskdesign(tmp_path, monkeypatch):
     monkeypatch.setattr(spec, 'get_meta_value',
                         lambda inp, key, **kw: 'nep.as1' if key == 'decker' else None)
     par = spec.config_specific_par(str(scifile))
-    assert par['calibrations']['slitedges']['use_maskdesign'] is True
-    assert Path(par['calibrations']['slitedges']['maskdesign_filename']).name == 'nep.as1.msk'
-    assert par['reduce']['slitmask']['assign_obj'] is True
-    assert par['reduce']['slitmask']['extract_missing_objs'] is True
+    assert par['calibrations']['slitedges']['use_maskdesign'] is True, \
+        'a discovered .msk must enable mask-design slit edges'
+    assert Path(par['calibrations']['slitedges']['maskdesign_filename']).name == 'nep.as1.msk', \
+        'the mask-design filename must point at the discovered .msk'
+    assert par['reduce']['slitmask']['assign_obj'] is True, \
+        'mask-design mode must enable object assignment'
+    assert par['reduce']['slitmask']['extract_missing_objs'] is True, \
+        'mask-design mode must enable extraction of missing objects'
 
 
 def test_config_specific_par_enables_maskdesign_from_table_row(tmp_path, monkeypatch):
@@ -1234,8 +1359,10 @@ def test_config_specific_par_enables_maskdesign_from_table_row(tmp_path, monkeyp
     monkeypatch.setattr(spec, 'get_meta_value',
                         lambda inp, key, **kw: 'nep.as1' if key == 'decker' else None)
     par = spec.config_specific_par(row)
-    assert par['calibrations']['slitedges']['use_maskdesign'] is True
-    assert Path(par['calibrations']['slitedges']['maskdesign_filename']).name == 'nep.as1.msk'
+    assert par['calibrations']['slitedges']['use_maskdesign'] is True, \
+        'a .msk discovered from a Table-row filename must enable mask-design edges'
+    assert Path(par['calibrations']['slitedges']['maskdesign_filename']).name == 'nep.as1.msk', \
+        'the mask-design filename must point at the discovered .msk'
 
 
 def test_config_specific_par_no_maskfile_is_noop(tmp_path, monkeypatch):
@@ -1246,4 +1373,5 @@ def test_config_specific_par_no_maskfile_is_noop(tmp_path, monkeypatch):
     monkeypatch.setattr(spec, 'get_meta_value',
                         lambda inp, key, **kw: 'nep.as1' if key == 'decker' else None)
     par = spec.config_specific_par(str(scifile))
-    assert par['calibrations']['slitedges']['use_maskdesign'] is False
+    assert par['calibrations']['slitedges']['use_maskdesign'] is False, \
+        'with no .msk present, mask-design slit edges must stay disabled'
