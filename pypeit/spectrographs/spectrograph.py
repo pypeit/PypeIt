@@ -2110,15 +2110,9 @@ class Spectrograph:
 #
 #        return self.detector[det-1]['platescale']/tel_platescale
 
-    def get_echelle_angle_files(self, meta_dict=None):
+    def get_echelle_angle_files(self):
         """ Pass back the files required
         to run the echelle method of wavecalib
-
-        Args:
-            meta_dict (:obj:`dict`, optional):
-                Metadata of the arc frame being calibrated.  Allows
-                spectrographs with multiple detector/instrument eras to
-                select era-matched archives; most implementations ignore it.
 
         Returns:
             list: List of files

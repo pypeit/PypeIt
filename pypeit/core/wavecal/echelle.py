@@ -228,8 +228,11 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
         synthetic line-arc construction and the continuum subtraction of the
         correlation function in :func:`~pypeit.core.wavecal.wvutils.xcorr_shift`.
         This is significantly faster for large spectral formats (e.g., 4k
-        detectors with ~100 orders, such as Shane/Hamspec).  The default
-        (False) preserves the original behavior.
+        detectors with ~100 orders, such as Shane/Hamspec), but it is less
+        robust: without the synthetic (clipped, line-only) arcs, a few very
+        strong lines, detector artifacts, or continuum/scattered-light
+        structure can dominate the correlation and skew the order
+        registration.  The default (False) preserves the original behavior.
 
     Returns
     -------
@@ -293,7 +296,7 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
     arcspec_arxiv = np.zeros((nspec, norders))
     for jord, oord in enumerate(order_vec):
         match = np.where(order_vec_guess == oord)[0]
-        if match.size:
+        if match.size > 0:
             wave_soln_arxiv[:, jord] = wave_soln_guess_pad[:, match[0]]
             arcspec_arxiv[:, jord] = arcspec_guess_pad[:, match[0]]
 

@@ -423,14 +423,9 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             self.meta['lampstat{:02d}'.format(kk+1)] = dict(ext=0, card=lamp_name)
         self.meta['lampstat06'] = dict(ext=0, card = 'HALOGEN')
 
-    def get_echelle_angle_files(self, meta_dict=None):
+    def get_echelle_angle_files(self):
         """ Pass back the files required
-        to run the echelle method of wavecalib.
-
-        Args:
-            meta_dict (:obj:`dict`, optional):
-                Metadata of the arc frame being calibrated (unused here;
-                see the base class).
+        to run the echelle method of wavecalib
 
         Returns:
             list: List of files
@@ -882,14 +877,9 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrographOld):
         """
         return ['SCIFILT1', 'SCIFILT2', 'ECHLPOS', 'DISPPOS', 'SLITNAME']
 
-    def get_echelle_angle_files(self, meta_dict=None):
+    def get_echelle_angle_files(self):
         """ Pass back the files required
-        to run the echelle method of wavecalib.
-
-        Args:
-            meta_dict (:obj:`dict`, optional):
-                Metadata of the arc frame being calibrated (unused here;
-                see the base class).
+        to run the echelle method of wavecalib
 
         Created for the pre-upgrade NIRSPEC
 

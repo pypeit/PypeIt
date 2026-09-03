@@ -732,10 +732,8 @@ class BuildWaveCalib:
                 self.slits.ech_order = order_vec[:self.slits.nslits]
                 self.arccen = arccen
         elif self.par['method'] == 'echelle':
-            # Echelle calibration files; the arc-frame metadata lets
-            # multi-era spectrographs select era-matched archives.
-            angle_fits_file, composite_arc_file = \
-                    self.spectrograph.get_echelle_angle_files(meta_dict=self.meta_dict)
+            # Echelle calibration files
+            angle_fits_file, composite_arc_file = self.spectrograph.get_echelle_angle_files()
 
             # Identify the echelle orders
             log.info("Finding the echelle orders")
