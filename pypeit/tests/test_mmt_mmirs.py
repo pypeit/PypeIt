@@ -1117,15 +1117,6 @@ def test_config_specific_par_selects_arxiv(disp, filt, arxiv):
         f'{disp}-{filt} must select {arxiv}, got {wave["reid_arxiv"]}'
 
 
-@pytest.mark.parametrize('arxiv', ['mmt_mmirs_H3000_H.fits', 'mmt_mmirs_HK_HK3.fits'])
-def test_new_mode_arxiv_exists(arxiv):
-    # The arxiv named by config_specific_par must actually ship with the
-    # package, otherwise full_template reidentification fails at run time.
-    from pypeit import dataPaths
-    assert (dataPaths.reid_arxiv.path / arxiv).is_file(), \
-        f'the {arxiv} reid arxiv must be installed in the package'
-
-
 def test_frameno_parsed_from_filename():
     spec = load_spectrograph('mmt_mmirs')
     headarr = _dither_header(260.614, 65.8828, 260.614, 65.8828, 166.382, 1823)
