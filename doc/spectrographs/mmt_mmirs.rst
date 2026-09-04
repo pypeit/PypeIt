@@ -162,15 +162,17 @@ development suite.
 HK Grism and zJ filter
 ++++++++++++++++++++++
 
-This is an unusual setup that people might not use frequently.
-This setup has both first and second order light. Wavelengths
-greater than 9000 angstrom are in second order at the wavelength shown.
-Wavelengths shown below 9000 are in first order at double the
-wavelength shown. The major advantage of this setup is that
-it provides the bluest wavelength coverage by the second
-order spectrum and therefore are important for some science
-cases. Currently, PypeIt only reduces the second order spectrum
-of this setup.
+This is an unusual setup that people might not use frequently.  The HK grism's
+first order is the HK band itself (roughly 1.14-2.51 um), so it cannot reach the
+z/J region in first order; that coverage is only available in **second order**,
+where the dispersion is also doubled.  PypeIt reduces the second-order spectrum,
+so the wavelength axis it produces (roughly 0.94-1.29 um) is the true
+second-order wavelength.  On that axis, anything appearing below 9000 angstrom is
+first-order leakage at double the indicated wavelength, not real z/J flux (recall
+that second-order light at wavelength :math:`\lambda` lands at the same detector
+position as first-order light at :math:`2\lambda`).  The major advantage of this
+setup is that the second-order spectrum provides the bluest wavelength coverage,
+which is important for some science cases.
 
 A-B nod background subtraction
 ++++++++++++++++++++++++++++++
