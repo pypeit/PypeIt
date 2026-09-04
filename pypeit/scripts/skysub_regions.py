@@ -40,11 +40,12 @@ class SkySubRegions(scriptbase.ScriptBase):
         import astropy.io.fits as fits
         from pypeit import log
         from pypeit import PypeItError
-        from pypeit import io
+        from pypeit import outputfiles
         from pypeit.gui.skysub_regions import SkySubGUI
         from pypeit.images import buildimage
         from pypeit.images.detector_container import DetectorContainer
         from pypeit.edgetrace import EdgeTraceSet
+        from pypeit.spectrographs.util import load_spectrograph
 
         # Initialize the log
         cls.init_log(args)
@@ -90,9 +91,11 @@ class SkySubRegions(scriptbase.ScriptBase):
             spat_flexure = spec2DObj.sci_spat_flexure
 
         # Derive an appropriate output filename
+        spec = load_spectrograph(specname)
         file_base = os.path.basename(fname)
-        regfile = buildimage.SkyRegions.construct_file_name(calib_key, calib_dir=calib_dir,
-                                                            basename=io.remove_suffix(file_base))
+        regfile = buildimage.SkyRegions.construct_file_name(
+            calib_key, calib_dir=calib_dir,
+            basename=outputfiles.strip_raw_extension(file_base, spec.allowed_extensions))
 
         # Finally, initialise the GUI
         skyreg = SkySubGUI.initialize(det, frame, slits, pypeline, specname, outname=regfile,

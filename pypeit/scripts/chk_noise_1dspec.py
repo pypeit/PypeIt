@@ -8,7 +8,7 @@ for one of the outputs of PypeIt
 """
 import numpy as np
 
-import os
+from pathlib import Path
 from matplotlib import pyplot as plt
 from astropy.stats import sigma_clip, mad_std
 from astropy.modeling.models import Gaussian1D
@@ -281,9 +281,8 @@ class ChkNoise1D(scriptbase.ScriptBase):
 
                     # Save?
                     if args.plot_or_save == 'save':
-                        folder = '{}_noisecheck'.format(file.split('.fits')[0])
-                        if not os.path.exists(folder):
-                            os.makedirs(folder)
+                        folder = Path(f'{Path(file).with_suffix("")}_noisecheck')
+                        folder.mkdir(parents=True, exist_ok=True)
                     else:
                         folder = None
 
