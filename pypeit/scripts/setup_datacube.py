@@ -12,6 +12,7 @@ from astropy.io import fits
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import inputfiles
+from pypeit import outputfiles
 from pypeit.scripts import scriptbase
 
 
@@ -212,29 +213,54 @@ def group_science_rows(rows):
     return groups
 
 
-def find_reduced_spec2d(science_dir, raw_filename, target):
+def find_reduced_spec2d(science_dir, row, spectrograph):
     """
-    Find the existing spec2d product for a raw file and target.
+    Find the existing spec2d product for a science-frame row.
+
+    Tries an exact match first, reconstructing the spec2d basename from the row's own
+    metadata via :func:`~pypeit.outputfiles.construct_basename`; a hit is
+    target-correct by construction, since the row's own target was used to build the
+    name, so no header read is needed. Falls back to matching by raw-file stem and
+    verifying the target recorded in each candidate's header, for cases where the
+    exact name can't be reconstructed (e.g. no ``mjd`` column, or a corrupt/missing
+    ``mjd`` value) or doesn't match an existing file (e.g. an older ``.pypeit`` file,
+    or different metadata precision).
 
     Parameters
     ----------
     science_dir : :obj:`str`, `Path`_
         Directory to search for spec2d files, e.g. as returned by
         :func:`science_directory`.
-    raw_filename : :obj:`str`
-        Name of the raw science file whose reduced spec2d product is sought.
-    target : :obj:`str`
-        Target name that the spec2d file's header must match; see
-        :func:`target_matches`.
+    row : `astropy.table.Row`_
+        Data-table row for the raw science frame whose reduced spec2d product is
+        sought, e.g. the first row of a group from :func:`group_science_rows`. Must
+        have ``filename``, ``target``, and ``mjd`` columns.
+    spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+        Spectrograph instance, used for
+        :attr:`~pypeit.spectrographs.spectrograph.Spectrograph.camera` and
+        :attr:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_extensions`.
 
     Returns
     -------
     `Path`_
-        Path to the matching spec2d file. If more than one candidate
-        matches, the first (alphabetically sorted) is used and a warning is
+        Path to the matching spec2d file. If more than one candidate matches in the
+        fallback search, the first (alphabetically sorted) is used and a warning is
         logged. Returns None if no candidate matches.
     """
-    raw_stem = Path(str(raw_filename).strip()).stem
+    raw_filename = row['filename']
+    target = row['target']
+    mjd = row['mjd'] if 'mjd' in row.colnames else None
+    if mjd is not None:
+        expected_basename = outputfiles.construct_basename(
+            raw_filename, target, spectrograph.camera, mjd, spectrograph.allowed_extensions
+        )
+        exact = Path(science_dir) / f'spec2d_{expected_basename}.fits'
+        if exact.is_file():
+            return exact
+
+    raw_stem = outputfiles.strip_raw_extension(
+        str(raw_filename).strip(), spectrograph.allowed_extensions
+    )
     candidates = sorted(Path(science_dir).glob(f'spec2d_{raw_stem}-*.fits'))
     matches = []
     for candidate in candidates:
@@ -253,7 +279,7 @@ def find_reduced_spec2d(science_dir, raw_filename, target):
     return None if len(matches) == 0 else matches[0]
 
 
-def existing_spec2d_files(pypeit_file, target, science_dir):
+def existing_spec2d_files(pypeit_file, target, science_dir, spectrograph):
     """
     Find the current reduced spec2d products expected for a target.
 
@@ -265,6 +291,8 @@ def existing_spec2d_files(pypeit_file, target, science_dir):
         Target name to match; see :func:`target_matches`.
     science_dir : :obj:`str`, `Path`_
         Directory to search for reduced spec2d files.
+    spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+        Spectrograph instance, passed through to :func:`find_reduced_spec2d`.
 
     Returns
     -------
@@ -282,10 +310,14 @@ def existing_spec2d_files(pypeit_file, target, science_dir):
     files = []
     missing = []
     for group in group_science_rows(rows):
-        raw_filename = group[0]['filename']
-        spec2d = find_reduced_spec2d(science_dir, raw_filename, target)
+        row = group[0]
+        spec2d = find_reduced_spec2d(science_dir, row, spectrograph)
         if spec2d is None:
-            missing.append(Path(str(raw_filename).strip()).stem)
+            missing.append(
+                outputfiles.strip_raw_extension(
+                    str(row['filename']).strip(), spectrograph.allowed_extensions
+                )
+            )
             continue
         files.append(spec2d)
     return files, missing, str(rows[0]['target']).strip()
@@ -584,6 +616,7 @@ class SetupDataCube(scriptbase.ScriptBase):
         if 'rdx' not in pypeit_file.config or 'spectrograph' not in pypeit_file.config['rdx']:
             raise PypeItError('The PypeIt file must define [rdx] spectrograph.')
         spectrograph = pypeit_file.config['rdx']['spectrograph']
+        spec = pypeit_file.get_spectrograph()
 
         wl_range = validate_whitelight_range(args.whitelight_range)
         sensfile = None
@@ -597,7 +630,7 @@ class SetupDataCube(scriptbase.ScriptBase):
             raise PypeItError(f'Expected Science directory does not exist: {sci_dir}')
 
         spec2d_files, missing, target_name = existing_spec2d_files(
-            pypeit_file, args.target, sci_dir
+            pypeit_file, args.target, sci_dir, spec
         )
         for raw_stem in missing:
             log.warning(f'Expected spec2d product for {raw_stem} not found yet; skipping for now.')
