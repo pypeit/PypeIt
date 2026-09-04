@@ -271,6 +271,12 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
     order_vec = order_vec_guess[0] + ordr_shift - np.arange(norders)
     ind = np.isin(order_vec_guess, order_vec, assume_unique=True)
 
+    if np.sum(ind) != norders:
+        log.warning('The number of orders in the predicted and identified order vectors do not match. '
+                    'This may indicate that the predicted order coverage is not sufficient to cover the data. '
+                    'The predicted order coverage may need to be increased by increasing the pad parameter to:\n'
+                    '[calibrations]\n    [[wavelengths]]\n        echelle_pad = {0:d}'.format(pad + abs(np.sum(ind) - norders))
+        )
     #if debug:
     #    embed(header='identify_ech_orders 232 of echelle.py')
 
