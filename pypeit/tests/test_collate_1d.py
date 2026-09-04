@@ -12,7 +12,7 @@ from pypeit import specobjs
 from pypeit.spec2dobj import AllSpec2DObj
 from pypeit.collate import collate_spectra_by_source, SourceObject
 from pypeit.collate import find_spec2d_from_spec1d,find_slits_to_exclude, exclude_source_objects
-from pypeit.collate import flux, coadd, build_coadd_file_name, get_report_metadata, refframe_correction
+from pypeit.collate import flux, coadd, build_coadd_file_name, disambiguate_coadd_file_name, get_report_metadata, refframe_correction
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.sensfilearchive import SensFileArchive
 from pypeit.par import pypeitpar
@@ -344,6 +344,99 @@ def test_build_coadd_file_name():
     source2 = SourceObject(mock_sobjs.specobjs[0], mock_sobjs.header, 'spec1d_file1',
                            spectrograph, 'pixel')
     assert build_coadd_file_name(source2) == 'SPAT1234_DEIMOS_20200130_20200130.fits'
+
+    # outfile_from='maskdef_objname' names the file from MASKDEF_OBJNAME
+    source3 = SourceObject(mock_sobjs.specobjs[0], mock_sobjs.header, 'spec1d_file1',
+                           spectrograph, 'ra/dec', outfile_from='maskdef_objname')
+    assert build_coadd_file_name(source3) == 'object1_DEIMOS_20200130_20200130.fits'
+
+    # SERENDIP objects have no unique mask-design name, so they fall back to
+    # coordinate naming even when outfile_from='maskdef_objname'
+    serendip_sobj = [s for s in mock_sobjs.specobjs if s.MASKDEF_OBJNAME == 'SERENDIP'][0]
+    source4 = SourceObject(serendip_sobj, mock_sobjs.header, 'spec1d_file1',
+                           spectrograph, 'ra/dec', outfile_from='maskdef_objname')
+    assert build_coadd_file_name(source4).startswith('J')
+
+    # The default (outfile_from='coord') preserves the coordinate naming
+    source5 = SourceObject(mock_sobjs.specobjs[0], mock_sobjs.header, 'spec1d_file1',
+                           spectrograph, 'ra/dec')
+    assert build_coadd_file_name(source5) == 'J132436.41+271928.56_DEIMOS_20200130_20200130.fits'
+
+def test_disambiguate_coadd_file_name():
+    # Two distinct sources that happen to build the same output name (e.g. a
+    # shared MASKDEF_OBJNAME and date range) must not overwrite each other.
+    mock_sobjs = mock_specobjs('spec1d_file1')
+    spectrograph = load_spectrograph('keck_deimos')
+    source = SourceObject(mock_sobjs.specobjs[0], mock_sobjs.header, 'spec1d_file1',
+                          spectrograph, 'ra/dec', outfile_from='maskdef_objname')
+    base = build_coadd_file_name(source)          # object1_DEIMOS_...fits
+
+    used = set()
+    # The first source keeps the base name.
+    n1 = disambiguate_coadd_file_name(source, base, used)
+    assert n1 == base
+    used.add(n1)
+    # A second, distinct source with the same base name gets a coordinate token.
+    n2 = disambiguate_coadd_file_name(source, base, used)
+    assert n2 != base and n2 not in used
+    assert n2.startswith('object1_DEIMOS_20200130_20200130_J')
+    used.add(n2)
+    # A third collision still resolves to a fresh, unused name.
+    n3 = disambiguate_coadd_file_name(source, base, used)
+    assert n3 not in used and n3 not in (base, n2)
+
+
+def test_build_coadd_file_name_sanitizes_maskdef_objname():
+    # A catalog MASKDEF_OBJNAME with path separators / invalid characters must
+    # not produce a multi-component or directory-escaping output name.
+    from pypeit.collate import _safe_name_component
+    spectrograph = load_spectrograph('keck_deimos')
+    header = mock_header('spec1d_file1')
+    sobj = MockSpecObj(MASKDEF_OBJNAME='foo/../bar:baz qux', MASKDEF_ID='1',
+                       DET=1, RA=201.0, DEC=27.0, SPAT_PIXPOS=1234.0,
+                       NAME='SPAT1234-SLIT1-DET01', WAVE_RMS=0.01)
+    source = SourceObject(sobj, header, 'spec1d_file1', spectrograph,
+                          'ra/dec', outfile_from='maskdef_objname')
+    name = build_coadd_file_name(source)
+    # The whole name is a single, safe path component.
+    assert '/' not in name and '\\' not in name
+    assert ':' not in name and ' ' not in name
+    assert os.path.basename(name) == name          # cannot escape outdir
+    # The helper itself maps disallowed characters to underscores.
+    assert _safe_name_component('foo/../bar:baz qux') == 'foo_.._bar_baz_qux'
+    assert _safe_name_component('...') == '_'
+    assert _safe_name_component('  spaced name ') == 'spaced_name'
+
+
+def test_get_report_metadata_uses_disambiguated_name():
+    # The report must record the file actually written (the disambiguated
+    # basename), not a recomputed base name that could collide.
+    from pypeit.collate import get_report_metadata
+    spectrograph = load_spectrograph('keck_deimos')
+    mock_sobjs = mock_specobjs('spec1d_file1')
+    source = SourceObject(mock_sobjs.specobjs[0], mock_sobjs.header,
+                          'spec1d_file1', spectrograph, 'ra/dec',
+                          outfile_from='maskdef_objname')
+    base = build_coadd_file_name(source)
+
+    # Simulate the coadd loop assigning a disambiguated output basename.
+    disamb = base.replace('.fits', '_JXXXX.fits')
+    source.coaddfile = disamb
+    rows, files = get_report_metadata(['MJD'], ['MASKDEF_OBJNAME'], source)
+    assert files is None
+    assert len(rows) >= 1
+    assert all(r[0] == disamb for r in rows)       # column 0 is the coadd file
+    assert rows[0][0] != base
+
+    # With no assigned name (e.g. a dry run), it falls back to the base name.
+    source.coaddfile = None
+    rows2, _ = get_report_metadata(['MJD'], ['MASKDEF_OBJNAME'], source)
+    assert rows2[0][0] == base
+
+    # Non-SourceObject inputs are unaffected.
+    assert get_report_metadata(['MJD'], ['MASKDEF_OBJNAME'], 'not a source') \
+        == (None, None)
+
 
 def test_find_slits_to_exclude(monkeypatch):
 

@@ -210,3 +210,63 @@ def test_get_row_for_filename():
     # Try to get a non-existent row
     with pytest.raises(PypeItError):
         row = pmd.get_row_for_filename('not_a_kast_file.fits')
+
+
+def test_skip_invalid_file_with_usrdata():
+    """Skipping an unreadable file must also drop its row from the user metadata."""
+
+    # ------------------------------------------------------------------
+    # In case of failed tests
+    config_dir = Path(tstutils.data_output_path('shane_kast_blue_A')).absolute()
+    if config_dir.exists():
+        shutil.rmtree(config_dir)
+    # ------------------------------------------------------------------
+
+    tstutils.install_shane_kast_blue_raw_data()
+
+    droot = tstutils.data_output_path('b')
+    pargs = Setup.parse_args(['-r', droot, '-s', 'shane_kast_blue', '-c', 'all', '-b',
+                              '--output_path', f'{config_dir.parent}'])
+    Setup.main(pargs)
+
+    pypeItFile = PypeItFile.from_file(str(config_dir / 'shane_kast_blue_A.pypeit'))
+    spectrograph = load_spectrograph('shane_kast_blue')
+
+    # Make one file look like it is missing an expected FITS extension
+    bad_file = 'b27.fits.gz'
+    orig_get_headarr = spectrograph.get_headarr
+
+    def fake_get_headarr(inp, strict=True):
+        if Path(inp).name == bad_file:
+            raise IndexError('list index out of range')
+        return orig_get_headarr(inp, strict=strict)
+
+    spectrograph.get_headarr = fake_get_headarr
+
+    pmd = PypeItMetaData(spectrograph, spectrograph.default_pypeit_par(),
+                         files=pypeItFile.filenames, usrdata=pypeItFile.data, strict=False)
+
+    assert bad_file not in pmd['filename'], 'Unreadable file should have been skipped'
+    assert len(pmd.table) == len(pypeItFile.data) - 1, 'Exactly one row should be dropped'
+
+    # The user-provided columns must still line up with the files they describe
+    usr_ftype = {row['filename']: row['frametype'] for row in pypeItFile.data}
+    for row in pmd.table:
+        assert row['frametype'] == usr_ftype[row['filename']], \
+            'User metadata is misaligned with the metadata table'
+
+    shutil.rmtree(config_dir)
+
+
+def test_cache_metadata_hook():
+    """PypeItMetaData construction must call spectrograph.cache_metadata(fitstbl)."""
+    spec = load_spectrograph('shane_kast_blue')
+    par = spec.default_pypeit_par()
+    called = []
+    # Instance-level monkeypatch records the argument
+    spec.cache_metadata = lambda fitstbl: called.append(fitstbl)
+    fitstbl = PypeItMetaData(spec, par=par,
+                             data=Table({'filename': ['a.fits'],
+                                         'directory': ['/tmp']}))
+    assert len(called) == 1
+    assert called[0] is fitstbl

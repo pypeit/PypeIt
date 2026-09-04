@@ -1,0 +1,1502 @@
+"""Tests for MMT/MMIRS up-the-ramp fitting support."""
+import os
+from pathlib import Path
+
+import numpy as np
+import pytest
+from astropy.io import fits
+from astropy.table import Table
+
+from pypeit import log
+from pypeit.ext.fitramp import fitramp
+from pypeit.metadata import PypeItMetaData
+from pypeit.pypeitsetup import PypeItSetup
+from pypeit.scripts.fit_ramp import FitRamp
+from pypeit.spectrographs import mmt_mmirs
+from pypeit.spectrographs.util import load_spectrograph
+
+
+def synth_ramp_hdulist(ngroups, ny=64, nx=64, rate=20., sig=8., gain=0.95,
+                       grptime=2., seed=42, imagetyp='object'):
+    """
+    Build an MMIRS-like raw HDUList.
+
+    Mimics the real file layout: ext 1 is the FINAL read (highest EXTVER) and
+    carries the metadata; exts 2..ngroups hold EXTVER 1..ngroups-1.  The outer
+    4-pixel border is signal-free (reference pixels); the interior accumulates
+    ``rate`` e-/s.  Reads are in ADU (divided by ``gain``).
+    """
+    rng = np.random.default_rng(seed)
+    lam = np.zeros((ny, nx))
+    lam[4:-4, 4:-4] = rate * grptime          # e- per group interval
+    increments = rng.poisson(lam, size=(ngroups, ny, nx)).astype(float)
+    reads = np.cumsum(increments, axis=0)
+    reads += rng.normal(0., sig, size=(ngroups, ny, nx))
+    reads /= gain                              # electrons -> ADU
+    exptime = grptime * (ngroups - 1)
+
+    hdus = [fits.PrimaryHDU()]
+    order = [ngroups - 1] + list(range(ngroups - 1))   # final read first
+    for i in order:
+        h = fits.ImageHDU(reads[i].astype('float32'))
+        h.header['EXTVER'] = i + 1
+        h.header['DATASEC'] = f'[5:{ny-4},5:{nx-4}]'
+        h.header['CCDSUM'] = '1 1'
+        h.header['FILTER'] = 'zJ'
+        h.header['DISPERSE'] = 'J'
+        h.header['GAIN'] = gain
+        h.header['RDNOISE'] = 3.14
+        h.header['GRPTIME'] = grptime
+        h.header['EXPTIME'] = exptime
+        h.header['IMAGETYP'] = imagetyp
+        h.header['HXRGGRUP'] = ngroups
+        h.header['INSTRUME'] = 'mmirs'
+        h.header['RA'] = 180.0
+        h.header['DEC'] = 30.0
+        h.header['OBJECT'] = 'synthetic'
+        h.header['APERTURE'] = '1pixel-long'
+        h.header['AIRMASS'] = 1.2
+        h.header['DATE-OBS'] = '2017-04-09T06:36:25'
+        hdus.append(h)
+    return fits.HDUList(hdus)
+
+
+def test_load_ramp_orders_and_trims():
+    ngroups, ny, nx = 5, 64, 64
+    hdu = synth_ramp_hdulist(ngroups, ny=ny, nx=nx, sig=0.5, seed=1)
+    reads, head1 = mmt_mmirs.mmirs_load_ramp(hdu)
+    assert reads.shape == (ngroups, ny - 8, nx - 8), \
+        'loaded ramp must be trimmed of the 4-pixel reference border on each side'
+    assert head1['HXRGGRUP'] == ngroups, \
+        'the group count must be read from the metadata header'
+    # Reads must be in time order: interior signal strictly accumulates
+    interior_means = reads[:, 10:-10, 10:-10].mean(axis=(1, 2))
+    assert np.all(np.diff(interior_means) > 0), \
+        'reads must be returned in time order so the interior signal accumulates'
+
+
+def test_calibrate_sigma_recovers_truth():
+    ngroups, sig, gain, grptime = 15, 8., 0.95, 2.
+    hdu = synth_ramp_hdulist(ngroups, rate=2., sig=sig, gain=gain,
+                             grptime=grptime, seed=7)
+    reads, head1 = mmt_mmirs.mmirs_load_ramp(hdu)
+    reads *= gain                              # ADU -> electrons
+    covar = fitramp.Covar([grptime * (i + 1) for i in range(ngroups)])
+    diffs = mmt_mmirs.mmirs_ramp_diffs(reads, covar)
+    sig_cal = mmt_mmirs.mmirs_calibrate_sigma(diffs, covar)
+    assert np.abs(sig_cal - sig) < 1.5, \
+        f'calibrated read noise {sig_cal} must recover the injected sigma {sig}'
+
+
+def test_calibrate_sigma_returns_uncertainty():
+    """With return_err=True the calibration also returns a finite, positive
+    bootstrap uncertainty, and the point estimate still recovers the truth."""
+    ngroups, sig, gain, grptime = 15, 8., 0.95, 2.
+    hdu = synth_ramp_hdulist(ngroups, rate=2., sig=sig, gain=gain,
+                             grptime=grptime, seed=7)
+    reads, head1 = mmt_mmirs.mmirs_load_ramp(hdu)
+    reads *= gain
+    covar = fitramp.Covar([grptime * (i + 1) for i in range(ngroups)])
+    diffs = mmt_mmirs.mmirs_ramp_diffs(reads, covar)
+    sig_cal, sig_err = mmt_mmirs.mmirs_calibrate_sigma(diffs, covar,
+                                                       return_err=True)
+    assert np.abs(sig_cal - sig) < 1.5, \
+        f'calibrated read noise {sig_cal} must recover the injected sigma {sig}'
+    assert np.isfinite(sig_err) and sig_err > 0., \
+        f'the bootstrap uncertainty must be finite and positive, got {sig_err}'
+    # Deterministic: same seed -> identical uncertainty.
+    _, sig_err2 = mmt_mmirs.mmirs_calibrate_sigma(diffs, covar, return_err=True)
+    assert sig_err == sig_err2, \
+        'the uncertainty must be deterministic for a fixed seed'
+
+
+def test_fit_ramp_recovers_rate():
+    ngroups, rate, sig, gain, grptime = 8, 20., 8., 0.95, 2.
+    hdu = synth_ramp_hdulist(ngroups, rate=rate, sig=sig, gain=gain,
+                             grptime=grptime, seed=3)
+    reads, head1 = mmt_mmirs.mmirs_load_ramp(hdu)
+    reads *= gain
+    covar = fitramp.Covar([grptime * (i + 1) for i in range(ngroups)])
+    diffs = mmt_mmirs.mmirs_ramp_diffs(reads, covar)
+    countrate = mmt_mmirs.mmirs_fit_ramp(diffs, covar, sig)
+    interior = countrate[10:-10, 10:-10]
+    assert np.abs(np.median(interior) - rate) < 1.0, \
+        f'fitted count rate {np.median(interior)} must recover the injected {rate}'
+
+
+def test_fit_ramp_threaded_matches_serial():
+    """Threaded, chunked fitting must be numerically identical to the serial
+    row-by-row fit for both the count-rate fit and the noise calibration."""
+    ngroups, gain, grptime = 10, 0.95, 2.
+    # Detector well beyond one chunk (nb=16) so multiple blocks are dispatched
+    # (kept square: mmirs_read_amp assumes a square frame).
+    hdu = synth_ramp_hdulist(ngroups, ny=96, nx=96, rate=20., sig=8.,
+                             gain=gain, grptime=grptime, seed=11)
+    reads, head1 = mmt_mmirs.mmirs_load_ramp(hdu)
+    reads *= gain
+    covar = fitramp.Covar([grptime * (i + 1) for i in range(ngroups)])
+    diffs = mmt_mmirs.mmirs_ramp_diffs(reads, covar)
+
+    serial = mmt_mmirs.mmirs_fit_ramp(diffs, covar, 8., workers=1)
+    threaded = mmt_mmirs.mmirs_fit_ramp(diffs, covar, 8., workers=4)
+    assert np.array_equal(serial, threaded, equal_nan=True), \
+        'threaded, chunked ramp fitting must be numerically identical to serial'
+
+    sig_serial = mmt_mmirs.mmirs_calibrate_sigma(diffs, covar, workers=1, nrows=40)
+    sig_threaded = mmt_mmirs.mmirs_calibrate_sigma(diffs, covar, workers=4, nrows=40)
+    assert sig_serial == sig_threaded, \
+        'threaded noise calibration must match the serial result exactly'
+
+
+def test_ramp_fit_forwards_configured_chunk_rows(monkeypatch):
+    """A [rdx] ramp_fit_chunk_rows override must reach the ramp-fitting helper
+    (previously it was stored but never passed, so it had no effect)."""
+    spec = load_spectrograph('mmt_mmirs')
+    spec.ramp_fit_chunk_rows = 7
+    spec._ramp_sigma = 8.0                       # force noise; skip calibration
+
+    seen = {}
+
+    def fake_fit(diffs, covar, sig, workers=None, nb=16):
+        seen['nb'] = nb
+        return np.zeros(diffs.shape[1:])
+    monkeypatch.setattr(mmt_mmirs, 'mmirs_fit_ramp', fake_fit)
+
+    hdu = synth_ramp_hdulist(6, seed=31)
+    detector_par = spec.get_detector_par(1, hdu=hdu)
+    spec._ramp_fit_image(hdu, detector_par)
+    assert seen['nb'] == 7, \
+        'the configured ramp_fit_chunk_rows must be forwarded to mmirs_fit_ramp'
+
+
+def test_effective_ronoise_formula():
+    """Monte-Carlo check: total-count noise of a fitted pure-noise ramp."""
+    rng = np.random.default_rng(99)
+    ngroups, npix, sig, grptime = 20, 2000, 10., 2.
+    covar = fitramp.Covar([grptime * (i + 1) for i in range(ngroups)])
+    reads = rng.normal(0., sig, size=(ngroups, npix))
+    diffs = np.diff(reads, axis=0) / np.asarray(covar.delta_t)[:, None]
+    sig_arr = np.full(npix, sig)
+    result = fitramp.fit_ramps(diffs, covar, sig_arr,
+                               countrateguess=np.zeros(npix))
+    total_exp = grptime * (ngroups - 1)
+    measured = np.std(result.countrate * total_exp)
+    expected = mmt_mmirs.mmirs_effective_ronoise(sig, ngroups)
+    assert np.abs(measured / expected - 1.) < 0.06, \
+        f'the effective read-noise formula ({expected}) must match the ' \
+        f'Monte-Carlo total-count noise ({measured})'
+
+
+def _write_synth(hdulist, path):
+    hdulist.writeto(path, overwrite=True)
+    return path
+
+
+def _metadata_for(files, idnames):
+    """Minimal PypeItMetaData carrying directory/filename/idname columns."""
+    spec = load_spectrograph('mmt_mmirs')
+    par = spec.default_pypeit_par()
+    data = Table({'filename': [f.name for f in files],
+                  'directory': [str(f.parent) for f in files],
+                  'idname': idnames})
+    fitstbl = PypeItMetaData(spec, par=par, data=data)
+    return spec, fitstbl
+
+
+def test_setup_warns_and_skips_single_hdu_file(tmp_path, monkeypatch):
+    raw = _write_synth(synth_ramp_hdulist(4), tmp_path / 'sci.fits')
+    bad_files = [tmp_path / 'extra.fits', tmp_path / 'intra.fits']
+    for bad_file in bad_files:
+        fits.PrimaryHDU(np.zeros((80, 80))).writeto(bad_file)
+
+    warnings = []
+    monkeypatch.setattr(log, 'warning',
+                        lambda message, *args, **kwargs: warnings.append(message))
+    setup = PypeItSetup.from_file_root(tmp_path, 'mmt_mmirs')
+    _, _, fitstbl = setup.run(setup_only=True)
+
+    assert fitstbl['filename'].tolist() == [raw.name], \
+        'single-HDU files must be skipped, leaving only the valid ramp file'
+    assert any('Skipping this file' in message for message in warnings), \
+        'a warning must be issued for each skipped single-HDU file'
+
+    with pytest.raises(IndexError):
+        PypeItMetaData(setup.spectrograph, par=setup.par,
+                       files=[bad_files[0]], strict=True)
+
+
+def test_cache_metadata_records_darks(tmp_path):
+    sci = _write_synth(synth_ramp_hdulist(4, seed=11), tmp_path / 'sci.fits')
+    dark = _write_synth(synth_ramp_hdulist(12, rate=0.1, seed=12,
+                                           imagetyp='dark'),
+                        tmp_path / 'dark.fits')
+    spec, fitstbl = _metadata_for([sci, dark], ['object', 'dark'])
+    # cache_metadata ran inside PypeItMetaData construction (Task 2 hook)
+    assert spec._ramp_dark_files == [dark], \
+        'cache_metadata must record the dark frames for read-noise calibration'
+    # ... and recorded the reduction directory for RampFit output
+    assert spec._ramp_output_dir == Path(fitstbl.par['rdx']['redux_path']), \
+        'cache_metadata must record the reduction dir for RampFit output'
+
+
+def test_cache_metadata_applies_rdx_ramp_overrides(tmp_path):
+    """[rdx] ramp_fit_cores / ramp_fit_chunk_rows override the class defaults."""
+    sci = _write_synth(synth_ramp_hdulist(4, seed=31), tmp_path / 'sci.fits')
+    spec = load_spectrograph('mmt_mmirs')
+    default_workers = spec.ramp_fit_workers
+    default_chunk = spec.ramp_fit_chunk_rows
+
+    par = spec.default_pypeit_par()
+    par['rdx']['ramp_fit_cores'] = 3
+    par['rdx']['ramp_fit_chunk_rows'] = 40
+    data = Table({'filename': [sci.name], 'directory': [str(sci.parent)],
+                  'idname': ['object']})
+    # Construction triggers the cache_metadata hook.
+    PypeItMetaData(spec, par=par, data=data)
+
+    assert spec.ramp_fit_workers == 3, \
+        'the [rdx] ramp_fit_cores override must set the instance worker count'
+    assert spec.ramp_fit_chunk_rows == 40, \
+        'the [rdx] ramp_fit_chunk_rows override must set the instance chunk size'
+    assert mmt_mmirs.MMTMMIRSSpectrograph.ramp_fit_workers == default_workers, \
+        'the override must not mutate the class default'
+    assert mmt_mmirs.MMTMMIRSSpectrograph.ramp_fit_chunk_rows == default_chunk, \
+        'the override must not mutate the class default'
+
+
+def test_cache_metadata_keeps_ramp_defaults_when_unset(tmp_path):
+    """With no [rdx] override, the ramp-fit class defaults are left untouched."""
+    sci = _write_synth(synth_ramp_hdulist(4, seed=32), tmp_path / 'sci.fits')
+    spec, _ = _metadata_for([sci], ['object'])
+    assert spec.ramp_fit_workers == mmt_mmirs.MMTMMIRSSpectrograph.ramp_fit_workers, \
+        'with no override the instance must keep the class-default worker count'
+    assert spec.ramp_fit_chunk_rows == mmt_mmirs.MMTMMIRSSpectrograph.ramp_fit_chunk_rows, \
+        'with no override the instance must keep the class-default chunk size'
+
+
+def test_ramp_sigma_from_dark_and_cached(tmp_path):
+    sig_true = 8.
+    sci = _write_synth(synth_ramp_hdulist(6, rate=20., sig=sig_true, seed=21),
+                       tmp_path / 'sci.fits')
+    dark = _write_synth(synth_ramp_hdulist(12, rate=0.1, sig=sig_true, seed=22,
+                                           imagetyp='dark'),
+                        tmp_path / 'dark.fits')
+    spec, _ = _metadata_for([sci, dark], ['object', 'dark'])
+
+    gain, grptime, ngroups = 0.95, 2., 6
+    with fits.open(sci) as hdu:
+        reads, head1 = mmt_mmirs.mmirs_load_ramp(hdu)
+    covar = fitramp.Covar([grptime * (i + 1) for i in range(ngroups)])
+    diffs = mmt_mmirs.mmirs_ramp_diffs(reads * gain, covar)
+
+    sig = spec.get_ramp_sigma(diffs, covar)
+    assert np.abs(sig - sig_true) < 1.5, \
+        f'the dark-calibrated read noise {sig} must recover the truth {sig_true}'
+    assert spec._ramp_sigma_cache[(None, None)] == sig, \
+        'the calibrated read noise must be cached'
+    # Cached: works even after the dark file disappears
+    dark.unlink()
+    assert spec.get_ramp_sigma(diffs, covar) == sig, \
+        'the cached value must be returned even after the dark file is gone'
+
+
+def test_ramp_sigma_weighted_mean_over_darks(tmp_path, monkeypatch):
+    """Read noise is the inverse-variance weighted mean over all darks with
+    enough reads, weighted by each dark's calibrated-noise uncertainty."""
+    sci = _write_synth(synth_ramp_hdulist(6, seed=201), tmp_path / 'sci.fits')
+    d1 = _write_synth(synth_ramp_hdulist(12, imagetyp='dark', seed=202),
+                      tmp_path / 'd1.fits')
+    d2 = _write_synth(synth_ramp_hdulist(15, imagetyp='dark', seed=203),
+                      tmp_path / 'd2.fits')
+    spec, _ = _metadata_for([sci, d1, d2], ['object', 'dark', 'dark'])
+
+    # Controlled (sigma, err) per dark, keyed by ndiffs (= nreads - 1).
+    controlled = {11: (8.0, 1.0), 14: (6.0, 2.0)}
+
+    def fake_calib(diffs, covar, **kwargs):
+        return controlled[diffs.shape[0]]
+    monkeypatch.setattr(mmt_mmirs, 'mmirs_calibrate_sigma', fake_calib)
+
+    covar = fitramp.Covar([2. * (i + 1) for i in range(6)])
+    sig = spec.get_ramp_sigma(np.zeros((5, 4, 4)), covar)
+    w1, w2 = 1. / 1.0 ** 2, 1. / 2.0 ** 2
+    expected = (w1 * 8.0 + w2 * 6.0) / (w1 + w2)
+    assert np.isclose(sig, expected), \
+        'read noise must be the inverse-variance weighted mean over the darks'
+    assert spec._ramp_sigma_cache[(None, None)] == sig, \
+        'the combined read noise must be cached'    # cached
+
+
+def test_ramp_sigma_reports_max_of_ivar_err_and_sem(tmp_path, monkeypatch):
+    """The logged combined uncertainty is max(inverse-variance err, SEM), so
+    the larger between-dark scatter is not hidden by tiny within-dark errors."""
+    sci = _write_synth(synth_ramp_hdulist(6, seed=221), tmp_path / 'sci.fits')
+    d1 = _write_synth(synth_ramp_hdulist(12, imagetyp='dark', seed=222),
+                      tmp_path / 'd1.fits')
+    d2 = _write_synth(synth_ramp_hdulist(15, imagetyp='dark', seed=223),
+                      tmp_path / 'd2.fits')
+    spec, _ = _metadata_for([sci, d1, d2], ['object', 'dark', 'dark'])
+
+    controlled = {11: (8.0, 1.0), 14: (6.0, 2.0)}
+
+    def fake_calib(diffs, covar, **kwargs):
+        return controlled[diffs.shape[0]]
+    monkeypatch.setattr(mmt_mmirs, 'mmirs_calibrate_sigma', fake_calib)
+
+    infos = []
+    monkeypatch.setattr(log, 'info',
+                        lambda message, *a, **k: infos.append(message))
+
+    covar = fitramp.Covar([2. * (i + 1) for i in range(6)])
+    spec.get_ramp_sigma(np.zeros((5, 4, 4)), covar)
+
+    # inverse-variance err = sqrt(1/(1+0.25)) = 0.894; SEM (ddof=1) over
+    # {8,6} = sqrt(2)/sqrt(2) = 1.000 -> the SEM wins.
+    assert any('+/- 1.00 e-' in m for m in infos), \
+        'the logged uncertainty must be max(inverse-variance err, SEM) = 1.00'
+
+
+def test_ramp_sigma_cached_per_exptime(monkeypatch):
+    """The dark-calibrated noise is cached per (exptime, ron_floor): frames of
+    different EXPTIME must not share a value (effective noise grows with the
+    ramp length), and a repeat lookup at the same exptime hits the cache."""
+    spec = load_spectrograph('mmt_mmirs')
+    calls = []
+
+    def fake_darks(exptime=None):
+        calls.append(exptime)
+        # Effective per-read noise grows with ramp length / exposure time.
+        return [('d', 6.0 if exptime == 10.0 else 9.0, 1.0)]
+    monkeypatch.setattr(spec, '_ramp_dark_sigmas', fake_darks)
+
+    covar = fitramp.Covar([2. * (i + 1) for i in range(6)])
+    diffs = np.zeros((5, 4, 4))
+    s10 = spec.get_ramp_sigma(diffs, covar, exptime=10.0)
+    s300 = spec.get_ramp_sigma(diffs, covar, exptime=300.0)
+    assert (s10, s300) == (6.0, 9.0), \
+        'read noise must be cached per exptime (effective noise grows with ramp length)'
+    assert calls == [10.0, 300.0], \
+        'each distinct exptime must trigger its own dark lookup'
+    # A repeat at an already-seen exptime is served from the cache.
+    assert spec.get_ramp_sigma(diffs, covar, exptime=10.0) == s10, \
+        'a repeat lookup at the same exptime must return the cached value'
+    assert calls == [10.0, 300.0], \
+        'a cached exptime must not trigger a new dark lookup'               # no new dark lookup
+
+
+def test_ramp_sigma_ignores_darks_with_too_few_reads(tmp_path, monkeypatch):
+    """A dark with fewer than ramp_min_cal_groups reads is not calibrated
+    and does not contribute to the combined read noise."""
+    sci = _write_synth(synth_ramp_hdulist(6, seed=211), tmp_path / 'sci.fits')
+    good = _write_synth(synth_ramp_hdulist(12, imagetyp='dark', seed=212),
+                        tmp_path / 'good.fits')
+    few = load_spectrograph('mmt_mmirs').ramp_min_cal_groups - 1
+    shallow = _write_synth(synth_ramp_hdulist(few, imagetyp='dark', seed=213),
+                           tmp_path / 'shallow.fits')
+    spec, _ = _metadata_for([sci, good, shallow], ['object', 'dark', 'dark'])
+
+    seen = []
+
+    def fake_calib(diffs, covar, **kwargs):
+        seen.append(diffs.shape[0])
+        return (7.0, 1.0)
+    monkeypatch.setattr(mmt_mmirs, 'mmirs_calibrate_sigma', fake_calib)
+
+    covar = fitramp.Covar([2. * (i + 1) for i in range(6)])
+    sig = spec.get_ramp_sigma(np.zeros((5, 4, 4)), covar)
+    assert seen == [11], \
+        'a dark with too few reads must be skipped, not calibrated'    # only the 12-read dark calibrated
+    assert np.isclose(sig, 7.0), \
+        'the read noise must come from the single qualifying dark'
+
+
+def test_ramp_sigma_matches_dark_exptime_to_science(tmp_path, monkeypatch):
+    """Only darks whose EXPTIME matches the science frame are calibrated, so
+    the effective read noise is measured at the science ramp depth."""
+    # synth EXPTIME = grptime*(ngroups-1); grptime defaults to 2 s.
+    sci = _write_synth(synth_ramp_hdulist(20, seed=241), tmp_path / 'sci.fits')
+    match = _write_synth(synth_ramp_hdulist(20, imagetyp='dark', seed=242),
+                         tmp_path / 'match.fits')          # EXPTIME 38 s
+    other = _write_synth(synth_ramp_hdulist(12, imagetyp='dark', seed=243),
+                         tmp_path / 'other.fits')          # EXPTIME 22 s
+    spec, _ = _metadata_for([sci, match, other], ['object', 'dark', 'dark'])
+
+    seen = []
+
+    def fake_calib(diffs, covar, **kwargs):
+        seen.append(diffs.shape[0])
+        return (9.0, 1.0)
+    monkeypatch.setattr(mmt_mmirs, 'mmirs_calibrate_sigma', fake_calib)
+
+    covar = fitramp.Covar([2. * (i + 1) for i in range(20)])
+    sig = spec.get_ramp_sigma(np.zeros((19, 4, 4)), covar, exptime=2. * 19)
+    assert seen == [19], \
+        'only the dark whose EXPTIME matches the science frame may be calibrated'    # only the 20-read (matched) dark
+    assert np.isclose(sig, 9.0), \
+        'the read noise must come from the exptime-matched dark'
+
+
+def test_ramp_sigma_no_exptime_match_falls_back(tmp_path):
+    """Darks are recorded but none match the science EXPTIME -> self-calibrate
+    from the frame rather than use a mismatched-depth dark."""
+    sig_true = 8.
+    gain, grptime = 0.95, 2.
+    sci = _write_synth(synth_ramp_hdulist(15, rate=2., sig=sig_true, gain=gain,
+                                          grptime=grptime, seed=251),
+                       tmp_path / 'sci.fits')              # EXPTIME 28 s
+    dark = _write_synth(synth_ramp_hdulist(12, rate=0.1, sig=sig_true,
+                                           imagetyp='dark', seed=252),
+                        tmp_path / 'dark.fits')            # EXPTIME 22 s
+    spec, _ = _metadata_for([sci, dark], ['object', 'dark'])
+
+    reads, head1 = mmt_mmirs.mmirs_load_ramp(fits.open(sci))
+    covar = fitramp.Covar([grptime * (i + 1) for i in range(15)])
+    diffs = mmt_mmirs.mmirs_ramp_diffs(reads * gain, covar)
+
+    sig = spec.get_ramp_sigma(diffs, covar, exptime=grptime * 14)
+    assert np.abs(sig - sig_true) < 1.5, \
+        'with no exptime-matched dark, sigma must be self-caled from the frame'       # self-caled from the science frame
+    assert spec._ramp_sigma is None, \
+        'a self-calibrated sigma must not be cached'           # self-cal not cached
+
+
+def test_ramp_sigma_floored_at_header_rdnoise(tmp_path, monkeypatch):
+    """A derived noise below the header RDNOISE floor is clamped up to it, since
+    values below the instantaneous read noise are unphysical."""
+    sci = _write_synth(synth_ramp_hdulist(12, seed=261), tmp_path / 'sci.fits')
+    dark = _write_synth(synth_ramp_hdulist(12, imagetyp='dark', seed=262),
+                        tmp_path / 'dark.fits')
+    spec, _ = _metadata_for([sci, dark], ['object', 'dark'])
+    monkeypatch.setattr(mmt_mmirs, 'mmirs_calibrate_sigma',
+                        lambda d, c, **k: (2.0, 1.0))     # below the 3.14 floor
+
+    covar = fitramp.Covar([2. * (i + 1) for i in range(12)])
+    sig = spec.get_ramp_sigma(np.zeros((11, 4, 4)), covar, exptime=2. * 11,
+                              ron_floor=3.14)
+    assert np.isclose(sig, 3.14), \
+        'a derived noise below the header RDNOISE floor must be clamped up to it'
+
+
+def test_get_detector_par_reads_rdnoise_from_header():
+    """The detector read noise is taken from the header RDNOISE (ground truth),
+    falling back to the built-in default only when no header is available."""
+    spec = load_spectrograph('mmt_mmirs')
+    assert spec.get_detector_par(1)['ronoise'][0] == 3.14, \
+        'with no hdu the detector read noise must fall back to the default'      # no hdu -> default
+    hdu = synth_ramp_hdulist(6, seed=271)
+    hdu[1].header['RDNOISE'] = 4.5
+    assert spec.get_detector_par(1, hdu=hdu)['ronoise'][0] == 4.5, \
+        'the detector read noise must be taken from the header RDNOISE card'
+
+
+def test_ramp_sigma_selfcal_fallback(tmp_path):
+    """No darks recorded, but enough groups -> self-calibrate from the frame."""
+    sig_true = 8.
+    gain, grptime, ngroups = 0.95, 2., 15
+    hdu = synth_ramp_hdulist(ngroups, rate=2., sig=sig_true, gain=gain,
+                             grptime=grptime, seed=31)
+    reads, head1 = mmt_mmirs.mmirs_load_ramp(hdu)
+    covar = fitramp.Covar([grptime * (i + 1) for i in range(ngroups)])
+    diffs = mmt_mmirs.mmirs_ramp_diffs(reads * gain, covar)
+
+    spec = load_spectrograph('mmt_mmirs')          # fresh: no darks recorded
+    sig = spec.get_ramp_sigma(diffs, covar)
+    assert np.abs(sig - sig_true) < 1.5, \
+        'with no darks but enough groups, sigma must self-calibrate to the truth'
+    assert spec._ramp_sigma is None, \
+        'a self-calibrated sigma must not be cached'                # self-cal is not cached
+
+
+def test_ramp_sigma_few_groups_uses_published_guess(tmp_path):
+    """Too few reads to self-calibrate and no dark -> the published guess."""
+    gain, grptime = 0.95, 2.
+    ngroups = load_spectrograph('mmt_mmirs').ramp_min_cal_groups - 1
+    hdu = synth_ramp_hdulist(ngroups, rate=2., sig=8., gain=gain,
+                             grptime=grptime, seed=131)
+    reads, head1 = mmt_mmirs.mmirs_load_ramp(hdu)
+    covar = fitramp.Covar([grptime * (i + 1) for i in range(ngroups)])
+    diffs = mmt_mmirs.mmirs_ramp_diffs(reads * gain, covar)
+
+    spec = load_spectrograph('mmt_mmirs')          # fresh: no darks recorded
+    sig = spec.get_ramp_sigma(diffs, covar)
+    # No fit is attempted; the published per-read noise is returned verbatim.
+    assert sig == spec.ramp_sig_guess, \
+        'too few groups and no dark must return the published read-noise guess'
+    assert spec._ramp_sigma is None, \
+        'the published guess must not be cached'                # not cached
+
+
+def test_ramp_sigma_missing_dark_falls_back(tmp_path):
+    """A recorded dark that vanishes before first use -> self-cal fallback."""
+    sig_true = 8.
+    gain, grptime, ngroups = 0.95, 2., 15
+    sci = _write_synth(synth_ramp_hdulist(ngroups, rate=2., sig=sig_true,
+                                          gain=gain, grptime=grptime, seed=61),
+                       tmp_path / 'sci.fits')
+    dark = _write_synth(synth_ramp_hdulist(12, rate=0.1, sig=sig_true, seed=62,
+                                           imagetyp='dark'),
+                        tmp_path / 'dark.fits')
+    spec, _ = _metadata_for([sci, dark], ['object', 'dark'])
+    dark.unlink()                     # dark disappears before any sigma call
+
+    with fits.open(sci) as hdu:
+        reads, head1 = mmt_mmirs.mmirs_load_ramp(hdu)
+    covar = fitramp.Covar([grptime * (i + 1) for i in range(ngroups)])
+    diffs = mmt_mmirs.mmirs_ramp_diffs(reads * gain, covar)
+
+    sig = spec.get_ramp_sigma(diffs, covar)
+    assert np.abs(sig - sig_true) < 1.5, \
+        'a recorded dark that vanishes must fall back to self-cal, recovering the truth'
+    assert spec._ramp_sigma is None, \
+        'the self-cal fallback must not be cached'   # fell back to self-cal, not cached
+
+
+def test_get_rawimage_ramp_path(tmp_path):
+    ngroups, ny, nx, rate, gain, grptime = 6, 64, 64, 20., 0.95, 2.
+    exptime = grptime * (ngroups - 1)
+    path = _write_synth(synth_ramp_hdulist(ngroups, ny=ny, nx=nx, rate=rate,
+                                           gain=gain, grptime=grptime,
+                                           seed=41),
+                        tmp_path / 'sci_ramp.fits')
+    spec = load_spectrograph('mmt_mmirs')
+    spec._ramp_output_dir = tmp_path
+    detpar, img, hdu, exp, rdsec, oscan = spec.get_rawimage(str(path), 1)
+    assert img.shape == (ny - 8, nx - 8), \
+        'the ramp-fit image must be trimmed of the reference-pixel border'
+    assert exp == exptime, 'the returned exposure time must match the ramp length'
+    # Effective read noise replaced the CDS default of 3.14
+    assert detpar['ronoise'][0] != 3.14, \
+        'the ramp path must replace the CDS default read noise'
+    assert detpar['ronoise'][0] < 15., \
+        'the effective read noise must be physically reasonable'
+    # Rate recovery: image is ADU; convert back to e-/s
+    rate_meas = np.median(img) * gain / exptime
+    assert np.abs(rate_meas - rate) < 1.5, \
+        f'the recovered count rate {rate_meas} must match the injected {rate}'
+
+
+@pytest.mark.parametrize('ngroups', [2, 4])
+def test_get_rawimage_cds_path(tmp_path, ngroups):
+    """Frames below ramp_min_reads (5) must use the unchanged CDS path; 4 reads
+    is above the old threshold of 3, so this guards the raised minimum."""
+    spec = load_spectrograph('mmt_mmirs')
+    assert ngroups < spec.ramp_min_reads, \
+        'this test must exercise a read count below the ramp-fit minimum'
+    path = _write_synth(synth_ramp_hdulist(ngroups, ny=64, nx=64, rate=20.,
+                                           seed=51),
+                        tmp_path / 'sci_cds.fits')
+    spec._ramp_output_dir = tmp_path
+    detpar, img, hdu, exp, rdsec, oscan = spec.get_rawimage(str(path), 1)
+    assert img.shape == (56, 56), \
+        'the CDS image must be trimmed of the reference-pixel border'
+    assert detpar['ronoise'][0] == 3.14, \
+        'the CDS path must keep the header/default read noise'
+    # CDS frames never get a preprocessed sidecar
+    assert not mmt_mmirs.mmirs_rampfit_path(path, tmp_path).exists(), \
+        'a CDS frame must not produce a RampFit sidecar'
+
+
+def test_findobj_trace_defaults():
+    par = load_spectrograph('mmt_mmirs').default_pypeit_par()
+    assert par['reduce']['findobj']['trace_npoly'] == 1, \
+        'MMIRS default trace_npoly must be 1'
+    assert par['reduce']['findobj']['trace_maxdev'] == 50., \
+        'MMIRS default trace_maxdev must be 50'
+    assert par['reduce']['findobj']['trace_maxshift'] == 20., \
+        'MMIRS default trace_maxshift must be 20'
+
+
+def test_rampfit_path():
+    p = mmt_mmirs.mmirs_rampfit_path('/data/raw/sci.0001.fits', '/data/rdx')
+    assert p == Path('/data/rdx/RampFit/sci.0001.fits'), \
+        'the sidecar path must be <redux>/RampFit/<raw basename>'
+
+
+def test_write_rampfit_roundtrip(tmp_path):
+    ngroups = 6
+    raw = _write_synth(synth_ramp_hdulist(ngroups, rate=20., seed=71),
+                       tmp_path / 'sci.fits')
+    spec = load_spectrograph('mmt_mmirs')
+    with fits.open(raw) as hdu:
+        detpar = spec.get_detector_par(1, hdu=hdu)
+        rate, sig, eff = spec._ramp_fit_image(hdu, detpar)
+        sidecar = mmt_mmirs.mmirs_rampfit_path(raw, tmp_path)
+        mmt_mmirs.mmirs_write_rampfit(sidecar, rate, hdu, sig, eff,
+                                      raw.stat().st_mtime)
+    assert sidecar == tmp_path / 'RampFit' / 'sci.fits', \
+        'the sidecar must land in the RampFit subdir under the redux path'
+    assert sidecar.exists(), 'mmirs_write_rampfit must create the sidecar file'
+    with fits.open(sidecar) as shdu:
+        assert shdu[0].header['RAMPFIT'], 'the sidecar must be flagged RAMPFIT'
+        assert shdu[0].header['NGROUPS'] == ngroups, \
+            'the sidecar must record the source ramp group count'
+        assert np.isclose(shdu[0].header['RAMPSIG'], sig), \
+            'the sidecar must record the calibrated read noise'
+        assert np.isclose(shdu[0].header['RAMPRON'], eff), \
+            'the sidecar must record the effective read noise'
+        assert shdu[1].header['BUNIT'] == 'e-/s', \
+            'the fitted image is a count rate in e-/s'
+        assert shdu[1].header['DATASEC'] == \
+                f'[1:{rate.shape[0]},1:{rate.shape[1]}]', \
+            'the sidecar DATASEC must span the full fitted image'
+        # Metadata cards preserved for pypeit_setup on RampFit dirs
+        assert shdu[1].header['IMAGETYP'] == 'object', \
+            'IMAGETYP must be preserved so pypeit_setup can type the sidecar'
+        assert shdu[1].header['EXPTIME'] == 10., \
+            'EXPTIME must be preserved on the sidecar'
+        np.testing.assert_allclose(shdu[1].data, rate, rtol=1e-5, atol=1e-3)
+    assert mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw), \
+        'a just-written sidecar must be fresh for its raw source'
+    # Bumping the raw mtime makes the sidecar stale
+    st = raw.stat()
+    os.utime(raw, (st.st_atime, st.st_mtime + 10.))
+    assert not mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw), \
+        'bumping the raw mtime must make the sidecar stale'
+
+
+def test_rampfit_fresh_rejects_mismatched_source(tmp_path):
+    """A sidecar records its source raw cube (RAWPATH); a same-named raw file
+    from a different directory must not be treated as a fresh match, even when
+    the modification times happen to agree.  MMIRS raw names are only unique
+    within a program, so two directories can hold the same file name."""
+    ngroups = 6
+    (tmp_path / 'night1').mkdir()
+    (tmp_path / 'night2').mkdir()
+    raw1 = _write_synth(synth_ramp_hdulist(ngroups, rate=20., seed=81),
+                        tmp_path / 'night1' / 'sci.0001.fits')
+    raw2 = _write_synth(synth_ramp_hdulist(ngroups, rate=20., seed=82),
+                        tmp_path / 'night2' / 'sci.0001.fits')
+    # Force identical mtimes so only RAWPATH can distinguish the two cubes.
+    st = raw1.stat()
+    os.utime(raw2, (st.st_atime, st.st_mtime))
+
+    spec = load_spectrograph('mmt_mmirs')
+    with fits.open(raw1) as hdu:
+        detpar = spec.get_detector_par(1, hdu=hdu)
+        rate, sig, eff = spec._ramp_fit_image(hdu, detpar)
+        sidecar = mmt_mmirs.mmirs_rampfit_path(raw1, tmp_path)
+        mmt_mmirs.mmirs_write_rampfit(sidecar, rate, hdu, sig, eff,
+                                      raw1.stat().st_mtime, raw_file=raw1)
+    # Both cubes map to the same sidecar path (identical basename).
+    assert mmt_mmirs.mmirs_rampfit_path(raw2, tmp_path) == sidecar, \
+        'same-named raw cubes map to the same sidecar path'
+    assert fits.getval(sidecar, 'RAWPATH') == str(raw1.resolve()), \
+        'the sidecar must record the resolved path of its source cube'
+    # Fresh for its own source, stale for the same-named cube elsewhere.
+    assert mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw1), \
+        'the sidecar must be fresh for the cube it was built from'
+    assert not mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw2), \
+        'RAWPATH must distinguish a same-named cube from another directory'
+
+
+def test_write_rampfit_atomic_on_failure(tmp_path, monkeypatch):
+    """A crash/full-disk mid-writeto must not leave a truncated sidecar."""
+    ngroups = 6
+    raw = _write_synth(synth_ramp_hdulist(ngroups, rate=20., seed=75),
+                       tmp_path / 'sci.fits')
+    spec = load_spectrograph('mmt_mmirs')
+    with fits.open(raw) as hdu:
+        detpar = spec.get_detector_par(1, hdu=hdu)
+        rate, sig, eff = spec._ramp_fit_image(hdu, detpar)
+        sidecar = mmt_mmirs.mmirs_rampfit_path(raw, tmp_path)
+
+        def boom(self, *args, **kwargs):
+            raise OSError('disk full')
+        monkeypatch.setattr(fits.HDUList, 'writeto', boom)
+
+        with pytest.raises(OSError):
+            mmt_mmirs.mmirs_write_rampfit(sidecar, rate, hdu, sig, eff,
+                                          raw.stat().st_mtime)
+    assert not sidecar.exists(), \
+        'a failed write must not leave a partial sidecar'
+    assert sidecar.parent.exists(), 'the RampFit directory must still exist'
+    assert not list(sidecar.parent.glob('*.tmp*')), \
+        'a failed atomic write must leave no temporary file behind'
+
+
+def test_rampfit_fresh_missing_or_invalid(tmp_path):
+    raw = _write_synth(synth_ramp_hdulist(4, seed=72), tmp_path / 'sci.fits')
+    sidecar = mmt_mmirs.mmirs_rampfit_path(raw, tmp_path)
+    # No sidecar
+    assert not mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw), \
+        'a missing sidecar must be reported as not fresh'
+    # Sidecar without RAWMTIME card
+    sidecar.parent.mkdir()
+    fits.PrimaryHDU().writeto(sidecar)
+    assert not mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw), \
+        'a sidecar lacking the freshness cards must be reported as not fresh'
+
+
+def test_rampfit_fresh_missing_raw_file(tmp_path):
+    """A sidecar that outlives its raw file must be treated as not fresh."""
+    ngroups = 6
+    raw = _write_synth(synth_ramp_hdulist(ngroups, rate=20., seed=76),
+                       tmp_path / 'sci.fits')
+    spec = load_spectrograph('mmt_mmirs')
+    with fits.open(raw) as hdu:
+        detpar = spec.get_detector_par(1, hdu=hdu)
+        rate, sig, eff = spec._ramp_fit_image(hdu, detpar)
+        sidecar = mmt_mmirs.mmirs_rampfit_path(raw, tmp_path)
+        mmt_mmirs.mmirs_write_rampfit(sidecar, rate, hdu, sig, eff,
+                                      raw.stat().st_mtime)
+    raw.unlink()
+    assert mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw) is False, \
+        'a sidecar whose raw source is gone must be reported as not fresh'
+
+
+def test_count_reads():
+    hdu = synth_ramp_hdulist(5, seed=73)
+    assert mmt_mmirs.mmirs_count_reads(hdu) == 5, \
+        'mmirs_count_reads must count the ramp reads (image HDUs)'
+
+
+def test_get_rawimage_writes_and_reuses_sidecar(tmp_path, monkeypatch):
+    # No _ramp_output_dir recorded: exercises the cwd fallback
+    monkeypatch.chdir(tmp_path)
+    path = _write_synth(synth_ramp_hdulist(6, rate=20., seed=81),
+                        tmp_path / 'sci.fits')
+    spec = load_spectrograph('mmt_mmirs')
+    detpar1, img1, hdu1, exp1, _, _ = spec.get_rawimage(str(path), 1)
+    sidecar = mmt_mmirs.mmirs_rampfit_path(path, tmp_path)
+    assert sidecar.exists(), \
+        'the first ramp load must write a sidecar (cwd fallback)'
+    assert mmt_mmirs.mmirs_rampfit_fresh(sidecar, path), \
+        'the freshly-written sidecar must be fresh for its raw source'
+
+    # Second load must come from the sidecar: make refitting impossible
+    def boom(*args, **kwargs):
+        raise AssertionError('ramp was re-fit despite a fresh sidecar')
+    monkeypatch.setattr(mmt_mmirs, 'mmirs_fit_ramp', boom)
+    spec2 = load_spectrograph('mmt_mmirs')
+    detpar2, img2, hdu2, exp2, _, _ = spec2.get_rawimage(str(path), 1)
+    assert exp2 == exp1, 'the reused sidecar must yield the same exposure time'
+    np.testing.assert_allclose(img2, img1, rtol=1e-4, atol=1e-3)
+    assert np.isclose(detpar2['ronoise'][0], detpar1['ronoise'][0]), \
+        'the reused sidecar must yield the same effective read noise'
+    # Returned hdu is the preprocessed file, with metadata intact
+    assert hdu2[0].header['RAMPFIT'], \
+        'the reused load must return the preprocessed (RAMPFIT) file'
+    assert hdu2[1].header['IMAGETYP'] == 'object', \
+        'the preprocessed file must keep its IMAGETYP metadata'
+
+
+def test_get_rawimage_direct_preprocessed(tmp_path, monkeypatch):
+    """A preprocessed file itself (e.g. listed by setup on RampFit) loads."""
+    path = _write_synth(synth_ramp_hdulist(6, rate=20., seed=82),
+                        tmp_path / 'sci.fits')
+    spec = load_spectrograph('mmt_mmirs')
+    spec._ramp_output_dir = tmp_path
+    _, img1, *_ = spec.get_rawimage(str(path), 1)
+    sidecar = mmt_mmirs.mmirs_rampfit_path(path, tmp_path)
+
+    def boom(*args, **kwargs):
+        raise AssertionError('ramp was re-fit for a preprocessed input')
+    monkeypatch.setattr(mmt_mmirs, 'mmirs_fit_ramp', boom)
+    spec2 = load_spectrograph('mmt_mmirs')
+    detpar2, img2, hdu2, exp2, _, _ = spec2.get_rawimage(str(sidecar), 1)
+    np.testing.assert_allclose(img2, img1, rtol=1e-4, atol=1e-3)
+    assert np.isclose(detpar2['ronoise'][0],
+                      fits.getval(sidecar, 'RAMPRON')), \
+        'loading a preprocessed file directly must read its stored RAMPRON'
+
+
+def test_get_rawimage_stale_sidecar_refits(tmp_path):
+    path = _write_synth(synth_ramp_hdulist(6, rate=20., seed=83),
+                        tmp_path / 'sci.fits')
+    spec = load_spectrograph('mmt_mmirs')
+    spec._ramp_output_dir = tmp_path
+    spec.get_rawimage(str(path), 1)
+    sidecar = mmt_mmirs.mmirs_rampfit_path(path, tmp_path)
+    old_mtime = fits.getval(sidecar, 'RAWMTIME')
+
+    # Raw cube "changes": sidecar must be refit and rewritten
+    st = path.stat()
+    os.utime(path, (st.st_atime, st.st_mtime + 10.))
+    spec2 = load_spectrograph('mmt_mmirs')
+    spec2._ramp_output_dir = tmp_path
+    spec2.get_rawimage(str(path), 1)
+    assert fits.getval(sidecar, 'RAWMTIME') != old_mtime, \
+        'a stale sidecar must be refit and its RAWMTIME updated'
+    assert mmt_mmirs.mmirs_rampfit_fresh(sidecar, path), \
+        'the refit sidecar must be fresh again for the changed raw cube'
+
+
+def test_get_rawimage_unwritable_fallback(tmp_path, monkeypatch):
+    """Sidecar write failure must warn and continue, not raise."""
+    path = _write_synth(synth_ramp_hdulist(6, rate=20., seed=84),
+                        tmp_path / 'sci.fits')
+
+    def read_only(*args, **kwargs):
+        raise OSError('read-only filesystem')
+    monkeypatch.setattr(mmt_mmirs, 'mmirs_write_rampfit', read_only)
+    spec = load_spectrograph('mmt_mmirs')
+    spec._ramp_output_dir = tmp_path
+    detpar, img, *_ = spec.get_rawimage(str(path), 1)
+    assert img.shape == (56, 56), \
+        'the ramp fit must still return a trimmed image when the sidecar write fails'
+    assert detpar['ronoise'][0] != 3.14, \
+        'the in-memory ramp fit must still update the effective read noise'
+    assert not mmt_mmirs.mmirs_rampfit_path(path, tmp_path).exists(), \
+        'a failed sidecar write must leave no sidecar file'
+
+
+def test_mmirs_ramp_script(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)          # keep the log file out of the repo
+    raw = _write_synth(synth_ramp_hdulist(6, rate=20., seed=91),
+                       tmp_path / 'sci.fits')
+    FitRamp.main(FitRamp.parse_args(['mmt_mmirs', str(raw), '--sig', '8.0']))
+    sidecar = mmt_mmirs.mmirs_rampfit_path(raw, tmp_path)
+    assert sidecar.exists(), 'the fit_ramp script must write a sidecar'
+    assert np.isclose(fits.getval(sidecar, 'RAMPSIG'), 8.0), \
+        'the sidecar must record the --sig read noise passed to the script'
+
+    # Re-run without --force: fresh sidecar is skipped, file untouched
+    mtime_ns = sidecar.stat().st_mtime_ns
+    FitRamp.main(FitRamp.parse_args(['mmt_mmirs', str(raw), '--sig', '8.0']))
+    assert sidecar.stat().st_mtime_ns == mtime_ns, \
+        'a re-run without --force must skip a fresh sidecar, leaving it untouched'
+
+    # --force refits and overwrites
+    FitRamp.main(FitRamp.parse_args(['mmt_mmirs', str(raw), '--sig', '9.0', '--force']))
+    assert np.isclose(fits.getval(sidecar, 'RAMPSIG'), 9.0), \
+        '--force must refit and overwrite the sidecar with the new read noise'
+
+
+def test_mmirs_ramp_script_skips_few_reads(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    raw = _write_synth(synth_ramp_hdulist(2, seed=92), tmp_path / 'cds.fits')
+    FitRamp.main(FitRamp.parse_args(['mmt_mmirs', str(raw)]))    # must not raise
+    assert not mmt_mmirs.mmirs_rampfit_path(raw, tmp_path).exists(), \
+        'a CDS frame (too few reads) must be skipped, writing no sidecar'
+
+
+def test_mmirs_ramp_script_continues_after_write_failure(tmp_path, monkeypatch):
+    """A write failure for one file must not abort the rest of the batch."""
+    monkeypatch.chdir(tmp_path)
+    raw1 = _write_synth(synth_ramp_hdulist(6, rate=20., seed=95),
+                        tmp_path / 'sci1.fits')
+    raw2 = _write_synth(synth_ramp_hdulist(6, rate=20., seed=96),
+                        tmp_path / 'sci2.fits')
+    bad_sidecar = mmt_mmirs.mmirs_rampfit_path(raw1, tmp_path)
+    real_write_rampfit = mmt_mmirs.mmirs_write_rampfit
+
+    def flaky_write_rampfit(rampfit_file, *args, **kwargs):
+        if Path(rampfit_file) == bad_sidecar:
+            raise OSError('disk full')
+        return real_write_rampfit(rampfit_file, *args, **kwargs)
+    monkeypatch.setattr(mmt_mmirs, 'mmirs_write_rampfit', flaky_write_rampfit)
+
+    FitRamp.main(FitRamp.parse_args(['mmt_mmirs', str(raw1), str(raw2), '--sig', '8.0',
+                                         '--odir', str(tmp_path)]))
+    assert not bad_sidecar.exists(), \
+        'the file whose sidecar write failed must have no sidecar'
+    assert mmt_mmirs.mmirs_rampfit_path(raw2, tmp_path).exists(), \
+        'a write failure on one file must not abort processing of the rest'
+
+
+def test_mmirs_ramp_script_dark(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    sig_true = 8.
+    raw = _write_synth(synth_ramp_hdulist(6, rate=20., sig=sig_true, seed=93),
+                       tmp_path / 'sci.fits')
+    dark = _write_synth(synth_ramp_hdulist(12, rate=0.1, sig=sig_true,
+                                           seed=94, imagetyp='dark'),
+                        tmp_path / 'dark.fits')
+    FitRamp.main(FitRamp.parse_args(['mmt_mmirs', str(raw), '--dark', str(dark)]))
+    sidecar = mmt_mmirs.mmirs_rampfit_path(raw, tmp_path)
+    assert sidecar.exists(), 'the script must write a sidecar for the science frame'
+    assert np.abs(fits.getval(sidecar, 'RAMPSIG') - sig_true) < 1.5, \
+        'the --dark read noise must recover the injected sigma'
+
+
+def test_fit_ramp_script_rejects_unsupported_spectrograph(tmp_path, monkeypatch):
+    """A spectrograph without up-the-ramp support must be rejected up front."""
+    from pypeit import PypeItError
+    monkeypatch.chdir(tmp_path)
+    # The guard fires before any file is opened, so the path need not exist.
+    with pytest.raises(PypeItError):
+        FitRamp.main(FitRamp.parse_args(['shane_kast_blue',
+                                         str(tmp_path / 'nonexistent.fits')]))
+
+
+# ---------------------------------------------------------------------------
+# A-B nod dither support
+# ---------------------------------------------------------------------------
+
+def _dither_header(ra_deg, dec_deg, catra_deg, catdec_deg, posang, frameno):
+    """Build a 2-element headarr with MMIRS dither cards in ext 1."""
+    from astropy.coordinates import Angle
+    from astropy import units
+    h1 = fits.Header()
+    h1['RA'] = str(ra_deg / 15.0)                       # stored in hours
+    h1['DEC'] = str(dec_deg)
+    h1['CAT-RA'] = Angle(catra_deg, unit=units.deg).to_string(unit=units.deg, sep=':')
+    h1['CAT-DEC'] = Angle(catdec_deg, unit=units.deg).to_string(unit=units.deg, sep=':')
+    h1['POSANGLE'] = posang
+    h1['FILENAME'] = f'MMIRS/2019.0913/nep.as1_mos.{frameno}'
+    return [fits.Header(), h1]
+
+
+def test_dithoff_recovers_abab_pattern():
+    spec = load_spectrograph('mmt_mmirs')
+    # Catalog target at the nod midpoint; slit PA 166.382 deg (nep.as1 geometry).
+    catra, catdec, pa = 260.614, 65.8828, 166.382
+    # Four positions offset ALONG the slit by {+1.8, -1.4, +1.4, -1.8} arcsec.
+    expected = [1.8, -1.4, 1.4, -1.8]
+    par = np.radians(pa)
+    cosd = np.cos(np.radians(catdec))
+    offs = []
+    for off in expected:
+        # place pointing at catalog + off arcsec along the slit axis
+        dra_as = off * np.sin(par)
+        ddec_as = off * np.cos(par)
+        ra_deg = catra + (dra_as / 3600.0) / cosd
+        dec_deg = catdec + ddec_as / 3600.0
+        headarr = _dither_header(ra_deg, dec_deg, catra, catdec, pa, 1822)
+        offs.append(spec.compound_meta(headarr, 'dithoff'))
+    assert np.allclose(offs, expected, atol=0.02), \
+        f'along-slit offsets should recover the commanded throws {expected}, ' \
+        f'got {offs}'
+
+
+def test_dithoff_handles_catra_in_hours():
+    # MMT longslit headers write CAT-RA as a bare decimal in *hours* (matching
+    # the hours-valued RA card), e.g. '13.70246500', while the MOS mask tool
+    # writes it as sexagesimal *degrees* ('+260:36:50.55').  Both formats must
+    # yield the same along-slit offset -- parsing the hours form as degrees
+    # would mis-scale RA by 15x and produce a nonsensical offset.
+    spec = load_spectrograph('mmt_mmirs')
+    catra_deg, catdec_deg, pa = 205.537, 9.482, 34.218   # J_zJ geometry
+    off = 2.4                                            # arcsec along slit
+    par = np.radians(pa)
+    cosd = np.cos(np.radians(catdec_deg))
+    ra_deg = catra_deg + (off * np.sin(par) / 3600.0) / cosd
+    dec_deg = catdec_deg + off * np.cos(par) / 3600.0
+    # Reference: CAT-RA in sexagesimal degrees (as _dither_header writes it).
+    ref = spec.compound_meta(
+        _dither_header(ra_deg, dec_deg, catra_deg, catdec_deg, pa, 5475),
+        'dithoff')
+    # Same pointing, but CAT-RA written as a bare decimal in hours.
+    h1 = fits.Header()
+    h1['RA'] = str(ra_deg / 15.0)
+    h1['DEC'] = str(dec_deg)
+    h1['CAT-RA'] = f'{catra_deg / 15.0:.8f}'    # decimal hours, no ':'
+    h1['CAT-DEC'] = f'{catdec_deg:.8f}'         # decimal degrees
+    h1['POSANGLE'] = pa
+    h1['FILENAME'] = 'MMIRS/2017.0101/PAAlign_longslit.5475'
+    hours = spec.compound_meta([fits.Header(), h1], 'dithoff')
+    assert np.isclose(hours, ref, atol=0.02), \
+        'CAT-RA in decimal hours must give the same offset as sexagesimal ' \
+        f'degrees ({ref}), got {hours}'
+    assert np.isclose(hours, off, atol=0.05), \
+        f'the recovered offset should match the commanded throw {off}, got {hours}'
+
+
+def _coord_header(ra, dec, catra, catdec, posang):
+    """A 2-element headarr carrying only the dither coordinate cards."""
+    h1 = fits.Header()
+    h1['RA'] = ra
+    h1['DEC'] = dec
+    h1['CAT-RA'] = catra
+    h1['CAT-DEC'] = catdec
+    h1['POSANGLE'] = posang
+    return [fits.Header(), h1]
+
+
+def test_dithoff_sexagesimal_hours_longslit():
+    # Post-2019 MMIRS headers write RA/CAT-RA as sexagesimal hours
+    # ('+19:59:35.24'), which the former float() parse could not read and so
+    # silently returned a zero offset.  Real HIP98400 longslit frames (a nod
+    # pair ~7" apart along the slit) must now recover a non-zero, correctly
+    # signed offset.
+    spec = load_spectrograph('mmt_mmirs')
+    a = spec.compound_meta(
+        _coord_header('+19:59:35.24', '+11:52:54.09', '+19:59:35.10',
+                      '+11:53:21.70', 0.13), 'dithoff')
+    b = spec.compound_meta(
+        _coord_header('+19:59:35.24', '+11:52:47.09', '+19:59:35.10',
+                      '+11:53:21.70', 0.13), 'dithoff')
+    assert np.isclose(a, -27.605, atol=0.01), \
+        f'sexagesimal-hours longslit dithoff must be recovered, got {a}'
+    assert np.isclose(b, -34.605, atol=0.01), \
+        f'sexagesimal-hours longslit dithoff must be recovered, got {b}'
+    assert abs((b - a) - (-7.0)) < 0.1, \
+        'the two frames must nod ~7 arcsec apart along the slit'
+
+
+def test_dithoff_sexagesimal_hours_mos():
+    # The same sexagesimal-hours format appears in newer MOS data (both modes
+    # changed header format after 2019).  A real HD18571 MOS frame must yield a
+    # genuine offset instead of the silent zero the old parse produced.
+    spec = load_spectrograph('mmt_mmirs')
+    a = spec.compound_meta(
+        _coord_header('+02:59:16.62', '+01:14:50.27', '+02:59:16.80',
+                      '+01:14:40.50', -0.102), 'dithoff')
+    b = spec.compound_meta(
+        _coord_header('+02:59:09.36', '+01:14:27.43', '+02:59:16.80',
+                      '+01:14:40.50', -0.102), 'dithoff')
+    assert np.isclose(a, 9.775, atol=0.01), \
+        f'sexagesimal-hours MOS dithoff must be recovered, got {a}'
+    assert np.isclose(b, -12.871, atol=0.01), \
+        f'sexagesimal-hours MOS dithoff must be recovered, got {b}'
+    assert a != 0.0 and b != 0.0, \
+        'sexagesimal RA must no longer silently zero out dithoff'
+
+
+def test_dithoff_sexagesimal_hours_h3000_longslit():
+    # The H3000-H dev-suite frames (WNTR25gkqzi, 2026) are the first post-2019
+    # sexagesimal-header set in the suite, so they are the real regression for
+    # the along-slit nod offset.  These are the exact header coordinates of the
+    # A/B nod pair (3402/3403); they must recover a ~10" offset along PA=78.1.
+    spec = load_spectrograph('mmt_mmirs')
+    a = spec.compound_meta(
+        _coord_header('+05:41:32.50', '-02:17:33.25', '+05:41:34.73',
+                      '-02:17:24.17', 78.124), 'dithoff')
+    b = spec.compound_meta(
+        _coord_header('+05:41:33.15', '-02:17:31.25', '+05:41:34.73',
+                      '-02:17:24.17', 78.124), 'dithoff')
+    assert np.isclose(a, -34.576, atol=0.01), \
+        f'H3000-H sexagesimal dithoff must be recovered, got {a}'
+    assert np.isclose(b, -24.631, atol=0.01), \
+        f'H3000-H sexagesimal dithoff must be recovered, got {b}'
+    assert abs((b - a) - 9.945) < 0.1, \
+        'the H3000-H nod pair must be offset ~9.9 arcsec along the slit'
+
+
+def test_dithoff_sexagesimal_hours_hk_hk3_longslit():
+    # The HK-HK3 dev-suite frames (SN2026ejy, 2026) are a real faint-target
+    # A/B nod with a ~30" throw and post-2019 sexagesimal headers.  These are the
+    # exact header coordinates of the nod pair (0037/0038).
+    spec = load_spectrograph('mmt_mmirs')
+    a = spec.compound_meta(
+        _coord_header('+16:10:00.41', '+00:42:16.02', '+16:10:00.27',
+                      '+00:42:20.63', 0.132), 'dithoff')
+    b = spec.compound_meta(
+        _coord_header('+16:10:00.40', '+00:41:46.02', '+16:10:00.27',
+                      '+00:42:20.63', 0.132), 'dithoff')
+    assert np.isclose(a, -4.605, atol=0.01), \
+        f'HK-HK3 sexagesimal dithoff must be recovered, got {a}'
+    assert np.isclose(b, -34.605, atol=0.01), \
+        f'HK-HK3 sexagesimal dithoff must be recovered, got {b}'
+    assert abs((b - a) - (-30.0)) < 0.1, \
+        'the HK-HK3 nod pair must be offset ~30 arcsec along the slit'
+
+
+def test_dithoff_offsky_sentinel_returns_zero():
+    # Darks/flats are taken off-sky with sentinel coordinates (DEC = -100),
+    # which SkyCoord rejects as an invalid latitude.  dithoff must swallow that
+    # and return 0.0 rather than raise -- otherwise metadata building crashes on
+    # every calibration frame.
+    spec = load_spectrograph('mmt_mmirs')
+    off = spec.compound_meta(
+        _coord_header('+02:59:16.62', '-100.0', '+02:59:16.80', '-100.0',
+                      -0.102), 'dithoff')
+    assert off == 0.0, 'an off-sky sentinel coordinate must yield a zero offset'
+
+
+@pytest.mark.parametrize('disp,filt,arxiv', [
+    ('J', 'zJ', 'mmt_mmirs_J_zJ.fits'),
+    ('HK', 'zJ', 'mmt_mmirs_HK_zJ.fits'),
+    ('K3000', 'Kspec', 'mmt_mmirs_K3000_Kspec.fits'),
+    ('H3000', 'H', 'mmt_mmirs_H3000_H.fits'),
+    ('HK', 'HK3', 'mmt_mmirs_HK_HK3.fits'),
+])
+def test_config_specific_par_selects_arxiv(disp, filt, arxiv):
+    # Each supported grism/filter combination must map to its own full_template
+    # wavelength arxiv.  H3000-H and HK-HK3 are the newest modes added for the
+    # observatory's recommended longslit configurations.
+    spec = load_spectrograph('mmt_mmirs')
+    h1 = fits.Header()
+    h1['DISPERSE'] = disp
+    h1['FILTER'] = filt
+    par = spec.config_specific_par([fits.Header(), h1])
+    wave = par['calibrations']['wavelengths']
+    assert wave['method'] == 'full_template', \
+        f'{disp}-{filt} must use the full_template wavelength method'
+    assert wave['reid_arxiv'] == arxiv, \
+        f'{disp}-{filt} must select {arxiv}, got {wave["reid_arxiv"]}'
+
+
+def test_frameno_parsed_from_filename():
+    spec = load_spectrograph('mmt_mmirs')
+    headarr = _dither_header(260.614, 65.8828, 260.614, 65.8828, 166.382, 1823)
+    assert spec.compound_meta(headarr, 'frameno') == 1823, \
+        'frameno must be parsed from the trailing token of the FILENAME card'
+
+
+def test_dithoff_missing_card_returns_zero():
+    spec = load_spectrograph('mmt_mmirs')
+    headarr = [fits.Header(), fits.Header()]   # no dither cards
+    assert spec.compound_meta(headarr, 'dithoff') == 0.0, \
+        'missing dither/catalog cards must yield a zero offset, not raise'
+
+
+def _nod_table(dithoffs, frametype='science', setup='A', target=None,
+               mjd=None):
+    """Minimal table mimicking what set_combination_groups passes to
+    get_comb_group: unique comb_id per frame, bkg_id=-1, increasing mjd.
+
+    ``frametype``, ``setup``, and ``target`` may be a scalar (broadcast to all
+    frames) or a per-frame sequence.  ``mjd`` overrides the default 1-min
+    time-ordered cadence when a specific interleaving is needed.
+    """
+    n = len(dithoffs)
+
+    def _col(val):
+        return list(val) if isinstance(val, (list, tuple, np.ndarray)) \
+            else [val] * n
+
+    tbl = Table({
+        'frametype': _col(frametype),
+        'setup': _col(setup),
+        'dithoff': np.array(dithoffs, dtype=float),
+        'mjd': (59000.0 + np.arange(n) / 1440.0) if mjd is None
+            else np.asarray(mjd, dtype=float),
+        'comb_id': np.arange(n, dtype=int) + 1,
+        'bkg_id': np.full(n, -1, dtype=int),
+        # init_meta seeds these from the 4-char default 'None', so the real
+        # metadata table carries them as width-4 unicode; mirror that here so
+        # the tests catch truncation of longer labels (e.g. "ABA'B'").
+        'dithpat': np.full(n, 'None'),
+        'dithpos': np.full(n, 'None'),
+    })
+    if target is not None:
+        tbl['target'] = _col(target)
+    return tbl
+
+
+def test_get_comb_group_pairs_ababprime():
+    spec = load_spectrograph('mmt_mmirs')
+    tbl = _nod_table([1.8, -1.4, 1.4, -1.8, 1.8, -1.4, 1.4, -1.8])
+    out = spec.get_comb_group(tbl)
+    # Greedy sequential pairing across the midpoint (0.0): (0,1),(2,3),(4,5),(6,7)
+    assert out['bkg_id'].tolist() == [2, 1, 4, 3, 6, 5, 8, 7], \
+        'each frame must be background-paired with its temporally-adjacent ' \
+        'opposite-nod partner'
+    assert out['dithpos'].tolist() == ["A", "B", "A'", "B'", "A", "B", "A'", "B'"], \
+        'nod-side labels must carry a prime for each distinct offset within a side'
+    assert set(out['dithpat']) == {"ABA'B'"}, \
+        'the dither pattern should be the unique labels in time order'
+
+
+def test_get_comb_group_stare_no_pairing():
+    spec = load_spectrograph('mmt_mmirs')
+    # Peak-to-peak 0.3" < nod_min_offset (1.0") -> treated as a stare.
+    tbl = _nod_table([0.0, 0.1, -0.1, 0.2])
+    out = spec.get_comb_group(tbl)
+    assert out['bkg_id'].tolist() == [-1, -1, -1, -1], \
+        'a sequence below nod_min_offset is a stare and must be left unpaired'
+
+
+def test_get_comb_group_odd_frame_unpaired():
+    spec = load_spectrograph('mmt_mmirs')
+    tbl = _nod_table([1.8, -1.4, 1.8])
+    out = spec.get_comb_group(tbl)
+    # (0,1) pair; frame 2 has no remaining opposite-nod partner.
+    assert out['bkg_id'].tolist() == [2, 1, -1], \
+        'an odd frame with no remaining opposite-nod partner stays unpaired'
+
+
+def test_get_comb_group_longslit_simple_ab():
+    spec = load_spectrograph('mmt_mmirs')
+    # No mask/decker columns present -> logic is slit-count agnostic.
+    tbl = _nod_table([2.5, -2.5])
+    out = spec.get_comb_group(tbl)
+    assert out['bkg_id'].tolist() == [2, 1], \
+        'a simple A-B longslit nod must cross-pair the two frames'
+    assert out['dithpos'].tolist() == ["A", "B"], \
+        'the two nod sides must be labeled A and B'
+
+
+def test_get_comb_group_isolates_targets_in_shared_setup():
+    spec = load_spectrograph('mmt_mmirs')
+    # Two longslit targets sharing one setup (same slit/disperser), each an
+    # odd A-B-A / B-A-B sequence, interleaved in time.  Pooling them would let
+    # the greedy walk pair target1's leftover frame with target2's first frame.
+    tbl = _nod_table([2.5, -2.5, 2.5, -2.5, 2.5, -2.5],
+                     target=['star1', 'star1', 'star1',
+                             'star2', 'star2', 'star2'])
+    out = spec.get_comb_group(tbl)
+    bkg = out['bkg_id'].tolist()
+    # Each target pairs within itself; the odd frame in each is left unpaired.
+    assert bkg == [2, 1, -1, 5, 4, -1], \
+        'pairing must stay within each target; the odd frame in each is unpaired'
+    # No pairing crosses the target boundary.
+    comb = out['comb_id'].tolist()
+    tgt = list(out['target'])
+    for i, b in enumerate(bkg):
+        if b != -1:
+            assert tgt[i] == tgt[comb.index(b)], \
+                'a background pair must never cross the target boundary'
+
+
+def test_get_comb_group_does_not_pair_science_with_standard():
+    spec = load_spectrograph('mmt_mmirs')
+    # A science nod and a standard-star nod share the setup and interleave in
+    # time; each must pair only within itself, never science<->standard.
+    tbl = _nod_table([2.5, 2.5, -2.5, -2.5],
+                     frametype=['science', 'standard', 'science', 'standard'],
+                     target=['sci', 'std', 'sci', 'std'])
+    out = spec.get_comb_group(tbl)
+    # science frames (idx 0,2) pair together; standards (idx 1,3) pair together
+    assert out['bkg_id'].tolist() == [3, 4, 1, 2], \
+        'science must pair only with science and standard only with standard'
+
+
+def test_pypeit_file_keys_include_dither_columns():
+    spec = load_spectrograph('mmt_mmirs')
+    keys = spec.pypeit_file_keys()
+    for col in ['dithpat', 'dithpos', 'dithoff', 'frameno']:
+        assert col in keys, f'{col} must be written to the pypeit file'
+
+
+# ---------------------------------------------------------------------------
+# Mask-definition (.msk) support
+# ---------------------------------------------------------------------------
+
+from pypeit import dataPaths
+from pypeit.spectrographs import mmirs_maskfile
+
+MSK = dataPaths.tests.get_file_path('nep.as1.msk')
+
+
+def test_read_mmirs_maskfile_counts_and_header():
+    header, slits = mmirs_maskfile.read_mmirs_maskfile(MSK)
+    assert header['label'] == 'nep.as1', 'the mask label must be parsed from the header'
+    assert abs(header['arc2mm'] - 0.165) < 1e-3, \
+        'the arc2mm plate scale must be parsed from the header'
+    assert len(slits) == 29, 'the mask must yield all 29 slits'
+    assert (slits['type'] == 'TARGET').sum() == 24, 'the mask has 24 TARGET slits'
+    assert (slits['type'] == 'BOX').sum() == 5, 'the mask has 5 BOX (alignment) slits'
+
+
+def test_read_mmirs_maskfile_target_row():
+    header, slits = mmirs_maskfile.read_mmirs_maskfile(MSK)
+    row = slits[slits['slit'] == 1][0]
+    assert row['object'] == '172220.249+655613.04', \
+        'the object name must be parsed for slit 1'
+    assert row['type'] == 'TARGET', 'slit 1 must be typed as a TARGET'
+    # RA 17:22:20.2490 hours -> deg
+    assert abs(row['ra_deg'] - (17 + 22/60 + 20.2490/3600) * 15.) < 1e-4, \
+        'RA must be converted from sexagesimal hours to degrees'
+    assert abs(row['dec_deg'] - (65 + 56/60 + 13.040/3600)) < 1e-4, \
+        'Dec must be parsed from sexagesimal degrees'
+
+
+def test_read_mmirs_maskfile_bad_file_raises(tmp_path):
+    bad = tmp_path / 'bad.msk'
+    bad.write_text('not a mask file\n')
+    from pypeit import PypeItError
+    with pytest.raises(PypeItError):
+        mmirs_maskfile.read_mmirs_maskfile(bad)
+
+
+def test_get_slitmask_science_align_and_objects():
+    from pypeit.spectrographs.mmt_mmirs import MMTMMIRSSpectrograph
+    spec = MMTMMIRSSpectrograph()
+    sm = spec.get_slitmask(str(MSK))
+    assert sm is spec.slitmask, 'get_slitmask must cache the SlitMask on the spectrograph'
+    assert sm.nslits == 29, 'the SlitMask must hold all 29 slits'
+    # 24 science TARGET, 5 alignment BOX
+    assert int(sm.science_slit.sum()) == 24, 'the 24 TARGET slits must be flagged science'
+    assert int(sm.alignment_slit.sum()) == 5, 'the 5 BOX slits must be flagged alignment'
+    # object names present and RA/DEC finite
+    assert '172220.249+655613.04' in list(sm.object_names), \
+        'object names must be carried onto the SlitMask'
+    assert np.all(np.isfinite(sm.onsky[:, 0])), 'all slit RAs must be finite'   # RA
+    assert np.all(sm.onsky[:, 2] > 0), 'all slit lengths must be positive'            # slit length arcsec
+    # objects table has the required 9 columns
+    assert sm.objects.shape[1] == 9, 'the objects table must have the required 9 columns'
+
+
+def test_get_maskdef_slitedges_linear_geometry():
+    from pypeit.spectrographs.mmt_mmirs import MMTMMIRSSpectrograph
+    spec = MMTMMIRSSpectrograph()
+    left, right, sortindx, sm = spec.get_maskdef_slitedges(filename=str(MSK),
+                                                           det=1, binning='1,1')
+    assert left.size == right.size == 29, \
+        'there must be a left and right edge for each of the 29 slits'
+    ps = spec.get_detector_par(det=1)['platescale']
+    arcsec_per_mm = 1.0 / 0.165
+    scale = arcsec_per_mm / ps          # px per mm
+    centers = 0.5 * (left + right)
+    # centers must be an exact linear (negative) function of y_mm
+    _, slits = mmirs_maskfile.read_mmirs_maskfile(str(MSK))
+    y = np.asarray(slits['y_mm'])
+    fit = np.polyfit(y, centers, 1)
+    assert abs(fit[0] + scale) < 0.5, \
+        'slit centers must vary linearly with y_mm at slope -scale (px per mm)'              # slope == -scale
+    assert np.std(centers - np.polyval(fit, y)) < 1e-6, \
+        'the center-vs-y_mm relation must be perfectly linear'   # perfectly linear
+    # edge width matches height
+    widths = right - left
+    assert np.allclose(widths, np.asarray(slits['height_mm']) * arcsec_per_mm / ps), \
+        'each edge width must equal the slit height converted to pixels'
+    assert np.array_equal(sortindx, np.argsort(left)), \
+        'sortindx must order the slits by left edge'
+
+
+def _write_synthetic_msk(path, offset_mm=0.1, theta_deg=10.0):
+    """Write a minimal 2-slit ``.msk`` (one TARGET, one BOX) for geometry tests.
+
+    The TARGET slit carries the requested ``offset``/``theta``; the BOX slit is
+    centered and axis-aligned (both zero), giving a within-file control.
+    """
+    bbox = '0.0 0.0 0.2 1.0'
+    poly = '0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0'
+    cols = ['slit', 'ra', 'dec', 'x', 'y', 'target', 'object', 'type',
+            'height', 'width', 'offset', 'theta', 'bbox', 'polygon']
+    lines = [
+        'label\tsynthetic',
+        'ra\t17:22:20.0',
+        'dec\t65:56:13.0',
+        'pa\t45.0',
+        'arc2mm\t0.165',
+        '\t'.join(cols),
+        '\t'.join(['1', '17:22:20.0', '65:56:13.0', '0.0', '0.0', '100', 'tgt',
+                   'TARGET', '1.0', '0.2', f'{offset_mm}', f'{theta_deg}',
+                   bbox, poly]),
+        '\t'.join(['2', '17:22:21.0', '65:56:14.0', '0.0', '5.0', '900',
+                   'boxstar', 'BOX', '1.0', '0.3', '0.0', '0.0', bbox, poly]),
+    ]
+    Path(path).write_text('\n'.join(lines) + '\n')
+
+
+def test_read_mmirs_maskfile_retains_offset_theta(tmp_path):
+    msk = tmp_path / 'synthetic.msk'
+    _write_synthetic_msk(msk, offset_mm=0.1, theta_deg=10.0)
+    _, slits = mmirs_maskfile.read_mmirs_maskfile(str(msk))
+    # Fields 10 (offset) and 11 (theta) are retained, not silently dropped.
+    assert 'offset_mm' in slits.colnames and 'theta_deg' in slits.colnames, \
+        'the offset and theta columns must be retained, not dropped'
+    assert abs(slits['offset_mm'][0] - 0.1) < 1e-9, \
+        'the TARGET slit offset must be parsed'
+    assert abs(slits['theta_deg'][0] - 10.0) < 1e-9, \
+        'the TARGET slit theta must be parsed'
+    assert slits['offset_mm'][1] == 0.0 and slits['theta_deg'][1] == 0.0, \
+        'the centered BOX slit must have zero offset and theta'
+
+
+def test_get_slitmask_offset_and_theta(tmp_path):
+    msk = tmp_path / 'synthetic.msk'
+    _write_synthetic_msk(msk, offset_mm=0.1, theta_deg=10.0)
+
+    spec = mmt_mmirs.MMTMMIRSSpectrograph()
+    sm = spec.get_slitmask(str(msk))
+
+    arcsec_per_mm = 1.0 / 0.165
+    half_len = 0.5 * 1.0 * arcsec_per_mm
+    off_as = 0.1 * arcsec_per_mm
+
+    # TARGET (slit 1, row 0): the offset makes OBJ_TOPDIST/OBJ_BOTDIST (columns
+    # 7/8) asymmetric about the slit center, but their sum is preserved.
+    top, bot = float(sm.objects[0, 7]), float(sm.objects[0, 8])
+    assert abs(top - (half_len - off_as)) < 1e-6, \
+        'the offset must shorten the top distance by off_as'
+    assert abs(bot - (half_len + off_as)) < 1e-6, \
+        'the offset must lengthen the bottom distance by off_as'
+    assert abs((top + bot) - 2 * half_len) < 1e-6, \
+        'the offset must preserve the total slit length'
+
+    # BOX (slit 2, row 1): offset 0 -> the target stays centered.
+    assert abs(float(sm.objects[1, 7]) - float(sm.objects[1, 8])) < 1e-9, \
+        'a zero-offset BOX slit must keep the target centered'
+
+    # theta rotates the TARGET rectangle: the top-right (corner 0) and
+    # bottom-right (corner 1) corners share a spectral coordinate only at
+    # theta == 0; here they differ by 2*half_len*sin(theta).
+    spectral_diff = sm.corners[0, 0, 1] - sm.corners[0, 1, 1]
+    assert abs(spectral_diff - 2 * half_len * np.sin(np.radians(10.0))) < 1e-6, \
+        'theta must rotate the TARGET corners by 2*half_len*sin(theta) in spectral'
+    # The theta == 0 BOX slit stays axis-aligned (a within-file control).
+    assert abs(sm.corners[1, 0, 1] - sm.corners[1, 1, 1]) < 1e-9, \
+        'the theta==0 BOX slit must stay axis-aligned'
+
+
+def test_get_slitmask_zero_offset_theta_matches_centered(tmp_path):
+    # Regression guard: offset == theta == 0 reproduces the previous centered,
+    # axis-aligned geometry exactly.
+    msk = tmp_path / 'centered.msk'
+    _write_synthetic_msk(msk, offset_mm=0.0, theta_deg=0.0)
+    spec = mmt_mmirs.MMTMMIRSSpectrograph()
+    sm = spec.get_slitmask(str(msk))
+    half_len = 0.5 * 1.0 / 0.165
+    for row in range(2):
+        assert abs(float(sm.objects[row, 7]) - half_len) < 1e-6, \
+            'zero offset must keep the top distance at half the slit length'
+        assert abs(float(sm.objects[row, 8]) - half_len) < 1e-6, \
+            'zero offset must keep the bottom distance at half the slit length'
+        # Axis-aligned: right-side corners share a spectral coordinate.
+        assert abs(sm.corners[row, 0, 1] - sm.corners[row, 1, 1]) < 1e-9, \
+            'zero theta must keep the right-side corners axis-aligned'
+
+
+def test_dithoff_wraps_ra_across_zero():
+    # An A-B nod sequence straddling 0h RA must yield a small along-slit offset,
+    # not one near +/-360 deg (which would corrupt get_comb_group pairing).
+    spec = mmt_mmirs.MMTMMIRSSpectrograph()
+    hdr = {'RA': 0.02 / 15.0,     # telescope RA in hours -> 0.02 deg
+           'DEC': 0.0,
+           'CAT-RA': '359.99',    # catalog target just west of 0h (deg)
+           'CAT-DEC': '0.0',
+           'POSANGLE': 90.0}      # projects onto the RA offset only
+    dithoff = spec.compound_meta([None, hdr], 'dithoff')
+    # Wrapped RA difference is 0.03 deg = 108 arcsec (not ~-1.3e6 arcsec).
+    assert abs(dithoff - 108.0) < 1e-6, \
+        'an RA offset straddling 0h must wrap to a small value (108 arcsec ' \
+        f'here), got {dithoff}'
+
+
+def test_config_specific_par_enables_maskdesign(tmp_path, monkeypatch):
+    import shutil
+    from pypeit.spectrographs.mmt_mmirs import MMTMMIRSSpectrograph
+    spec = MMTMMIRSSpectrograph()
+    # place a .msk named by the mask label next to a fake sci file
+    shutil.copy(MSK, tmp_path / 'nep.as1.msk')
+    scifile = tmp_path / 'nep.as1_mos.1822.fits'
+    scifile.write_text('')  # presence only
+    monkeypatch.setattr(spec, 'get_meta_value',
+                        lambda inp, key, **kw: 'nep.as1' if key == 'decker' else None)
+    par = spec.config_specific_par(str(scifile))
+    assert par['calibrations']['slitedges']['use_maskdesign'] is True, \
+        'a discovered .msk must enable mask-design slit edges'
+    assert Path(par['calibrations']['slitedges']['maskdesign_filename']).name == 'nep.as1.msk', \
+        'the mask-design filename must point at the discovered .msk'
+    assert par['reduce']['slitmask']['assign_obj'] is True, \
+        'mask-design mode must enable object assignment'
+    assert par['reduce']['slitmask']['extract_missing_objs'] is True, \
+        'mask-design mode must enable extraction of missing objects'
+
+
+def test_config_specific_par_enables_maskdesign_from_table_row(tmp_path, monkeypatch):
+    # The full run_pypeit path passes a single-row Table whose 'filename'
+    # column holds the full path (no 'directory' column). Discovery must
+    # derive the raw-data directory from that filename.
+    import shutil
+    from astropy.table import Table as _Table
+    from pypeit.spectrographs.mmt_mmirs import MMTMMIRSSpectrograph
+    spec = MMTMMIRSSpectrograph()
+    shutil.copy(MSK, tmp_path / 'nep.as1.msk')
+    scifile = tmp_path / 'nep.as1_mos.1822.fits'
+    scifile.write_text('')
+    row = _Table()
+    row['filename'] = [str(scifile)]
+    monkeypatch.setattr(spec, 'get_meta_value',
+                        lambda inp, key, **kw: 'nep.as1' if key == 'decker' else None)
+    par = spec.config_specific_par(row)
+    assert par['calibrations']['slitedges']['use_maskdesign'] is True, \
+        'a .msk discovered from a Table-row filename must enable mask-design edges'
+    assert Path(par['calibrations']['slitedges']['maskdesign_filename']).name == 'nep.as1.msk', \
+        'the mask-design filename must point at the discovered .msk'
+
+
+def test_config_specific_par_no_maskfile_is_noop(tmp_path, monkeypatch):
+    from pypeit.spectrographs.mmt_mmirs import MMTMMIRSSpectrograph
+    spec = MMTMMIRSSpectrograph()
+    scifile = tmp_path / 'nep.as1_mos.1822.fits'
+    scifile.write_text('')
+    monkeypatch.setattr(spec, 'get_meta_value',
+                        lambda inp, key, **kw: 'nep.as1' if key == 'decker' else None)
+    par = spec.config_specific_par(str(scifile))
+    assert par['calibrations']['slitedges']['use_maskdesign'] is False, \
+        'with no .msk present, mask-design slit edges must stay disabled'

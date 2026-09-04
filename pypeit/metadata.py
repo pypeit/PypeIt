@@ -113,12 +113,18 @@ class PypeItMetaData:
         self.type_bitmask = framematch.FrameTypeBitMask()
 
         # Build table
-        self.table = table.Table(data if files is None 
-                                 else self._build(files, strict=strict, 
+        self.skipped_file_indices = []
+        self.table = table.Table(data if files is None
+                                 else self._build(files, strict=strict,
                                                   usrdata=usrdata))
 
-        # Merge with user data, if present
+        # Merge with user data, if present.  Any files skipped by _build are not
+        # in the table, so their rows must be dropped from the user data as well
+        # or the two will be misaligned; see merge().
         if usrdata is not None:
+            if len(self.skipped_file_indices) > 0:
+                usrdata = usrdata[np.setdiff1d(np.arange(len(usrdata)),
+                                               self.skipped_file_indices)]
             self.merge(usrdata)
 
         # Impose types on specific columns
@@ -132,6 +138,9 @@ class PypeItMetaData:
         self.set_user_added_columns()
         # Validate instrument name
         self._vet_instrument(self.table)
+        # Allow the spectrograph to cache information from the metadata for
+        # later use when reading/processing raw images
+        self.spectrograph.cache_metadata(self)
 
     def _impose_types(self, columns, types):
         """
@@ -190,8 +199,9 @@ class PypeItMetaData:
                 One or more files to use to build the table.
             strict (:obj:`bool`, optional):
                 Function will fault if `astropy.io.fits.getheader`_ fails to
-                read any of the headers.  Set to False to report a
-                warning and continue.
+                read any of the headers or if metadata access requires a
+                missing FITS extension.  Set to False to report a warning,
+                skip files missing an expected extension, and continue.
             usrdata (`astropy.table.Table`_, optional):
                 Parsed for frametype for a few instruments (e.g. VLT)
                 where meta data may not be required
@@ -206,8 +216,12 @@ class PypeItMetaData:
         log.info(f"Building metadata for {len(_files)} files.")
         # Build lists to fill
         data = {k:[] for k in self.spectrograph.meta.keys()}
-        data['directory'] = ['None']*len(_files)
-        data['filename'] = ['None']*len(_files)
+        data['directory'] = []
+        data['filename'] = []
+
+        # Indices of any files skipped because they could not be read; used to
+        # cull the matching rows from usrdata before merging (see __init__).
+        self.skipped_file_indices = []
 
         # Build the table
         for idx, ifile in enumerate(_files):
@@ -223,29 +237,37 @@ class PypeItMetaData:
                                'usrdata argument of instantiation of PypeItMetaData.')
                 usr_row = usrdata[idx]
 
-            # Add the directory and file name to the table
-            data['directory'][idx] = str(_ifile.parent)
-            data['filename'][idx] = _ifile.name
-            if not data['directory'][idx]:
-                data['directory'][idx] = '.'
-
             # Read the fits headers.  NOTE: If the file cannot be opened,
             # headarr will be None, and the subsequent loop over the meta keys
             # will fill the data dictionary with None values.
-            log.info(f'Adding metadata for {data["filename"][idx]}')
-            headarr = self.spectrograph.get_headarr(_ifile, strict=strict)
+            log.info(f'Adding metadata for {_ifile.name}')
+            try:
+                headarr = self.spectrograph.get_headarr(_ifile, strict=strict)
 
-            # Grab Meta
-            for meta_key in self.spectrograph.meta.keys():
-                value = self.spectrograph.get_meta_value(headarr, meta_key, 
-                                                         required=strict,
-                                                         usr_row=usr_row, 
-                        ignore_bad_header = (
+                # Grab Meta
+                row_data = {}
+                for meta_key in self.spectrograph.meta.keys():
+                    value = self.spectrograph.get_meta_value(
+                        headarr, meta_key, required=strict, usr_row=usr_row,
+                        ignore_bad_header=(
                             self.par['rdx']['ignore_bad_headers'] or strict))
-                if isinstance(value, str) and '#' in value:
-                    value = value.replace('#', '')
-                    log.warning('Removing troublesome # character from {0}.  Returning {1}.'.format(
-                              meta_key, value))
+                    if isinstance(value, str) and '#' in value:
+                        value = value.replace('#', '')
+                        log.warning('Removing troublesome # character from {0}.  Returning {1}.'.format(
+                                  meta_key, value))
+                    row_data[meta_key] = value
+            except IndexError:
+                if strict:
+                    raise
+                log.warning(f'Unable to read metadata for {_ifile.name}: The file does not contain '
+                            'an expected FITS extension.  Skipping this file.')
+                self.skipped_file_indices.append(idx)
+                continue
+
+            directory = str(_ifile.parent)
+            data['directory'].append(directory if directory else '.')
+            data['filename'].append(_ifile.name)
+            for meta_key, value in row_data.items():
                 data[meta_key].append(value)
 
         # JFH Changed the below to not crash if some files have None in

@@ -2078,6 +2078,24 @@ class Spectrograph:
 
         return type_bits
 
+    def cache_metadata(self, fitstbl):
+        """
+        Cache information from the full metadata table for later use when
+        reading or processing raw images.
+
+        This method is called every time a
+        :class:`~pypeit.metadata.PypeItMetaData` object is instantiated,
+        including during setup when the metadata may be incomplete (e.g.,
+        frame types may not have been assigned yet).  Implementations must
+        therefore be cheap and idempotent: record what is needed and defer
+        any expensive processing.  The base class does nothing.
+
+        Args:
+            fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
+                The class holding the metadata for all the frames.
+        """
+        pass
+
 
 #    JXP says -- LEAVE THIS HERE FOR NOW. WE MAY NEED IT
 #    def mm_per_pix(self, det=1):
