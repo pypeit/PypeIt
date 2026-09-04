@@ -787,7 +787,7 @@ class CoAdd3D:
         """
         # Science output directory
         if coadd_dir is not None:
-            pypeit_scidir = Path(coadd_dir).absolute() / 'Science'
+            pypeit_scidir = Path(coadd_dir).absolute() / science_dir
         else:
             pypeit_scidir = Path(spec2d_files[0]).parent
         coadd_scidir = pypeit_scidir.parent / f'{science_dir}_cube'
