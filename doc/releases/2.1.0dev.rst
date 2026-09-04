@@ -326,7 +326,7 @@ Bug Fixes
   ``CAT-RA`` is additionally sometimes written in sexagesimal degrees
   ('+260:36:50.55', the old MOS mask tool).  Previously the derivation read the
   ``RA`` card with ``float()``, which silently returned a zero offset for the
-  sexagesimal coordinates used by all post-2019 data (both long-slit and MOS),
+  sexagesimal coordinates used by all post-2019 data (both longslit and MOS),
   disabling A-B nod pairing for that data.  ``CAT-RA`` is now interpreted as
   whichever of degrees or hours lands closest to the actual pointing, and
   off-sky calibration frames (with sentinel coordinates) yield a zero offset

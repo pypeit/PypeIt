@@ -163,7 +163,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
                 catdec = Angle(str(hdr['CAT-DEC']), unit=units.deg).deg
                 # CAT-RA units are ambiguous: sexagesimal degrees
                 # ('+260:36:50.55', old MOS mask tool), decimal hours
-                # ('13.70246500', old long-slit), or sexagesimal hours
+                # ('13.70246500', old longslit), or sexagesimal hours
                 # ('+02:59:16.80', newer data).  Parse it both as degrees and as
                 # hours and keep whichever lands closest to the actual pointing,
                 # so RA is never mis-scaled by 15x.
@@ -861,7 +861,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         unpaired frame on the opposite nod side.  The pair's ``bkg_id`` values
         are cross-linked so PypeIt subtracts one from the other.  A sequence
         whose peak-to-peak ``dithoff`` range is below :attr:`nod_min_offset` is
-        treated as a stare and left unpaired.  Works identically for long-slit
+        treated as a stare and left unpaired.  Works identically for longslit
         and MOS (it does not use any mask/decker metadata).
 
         Args:
@@ -884,7 +884,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             fitstbl[col] = np.asarray(fitstbl[col], dtype=object)
 
         # Partition frames so nod pairing never crosses instrument
-        # configurations (setup) *or* distinct targets.  A single long-slit
+        # configurations (setup) *or* distinct targets.  A single longslit
         # setup can hold several science targets and standard stars that share
         # the same disperser/slit (hence the same setup); greedily pairing
         # across them could background-subtract an unrelated object.  MOS masks

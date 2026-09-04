@@ -1006,7 +1006,7 @@ def _coord_header(ra, dec, catra, catdec, posang):
 def test_dithoff_sexagesimal_hours_longslit():
     # Post-2019 MMIRS headers write RA/CAT-RA as sexagesimal hours
     # ('+19:59:35.24'), which the former float() parse could not read and so
-    # silently returned a zero offset.  Real HIP98400 long-slit frames (a nod
+    # silently returned a zero offset.  Real HIP98400 longslit frames (a nod
     # pair ~7" apart along the slit) must now recover a non-zero, correctly
     # signed offset.
     spec = load_spectrograph('mmt_mmirs')
@@ -1017,9 +1017,9 @@ def test_dithoff_sexagesimal_hours_longslit():
         _coord_header('+19:59:35.24', '+11:52:47.09', '+19:59:35.10',
                       '+11:53:21.70', 0.13), 'dithoff')
     assert np.isclose(a, -27.605, atol=0.01), \
-        f'sexagesimal-hours long-slit dithoff must be recovered, got {a}'
+        f'sexagesimal-hours longslit dithoff must be recovered, got {a}'
     assert np.isclose(b, -34.605, atol=0.01), \
-        f'sexagesimal-hours long-slit dithoff must be recovered, got {b}'
+        f'sexagesimal-hours longslit dithoff must be recovered, got {b}'
     assert abs((b - a) - (-7.0)) < 0.1, \
         'the two frames must nod ~7 arcsec apart along the slit'
 
@@ -1104,7 +1104,7 @@ def test_dithoff_offsky_sentinel_returns_zero():
 def test_config_specific_par_selects_arxiv(disp, filt, arxiv):
     # Each supported grism/filter combination must map to its own full_template
     # wavelength arxiv.  H3000-H and HK-HK3 are the newest modes added for the
-    # observatory's recommended long-slit configurations.
+    # observatory's recommended longslit configurations.
     spec = load_spectrograph('mmt_mmirs')
     h1 = fits.Header()
     h1['DISPERSE'] = disp
@@ -1203,14 +1203,14 @@ def test_get_comb_group_longslit_simple_ab():
     tbl = _nod_table([2.5, -2.5])
     out = spec.get_comb_group(tbl)
     assert out['bkg_id'].tolist() == [2, 1], \
-        'a simple A-B long-slit nod must cross-pair the two frames'
+        'a simple A-B longslit nod must cross-pair the two frames'
     assert out['dithpos'].tolist() == ["A", "B"], \
         'the two nod sides must be labeled A and B'
 
 
 def test_get_comb_group_isolates_targets_in_shared_setup():
     spec = load_spectrograph('mmt_mmirs')
-    # Two long-slit targets sharing one setup (same slit/disperser), each an
+    # Two longslit targets sharing one setup (same slit/disperser), each an
     # odd A-B-A / B-A-B sequence, interleaved in time.  Pooling them would let
     # the greedy walk pair target1's leftover frame with target2's first frame.
     tbl = _nod_table([2.5, -2.5, 2.5, -2.5, 2.5, -2.5],

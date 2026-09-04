@@ -176,7 +176,7 @@ A-B nod background subtraction
 ++++++++++++++++++++++++++++++
 
 MMIRS science frames are commonly taken as an A-B nod sequence (dithering the
-target along the slit between exposures), for both long-slit and multi-object
+target along the slit between exposures), for both longslit and multi-object
 (MOS) masks. PypeIt derives the along-slit dither offset of each frame from the
 telescope pointing relative to the catalog target (the MMIRS header has no
 dither keyword) and records it in the ``dithoff`` column, along with ``dithpos``
@@ -186,7 +186,7 @@ During :ref:`pypeit_setup`, PypeIt automatically fills the ``comb_id`` and
 ``bkg_id`` columns so that each science frame is background-subtracted using the
 temporally-adjacent frame at the opposite nod position. Pairing is done
 separately for each target within an instrument configuration (so a standard
-star, or a second target sharing the same long-slit setup, is never paired
+star, or a second target sharing the same longslit setup, is never paired
 against an unrelated object). Each frame keeps a unique ``comb_id`` (frames are
 not 2D-coadded across the small sub-dither), so PypeIt produces one
 ``spec2d``/``spec1d`` per nod pair. See :ref:`a-b_differencing` for how to edit
