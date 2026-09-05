@@ -94,13 +94,15 @@ def predict_ech_wave_soln(angle_fits_params, ech_angle_coeffs, ech_angle, order_
                 ech_angle_coeffs[indx, ic, :], angle_fits_params['ech_func'],
                 ech_angle, minx=angle_fits_params['ech_xmin'], maxx=angle_fits_params['ech_xmax'])
 
+        # Evaluate
         wave_soln_guess[:, iord] = fitting.evaluate_fit(coeff_predict, angle_fits_params['wave_func'], xnspec,
-        minx=angle_fits_params['wave_xmin'], maxx=angle_fits_params['wave_xmax'])
+            minx=angle_fits_params['wave_xmin'], maxx=angle_fits_params['wave_xmax'])
 
     return wave_soln_guess
 
 
-def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle, xdangle, xdisp, nspec, norders, pad=3):
+def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle, 
+                        xdangle, xdisp, nspec, norders, pad=3):
     """
     Predict the echelle arc spectrum using the fits to wavelength solution vs echangle and xdangle  and the archived
     composite arcs.
@@ -151,6 +153,7 @@ def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle, xdangle, 
     gpm_composite = (hdu[4].data).astype(bool)
 
     order_vec_guess = predict_ech_order_coverage(angle_fits_params, xd_angle_coeffs, xdisp, xdangle, norders, pad=pad)
+
     norders_guess = order_vec_guess.size
     wave_soln_guess = predict_ech_wave_soln(angle_fits_params, ech_angle_coeffs, echangle, order_vec_guess, nspec)
 
@@ -164,13 +167,15 @@ def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle, xdangle, 
         if indx < 0 or indx >= angle_fits_params['norders']:
             continue
         igood = gpm_composite[:, indx]
-        arcspec_guess[:, iord] = interpolate.interp1d(wave_composite[igood, indx], arc_composite[igood, indx],
-                                                      kind='cubic', bounds_error=False,
-                                                      fill_value=0.)(wave_soln_guess[:, iord])
+        arcspec_guess[:, iord] = interpolate.interp1d(
+            wave_composite[igood, indx], arc_composite[igood, indx],
+            kind='cubic', bounds_error=False,
+            fill_value=0.)(wave_soln_guess[:, iord])
         # sometimes wave_soln_guess[:, iord] is wrong and therefore is outside the range of
         # wave_composite[igood, indx] and the corresponding arcspec_guess[:, iord] is all zeros
         # here we try to deal with this case, by using wave_composite[igood, indx] but we need make some padding
         if np.all(arcspec_guess[:, iord] == 0):
+            log.warning("All wavelengths are outside the order")
             # this is adapted from pypeit.core.wavecal.autoid.full_template
             npad = nspec - np.sum(igood)
             if npad > 0:
@@ -190,10 +195,10 @@ def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle, xdangle, 
     return order_vec_guess, wave_soln_guess, arcspec_guess
 
 
-def identify_ech_orders(arcspec, echangle, xdangle, dispname, 
-                        angle_fits_file, 
-                        composite_arc_file, debug=False, 
-                        cc_percent_ceil=50.0, pad=3):
+def identify_ech_orders(arcspec, echangle, xdangle, dispname,
+                        angle_fits_file,
+                        composite_arc_file, debug=False,
+                        cc_percent_ceil=50.0, pad=3, direct_cc=False):
     """
     Identify the orders in the echelle spectrum via cross correlation with the best guess predicted arc based
     on echangle, xdangle, and cross-disperser
@@ -218,6 +223,16 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
         Passed to xcorr_shift
     cc_percent_ceil: float, optional
         The percent_ceil value to be used by xcorr_shift to set the percentile to which to normalize the CCF
+    direct_cc : bool, optional
+        If True, cross-correlate the stacked arc spectra directly: skip the
+        synthetic line-arc construction and the continuum subtraction of the
+        correlation function in :func:`~pypeit.core.wavecal.wvutils.xcorr_shift`.
+        This is significantly faster for large spectral formats (e.g., 4k
+        detectors with ~100 orders, such as Shane/Hamspec), but it is less
+        robust: without the synthetic (clipped, line-only) arcs, a few very
+        strong lines, detector artifacts, or continuum/scattered-light
+        structure can dominate the correlation and skew the order
+        registration.  The default (False) preserves the original behavior.
 
     Returns
     -------
@@ -231,6 +246,7 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
     """
     nspec, norders = arcspec.shape
 
+
     # Predict the echelle order coverage and wavelength solution
     order_vec_guess, wave_soln_guess_pad, arcspec_guess_pad = predict_ech_arcspec(
         angle_fits_file, composite_arc_file, echangle, xdangle, dispname, 
@@ -240,11 +256,14 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
     # Since we padded the guess we need to pad the data to the same size
     arccen_pad = np.zeros((nspec, norders_guess))
     arccen_pad[:nspec, :norders] = arcspec
+
     # Cross correlate the data with the predicted arc spectrum
     # TODO Does it make sense for xcorr_shift to continuum subtract here?
     shift_cc, corr_cc = wvutils.xcorr_shift(
-        arccen_pad.flatten('F'), arcspec_guess_pad.flatten('F'), 
-        percent_ceil=cc_percent_ceil, sigdetect=5.0, sig_ceil=10.0, fwhm=4.0, debug=debug)
+        arccen_pad.flatten('F'), arcspec_guess_pad.flatten('F'),
+        percent_ceil=cc_percent_ceil,
+        do_xcorr_arc=not direct_cc, cont_subtract=not direct_cc,
+        sigdetect=5.0, sig_ceil=10.0, fwhm=4.0, debug=debug)
 
     if debug:
         log.info(f'Cross-correlation for order identification: shift={shift_cc:.3f}, corr={corr_cc:.3f}')
@@ -267,12 +286,21 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
 
     # Assign
     order_vec = order_vec_guess[0] + ordr_shift - np.arange(norders)
-    ind = np.isin(order_vec_guess, order_vec, assume_unique=True)
 
-    #if debug:
-    #    embed(header='identify_ech_orders 232 of echelle.py')
+    # Build per-observed-order arxiv arrays aligned 1:1 with order_vec.  Orders
+    # in order_vec that are not in the predicted coverage / composite (e.g. the
+    # data extends beyond the archived orders) are left as zeros; downstream
+    # echelle_wvcalib skips all-zero orders.  (Previously this returned only the
+    # overlapping subset, whose size != norders, crashing echelle_wvcalib.)
+    wave_soln_arxiv = np.zeros((nspec, norders))
+    arcspec_arxiv = np.zeros((nspec, norders))
+    for jord, oord in enumerate(order_vec):
+        match = np.where(order_vec_guess == oord)[0]
+        if match.size > 0:
+            wave_soln_arxiv[:, jord] = wave_soln_guess_pad[:, match[0]]
+            arcspec_arxiv[:, jord] = arcspec_guess_pad[:, match[0]]
 
     # Return
-    return order_vec, wave_soln_guess_pad[:, ind], arcspec_guess_pad[:, ind]
+    return order_vec, wave_soln_arxiv, arcspec_arxiv
 
 

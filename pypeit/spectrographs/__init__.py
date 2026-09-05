@@ -40,6 +40,7 @@ __all__ = [
     'p200_ngps',
     'p200_tspec',
     'shane_kast',
+    'shane_hamspec',
     'soar_goodman',
     'soar_tspec',
     'subaru_focas',

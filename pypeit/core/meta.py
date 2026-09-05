@@ -11,6 +11,7 @@ common metadata used for all spectrographs.
 import numpy as np
 
 from astropy import units, coordinates
+from astropy.time import Time
 
 from IPython import embed
 
@@ -54,6 +55,71 @@ def convert_radec(ra, dec):
             raise IOError("Bad ra, dec format!!")
     else:
         return ra, dec
+
+
+def airmass(ra, dec, obstime, longitude, latitude, elevation, exptime=None):
+    """
+    Compute the airmass of an observation from its pointing, time, and the
+    observatory location, using `astropy`.
+
+    This is intended for instruments whose raw headers do not record an
+    airmass (or elevation) card directly, so it can be reused by any
+    spectrograph's ``compound_meta`` method.  It follows the `astropy`
+    observation-planning example:
+    https://docs.astropy.org/en/latest/coordinates/example_gallery_plot_obs_planning.html
+
+    The airmass returned is the secant of the zenith distance
+    (:math:`\\sec z`) computed from the target altitude in the local
+    horizontal (alt-az) frame.
+
+    Args:
+        ra (:obj:`float`):
+            Target right ascension in decimal degrees (ICRS).
+        dec (:obj:`float`):
+            Target declination in decimal degrees (ICRS).
+        obstime (:obj:`float`, :obj:`str`, or `astropy.time.Time`_):
+            UT of the observation.  A :obj:`float` is interpreted as an
+            MJD, a :obj:`str` is parsed by `astropy.time.Time`_ (e.g. an
+            ISOT string), and an `astropy.time.Time`_ is used directly.
+        longitude (:obj:`float`):
+            East longitude of the observatory in decimal degrees.
+        latitude (:obj:`float`):
+            Latitude of the observatory in decimal degrees.
+        elevation (:obj:`float`):
+            Elevation of the observatory in meters.
+        exptime (:obj:`float`, optional):
+            Exposure time in seconds.  If provided, ``obstime`` is taken to
+            be the *start* of the exposure and the airmass is computed at
+            the exposure midpoint (``obstime + exptime/2``).  If None, the
+            airmass is computed at ``obstime``.
+
+    Returns:
+        :obj:`float`: The airmass (:math:`\\sec z`) of the observation.
+        Returns `numpy.nan`_ if the target is below the horizon.
+    """
+    # Observatory location on the Earth
+    location = coordinates.EarthLocation.from_geodetic(
+        lon=longitude*units.deg, lat=latitude*units.deg,
+        height=elevation*units.m)
+    # Interpret the observation time: MJD float, parseable string, or Time
+    if isinstance(obstime, Time):
+        time = obstime
+    elif isinstance(obstime, (int, float, np.integer, np.floating)):
+        time = Time(obstime, format='mjd')
+    else:
+        time = Time(obstime)
+    # Compute at the midpoint of the exposure, if the exposure time is given
+    if exptime is not None:
+        time = time + (exptime/2.)*units.s
+    # Target coordinate and its altitude/azimuth as seen from the site
+    coord = coordinates.SkyCoord(ra*units.deg, dec*units.deg)
+    altaz = coord.transform_to(
+        coordinates.AltAz(obstime=time, location=location))
+    # Below the horizon -> airmass is undefined
+    if altaz.alt < 0*units.deg:
+        return np.nan
+    # AltAz.secz is the airmass (sec of the zenith distance)
+    return float(altaz.secz)
 
 
 def define_core_meta():

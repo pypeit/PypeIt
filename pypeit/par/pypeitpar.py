@@ -2929,7 +2929,8 @@ class WavelengthSolutionPar(ParSet):
                  nfitpix=None, boxcar_radius=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
                  ech_2dfit=None, ech_separate_2d=None, redo_slits=None, reference_slit=None, qa_log=None,
-                 cc_percent_ceil=None, echelle_pad=None, cc_offset_minmax=None, stretch_func=None):
+                 cc_percent_ceil=None, echelle_pad=None, ech_angle_fits_file=None,
+                 ech_composite_arc_file=None, ech_direct_cc=None, cc_offset_minmax=None, stretch_func=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3258,6 +3259,31 @@ class WavelengthSolutionPar(ParSet):
                                 'method. Values > 0 allow for some error in the reddest order guess, '  \
                                 'but require sufficient reference orders.'
 
+        dtypes['ech_angle_fits_file'] = str
+        descr['ech_angle_fits_file'] = 'For the ``echelle`` method, the archive file with the fits '  \
+                                       'of the per-order wavelength solutions vs the echelle and '  \
+                                       'cross-disperser angles (e.g., ``keck_hires_angle_fits.fits``). '  \
+                                       'If None, the file is taken from the spectrograph class '  \
+                                       '(``get_echelle_angle_files``).  Must be set together with '  \
+                                       '``ech_composite_arc_file``.'
+
+        dtypes['ech_composite_arc_file'] = str
+        descr['ech_composite_arc_file'] = 'For the ``echelle`` method, the archive file with the '  \
+                                          'composite arc spectrum of each order (e.g., '  \
+                                          '``keck_hires_composite_arc.fits``).  If None, the file is '  \
+                                          'taken from the spectrograph class '  \
+                                          '(``get_echelle_angle_files``).  Must be set together with '  \
+                                          '``ech_angle_fits_file``.'
+
+        defaults['ech_direct_cc'] = False
+        dtypes['ech_direct_cc'] = bool
+        descr['ech_direct_cc'] = 'For the echelle method order identification, cross-correlate the '  \
+                                 'stacked arc spectra directly instead of first building synthetic '  \
+                                 'line-only arcs and continuum-subtracting the correlation function. '  \
+                                 'Much faster for large spectral formats (e.g., 4k detectors with '  \
+                                 '~100 orders, such as Shane/Hamspec); the default (False) preserves '  \
+                                 'the original behavior.'
+
         defaults['cc_offset_minmax'] = 1.0
         dtypes['cc_offset_minmax'] = float
         descr['cc_offset_minmax'] = 'Fraction of the total spectral pixels used to determine the range of '  \
@@ -3297,7 +3323,8 @@ class WavelengthSolutionPar(ParSet):
                    'nlocal_cc', 'rms_thresh_frac_fwhm', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix', 'boxcar_radius',
                    'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 'reference_slit',
-                   'redo_slits', 'qa_log', 'cc_percent_ceil', 'echelle_pad', 'cc_offset_minmax', 'stretch_func']
+                   'redo_slits', 'qa_log', 'cc_percent_ceil', 'echelle_pad', 'ech_angle_fits_file',
+                   'ech_composite_arc_file', 'ech_direct_cc', 'cc_offset_minmax', 'stretch_func']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -4339,7 +4366,8 @@ class FindObjPar(ParSet):
                  find_fwhm=None, ech_find_max_snr=None, ech_find_min_snr=None, find_numiterfit=None,
                  ech_find_nabove_min_snr=None, skip_second_find=None, skip_final_global=None,
                  skip_skysub=None, find_negative=None, find_min_max=None, trace_min_max=None,
-                 std_spec1d=None, use_std_trace=None, fof_link = None):
+                 std_spec1d=None, use_std_trace=None, fof_link = None,
+                 force_center_obj=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -4474,6 +4502,16 @@ class FindObjPar(ParSet):
                                  'to explicitly override this default behavior, set this parameter to True to find negative objects or False to ignore ' \
                                  'them.'
 
+        defaults['force_center_obj'] = False
+        dtypes['force_center_obj'] = bool
+        descr['force_center_obj'] = 'If True, skip automated (peak-detection) object finding and ' \
+                                    'instead force a single object at the center of each slit/order, ' \
+                                    'with the FWHM and boxcar radius set by the slit width. Use this ' \
+                                    'for spectrographs where the target always fills the slit (e.g., ' \
+                                    'Shane/Hamspec), so the smashed spatial profile has no peak for ' \
+                                    'the object finder to detect. Currently only implemented for ' \
+                                    'Echelle reductions; it is ignored by the other pipelines.'
+
         defaults['find_min_max'] = None
         dtypes['find_min_max'] = list
         descr['find_min_max'] = 'It defines the minimum and maximum of your object in pixels in the spectral direction on the ' \
@@ -4515,7 +4553,8 @@ class FindObjPar(ParSet):
                    'trace_maxdev', 'find_numiterfit', 'find_fwhm', 'ech_find_max_snr',
                    'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find',
                    'skip_final_global', 'skip_skysub', 'find_negative', 'find_min_max',
-                   'trace_min_max', 'std_spec1d', 'use_std_trace', 'fof_link']
+                   'trace_min_max', 'std_spec1d', 'use_std_trace', 'fof_link',
+                   'force_center_obj']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
