@@ -52,6 +52,12 @@ Functionality/Performance Improvements and Additions
 - Adds ability to select the specific archive of standard stars to use when
   searching for a match to an observed standard.  This is particularly import
   for LBT/MODS.
+- Added the ``ech_angle_fits_file`` and ``ech_composite_arc_file``
+  wavelength-calibration parameters: the archive files used by the
+  ``echelle`` method, overriding the spectrograph-class defaults
+  (``get_echelle_angle_files``).  Analogous to ``reid_arxiv``, and used by
+  ``shane_hamspec`` to select era-matched archives via
+  ``config_specific_par``.
 - Added the ``ech_direct_cc`` wavelength-calibration parameter: for the
   ``echelle`` method order identification, cross-correlate the stacked arc
   spectra directly instead of first building synthetic line-only arcs and

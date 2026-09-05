@@ -102,6 +102,15 @@ class ShaneHamspecSpectrograph(spectrograph.Spectrograph):
         # HIRES-style 'echelle' angle_fits model, which would need ThAr at
         # many cross-disperser settings we do not have (see Report 04).
         par['calibrations']['wavelengths']['method'] = 'echelle'
+        # Era-matched wavelength archives (Q&A 52/58): Hamspec has had two
+        # detectors -- the Loral 2Kx2K (through ~2010, 2048 spectral pixels)
+        # and the e2v 4Kx4K (from ~2013, 4096) -- each with its own archive.
+        # Default to the (canonical) Loral era; config_specific_par switches
+        # to the e2v files when the frames are from that detector.
+        par['calibrations']['wavelengths']['ech_angle_fits_file'] = \
+            'shane_hamspec_loral_angle_fits.fits'
+        par['calibrations']['wavelengths']['ech_composite_arc_file'] = \
+            'shane_hamspec_loral_composite_arc.fits'
         par['calibrations']['wavelengths']['cc_shift_range'] = (-200.,200.)
         # Cross-correlate the stacked arcs directly for the order
         # identification: building synthetic line-arcs and continuum
@@ -464,11 +473,16 @@ class ShaneHamspecSpectrograph(spectrograph.Spectrograph):
         """
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
-        # Record the detector era of this configuration (Loral 2Kx2K vs e2v
-        # 4Kx4K, from the raw frame size via the 'detector' meta), used by
-        # get_echelle_angle_files to select the era-matched wavelength
-        # archives.
-        self.detector_era = self.get_meta_value(scifile, 'detector')
+        # Select the era-matched wavelength archives (see default_pypeit_par)
+        # from the detector era of this configuration (Loral 2Kx2K vs e2v
+        # 4Kx4K, identified from the raw frame size via the 'detector' meta).
+        era = 'loral' \
+            if self.get_meta_value(scifile, 'detector') == 'Loral2Kx2K' \
+            else 'e2v'
+        par['calibrations']['wavelengths']['ech_angle_fits_file'] = \
+            f'shane_hamspec_{era}_angle_fits.fits'
+        par['calibrations']['wavelengths']['ech_composite_arc_file'] = \
+            f'shane_hamspec_{era}_composite_arc.fits'
 
         # Return
         return par
@@ -496,27 +510,6 @@ class ShaneHamspecSpectrograph(spectrograph.Spectrograph):
         return ['DFILTNAM', 'GTILTRAW', 'PLATENAM']
 
 
-
-    def get_echelle_angle_files(self):
-        """ Pass back the files required
-        to run the echelle method of wavecalib.
-
-        Hamspec has had two detectors (Q&A 52): the Loral 2Kx2K (through
-        ~2010, e.g. the Cooke data) and the e2v 4Kx4K (from ~2013).  Their
-        frames differ in size (2048 vs 4096 spectral pixels), so each era
-        needs its own archive.  The era of the current configuration is
-        recorded by :func:`config_specific_par` (via the ``detector`` meta
-        of the frame it is passed); if that has not been called, the
-        (canonical) Loral-era files are returned.
-
-        Returns:
-            list: The angle_fits and composite_arc archive file names.
-        """
-        detector = getattr(self, 'detector_era', 'Loral2Kx2K')
-        era = 'loral' if detector == 'Loral2Kx2K' else 'e2v'
-        return [f'shane_hamspec_{era}_angle_fits.fits',
-                f'shane_hamspec_{era}_composite_arc.fits']
-        
 
     def order_platescale(self, order_vec, binning=None):
         """

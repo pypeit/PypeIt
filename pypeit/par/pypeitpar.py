@@ -2929,7 +2929,8 @@ class WavelengthSolutionPar(ParSet):
                  nfitpix=None, boxcar_radius=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
                  ech_2dfit=None, ech_separate_2d=None, redo_slits=None, reference_slit=None, qa_log=None,
-                 cc_percent_ceil=None, echelle_pad=None, ech_direct_cc=None, cc_offset_minmax=None, stretch_func=None):
+                 cc_percent_ceil=None, echelle_pad=None, ech_angle_fits_file=None,
+                 ech_composite_arc_file=None, ech_direct_cc=None, cc_offset_minmax=None, stretch_func=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3258,6 +3259,22 @@ class WavelengthSolutionPar(ParSet):
                                 'method. Values > 0 allow for some error in the reddest order guess, '  \
                                 'but require sufficient reference orders.'
 
+        dtypes['ech_angle_fits_file'] = str
+        descr['ech_angle_fits_file'] = 'For the ``echelle`` method, the archive file with the fits '  \
+                                       'of the per-order wavelength solutions vs the echelle and '  \
+                                       'cross-disperser angles (e.g., ``keck_hires_angle_fits.fits``). '  \
+                                       'If None, the file is taken from the spectrograph class '  \
+                                       '(``get_echelle_angle_files``).  Must be set together with '  \
+                                       '``ech_composite_arc_file``.'
+
+        dtypes['ech_composite_arc_file'] = str
+        descr['ech_composite_arc_file'] = 'For the ``echelle`` method, the archive file with the '  \
+                                          'composite arc spectrum of each order (e.g., '  \
+                                          '``keck_hires_composite_arc.fits``).  If None, the file is '  \
+                                          'taken from the spectrograph class '  \
+                                          '(``get_echelle_angle_files``).  Must be set together with '  \
+                                          '``ech_angle_fits_file``.'
+
         defaults['ech_direct_cc'] = False
         dtypes['ech_direct_cc'] = bool
         descr['ech_direct_cc'] = 'For the echelle method order identification, cross-correlate the '  \
@@ -3306,7 +3323,8 @@ class WavelengthSolutionPar(ParSet):
                    'nlocal_cc', 'rms_thresh_frac_fwhm', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix', 'boxcar_radius',
                    'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 'reference_slit',
-                   'redo_slits', 'qa_log', 'cc_percent_ceil', 'echelle_pad', 'ech_direct_cc', 'cc_offset_minmax', 'stretch_func']
+                   'redo_slits', 'qa_log', 'cc_percent_ceil', 'echelle_pad', 'ech_angle_fits_file',
+                   'ech_composite_arc_file', 'ech_direct_cc', 'cc_offset_minmax', 'stretch_func']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
