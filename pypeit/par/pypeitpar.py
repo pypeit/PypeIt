@@ -3896,13 +3896,18 @@ class EdgeTracePar(ParSet):
 #        descr['trim'] = 'How much to trim off each edge of each slit.  Each number should be 0 ' \
 #                        'or positive'
 
-        # TODO: Describe better where and how this is used.  It's not
-        # actually used in the construction of the nominal slit edges,
-        # but only in subsequent use of the slits (e.g., flat-fielding)
         defaults['pad'] = 0
         dtypes['pad'] = int
-        descr['pad'] = 'Integer number of pixels to consider beyond the slit edges when ' \
-                       'selecting pixels that are \'on\' the slit.'
+        descr['pad'] = 'Number of pixels to consider beyond the slit edges when ' \
+                       'generating a slitmask from the slit edges. Note that this parameter ' \
+                       'is *not* used to extend the slit edges themselves, but only to ' \
+                       'define the slitmask used for subsequent processing (e.g., flat-fielding).  A ' \
+                       'positive value is used to extend the slit edges, while a negative value is ' \
+                       'used to shrink the slit edges. Another use of this parameter is for echelle data ' \
+                       'where some of the slits are overlapping (and therefore you ' \
+                       'are unable to trace the slit edges from the flatfield data) you might be able to trace the ' \
+                       'slits using a standard star frame or a pinhole decker, and then use the `pad` parameter to ' \
+                       'extend the slit edges to the correct location (avoiding any parts of the slits that overlap).'
 
 #        defaults['single'] = []
 #        dtypes['single'] = list
