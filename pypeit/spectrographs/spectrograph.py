@@ -754,7 +754,7 @@ class Spectrograph:
         Empty for base class.  See derived classes.
         """
         return None
-    
+
     def get_atmospheric_extinction(self, extinct_file):
         """
         Return the atmospheric extinction model.
