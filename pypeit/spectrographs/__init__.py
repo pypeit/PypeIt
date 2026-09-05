@@ -13,6 +13,7 @@ __all__ = [
     'gemini_gmos',
     'gemini_gnirs',
     'gtc_osiris',
+    'int_ids',
     'jwst_nircam',
     'jwst_nirspec',
     'keck_deimos',
