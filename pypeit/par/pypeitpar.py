@@ -4067,15 +4067,18 @@ class EdgeTracePar(ParSet):
         if self['order_outlier'] is not None and self['order_outlier'] < self['order_fitrej']:
             log.warning('Order outlier threshold should not be less than the rejection threshold.')
 
-        # Ensure pad is a two element numpy array
+        # Ensure pad is a two element list.  NOTE: This is deliberately kept as a
+        # plain Python list (not a numpy array) because this parameter is written
+        # to a FITS header (see ParSet.to_header), and header cards cannot hold
+        # numpy arrays.
         if isinstance(self['pad'], (int, float)):
-            self['pad'] = np.array([float(self['pad']), float(self['pad'])])
+            self['pad'] = [float(self['pad']), float(self['pad'])]
         elif isinstance(self['pad'], (list, np.ndarray)):
-            self['pad'] = np.array(self['pad'])
-            if self['pad'].size == 1:
-                self['pad'] = np.array([float(self['pad'][0]), float(self['pad'][0])])
-            elif self['pad'].size == 2:
-                self['pad'] = np.array([float(self['pad'][0]), float(self['pad'][1])])
+            _pad = np.asarray(self['pad']).ravel()
+            if _pad.size == 1:
+                self['pad'] = [float(_pad[0]), float(_pad[0])]
+            elif _pad.size == 2:
+                self['pad'] = [float(_pad[0]), float(_pad[1])]
             else:
                 raise PypeItError('If pad is a list or array, it must have length 1 or 2.')
         else:
