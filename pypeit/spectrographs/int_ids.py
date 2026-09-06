@@ -495,8 +495,7 @@ class INTIDSREDPLUS2Spectrograph(INTIDSSpectrograph):
     name = 'int_ids_redplus2'
     camera = 'RED+2'
     supported = True
-    comment = 'Red-sensitive RED+2 detector (0.44 arcsec/pixel); ' \
-              'placeholder, not yet verified against real data'
+    comment = 'Red-sensitive RED+2 detector (0.44 arcsec/pixel)'
 
     detector_name = 'REDPLUS2'
     # Unbinned spatial plate scale [arcsec/pixel] from the IDS web pages
