@@ -1059,6 +1059,126 @@ class KeckHIRESOrigSpectrograph(KECKHIRESBaseSpectrograph):
         return self.get_detector_par(1, hdu=hdu), \
             full_image, hdu, head0['ELAPTIME'], rawdatasec_img, oscansec_img
 
+    def bpm(self, filename, det, shape=None, msbias=None):
+        """
+        Bad Pixel Mask for the HIRES Tektronix detector.
+
+        The bad regions are hard-coded and taken directly from the MAKEE
+        reduction package (file ``MaskHIRES_1x1.dat``), which lists the regions
+        of the detector that are bad enough to always be masked.  Each region is
+        defined at 1x1 binning by a starting/ending column and a starting/ending
+        row, where a value of ``-1`` indicates that the region extends to the
+        edge of the detector.  Following MAKEE, these 1x1 regions are rescaled
+        here for the binning of the frame being reduced (see
+        ``mk_select_maskfile`` in the MAKEE source).
+
+        .. note::
+
+            The MAKEE mask coordinates are given in the raw-frame convention,
+            where ``col`` (the FITS ``NAXIS1`` direction, MAKEE ``x``) maps onto
+            the PypeIt *spectral* axis (axis 0) of the trimmed and re-oriented
+            image, and ``row`` (``NAXIS2``, MAKEE ``y``) maps onto the PypeIt
+            *spatial* axis (axis 1).  This is because the HIRES Tektronix
+            detector is read with ``specaxis = 1`` (i.e., the raw image is
+            transposed by :func:`~pypeit.spectrographs.spectrograph.Spectrograph.orient_image`).
+            MAKEE bins ``col`` by the first ``BINNING`` header value (the PypeIt
+            spatial binning) and ``row`` by the second (the PypeIt spectral
+            binning).
+
+        Args:
+            filename (:obj:`str` or None):
+                An example file to use to get the image shape and binning.  Can
+                be None, but then ``shape`` must be provided (and 1x1 binning is
+                assumed).
+            det (:obj:`int`):
+                1-indexed detector number.
+            shape (:obj:`tuple`, optional):
+                Processed (trimmed, re-oriented) image shape.  Required if
+                ``filename`` is None; ignored otherwise.
+            msbias (:class:`~pypeit.images.pypeitimage.PypeItImage`, optional):
+                Processed bias frame used to identify additional bad pixels.
+
+        Returns:
+            `numpy.ndarray`_: An integer array with a masked value set to 1 and
+            an unmasked value set to 0.
+        """
+        # Generate the empty (all zeros) BPM in the trimmed, re-oriented PypeIt
+        # frame; also folds in any bias-based masking.
+        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
+
+        log.info("Using hard-coded (MAKEE) bad pixel mask for the Keck/HIRES Tektronix detector")
+
+        # Determine the binning of the frame.  The PypeIt binning string is in
+        # the standard (binspec, binspat) order.
+        if filename is None:
+            log.warning("Assuming 1x1 binning for the hard-coded bad pixel mask because no example file was provided")
+            binspec, binspat = 1, 1
+        else:
+            hdu = io.fits_open(filename)
+            binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+            hdu.close()
+            binspec, binspat = parse.parse_binning(binning)
+
+        # Map the PypeIt binning onto the MAKEE binning convention.  MAKEE bins
+        # the column (x) direction by ``xbin`` and the row (y) direction by
+        # ``ybin``.  For this detector, the column direction is the PypeIt
+        # spatial axis and the row direction is the PypeIt spectral axis.
+        xbin, ybin = binspat, binspec
+
+        # Bad regions at 1x1 binning, taken verbatim from the MAKEE
+        # ``MaskHIRES_1x1.dat`` file.  Each entry is
+        # (start_col, end_col, start_row, end_row), 1-indexed, with -1 denoting
+        # the edge of the detector.
+        bad_regions_1x1 = [
+            (106,  107,   -1,   -1),   # bad column pair
+            (975,  1087, 1038, 1130),  # center ink spot
+            (982,  982,   -1, 1080),   # partial bad column
+            (1148, 1149,  -1,  342),   # partial bad column
+            (1147, 1179, 342,  382),   # bleeding hot column region
+            (1148, 1148, 382,   -1),   # bad column
+            (1354, 1354,  -1, 1580),   # partial bad column
+            (2027, 2028,  -1,  802),   # bad column
+            (2027,   -1, 802,  892),   # bleeding bad region
+            (2026,   -1, 892,  936),   # bleeding bad region
+            (2027, 2028, 936,   -1),   # bad column
+            (2059,   -1,  -1,   30),   # hot corner
+        ]
+
+        # The re-oriented BPM has the MAKEE column direction along axis 0 and
+        # the MAKEE row direction along axis 1.
+        ncol, nrow = bpm_img.shape
+
+        for start_col, end_col, start_row, end_row in bad_regions_1x1:
+            # Rescale the 1x1 coordinates for the current binning, exactly as
+            # MAKEE does in ``mk_select_maskfile`` (only rescaling positive,
+            # non-edge values, and only when binning > 1).
+            bsc = start_col // xbin if (start_col > 0 and xbin > 1) else start_col
+            bec = int(end_col / xbin + 1) if (end_col > 0 and xbin > 1) else end_col
+            bsr = start_row // ybin if (start_row > 0 and ybin > 1) else start_row
+            ber = int(end_row / ybin + 1) if (end_row > 0 and ybin > 1) else end_row
+
+            # Replace edge markers (-1) with the detector edges (1-indexed).
+            if bsc == -1:
+                bsc = 1
+            if bec == -1:
+                bec = ncol
+            if bsr == -1:
+                bsr = 1
+            if ber == -1:
+                ber = nrow
+
+            # Clip to the detector, following MAKEE's ``Mask_Bad_Regions``.
+            bsc = min(max(bsc, 1), ncol)
+            bec = min(max(bec, 1), ncol)
+            bsr = min(max(bsr, 1), nrow)
+            ber = min(max(ber, 1), nrow)
+
+            # Convert the inclusive, 1-indexed MAKEE ranges into 0-indexed
+            # (half-open) numpy slices and flag the region.
+            bpm_img[bsc-1:bec, bsr-1:ber] = 1
+
+        return bpm_img
+
 
 def indexing(itt, postpix, det=None,xbin=1,ybin=1):
     """
