@@ -46,7 +46,7 @@ class INTIDSSpectrograph(spectrograph.Spectrograph):
 
     # Detector-specific attributes set by each child class:
     # value of the DETECTOR header card
-     detector_name = None
+    detector_name = None
     # unbinned spatial plate scale [arcsec/pixel]
     detector_platescale = None
     # is the raw spectral axis reversed (wavelength decreasing)?
