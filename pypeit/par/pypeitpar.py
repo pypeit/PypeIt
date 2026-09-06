@@ -3896,8 +3896,8 @@ class EdgeTracePar(ParSet):
 #        descr['trim'] = 'How much to trim off each edge of each slit.  Each number should be 0 ' \
 #                        'or positive'
 
-        defaults['pad'] = 0
-        dtypes['pad'] = int
+        defaults['pad'] = 0.0
+        dtypes['pad'] = [int, float, list, np.ndarray]
         descr['pad'] = 'Number of pixels to consider beyond the slit edges when ' \
                        'generating a slitmask from the slit edges. Note that this parameter ' \
                        'is *not* used to extend the slit edges themselves, but only to ' \
@@ -3907,7 +3907,11 @@ class EdgeTracePar(ParSet):
                        'where some of the slits are overlapping (and therefore you ' \
                        'are unable to trace the slit edges from the flatfield data) you might be able to trace the ' \
                        'slits using a standard star frame or a pinhole decker, and then use the `pad` parameter to ' \
-                       'extend the slit edges to the correct location (avoiding any parts of the slits that overlap).'
+                       'extend the slit edges to the correct location (avoiding any parts of the slits that overlap). '\
+                       'You can also provide a list of two numbers to define the padding for the left and right edges '\
+                       'separately.  For example, ' \
+                       '10,20 will extend the left edge by 10 pixels and the right edge by 20 pixels. ' \
+                       'If you provide a list with a single number, it will be used for both edges.'
 
 #        defaults['single'] = []
 #        dtypes['single'] = list
@@ -4062,6 +4066,20 @@ class EdgeTracePar(ParSet):
 
         if self['order_outlier'] is not None and self['order_outlier'] < self['order_fitrej']:
             log.warning('Order outlier threshold should not be less than the rejection threshold.')
+
+        # Ensure pad is a two element numpy array
+        if isinstance(self['pad'], (int, float)):
+            self['pad'] = np.array([float(self['pad']), float(self['pad'])])
+        elif isinstance(self['pad'], (list, np.ndarray)):
+            self['pad'] = np.array(self['pad'])
+            if self['pad'].size == 1:
+                self['pad'] = np.array([float(self['pad'][0]), float(self['pad'][0])])
+            elif self['pad'].size == 2:
+                self['pad'] = np.array([float(self['pad'][0]), float(self['pad'][1])])
+            else:
+                raise PypeItError('If pad is a list or array, it must have length 1 or 2.')
+        else:
+            raise PypeItError('Pad must be an int, float, list, or array.')
 
 
 class WaveTiltsPar(ParSet):
