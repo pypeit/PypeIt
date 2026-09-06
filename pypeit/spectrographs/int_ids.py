@@ -46,7 +46,7 @@ class INTIDSSpectrograph(spectrograph.Spectrograph):
 
     # Detector-specific attributes set by each child class:
     # value of the DETECTOR header card
-    detector_name = None
+     detector_name = None
     # unbinned spatial plate scale [arcsec/pixel]
     detector_platescale = None
     # is the raw spectral axis reversed (wavelength decreasing)?
@@ -338,9 +338,15 @@ class INTIDSSpectrograph(spectrograph.Spectrograph):
         grating = self.get_meta_value(inp, 'dispname')
         if grating == 'R1200B':
             par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['reid_arxiv'] \
-                    = 'int_ids_R1200B.fits'
-
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'int_ids_R1200B.fits'
+        elif grating == 'R632V':
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'int_ids_red_637V_5500.fits'
+            par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'ArII', 'CuI']
+        else:
+            log.warning(f'No archived wavelength template exists for '
+                        f'grating {grating}.  Using holy-grail instead.')
+            par['calibrations']['wavelengths']['method'] = 'holy-grail'
         return par
 
     def pypeit_file_keys(self):
@@ -488,15 +494,14 @@ class INTIDSREDPLUS2Spectrograph(INTIDSSpectrograph):
     """
     name = 'int_ids_redplus2'
     camera = 'RED+2'
-    supported = False
+    supported = True
     comment = 'Red-sensitive RED+2 detector (0.44 arcsec/pixel); ' \
               'placeholder, not yet verified against real data'
 
-    # TODO: verify the DETECTOR header card value with real RED+2 data
     detector_name = 'REDPLUS2'
     # Unbinned spatial plate scale [arcsec/pixel] from the IDS web pages
     detector_platescale = 0.44
-    # TODO: verify the dispersion direction with real RED+2 data
-    detector_specflip = True
-    # TODO: verify the dark current with real RED+2 data
-    detector_darkcurr = 0.0
+    detector_specflip = False
+    # Dark current [e-/pixel/hour] from the ING EEV10A detector page
+    # https://www.ing.iac.es/Engineering/detectors/g3_ultra_red%2B2.html
+    detector_darkcurr = 8.0
