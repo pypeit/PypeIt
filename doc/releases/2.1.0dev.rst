@@ -18,6 +18,8 @@ Documentation Updates
   command-line entry point but was missing from the docs/script registry).
 - Added a :ref:`spectrograph page <soar_triplespec>` and a worked-example
   :ref:`tutorial <soar_triplespec_howto>` for SOAR/TripleSpec.
+- Added new documentation that allows PypeIt to trace the echelle orders with
+  a pinhole decker or standard star trace (and pad the trace to the full slit length).
 
 Dependency Changes
 ------------------
@@ -52,6 +54,8 @@ Functionality/Performance Improvements and Additions
 - Adds ability to select the specific archive of standard stars to use when
   searching for a match to an observed standard.  This is particularly import
   for LBT/MODS.
+- Slit edges can now be traced from a pinhole decker or standard star trace, and the trace can be
+  padded to the full slit length.
 
 Instrument-specific Updates
 ---------------------------
@@ -126,6 +130,8 @@ Instrument-specific Updates
 - MMT/Binospec: ``pypeit_setup`` now splits setups by slit mask in addition to
   grating (``decker`` added to ``configuration_keys``), so frames taken with
   different masks no longer share calibrations.
+- Added support for the old Keck/HIRES detector (``keck_hires_orig``) with the original Tektronix CCD.
+  See :ref:`keck_hires` for details.
 
 Script Changes
 --------------

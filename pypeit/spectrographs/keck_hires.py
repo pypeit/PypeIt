@@ -561,10 +561,10 @@ class KECKHIRESBaseSpectrograph(spectrograph.Spectrograph):
         _dateobs = Time(self.get_meta_value(filename, 'dateobs'), format='iso')
 
         date_orig = Time('2004-08-18', format='iso')
-        if _dateobs <= date_orig and self.name in ['keck_hires_updated']:
+        if _dateobs <= date_orig and self.name in ['keck_hires']:
             raise PypeItError("This is not the correct spectrograph. Use keck_hires_orig instead.")
         elif _dateobs > date_orig and self.name in ['keck_hires_orig']:
-            PypeItError('This is not the correct spectrograph. Use keck_hires_updated instead.')
+            PypeItError('This is not the correct spectrograph. Use keck_hires instead.')
 
 
 class KECKHIRESSpectrograph(KECKHIRESBaseSpectrograph):
