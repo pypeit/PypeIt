@@ -1175,8 +1175,6 @@ def extract_point_source(
     # Generate a spec1d object to hold the extracted spectrum
     log.info("Initialising a PypeIt SpecObj spec1d file")
     sobj = specobj.SpecObj(_spectrograph.pypeline, "DET01", SLITID=0)
-    sobj.RA = wcscube.wcs.crval[0]
-    sobj.DEC = wcscube.wcs.crval[1]
     sobj.SLITID = 0
 
     # Convert from counts/s/Ang/arcsec**2 to counts. The sensitivity function expects counts as input
@@ -1216,12 +1214,19 @@ def extract_point_source(
     _, xpos_gauss, ypos_gauss, sigma_x_gauss, sigma_y_gauss, theta_gauss, _ = popt
     gaussian_position = xpos_gauss, ypos_gauss
     
-    # Object location for extraction 
+    # Object location for extraction
     if manual_position is not None:
         xobj, yobj = manual_position
-    else: 
+    else:
         xobj, yobj = gaussian_position
-    
+
+    # Set the RA/Dec of the extracted object to the position actually used for
+    # the extraction (manual, or the auto Gaussian-fit peak), not the cube's
+    # WCS reference point.
+    skycoord = wcscube.celestial.pixel_to_world(xobj, yobj)
+    sobj.RA = skycoord.ra.deg
+    sobj.DEC = skycoord.dec.deg
+
     # Setup the coordinates of the mask
     y = np.linspace(0, numyy - 1, numyy * subpixel)
     x = np.linspace(0, numxx - 1, numxx * subpixel)

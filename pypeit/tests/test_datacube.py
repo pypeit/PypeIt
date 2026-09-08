@@ -450,6 +450,71 @@ def test_extract_point_source_manual_position_selects_correct_source():
         'manual_position at the faint source did not recover the expected flux ratio'
 
 
+@photutils_required
+def test_extract_point_source_ra_dec_matches_extraction_position():
+    """`extract_point_source` must set the returned SpecObj's RA/DEC to the
+    sky position of the source actually used for extraction (the manual
+    position, or the auto Gaussian-fit peak), not the cube's WCS reference
+    point (CRVAL).
+    """
+    nwave, ny, nx = 6, 20, 28
+    bright_row, bright_col, bright_amp = 14, 7, 1.0
+    faint_row, faint_col, faint_amp = 5, 21, 0.4
+    sigma_pix = 1.3
+
+    yimg, ximg = np.mgrid[0:ny, 0:nx]
+    image2d = (
+        bright_amp * np.exp(-0.5 * (((ximg - bright_col) / sigma_pix) ** 2
+                                     + ((yimg - bright_row) / sigma_pix) ** 2))
+        + faint_amp * np.exp(-0.5 * (((ximg - faint_col) / sigma_pix) ** 2
+                                      + ((yimg - faint_row) / sigma_pix) ** 2))
+    )
+    flxcube = np.broadcast_to(image2d, (nwave, ny, nx)).copy()
+    ivarcube = np.full((nwave, ny, nx), 1.0e8)
+    bpmcube = np.zeros((nwave, ny, nx), dtype=bool)
+    wave = np.linspace(5000.0, 5010.0, nwave)
+
+    dspat_arcsec = 0.3
+    dspat_deg = dspat_arcsec / 3600.0
+    wcscube = WCS(naxis=3)
+    wcscube.wcs.crpix = [1.0, 1.0, 1.0]
+    wcscube.wcs.crval = [150.0, 10.0, wave[0]]
+    wcscube.wcs.cdelt = [-dspat_deg, dspat_deg, 2.0]
+    wcscube.wcs.cunit = [u.deg, u.deg, u.Angstrom]
+    wcscube.wcs.ctype = ['RA---TAN', 'DEC--TAN', 'WAVE']
+
+    extract_kwargs = dict(
+        exptime=1.0, fluxed=False, subpixel=5, boxcar_radius=1.0, fwhm=0.9,
+        opt_prof_method='fit_gauss', spectrograph='keck_kcrm', show_qa=False
+    )
+
+    # CRVAL is nowhere near either source, so if RA/DEC ever regressed back to
+    # CRVAL, the assertions below (tied to the actual source positions) would
+    # fail by far more than the tolerance used here.
+    crval_coord = wcscube.celestial.pixel_to_world(0, 0)
+    assert crval_coord.separation(wcscube.celestial.pixel_to_world(bright_col, bright_row)) \
+        > 1 * u.arcsec, \
+        'test setup error: CRVAL must be far from the bright source, otherwise this test ' \
+        'cannot distinguish correct (fitted-position) RA/DEC from the old CRVAL-based bug'
+
+    sobjs_auto, *_ = datacube.extract_point_source(
+        wave, flxcube, ivarcube, bpmcube, wcscube, manual_position=None, **extract_kwargs)
+    sobjs_manual, *_ = datacube.extract_point_source(
+        wave, flxcube, ivarcube, bpmcube, wcscube,
+        manual_position=(faint_col, faint_row), **extract_kwargs)
+
+    expected_auto = wcscube.celestial.pixel_to_world(bright_col, bright_row)
+    expected_manual = wcscube.celestial.pixel_to_world(faint_col, faint_row)
+
+    auto_coord = SkyCoord(ra=sobjs_auto[0].RA * u.deg, dec=sobjs_auto[0].DEC * u.deg)
+    manual_coord = SkyCoord(ra=sobjs_manual[0].RA * u.deg, dec=sobjs_manual[0].DEC * u.deg)
+
+    assert auto_coord.separation(expected_auto) < 0.01 * u.arcsec, \
+        'auto-detected SpecObj RA/DEC does not match the fitted source position'
+    assert manual_coord.separation(expected_manual) < 0.01 * u.arcsec, \
+        'manually-positioned SpecObj RA/DEC does not match the manual_position coordinate'
+
+
 # ---------------------------------------------------------------------------
 # The cube-axis-order rewrite bundled four separate WCS axis-order/sign
 # changes into one commit. Each test below isolates one of them (RA/Dec
