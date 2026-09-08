@@ -80,6 +80,15 @@ Instrument-specific Updates
 
   See the :ref:`mmt_binospec` documentation for details.
 
+- MMT Binospec IFU: ``pypeit_setup`` now assigns combination groups from the
+  science/standard pointing pattern.  Frames sharing a pointing (to within
+  0.1") are automatically given a common ``comb_id`` so they coadd, while each
+  distinct dither position gets its own ``comb_id`` and reduces to its own
+  spec1d/spec2d — removing the need to edit ``comb_id`` by hand.  Two
+  informational columns, ``dithoff`` (arcsec from the setup's reference
+  pointing) and ``dithpos`` (the group's ``A``/``B``/... label), are written to
+  the pypeit file.
+
 - Rewrote MMT Binospec overscan subtraction in ``binospec_read_amp()`` to match
   the IDL pipeline (``bino_mosaic.pro``): Y-axis postscan first, then X-axis
   prescan+postscan, using sigma-clipped mean with outlier cleaning.  Added
