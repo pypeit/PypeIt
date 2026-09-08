@@ -4,16 +4,6 @@ Prepare datacube coadd and extraction setup files.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-
-from pathlib import Path
-
-from astropy.table import Table
-
-from pypeit import log
-from pypeit import PypeItError
-from pypeit import inputfiles
-from pypeit import outputfiles
-from pypeit.par.pypeitpar import CubeExtractionPar
 from pypeit.scripts import scriptbase
 
 
@@ -81,6 +71,17 @@ class SetupDataCube(scriptbase.ScriptBase):
 
     @classmethod
     def main(cls, args):
+
+        from pathlib import Path
+
+        from astropy.table import Table
+
+        from pypeit import inputfiles
+        from pypeit import log
+        from pypeit import outputfiles
+        from pypeit import PypeItError
+        from pypeit.par.pypeitpar import CubeExtractionPar
+
         cls.init_log(args)
 
         pypeit_path = Path(args.pypeit_file).absolute()
@@ -143,7 +144,17 @@ class SetupDataCube(scriptbase.ScriptBase):
                 f'No reduced spec2d files found for target={args.target} in {sci_dir}.'
             )
 
-        target_stub = target_name
+        # Match the space-stripping convention outputfiles.construct_basename and
+        # coadd2d.default_basename already use for target names in output filenames
+        # (e.g. this is what turns 'SDSSJ2222 2745' into the 'SDSSJ22222745' token
+        # already present in the reduced spec2d filenames). Deliberately narrower than
+        # inputfiles.target_match_key: that function's extra +/- -> p/m substitution is
+        # a lossy, many-to-one normalization meant for permissive matching, not unique
+        # naming, and reusing it here could silently collide two distinct targets (e.g.
+        # 'J1000-2000' and 'J1000m2000' both normalize to 'J1000m2000') into the same
+        # sources/ directory and overwrite one target's .coadd3d/.extract setup with
+        # the other's.
+        target_stub = target_name.replace(' ', '')
         source_dir = pypeit_path.parent / 'sources' / target_stub
         source_dir.mkdir(parents=True, exist_ok=True)
 

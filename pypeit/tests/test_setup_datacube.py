@@ -65,6 +65,49 @@ def test_setup_datacube_append_missing_coadd3d_file_raises(tmp_path):
         SetupDataCube.main(args)
 
 
+def test_setup_datacube_strips_spaces_from_target_stub(tmp_path):
+    # Mirrors a real target name (e.g. 'SDSSJ2222 2745') that contains a literal space,
+    # which should not propagate into directory/file names or the output_filename
+    # parameter written into the .coadd3d/.extract files.
+    science_dir = tmp_path / 'Science'
+    science_dir.mkdir()
+    pypeit_file = tmp_path / 'kcwi_test.pypeit'
+    pypeit_file.write_text(
+        '\n'.join([
+            '[rdx]',
+            '    spectrograph = keck_kcrm',
+            '',
+            'setup read',
+            'Setup A:',
+            '  binning: 2,2',
+            'setup end',
+            '',
+            'data read',
+            ' path /tmp/raw',
+            ' filename | frametype | target | comb_id',
+            ' kr260610_00054.fits | tilt, science | SDSSJ2222 2745 | 1',
+            'data end',
+            ''
+        ])
+    )
+    first_spec2d = science_dir / 'spec2d_kr260610_00054-SDSSJ22222745_KCRM_test.fits'
+    _write_spec2d(first_spec2d, target='SDSSJ2222 2745')
+
+    args = SetupDataCube.parse_args([str(pypeit_file), 'SDSSJ2222 2745'])
+    SetupDataCube.main(args)
+
+    source_dir = tmp_path / 'sources' / 'SDSSJ22222745'
+    assert source_dir.is_dir(), 'the sources directory should be named without the space'
+    coadd3d_file = source_dir / 'SDSSJ22222745.coadd3d'
+    extract_file = source_dir / 'SDSSJ22222745.extract'
+    assert coadd3d_file.is_file(), 'the .coadd3d file should be named without the space'
+    assert extract_file.is_file(), 'the .extract file should be named without the space'
+    assert 'output_filename = SDSSJ22222745' in coadd3d_file.read_text(), \
+        'the coadd3d output_filename parameter should also have the space stripped'
+    assert 'output_filename = SDSSJ22222745_extract' in extract_file.read_text(), \
+        'the extract output_filename parameter should also have the space stripped'
+
+
 def test_setup_datacube_write_and_append(tmp_path):
     science_dir = tmp_path / 'Science'
     science_dir.mkdir()
