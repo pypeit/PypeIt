@@ -78,7 +78,7 @@ def airmass(ra, dec, obstime, longitude, latitude, elevation, exptime=None):
         dec (:obj:`float`):
             Target declination in decimal degrees (ICRS).
         obstime (:obj:`float`, :obj:`str`, or `astropy.time.Time`_):
-            UT of the observation.  A :obj:`float` is interpreted as an
+            UT of the *start* of the observation.  A :obj:`float` is interpreted as an
             MJD, a :obj:`str` is parsed by `astropy.time.Time`_ (e.g. an
             ISOT string), and an `astropy.time.Time`_ is used directly.
         longitude (:obj:`float`):
