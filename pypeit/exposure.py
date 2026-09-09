@@ -5,6 +5,7 @@ from astropy.io import fits
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import outputfiles
+from pypeit import qa
 from pypeit.core import parse
 from pypeit.display import display
 from pypeit.history import History
@@ -497,6 +498,9 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
             run_state.safe_write()
         except Exception as e:
             log.warning(f"Failed to record science extract state: {e}")
+
+    # Ensure this exposure's deferred QA figures are on disk before returning
+    qa.flush_qa()
 
     # Return
     return all_spec2d, all_specobjs_extract

@@ -93,6 +93,8 @@ class PypeIt:
         # The command-line --ncpu overrides the parameter file
         if ncpu is not None:
             self.par['rdx']['ncpu'] = ncpu
+        # QA figures are written by a thread pool when ncpu > 1
+        qa.init_qa_pool(self.par['rdx']['ncpu'])
 
         # Write the full parameter set here
         # --------------------------------------------------------------
@@ -214,6 +216,7 @@ class PypeIt:
                                        reload_only=reload_only)
 
         # Finish
+        qa.flush_qa()
         self.print_end_time()
 
     def reduce_all(self):
@@ -255,6 +258,7 @@ class PypeIt:
             log.info(f'Finished calibration group {calib_ID}')
 
         # Finish
+        qa.flush_qa()
         self.print_end_time()
 
 

@@ -22,6 +22,102 @@ from IPython import embed
 #  THE HTML GENERATION OCCURS FROM log
 #from pypeit import log
 
+from concurrent.futures import ThreadPoolExecutor
+
+# --------------------------------------------------------------------------
+# Deferred QA figure writing
+#
+# Rendering and encoding a QA PNG (matplotlib text metrics + Agg draw + PIL
+# encode) dominates the QA cost and releases the GIL for most of its duration.
+# When ncpu>1 the savefig call is handed to a small thread pool; the Figure
+# object is only ever *created* and *closed* on the main thread, so pyplot's
+# global state is never mutated concurrently.
+# --------------------------------------------------------------------------
+
+_QA_POOL = None
+"""ThreadPoolExecutor used to write QA figures, or None for serial writes."""
+
+_QA_PENDING = []
+"""List of (future, figure, close) tuples that have not yet been reaped."""
+
+_QA_MAX_PENDING = 16
+"""Maximum number of un-reaped figures; bounds the memory held by open figures."""
+
+
+def init_qa_pool(ncpu:int=1):
+    """
+    (Re)initialise the QA figure-writing thread pool.
+
+    Call once per process, after the parameters are final.  Calling with
+    ``ncpu<=1`` restores fully serial, in-line figure writing.  Also used to
+    *reset* the pool inside a forked worker process, where the parent's threads
+    do not exist.
+
+    Parameters
+    ----------
+    ncpu : :obj:`int`, optional
+        Number of QA writer threads.  <=1 disables the pool.
+    """
+    global _QA_POOL, _QA_PENDING
+    old = _QA_POOL
+    _QA_POOL = None
+    _QA_PENDING = []
+    if old is not None:
+        old.shutdown(wait=False)
+    if ncpu is not None and ncpu > 1:
+        _QA_POOL = ThreadPoolExecutor(max_workers=min(int(ncpu), 8),
+                                      thread_name_prefix='pypeit-qa')
+
+
+def save_figure(fig, outfile, show:bool=False, close:bool=True, **kwargs):
+    """
+    Write a matplotlib figure to disk, deferring the write to a background
+    thread when the QA pool is active.
+
+    Parameters
+    ----------
+    fig : `matplotlib.figure.Figure`_
+        Figure to write.  Must not be modified after this call.
+    outfile : :obj:`str`, `Path`_, optional
+        Output file.  If None, nothing is written.
+    show : :obj:`bool`, optional
+        Show the figure interactively.  Forces the synchronous path.
+    close : :obj:`bool`, optional
+        Close the figure once it has been written.
+    **kwargs
+        Passed to `matplotlib.figure.Figure.savefig`_ (e.g. ``dpi``).
+    """
+    if show or _QA_POOL is None:
+        if outfile is not None:
+            fig.savefig(outfile, **kwargs)
+        if show:
+            plt.show()
+        if close:
+            plt.close(fig)
+        return
+    if outfile is None:
+        if close:
+            plt.close(fig)
+        return
+    _QA_PENDING.append((_QA_POOL.submit(fig.savefig, outfile, **kwargs), fig, close))
+    if len(_QA_PENDING) >= _QA_MAX_PENDING:
+        flush_qa()
+
+
+def flush_qa():
+    """
+    Block until every deferred QA figure has been written, then close them.
+
+    Exceptions raised in the writer threads are re-raised here, on the main
+    thread.  Safe to call when the pool is inactive (it is then a no-op).
+    """
+    global _QA_PENDING
+    pending, _QA_PENDING = _QA_PENDING, []
+    for future, fig, close in pending:
+        future.result()
+        if close:
+            plt.close(fig)
+
 # TODO: Move these names to the appropriate class.  This always writes
 # to QA directory, even if the user sets something else...
 def set_qa_filename(
