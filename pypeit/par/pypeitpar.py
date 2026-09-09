@@ -2781,7 +2781,7 @@ class ReduxPar(ParSet):
     """
     def __init__(self, spectrograph=None, detnum=None, sortroot=None, calwin=None, scidir=None,
                  qadir=None, redux_path=None, ignore_bad_headers=None, slitspatnum=None,
-                 maskIDs=None, quicklook=None, chk_version=None):
+                 maskIDs=None, quicklook=None, chk_version=None, ncpu=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2812,6 +2812,18 @@ class ReduxPar(ParSet):
         descr['quicklook'] = 'Run a quick look reduction? This is usually good if you want to quickly ' \
                              'reduce the data (usually at the telescope in real time) to get an initial ' \
                              'estimate of the data quality.'
+
+        defaults['ncpu'] = 1
+        dtypes['ncpu'] = int
+        descr['ncpu'] = 'Number of CPUs (worker processes) PypeIt may use to reduce ' \
+                        'detectors/mosaics concurrently, and the number of threads used ' \
+                        'to write QA figures.  The default, 1, runs the code fully ' \
+                        'serially, exactly as in previous versions.  Values greater than ' \
+                        '1 are capped at the number of detectors being reduced and at ' \
+                        '``os.cpu_count()-1``.  Beware that peak memory usage scales ' \
+                        'roughly linearly with the number of detectors reduced at the ' \
+                        'same time.  Can be overridden on the command line with ' \
+                        '``run_pypeit --ncpu``.'
 
         dtypes['detnum'] = [int, list]
         descr['detnum'] = 'Restrict reduction to a list of detector indices. ' \
@@ -2887,7 +2899,8 @@ class ReduxPar(ParSet):
 
         # Basic keywords
         parkeys = [ 'spectrograph', 'quicklook', 'detnum', 'sortroot', 'calwin', 'scidir', 'qadir',
-                    'redux_path', 'ignore_bad_headers', 'slitspatnum', 'maskIDs', 'chk_version']
+                    'redux_path', 'ignore_bad_headers', 'slitspatnum', 'maskIDs', 'chk_version',
+                    'ncpu']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -2900,6 +2913,8 @@ class ReduxPar(ParSet):
         return cls(**kwargs)
 
     def validate(self):
+        if self.data['ncpu'] is not None and self.data['ncpu'] < 1:
+            raise ValueError('ncpu must be a positive integer.')
         if self.data['slitspatnum'] is not None:
             if self.data['maskIDs'] is not None:
                 raise ValueError("You cannot assign both splitspatnum and maskIDs")

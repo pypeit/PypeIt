@@ -493,6 +493,7 @@ Key                       Type                       Options                    
 ``fwhm_spat_order``       int                        ..                                                                            0                 This parameter determines the spatial polynomial order to use in the 2D polynomial fit to the FWHM of the arc lines. See also, fwhm_spec_order.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
 ``fwhm_spec_order``       int                        ..                                                                            1                 This parameter determines the spectral polynomial order to use in the 2D polynomial fit to the FWHM of the arc lines. See also, fwhm_spat_order.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
 ``lamps``                 list                       ..                                                                            ..                Name of one or more ions used for the wavelength calibration.  Use ``None`` for no calibration. Choose ``use_header`` to use the list of lamps recorded in the header of the arc frames (this is currently available only for Keck DEIMOS, Keck LRIS, MMT Blue Channel, and LDT DeVeny).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+``lamps_wvrng``           list                       ..                                                                            ..                Wavelength range of the lines to use from each lamp in ``lamps``, allowing a subset of a shipped line list to be used without copying it.  Must be the same length as ``lamps``.  Each element is ``min:max`` in Angstroms, where either bound may be ``None``; an element of ``None`` uses the full list.  E.g., ``3400:None`` drops all lines below 3400 angstroms from the corresponding lamp.                                                                                                                                                                                                                                                                                                                                                                                                            
 ``match_toler``           float                      ..                                                                            2.0               Matching tolerance in pixels when searching for new lines. This is the difference in pixels between the wavlength assigned to an arc line by an iteration of the wavelength solution to the wavelength in the line list.  This parameter is also used as the matching tolerance in pixels for a line reidentification.  A good line match must match within this tolerance to the shifted and stretched archive spectrum, and the archive wavelength solution at this match must be within match_toler dispersion elements from the line in line list.                                                                                                                                                                                                                                                       
 ``method``                str                        ``holy-grail``, ``identify``, ``reidentify``, ``echelle``, ``full_template``  ``holy-grail``    Method to use to fit the individual arc lines.  Note that some of the available methods should not be used; they are unstable and require significant parameter tweaking to succeed.  You should use one of 'holy-grail', 'reidentify', or 'full_template'.  'holy-grail' attempts to get a first guess at line IDs by looking for patterns in the line locations.  It is fully automated.  When it works, it works well; however, it can fail catastrophically.  Instead, 'reidentify' and 'full_template' are the preferred methods.  They require an archived wavelength solution for your specific instrument/grating combination as a reference.  This is used to anchor the wavelength solution for the data being reduced.  All options are: holy-grail, identify, reidentify, echelle, full_template.
 ``n_final``               int, float, list, ndarray  ..                                                                            4                 Order of final fit to the wavelength solution (there are n_final+1 parameters in the fit). This can be a single number or a list/array providing the value for each slit                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
@@ -666,22 +667,23 @@ ReduxPar Keywords
 
 Class Instantiation: :class:`~pypeit.par.pypeitpar.ReduxPar`
 
-======================  ==============  =======  ===========  ==========================================================================================================================================================================================================================================================================================================================================================================================================
-Key                     Type            Options  Default      Description                                                                                                                                                                                                                                                                                                                                                                                               
-======================  ==============  =======  ===========  ==========================================================================================================================================================================================================================================================================================================================================================================================================
-``calwin``              int, float      ..       0            The window of time in hours to search for calibration frames for a science frame                                                                                                                                                                                                                                                                                                                          
-``chk_version``         bool            ..       True         If True enforce strict PypeIt version checking to ensure that all files were created with the current version of PypeIt.  If set to False, the code will attempt to read out-of-date files and keep going.  Beware (!!) that this can lead to unforeseen bugs that either cause the code to crash or lead to erroneous results. I.e., you really need to know what you are doing if you set this to False!
-``detnum``              int, list       ..       ..           Restrict reduction to a list of detector indices. In case of mosaic reduction (currently only available for Gemini/GMOS and Keck/DEIMOS) ``detnum`` should be a list of tuples of the detector indices that are mosaiced together. E.g., for Gemini/GMOS ``detnum`` would be ``[(1,2,3)]`` and for Keck/DEIMOS it would be ``[(1, 5), (2, 6), (3, 7), (4, 8)]``                                           
-``ignore_bad_headers``  bool            ..       False        Ignore bad headers (NOT recommended unless you know it is safe).                                                                                                                                                                                                                                                                                                                                          
-``maskIDs``             str, int, list  ..       ..           Restrict reduction to a set of slitmask IDs Example syntax -- ``maskIDs = 818006,818015`` This must be used with detnum (for now).                                                                                                                                                                                                                                                                        
-``qadir``               str             ..       ``QA``       Directory relative to calling directory to write quality assessment files.                                                                                                                                                                                                                                                                                                                                
-``quicklook``           bool            ..       False        Run a quick look reduction? This is usually good if you want to quickly reduce the data (usually at the telescope in real time) to get an initial estimate of the data quality.                                                                                                                                                                                                                           
-``redux_path``          str             ..       ``$PWD``     Path to folder for performing reductions.  Default is the current working directory.                                                                                                                                                                                                                                                                                                                      
-``scidir``              str             ..       ``Science``  Directory relative to calling directory to write science files.                                                                                                                                                                                                                                                                                                                                           
-``slitspatnum``         str, list       ..       ..           Restrict reduction to a set of slit DET:SPAT values (closest slit is used). Example syntax -- slitspatnum = DET01:175,DET01:205 or MSC02:2234  If you are re-running the code, (i.e. modifying one slit) you *must* have the precise SPAT_ID index.                                                                                                                                                       
-``sortroot``            str             ..       ..           A filename given to output the details of the sorted files.  If None, the default is the root name of the pypeit file.  If off, no output is produced.                                                                                                                                                                                                                                                    
-``spectrograph``        str             ..       ..           Spectrograph that provided the data to be reduced.  See :ref:`instruments` for valid options.                                                                                                                                                                                                                                                                                                             
-======================  ==============  =======  ===========  ==========================================================================================================================================================================================================================================================================================================================================================================================================
+======================  ==============  =======  ===========  =======================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+Key                     Type            Options  Default      Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
+======================  ==============  =======  ===========  =======================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+``calwin``              int, float      ..       0            The window of time in hours to search for calibration frames for a science frame                                                                                                                                                                                                                                                                                                                                                                                                                                       
+``chk_version``         bool            ..       True         If True enforce strict PypeIt version checking to ensure that all files were created with the current version of PypeIt.  If set to False, the code will attempt to read out-of-date files and keep going.  Beware (!!) that this can lead to unforeseen bugs that either cause the code to crash or lead to erroneous results. I.e., you really need to know what you are doing if you set this to False!                                                                                                             
+``detnum``              int, list       ..       ..           Restrict reduction to a list of detector indices. In case of mosaic reduction (currently only available for Gemini/GMOS and Keck/DEIMOS) ``detnum`` should be a list of tuples of the detector indices that are mosaiced together. E.g., for Gemini/GMOS ``detnum`` would be ``[(1,2,3)]`` and for Keck/DEIMOS it would be ``[(1, 5), (2, 6), (3, 7), (4, 8)]``                                                                                                                                                        
+``ignore_bad_headers``  bool            ..       False        Ignore bad headers (NOT recommended unless you know it is safe).                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+``maskIDs``             str, int, list  ..       ..           Restrict reduction to a set of slitmask IDs Example syntax -- ``maskIDs = 818006,818015`` This must be used with detnum (for now).                                                                                                                                                                                                                                                                                                                                                                                     
+``ncpu``                int             ..       1            Number of CPUs (worker processes) PypeIt may use to reduce detectors/mosaics concurrently, and the number of threads used to write QA figures.  The default, 1, runs the code fully serially, exactly as in previous versions.  Values greater than 1 are capped at the number of detectors being reduced and at ``os.cpu_count()-1``.  Beware that peak memory usage scales roughly linearly with the number of detectors reduced at the same time.  Can be overridden on the command line with ``run_pypeit --ncpu``.
+``qadir``               str             ..       ``QA``       Directory relative to calling directory to write quality assessment files.                                                                                                                                                                                                                                                                                                                                                                                                                                             
+``quicklook``           bool            ..       False        Run a quick look reduction? This is usually good if you want to quickly reduce the data (usually at the telescope in real time) to get an initial estimate of the data quality.                                                                                                                                                                                                                                                                                                                                        
+``redux_path``          str             ..       ``$PWD``     Path to folder for performing reductions.  Default is the current working directory.                                                                                                                                                                                                                                                                                                                                                                                                                                   
+``scidir``              str             ..       ``Science``  Directory relative to calling directory to write science files.                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+``slitspatnum``         str, list       ..       ..           Restrict reduction to a set of slit DET:SPAT values (closest slit is used). Example syntax -- slitspatnum = DET01:175,DET01:205 or MSC02:2234  If you are re-running the code, (i.e. modifying one slit) you *must* have the precise SPAT_ID index.                                                                                                                                                                                                                                                                    
+``sortroot``            str             ..       ..           A filename given to output the details of the sorted files.  If None, the default is the root name of the pypeit file.  If off, no output is produced.                                                                                                                                                                                                                                                                                                                                                                 
+``spectrograph``        str             ..       ..           Spectrograph that provided the data to be reduced.  See :ref:`instruments` for valid options.                                                                                                                                                                                                                                                                                                                                                                                                                          
+======================  ==============  =======  ===========  =======================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -3146,6 +3148,186 @@ Alterations to the default parameters are:
       polyorder = 13
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
+
+.. _instr_par-int_ids_eev10:
+
+INT EEV10 (``int_ids_eev10``)
+-----------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = int_ids_eev10
+  [calibrations]
+      [[biasframe]]
+          exprng = None, 1,
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              mask_cr = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          exprng = None, 600,
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          exprng = None, 600,
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          exprng = None, 600,
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = None, 120,
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[wavelengths]]
+          lamps = NeI, ArI, ArII, CuI,
+      [[slitedges]]
+          sync_predict = nearest
+          bound_detector = True
+  [scienceframe]
+      exprng = 120, None,
+      [[process]]
+          mask_cr = True
+          noise_floor = 0.01
+
+.. _instr_par-int_ids_redplus2:
+
+INT RED+2 (``int_ids_redplus2``)
+--------------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = int_ids_redplus2
+  [calibrations]
+      [[biasframe]]
+          exprng = None, 1,
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              mask_cr = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          exprng = None, 600,
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          exprng = None, 600,
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          exprng = None, 600,
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = None, 120,
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[wavelengths]]
+          lamps = NeI, ArI, ArII, CuI,
+      [[slitedges]]
+          sync_predict = nearest
+          bound_detector = True
+  [scienceframe]
+      exprng = 120, None,
+      [[process]]
+          mask_cr = True
+          noise_floor = 0.01
 
 .. _instr_par-jwst_nircam:
 
@@ -9496,9 +9678,10 @@ Alterations to the default parameters are:
           slit_illum_finecorr = False
       [[wavelengths]]
           method = full_template
-          lamps = ThAr,
+          lamps = ThAr, HeI_NGPS,
+          lamps_wvrng = 3400:None, None,
           fwhm_fromlines = False
-          reid_arxiv = wvarxiv_p200_ngps_u_thar_central.fits
+          reid_arxiv = wvarxiv_p200_ngps_u_thar_central_blueanchor.fits
           cc_thresh = 0.6
           cc_local_thresh = 0.6
           rms_thresh_frac_fwhm = 1.0
