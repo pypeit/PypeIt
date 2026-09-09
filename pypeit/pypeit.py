@@ -49,6 +49,10 @@ class PypeIt:
             Over-ride reduction path in PypeIt file (e.g. Notebook usage)
         calib_only: (:obj:`bool`, optional):
             Only generate the calibration files that you can
+        ncpu (:obj:`int`, optional):
+            Number of CPUs to use.  If not None, overrides the ``[rdx] ncpu``
+            parameter (e.g., set by the ``run_pypeit --ncpu`` command-line
+            option).  The parameter default, 1, runs fully serially.
 
     Attributes:
         pypeit_file (:obj:`str`):
@@ -60,7 +64,7 @@ class PypeIt:
     """
     def __init__(
         self, pypeit_file, overwrite=True, reuse_calibs=False, show=False, redux_path=None,
-        calib_only=False
+        calib_only=False, ncpu=None
     ):
 
         # Set up logging
@@ -86,6 +90,9 @@ class PypeIt:
         # Check the output paths are ready
         if redux_path is not None:
             self.par['rdx']['redux_path'] = redux_path
+        # The command-line --ncpu overrides the parameter file
+        if ncpu is not None:
+            self.par['rdx']['ncpu'] = ncpu
 
         # Write the full parameter set here
         # --------------------------------------------------------------

@@ -61,6 +61,12 @@ class RunPypeIt(scriptbase.ScriptBase):
                             help='Overwrite any existing files/directories')
         parser.add_argument('-c', '--calib_only', default=False, action='store_true',
                             help='Only run on calibrations')
+        parser.add_argument('--ncpu', type=int, default=None,
+                            help='Number of CPUs to use.  Overrides the [rdx] ncpu '
+                                 'parameter.  The default (None) uses the parameter value, '
+                                 'which itself defaults to 1 (fully serial).  Values >1 '
+                                 'reduce detectors/mosaics concurrently and increase peak '
+                                 'memory usage roughly in proportion.')
 
         return parser
 
@@ -89,7 +95,8 @@ class RunPypeIt(scriptbase.ScriptBase):
         # Instantiate the main pipeline reduction object
         pypeIt = pypeit.PypeIt(
             args.pypeit_file, reuse_calibs=args.reuse_calibs, overwrite=args.overwrite,
-            redux_path=args.redux_path, calib_only=args.calib_only, show=args.show
+            redux_path=args.redux_path, calib_only=args.calib_only, show=args.show,
+            ncpu=args.ncpu
         )
 
         if args.calib_only:
