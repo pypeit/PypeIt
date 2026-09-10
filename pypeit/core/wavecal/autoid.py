@@ -636,7 +636,6 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
                 ', wv_cen = {:7.1f}'.format(wcen[iarxiv]) +
                 ', disp = {:5.3f}'.format(disp[iarxiv]))
             plt.ylim(10.0, 1.5*use_spec.max())
-            #plt.ylim(1.2*use_spec.min(), 1.5 *use_spec.max())
             plt.yscale('log')
             plt.legend()
             plt.show()
