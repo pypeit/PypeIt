@@ -11,6 +11,7 @@ This module contains code for collating multiple 1d spectra by source object.
 
 import copy
 import os.path
+import re
 import shutil
 import traceback
 from functools import partial
@@ -55,6 +56,12 @@ class SourceObject:
             spectra should be compared using the sky coordinates in RA and DEC.
             'pixel' means the spectra should be compared by the spatial pixel
             coordinates in the image.
+        outfile_from (str): How the coadded output file for this source should
+            be named. 'coord' (the default) names the file from the sky
+            coordinate or spatial pixel position; 'maskdef_objname' names it
+            from the slitmask-design object name (MASKDEF_OBJNAME), falling back
+            to the coordinate naming when no mask-design name is available. See
+            :func:`build_coadd_file_name`.
 
     Attributes:
         spec_obj_list (list of :obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
@@ -64,12 +71,18 @@ class SourceObject:
         spec1d_header_list: (list of `astropy.io.fits.Header`_):
             The headers of the spec1d files in the group
     """
-    def __init__(self, spec1d_obj, spec1d_header, spec1d_file, spectrograph, match_type):
+    def __init__(self, spec1d_obj, spec1d_header, spec1d_file, spectrograph, match_type,
+                 outfile_from='coord'):
         self.spec_obj_list = [spec1d_obj]
         self.spec1d_file_list = [spec1d_file]
         self.spec1d_header_list = [spec1d_header]
         self._spectrograph = spectrograph
         self.match_type = match_type
+        self.outfile_from = outfile_from
+        # Basename of the coadd output actually written for this source, set by
+        # the coadd loop once collisions have been disambiguated.  Used by the
+        # report so it records the real output file (see get_report_metadata).
+        self.coaddfile = None
 
         if (match_type == 'ra/dec'):
             try:
@@ -80,7 +93,7 @@ class SourceObject:
             self.coord = spec1d_obj['SPAT_PIXPOS']
 
     @classmethod
-    def build_source_objects(cls, specobjs_list, spec1d_files, match_type):
+    def build_source_objects(cls, specobjs_list, spec1d_files, match_type, outfile_from='coord'):
         """Build a list of SourceObjects from a list of spec1d files. There will be one SourceObject per
         SpecObj in the resulting list (i.e. no combining or collating is done by this method).
 
@@ -91,14 +104,18 @@ class SourceObject:
 
             match_type (str):           What type of matching the SourceObjects will be configured for.
                                         Must be either 'ra/dec' or 'pixel'
-        Returns: 
+
+            outfile_from (str):         How the coadded output files should be named. Must be either
+                                        'coord' or 'maskdef_objname'. See :func:`build_coadd_file_name`.
+        Returns:
             list of :obj:`SourceObject`: A list of uncollated SourceObjects with one SpecObj per SourceObject.
         """
         result = []
         for i, sobjs in enumerate(specobjs_list):
             spectrograph = load_spectrograph(sobjs.header['PYP_SPEC'])
             for sobj in sobjs:
-                result.append(SourceObject(sobj, sobjs.header, spec1d_files[i], spectrograph, match_type))
+                result.append(SourceObject(sobj, sobjs.header, spec1d_files[i], spectrograph,
+                                           match_type, outfile_from=outfile_from))
     
         return result
 
@@ -269,7 +286,9 @@ def get_report_metadata(object_header_keys, spec_obj_keys, file_info):
     if not isinstance(file_info, SourceObject):
         return (None, None)
 
-    coaddfile = build_coadd_file_name(file_info)
+    # Prefer the disambiguated basename assigned when the coadd was written;
+    # fall back to recomputing it (e.g. for a dry run that never wrote a file).
+    coaddfile = getattr(file_info, 'coaddfile', None) or build_coadd_file_name(file_info)
     result_rows = []
     for i in range(len(file_info.spec1d_header_list)):
 
@@ -508,6 +527,28 @@ def flux(par, spectrograph, spec1d_files, failed_fluxing_log):
     # Return the succesfully fluxed files
     return flux_calibrated_files
 
+def _safe_name_component(name):
+    """Sanitize a string for use as a single output-filename component.
+
+    The slitmask-design object name (``MASKDEF_OBJNAME``) is catalog-supplied
+    and may contain path separators (``/``, ``\\``), a drive/stream colon, or
+    other characters that are invalid or dangerous in a filename.  Replace any
+    character outside a conservative safe set (letters, digits, ``.``, ``+``,
+    ``-``, ``_``) with an underscore, so the result is always a single,
+    portable path component that cannot escape the output directory.
+
+    Args:
+        name (:obj:`str`): The raw name.
+
+    Returns:
+        :obj:`str`: A filename-safe component (never empty; ``'_'`` if the
+        input reduces to nothing).
+    """
+    safe = re.sub(r'[^A-Za-z0-9.+_-]', '_', str(name).strip())
+    # Avoid a component that is empty or only dots (e.g. '', '.', '..').
+    return safe if safe.strip('.') else '_'
+
+
 def build_coadd_file_name(source_object):
     """Build the output file name for coadding.
     The filename convention is J<hmsdms+dms>_<instrument name>_<YYYYMMDD>.fits
@@ -515,9 +556,15 @@ def build_coadd_file_name(source_object):
     when matching by pixel position. The date portion may be <YYYYMMDD-YYYMMDD> if the
     files coadded span more than one date.
 
+    When ``source_object.outfile_from == 'maskdef_objname'``, the leading portion
+    of the name is instead the slitmask-design object name (MASKDEF_OBJNAME) of the
+    source, e.g. ``qso_172239.955+655201.69_<instrument name>_<YYYYMMDD>.fits``.
+    Sources without a usable mask-design name (missing, empty, or ``SERENDIP``)
+    fall back to the coordinate/pixel naming above.
+
     Currently instrument_name is taken from spectrograph.camera
 
-    Returns: 
+    Returns:
         str:  The name of the coadd output file.
     """
     mjd_list = [float(h['MJD']) for h in source_object.spec1d_header_list]
@@ -529,13 +576,60 @@ def build_coadd_file_name(source_object):
 
     date_portion = f"{start_date_portion}_{end_date_portion}"
 
-    if source_object.match_type == 'ra/dec':
-        coord_portion = 'J' + source_object.coord.to_string('hmsdms', sep='', precision=2).replace(' ', '')
-    else:
-        coord_portion = source_object.spec_obj_list[0]['NAME'].split('_')[0]
+    # Prefer the slitmask-design object name if requested and available
+    coord_portion = None
+    if getattr(source_object, 'outfile_from', 'coord') == 'maskdef_objname':
+        objname = source_object.spec_obj_list[0]['MASKDEF_OBJNAME']
+        if objname is not None and str(objname).strip() not in ('', 'None', 'SERENDIP'):
+            coord_portion = _safe_name_component(objname)
+
+    if coord_portion is None:
+        if source_object.match_type == 'ra/dec':
+            coord_portion = 'J' + source_object.coord.to_string('hmsdms', sep='', precision=2).replace(' ', '')
+        else:
+            coord_portion = source_object.spec_obj_list[0]['NAME'].split('_')[0]
     instrument_name = source_object._spectrograph.camera
-    
+
     return f'{coord_portion}_{instrument_name}_{date_portion}.fits'
+
+
+def disambiguate_coadd_file_name(source, base_name, used_names):
+    """Ensure the coadd output name is unique across distinct sources.
+
+    :func:`build_coadd_file_name` can return the same name for two distinct
+    collated sources -- e.g. when ``outfile_from == 'maskdef_objname'`` and two
+    sources separated by coordinates happen to share a ``MASKDEF_OBJNAME`` and
+    date range. Since the coadd is written with ``overwrite=True``, an
+    unresolved collision would silently drop one source. When ``base_name`` is
+    already taken, append a coordinate/position token (and, if necessary, a
+    counter) so each source lands in its own file.
+
+    Args:
+        source (:class:`SourceObject`):
+            The source whose output file is being named.
+        base_name (:obj:`str`):
+            The name from :func:`build_coadd_file_name`.
+        used_names (:obj:`set`):
+            Names already claimed by earlier sources; not modified here.
+
+    Returns:
+        :obj:`str`: A name not present in ``used_names``.
+    """
+    if base_name not in used_names:
+        return base_name
+    stem, ext = os.path.splitext(base_name)
+    if source.match_type == 'ra/dec':
+        token = 'J' + source.coord.to_string('hmsdms', sep='',
+                                              precision=2).replace(' ', '')
+    else:
+        token = source.spec_obj_list[0]['NAME'].split('_')[0]
+    candidate = f'{stem}_{token}{ext}'
+    suffix = 1
+    while candidate in used_names:
+        candidate = f'{stem}_{token}_{suffix}{ext}'
+        suffix += 1
+    return candidate
+
 
 def refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_log):
 
@@ -786,7 +880,8 @@ def collate_1d(par, spectrograph, tolerance, spec1d_files):
 
     # Build source objects from spec1d file, this list is not collated 
     source_objects = SourceObject.build_source_objects(specobjs_to_coadd, spec1d_files,
-                                                        par['collate1d']['match_using'])
+                                                        par['collate1d']['match_using'],
+                                                        outfile_from=par['collate1d']['outfile_from'])
 
     # Filter out unwanted SpecObj objects based on parameters 
     (objects_to_coadd, excluded_obj_log) = exclude_source_objects(source_objects, exclude_map, par)
@@ -797,9 +892,18 @@ def collate_1d(par, spectrograph, tolerance, spec1d_files):
     # Coadd the spectra
     successful_source_list = []
     failed_source_log = []
+    # Track output names already claimed so two distinct sources can never
+    # collide onto the same file (which would silently overwrite one).
+    used_coadd_names = set()
     for source in source_list:
 
-        coaddfile = os.path.join(par['collate1d']['outdir'], build_coadd_file_name(source))
+        coadd_name = disambiguate_coadd_file_name(source,
+                                                  build_coadd_file_name(source),
+                                                  used_coadd_names)
+        # Remember the disambiguated basename so the report points at the file
+        # actually written, not the (possibly colliding) base name.
+        source.coaddfile = coadd_name
+        coaddfile = os.path.join(par['collate1d']['outdir'], coadd_name)
         log.info(f'Creating {coaddfile} from the following sources:')
         for i in range(len(source.spec_obj_list)):
             log.info(f'    {source.spec1d_file_list[i]}: {source.spec_obj_list[i].NAME} '
@@ -809,6 +913,9 @@ def collate_1d(par, spectrograph, tolerance, spec1d_files):
         if len(source.spec_obj_list) == 1:
             excluded_obj_log.append(f"Excluding {source.spec_obj_list[0].NAME} in {source.spec1d_file_list[0]} because there's no other SpecObj to coadd with.")
             continue
+
+        # Claim the name only for sources that are actually written.
+        used_coadd_names.add(coadd_name)
 
         if not par['collate1d']['dry_run']:
             try:

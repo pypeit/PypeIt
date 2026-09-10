@@ -2781,7 +2781,8 @@ class ReduxPar(ParSet):
     """
     def __init__(self, spectrograph=None, detnum=None, sortroot=None, calwin=None, scidir=None,
                  qadir=None, redux_path=None, ignore_bad_headers=None, slitspatnum=None,
-                 maskIDs=None, quicklook=None, chk_version=None):
+                 maskIDs=None, quicklook=None, chk_version=None, ramp_fit_cores=None,
+                 ramp_fit_chunk_rows=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2872,6 +2873,26 @@ class ReduxPar(ParSet):
                                'results. I.e., you really need to know what you are doing if ' \
                                'you set this to False!'
 
+        # Up-the-ramp fitting performance (currently only used by MMT/MMIRS)
+        dtypes['ramp_fit_cores'] = int
+        descr['ramp_fit_cores'] = 'Number of worker threads used for up-the-ramp fitting of ' \
+                                  'raw frames (currently only MMT/MMIRS).  If None, defaults to ' \
+                                  'min(6, os.cpu_count()); set to 1 to disable threading.  The ' \
+                                  'fit is memory-bandwidth bound, so on a typical user\'s ' \
+                                  'computer more than ~6 threads does not help and can hurt; ' \
+                                  'raising this pays off mainly on workstations with more ' \
+                                  'memory bandwidth. ' \
+                                  'Peak memory scales roughly as cores * ramp_fit_chunk_rows, ' \
+                                  'so increase it only if you have the RAM (and cores) to spare.'
+
+        dtypes['ramp_fit_chunk_rows'] = int
+        descr['ramp_fit_chunk_rows'] = 'Number of detector rows fit per up-the-ramp fitting ' \
+                                       'call (currently only MMT/MMIRS).  If None, defaults to ' \
+                                       '16, which keeps each thread\'s working set cache-' \
+                                       'resident (empirically near-optimal and largely machine-' \
+                                       'independent).  This is an expert knob; larger values ' \
+                                       'raise peak memory and usually reduce throughput.'
+
         # Instantiate the parameter set
         super(ReduxPar, self).__init__(list(pars.keys()),
                                         values=list(pars.values()),
@@ -2887,7 +2908,8 @@ class ReduxPar(ParSet):
 
         # Basic keywords
         parkeys = [ 'spectrograph', 'quicklook', 'detnum', 'sortroot', 'calwin', 'scidir', 'qadir',
-                    'redux_path', 'ignore_bad_headers', 'slitspatnum', 'maskIDs', 'chk_version']
+                    'redux_path', 'ignore_bad_headers', 'slitspatnum', 'maskIDs', 'chk_version',
+                    'ramp_fit_cores', 'ramp_fit_chunk_rows']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -5625,7 +5647,7 @@ class Collate1DPar(ParSet):
     """
     def __init__(self, tolerance=None, dry_run=None, ignore_flux=None, flux=None, match_using=None,
                  exclude_slit_trace_bm=[], exclude_serendip=False, wv_rms_thresh=None, outdir=None,
-                 spec1d_outdir=None, refframe=None):
+                 spec1d_outdir=None, refframe=None, outfile_from=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -5704,6 +5726,18 @@ class Collate1DPar(ParSet):
         descr['refframe'] = 'Perform reference frame correction prior to coadding. ' \
                          'Options are: {0}'.format(', '.join(options['refframe']))
 
+        # How to name the coadded output files
+        defaults['outfile_from'] = 'coord'
+        options['outfile_from'] = ['coord', 'maskdef_objname']
+        dtypes['outfile_from'] = str
+        descr['outfile_from'] = "Determines how the coadded output files are named. 'coord' " \
+                                "(the default) names each file after the sky coordinate of the " \
+                                "source (when match_using is 'ra/dec') or its spatial pixel " \
+                                "position (when match_using is 'pixel'). 'maskdef_objname' names " \
+                                "each file after the slitmask-design object name (MASKDEF_OBJNAME); " \
+                                "sources without a mask-design name (e.g. serendips) fall back to " \
+                                "the 'coord' naming."
+
         # Instantiate the parameter set
         super(Collate1DPar, self).__init__(list(pars.keys()),
                                            values=list(pars.values()),
@@ -5717,7 +5751,7 @@ class Collate1DPar(ParSet):
         k = [*cfg.keys()]
         parkeys = ['tolerance', 'dry_run', 'ignore_flux', 'flux', 'match_using',
                    'exclude_slit_trace_bm', 'exclude_serendip', 'outdir', 'spec1d_outdir',
-                   'wv_rms_thresh', 'refframe']
+                   'wv_rms_thresh', 'refframe', 'outfile_from']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
