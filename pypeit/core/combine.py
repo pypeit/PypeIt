@@ -13,8 +13,7 @@ from pypeit import utils
 from IPython import embed
 
 
-# TODO make weights optional and do uniform weighting without.
-def weighted_combine(weights, sci_list, var_list, inmask_stack,
+def weighted_combine(sci_list, var_list, inmask_stack, weights=None,
                      sigma_clip=False, sigma_clip_stack=None, sigrej=None, maxiters=5):
     r"""
     Combine multiple sets of images, all using the same weights and mask.
@@ -44,7 +43,15 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
     
     Parameters
     ----------
-    weights : `numpy.ndarray`_
+    sci_list : :obj:`list`
+        List of floating-point `numpy.ndarray`_ image groups to stack.  Each
+        image group *must* have the same shape: ``(nimgs, nspec, nspat)``.
+    var_list : :obj:`list`
+        List of floating-point `numpy.ndarray`_ images providing the variance
+        for each image group.  The number of image groups and the shape of each
+        group must match ``sci_list``.  These are used to propagate the error in
+        the combined images.
+    weights : `numpy.ndarray`_, optional
         Weights to use. Options for the shape of weights are:
 
             - ``(nimgs,)``: a single weight per image in the stack
@@ -58,15 +65,7 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
         Note that the weights are distinct from the mask, which is dealt with
         via the ``inmask_stack`` argument, meaning there should not be any
         weights that are set to zero (although in principle this would still
-        work).
-    sci_list : :obj:`list`
-        List of floating-point `numpy.ndarray`_ image groups to stack.  Each
-        image group *must* have the same shape: ``(nimgs, nspec, nspat)``.
-    var_list : :obj:`list`
-        List of floating-point `numpy.ndarray`_ images providing the variance
-        for each image group.  The number of image groups and the shape of each
-        group must match ``sci_list``.  These are used to propagate the error in
-        the combined images.
+        work). If weights are not provided, uniform weights will be assumed.
     inmask_stack : `numpy.ndarray`_, boolean, shape (nimgs, nspec, nspat)
         Good-pixel mask (True=Good, False=Bad) for the input image stacks.  This
         single group of good-pixel masks is applied to *all* input image groups.
@@ -101,11 +100,13 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
 
     shape = img_list_error_check(sci_list, var_list)
 
-
     nimgs = shape[0]
     img_shape = shape[1:]
     #nspec = shape[1]
     #nspat = shape[2]
+
+    # Check if weights are provided
+    _weights = np.ones(nimgs, dtype=float)/nimgs if weights is None else weights
 
     if nimgs == 1:
         # If only one image is passed in, simply return the input lists of images, but reshaped
@@ -153,7 +154,7 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
         mask_stack = inmask_stack  # mask_stack = True are good values
 
     nused = np.sum(mask_stack, axis=0)
-    weights_stack = broadcast_weights(weights, shape)
+    weights_stack = broadcast_weights(_weights, shape)
     weights_mask_stack = weights_stack*mask_stack.astype(float)
 
     weights_sum = np.sum(weights_mask_stack, axis=0)

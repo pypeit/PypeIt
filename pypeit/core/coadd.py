@@ -3168,10 +3168,10 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
     # sci_list_rebin[2] = rebinned sciimg-sky_model images that we used for the sigma clipping
     # NOTE: outmask is a gpm
     sci_list_out, var_list_out, outmask, nused \
-            = combine.weighted_combine(sci_list_rebin[0], sci_list_rebin[1:], var_list_rebin,
-                               norm_rebin_stack != 0, sigma_clip=True,
-                               sigma_clip_stack=sci_list_rebin[2], sigrej=sigrej,
-                               maxiters=maxiters)
+            = combine.weighted_combine(sci_list_rebin[1:], var_list_rebin, norm_rebin_stack != 0,
+                                       weights=sci_list_rebin[0], sigma_clip=True,
+                                       sigma_clip_stack=sci_list_rebin[2], sigrej=sigrej, maxiters=maxiters
+                                       )
     sciimg, imgminsky, waveimg, dspat = sci_list_out
     sciivar = utils.inverse(var_list_out[0])
 

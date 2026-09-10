@@ -15,7 +15,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 
 from pypeit import log
-from pypeit import PypeItError
+from pypeit import PypeItError, PypeItDataModelError
 from pypeit import alignframe, datamodel, flatfield, io, sensfunc, spec2dobj, utils
 from pypeit.core.flexure import calculate_image_phase
 from pypeit.core import datacube, extract, flux_calib, parse, combine 
@@ -45,10 +45,12 @@ class DataCube(datamodel.DataContainer):
             Wavelength array of the spectral blaze function
         blaze_spec (`numpy.ndarray`_):
             The spectral blaze function
-        sensfunc (`numpy.ndarray`_, None):
-            Sensitivity function (nwave,). Only saved if the data are fluxed.
         PYP_SPEC (str):
             Name of the PypeIt Spectrograph
+        whitelight_range (`numpy.ndarray`_, None):
+            Default wavelength range to use for white-light images and extraction.
+        sensfunc (`numpy.ndarray`_, None):
+            Sensitivity function (nwave,). Only saved if the data are fluxed.
         fluxed (bool):
             If the cube has been flux calibrated, this will be set to "True"
 
@@ -67,7 +69,7 @@ class DataCube(datamodel.DataContainer):
             Build from PYP_SPEC
 
     """
-    version = '1.2.0'
+    version = '1.3.0'
 
     datamodel = {'flux': dict(otype=np.ndarray, atype=np.floating,
                               descr='Flux datacube in units of counts/s/Ang/arcsec^2 or '
@@ -79,8 +81,11 @@ class DataCube(datamodel.DataContainer):
                  'wave': dict(otype=np.ndarray, atype=np.floating,
                               descr='Wavelength of each slice in the spectral direction. '
                                     'The units are Angstroms.'),
+                 'whitelight_range': dict(
+                     otype=np.ndarray, atype=np.floating,
+                     descr='Default wavelength range used for white-light images and extraction.'),
                  'blaze_wave': dict(otype=np.ndarray, atype=np.floating,
-                                    descr='Wavelength array of the spectral blaze function'),
+                                     descr='Wavelength array of the spectral blaze function'),
                  'blaze_spec': dict(otype=np.ndarray, atype=np.floating,
                                     descr='The spectral blaze function'),
                  'sensfunc': dict(otype=np.ndarray, atype=np.floating,
@@ -96,10 +101,12 @@ class DataCube(datamodel.DataContainer):
                  '_wcs'
                 ]
 
-    def __init__(self, flux, sig, bpm, wave, PYP_SPEC, blaze_wave, blaze_spec, sensfunc=None,
-                 fluxed=None):
+    def __init__(self, flux, sig, bpm, wave, PYP_SPEC, blaze_wave, blaze_spec,
+                 whitelight_range=None, sensfunc=None, fluxed=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        if whitelight_range is not None:
+            values['whitelight_range'] = np.asarray(whitelight_range, dtype=float)
         _d = dict([(k, values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
@@ -192,7 +199,16 @@ class DataCube(datamodel.DataContainer):
         """
         with io.fits_open(ifile) as hdu:
             # Read using the base class
-            self = cls.from_hdu(hdu, chk_version=chk_version, **kwargs)
+            try:
+                self = cls.from_hdu(hdu, chk_version=chk_version, **kwargs)
+            except PypeItDataModelError as exc:
+                if not chk_version or 'does not match version' not in str(exc):
+                    raise
+                log.warning(
+                    f'{ifile} was written with an older DataCube datamodel; attempting to '
+                    'read it without strict version checking.'
+                )
+                self = cls.from_hdu(hdu, chk_version=False, **kwargs)
             # Internals
             self.filename = ifile
             self.head0 = hdu[0].header
@@ -202,6 +218,45 @@ class DataCube(datamodel.DataContainer):
             self._ivar = None
             self._wcs = wcs.WCS(hdu[1].header)
         return self
+
+    def resolve_whitelight_range(self, whitelight_range):
+        """
+        Resolve the white-light wavelength range for extraction.
+
+        Any user-provided wavelength bound overrides the cube default.  Missing
+        bounds are filled from the white-light range stored in the datacube; if
+        that metadata is unavailable, the full cube wavelength range is used.
+        """
+        if whitelight_range is not None and len(whitelight_range) != 2:
+            raise PypeItError('whitelight_range must have exactly two elements.')
+
+        if whitelight_range is not None and all(w is not None for w in whitelight_range):
+            return whitelight_range
+
+        try:
+            default_range = np.asarray(self.whitelight_range, dtype=float)
+            if default_range.size != 2 or not np.all(np.isfinite(default_range)):
+                raise ValueError('stored whitelight_range is missing or invalid')
+            resolved_range = [float(default_range[0]), float(default_range[1])]
+            log.info(
+                f'Using datacube default white-light wavelength range: '
+                f'{resolved_range[0]:.2f} A - {resolved_range[1]:.2f} A'
+            )
+        except Exception as exc:
+            resolved_range = [float(np.min(self.wave)), float(np.max(self.wave))]
+            log.warning(
+                'Datacube does not define a usable default white-light wavelength range; '
+                f'using the full cube range instead. Original error: {exc}'
+            )
+
+        if whitelight_range is None:
+            return resolved_range
+
+        if whitelight_range[0] is not None:
+            resolved_range[0] = whitelight_range[0]
+        if whitelight_range[1] is not None:
+            resolved_range[1] = whitelight_range[1]
+        return resolved_range
 
     @property
     def ivar(self):
@@ -267,10 +322,13 @@ class DataCube(datamodel.DataContainer):
 
         # Datacube's are counts/second, so set the exposure time to 1
         exptime = 1.0
+        whitelight_range = self.resolve_whitelight_range(
+            parset['cube']['extraction']['whitelight_range']
+        )
         sobjs, spec2d, wl_img, wl_ivar, wl_gpm = datacube.extract_point_source(
             self.wave, self.flux, self.ivar, self.bpm, self._wcs, exptime,
             fluxed=self.fluxed, min_frac_use=parset['extraction']['min_frac_prof'],
-            whitelight_range=parset['cube']['extraction']['whitelight_range'],
+            whitelight_range=whitelight_range,
             fwhm=parset['cube']['extraction']['fwhm'],
             skysub_resid=parset['cube']['extraction']['skysub_resid'],
             snr_thresh=parset['cube']['extraction']['snr_thresh'], manual_position=manual_position,
@@ -528,7 +586,8 @@ class CoAdd3D:
         self.combine = self.cubepar['combine']
         self.alignment_method = None if self.cubepar['alignment_method'].lower() in ["none"] else self.cubepar['alignment_method']
         self.align = False if self.alignment_method is None else True
-        self.native = self.cubepar['save_native']
+        self._save_native = self.cubepar['save_native']
+        self._save_separate = self.cubepar['save_separate']
         self.correct_dar = self.cubepar['correct_dar']
 
         # TODO: Only need one of show or debug probably
@@ -728,7 +787,7 @@ class CoAdd3D:
         """
         # Science output directory
         if coadd_dir is not None:
-            pypeit_scidir = Path(coadd_dir).absolute() / 'Science'
+            pypeit_scidir = Path(coadd_dir).absolute() / science_dir
         else:
             pypeit_scidir = Path(spec2d_files[0]).parent
         coadd_scidir = pypeit_scidir.parent / f'{science_dir}_cube'
@@ -793,7 +852,7 @@ class CoAdd3D:
 
         for ff in range(self.numfiles):
             # Check native first
-            if self.native:
+            if self._save_native:
                 outfile = datacube.get_output_filename(
                     str(self.scidir), self.spec2d[ff], self.cubepar['output_filename'],
                     self.combine, native=True, idx=ff+1
@@ -1338,13 +1397,33 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             for slit_idx, slit_spat in enumerate(slits.spat_id):
                 onslit_init = (slitid_img == slit_spat)
                 if not np.any(onslit_init):
-                    # Slit is masked (e.g., bad flat calibration) - use
-                    # values that won't affect global min/max calculations
-                    self.mnmx_wv[ff, slit_idx, 0] = wave0
-                    self.mnmx_wv[ff, slit_idx, 1] = waveimg[wnonzero].max()
-                    continue
-                self.mnmx_wv[ff, slit_idx, 0] = np.min(waveimg[onslit_init])
-                self.mnmx_wv[ff, slit_idx, 1] = np.max(waveimg[onslit_init])
+                    flags = slits.bitmask.flagged_bits(slits.mask[slit_idx])
+                    flag_msg = ', '.join(flags) if len(flags) > 0 else 'None'
+                    raise PypeItError(
+                        'Cannot determine datacube wavelength range for '
+                        f'slit/order {slit_spat} in {fil} ({self.detname}). The slit has no '
+                        'pixels in the slit image generated from the spec2d slit mask. '
+                        f'Slit mask flags: {flag_msg}. This usually means the spec2d frame was '
+                        'produced with a bad or stale calibration for this slit. Rebuild the '
+                        'calibrations/spec2d frame, or exclude the bad slit before datacube '
+                        'construction.'
+                    )
+                wave_on_slit = waveimg[onslit_init]
+                nonzero_wave = wave_on_slit != 0.0
+                if not np.any(nonzero_wave):
+                    flags = slits.bitmask.flagged_bits(slits.mask[slit_idx])
+                    flag_msg = ', '.join(flags) if len(flags) > 0 else 'None'
+                    raise PypeItError(
+                        'Cannot determine datacube wavelength range for '
+                        f'slit/order {slit_spat} in {fil} ({self.detname}). The slit has pixels '
+                        'in the slit image, but none of those pixels have a non-zero wavelength. '
+                        f'Slit mask flags: {flag_msg}. This usually means the spec2d frame was '
+                        'produced with a bad or stale calibration for this slit. Rebuild the '
+                        'calibrations/spec2d frame, or exclude the bad slit before datacube '
+                        'construction.'
+                    )
+                self.mnmx_wv[ff, slit_idx, 0] = np.min(wave_on_slit[nonzero_wave])
+                self.mnmx_wv[ff, slit_idx, 1] = np.max(wave_on_slit[nonzero_wave])
 
             # Find the largest spatial scale of all images being combined
             # TODO: probably need to put this in the DetectorContainer
@@ -1612,7 +1691,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                             np.logical_not(bpm_imgs[:, :, ff]), model, gaussian_position,
                             init_obj_position, channel_prefix = f'Img_{ff}'
                         )
-                    dec_pix_star[ff], ra_pix_star[ff] = gaussian_position
+                    ra_pix_star[ff], dec_pix_star[ff] = gaussian_position
 
                 ra_shifts = -(ra_pix_star[ref_idx] - ra_pix_star) * self._dspat / cosdec
                 dec_shifts = (dec_pix_star[ref_idx] - dec_pix_star) * self._dspat
@@ -1649,12 +1728,10 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             slitlength = int(np.round(np.median(self.all_slits[ff].get_slitlengths(median=True))))
             numwav = int((np.max(self.all_wave[ff]) - wave0) / self._specscale[ff])
             bins = self.spectrograph.get_datacube_bins(slitlength, self.all_deltapix[ff], numwav)
-            # Set the wavelength range of the white light image.
-            wl_wvrng = None
-            if self.cubepar['save_whitelight']:
-                wl_wvrng = datacube.get_whitelight_range(np.max(self.mnmx_wv[ff, :, 0]),
-                                                         np.min(self.mnmx_wv[ff, :, 1]),
-                                                         self.cubepar['whitelight_range'])
+            # Set the default wavelength range of the white light image and extraction.
+            wl_wvrng = datacube.get_whitelight_range(np.max(self.mnmx_wv[ff, :, 0]),
+                                                     np.min(self.mnmx_wv[ff, :, 1]),
+                                                     self.cubepar['whitelight_range'])
             # Make the datacube
             if self.method in ['subpixel', 'ngp']:
                 # Generate the datacube
@@ -1677,11 +1754,12 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 else:
                     hdr['FLUXUNIT'] = (1, "Flux units -- counts/s/Angstrom/arcsec^2")
                 # Write out the datacube
-                log.info(f"Saving datacube at the native sampling of {self.specname.replace("_", " ")}: {outfile}")
+                specname = self.specname.replace("_", " ")
+                log.info(f"Saving datacube at the native sampling of {specname}: {outfile}")
                 final_cube = DataCube(
                     flxcube, sigcube, bpmcube.astype(np.uint8),
                     wave, self.specname, self.blaze_wave, self.blaze_spec,
-                    sensfunc=None, fluxed=self.fluxcal
+                    whitelight_range=np.asarray(wl_wvrng), sensfunc=None, fluxed=self.fluxcal
                 )
                 final_cube.to_file(
                     str(self.scidir / outfile), primary_hdr=self.all_header[ff],
@@ -1694,7 +1772,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                         self.all_wcs[ff], flxcube, ivarcube, np.logical_not(bpmcube),
                         wave, self.scidir, outfile, whitelight_range=wl_wvrng, overwrite=self.overwrite)
 
-    def compute_weights(self, show_qa=False):
+    def compute_pixel_weights(self, show_qa=False):
         """
         Compute the relative weights to apply to pixels that are collected into the voxels of the output DataCubes
 
@@ -1738,6 +1816,167 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 correct_dar=self.correct_dar,
                 specname=self.specname, init_obj_position=init_obj_position,
                 show_qa=show_qa)
+
+    def make_datacubes(self):
+        """
+        Make individual datacubes (and/or) a combined datacube on a single WCS.
+
+        .. todo::
+            
+            Since the images are aligned, we should be using the full cube to
+            compute the whitelight image since we do that anyway below. So
+            basically the weight computation should be moved just before the
+            final combined datacube generation below. Specifically, we should
+            be:
+
+                #. Performing an intiial sigma clipping of the cubes.
+
+                #. Computing an initial preliminary stacked cube.
+                
+                #. Generate a whitelight image from the preliminary stacked
+                   cube.
+
+                #. Perform object finding on this stacked cube.
+
+                #. Compute the weights at the location of the object by
+                   extracting spectra from the individual cubes, probably there
+                   should be an option to use the optimal extraction method
+                   (extract_point_source) or one can use the single pixel
+                   computation (extended sources) in compute_weights.
+                
+                #. Re-combined the cubes using these weights, again performing
+                   the final round of sigma clipping
+
+                #. Write out the individual cubes with their sigma clipped
+                   pixels masked (?)
+                
+                #. Write out the final combined cube.
+
+        """
+        # Compute the relative weights on the spectra
+        self.all_wghts = self.compute_pixel_weights(show_qa=self.debug)
+
+        # Generate the WCS, and the voxel edges
+        cube_wcs, vox_edges, _ = \
+            datacube.create_wcs(self.all_ra, self.all_dec, self.all_wave, self.all_slitid, self._dspat, self._dwv,
+                                ra_offsets=self.ra_offsets, dec_offsets=self.dec_offsets,
+                                ra_min=self.cubepar['ra_min'], ra_max=self.cubepar['ra_max'],
+                                dec_min=self.cubepar['dec_min'], dec_max=self.cubepar['dec_max'],
+                                wave_min=self.cubepar['wave_min'], wave_max=self.cubepar['wave_max'],
+                                reference=self.cubepar['reference_image'], collapse=False, equinox=2000.0,
+                                specname=self.specname)
+
+        wl_wvrng = datacube.get_whitelight_range(np.max(self.mnmx_wv[:, :, 0]),
+                                                 np.min(self.mnmx_wv[:, :, 1]),
+                                                 self.cubepar['whitelight_range'])
+
+        # Get the sensfunc
+        sensfunc = None
+        if self.flux_spline is not None:
+            # Get wavelength of each pixel
+            numwav = vox_edges[0].size - 1
+            wcs_scale = (1.0 * cube_wcs.spectral.wcs.cunit[0]).to(units.Angstrom).value  # Ensures the WCS is in Angstroms
+            senswave = wcs_scale * cube_wcs.spectral.wcs_pix2world(np.arange(numwav), 0)[0]
+            sensfunc = self.flux_spline(senswave)
+
+        # Prepare the header
+        cubehdr = cube_wcs.to_header()
+        if self.fluxcal:
+            cubehdr['FLUXUNIT'] = (flux_calib.PYPEIT_FLUX_SCALE, "Flux units -- erg/s/cm^2/Angstrom/arcsec^2")
+        else:
+            cubehdr['FLUXUNIT'] = (1, "Flux units -- counts/s/Angstrom/arcsec^2")
+
+        # Generate a datacube of each input spec2d file
+        for ff in range(self.numfiles):
+            outfile = datacube.get_output_filename(
+                self.scidir, self.spec2d[ff], self.cubepar['output_filename'], False, idx=ff + 1
+            )
+            # Generate the datacube
+            flxcube, sigcube, bpmcube, normcube, wave = \
+                datacube.generate_cube_subpixel(cube_wcs, vox_edges,
+                                                self.all_sci[ff], self.all_ivar[ff], self.all_wave[ff],
+                                                self.all_slitid[ff], self.all_wghts[ff], self.all_wcs[ff],
+                                                self.all_tilts[ff], self.all_slits[ff], self.all_align[ff],
+                                                self.all_dar[ff],
+                                                self.ra_offsets[ff], self.dec_offsets[ff],
+                                                spec_subpixel=self.spec_subpixel,
+                                                spat_subpixel=self.spat_subpixel,
+                                                slice_subpixel=self.slice_subpixel,
+                                                skip_subpix_weights=self.skip_subpix_weights,
+                                                correct_dar=self.correct_dar)
+            if self.combine:
+                # If we are combining cubes, then we need to save these for the final combination
+                # with sigma clipping below, otherwise no need to store these and use more memory
+                if ff == 0:
+                    stack_shape = (self.numfiles,) + flxcube.shape
+                    flxcube_stack = np.zeros(stack_shape)
+                    varcube_stack = np.zeros(stack_shape)
+                    bpmcube_stack = np.zeros(stack_shape)
+                    normcube_stack = np.zeros(stack_shape)
+                    weightcube_stack = None#np.ones(stack_shape)
+
+                flxcube_stack[ff, :] = flxcube
+                varcube_stack[ff, :] = np.square(sigcube)
+                bpmcube_stack[ff, :] = bpmcube
+                normcube_stack[ff, :] = normcube
+
+            # Write out the datacube
+            if self._save_separate:
+                log.info("Saving datacube as: {0:s}".format(str(outfile)))
+                # Prepare the DataCube object
+                final_cube = DataCube(
+                    flxcube, sigcube, bpmcube.astype(np.uint8), wave, self.specname,
+                    self.blaze_wave, self.blaze_spec, whitelight_range=np.asarray(wl_wvrng),
+                    sensfunc=sensfunc, fluxed=self.fluxcal
+                )
+                # Write the cube to file
+                final_cube.to_file(
+                    str(self.scidir / outfile), primary_hdr=self.all_header[ff],
+                    hdr=cubehdr, overwrite=self.overwrite
+                )
+                if self.cubepar['save_whitelight']:
+                    ivarcube = final_cube.ivar
+                    datacube.make_whitelight(
+                        cube_wcs, flxcube, ivarcube, np.logical_not(bpmcube), wave,
+                        self.scidir, outfile, whitelight_range=wl_wvrng,
+                        overwrite=self.overwrite
+                    )
+
+        if self.combine:
+            # Perform a weighted combination
+            sigrej = 3.0
+            maxiters = 10
+            sci_list_out, var_list_out, combined_gpm, nused = combine.weighted_combine(
+                [flxcube_stack], [varcube_stack], np.logical_not(bpmcube_stack),
+                weights=weightcube_stack, sigma_clip=True, sigma_clip_stack=flxcube_stack,
+                sigrej=sigrej, maxiters=maxiters
+            )
+            # Prepare the quantities of interest
+            combined_cube = sci_list_out[0]
+            combined_sigma = np.sqrt(var_list_out[0])
+            combined_ivar = utils.inverse(var_list_out[0])
+            combined_bpm = np.logical_not(combined_gpm)
+            combined_outfile = datacube.get_output_filename(
+                self.scidir, "", self.cubepar['output_filename'], True, idx=-1
+            )
+            log.info(f"Saving combined datacube as: {str(combined_outfile)}")
+            final_combined_cube = DataCube(
+                combined_cube, combined_sigma, combined_bpm.astype(np.uint8), wave,
+                self.specname, self.blaze_wave, self.blaze_spec, sensfunc=sensfunc,
+                whitelight_range=np.asarray(wl_wvrng), fluxed=self.fluxcal
+            )
+            # Write out the cube to file
+            final_combined_cube.to_file(
+                str(self.scidir / combined_outfile), primary_hdr=self.all_header[ff],
+                hdr=cubehdr, overwrite=self.overwrite
+            )
+            # Make combined white light image if whitelight is requested
+            if self.cubepar['save_whitelight']:
+                datacube.make_whitelight(
+                    cube_wcs, combined_cube, combined_ivar, combined_gpm, wave,
+                    self.scidir, combined_outfile, whitelight_range=wl_wvrng,
+                    overwrite=self.overwrite
+                )
 
     def run(self):
         """
@@ -1798,141 +2037,9 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 )
 
         # If individual frames are to be output with the native resolution of the instrument, write those out now.
-        if self.native:
+        if self._save_native:
             self.save_native()
 
-        # TODO There should be an if self.combine here, as we only need these weights now if we are going to
-        # combine the cubes.  Furthermore, since the images are aligned, we should be using the full cube to 
-        # compute the whitelight image since we do that anyway below. So basically the weight computation 
-        # should be moved just before the final combined datacube generation below. Specifically, we should be: 
-        # 1. Performing an intiial sigma clipping of the cubes. 
-        # 2. Computing an initial preliminary stacked cube. 
-        # 3. Generate a whitelight image from the preliminary stacked cube.
-        # 4. Perform object finding on this stacked cube. 
-        # 5. Compute the weights at the location of the object by extracting spectra from the individual cubes, 
-        #    probably there should be an option to use the optimal extraction method  (extract_point_source) 
-        #    or one can use the single pixel computation (extended sources) in compute_weights. 
-        # 6. Re-combined the cubes using these weights, again performing the final round of sigma clipping
-        # 7. Write out the individual cubes with their sigma clipped pixels masked (?)
-        # 8. Write out the final combined cube.
-
-        # Compute the relative weights on the spectra
-        self.all_wghts = self.compute_weights(show_qa=self.debug)
-
-        # Generate the WCS, and the voxel edges
-        cube_wcs, vox_edges, _ = \
-            datacube.create_wcs(self.all_ra, self.all_dec, self.all_wave, self.all_slitid, self._dspat, self._dwv,
-                                ra_offsets=self.ra_offsets, dec_offsets=self.dec_offsets,
-                                ra_min=self.cubepar['ra_min'], ra_max=self.cubepar['ra_max'],
-                                dec_min=self.cubepar['dec_min'], dec_max=self.cubepar['dec_max'],
-                                wave_min=self.cubepar['wave_min'], wave_max=self.cubepar['wave_max'],
-                                reference=self.cubepar['reference_image'], collapse=False, equinox=2000.0,
-                                specname=self.specname)
-
-        sensfunc = None
-        if self.flux_spline is not None:
-            # Get wavelength of each pixel
-            numwav = vox_edges[0].size - 1
-            wcs_scale = (1.0 * cube_wcs.spectral.wcs.cunit[0]).to(units.Angstrom).value  # Ensures the WCS is in Angstroms
-            senswave = wcs_scale * cube_wcs.spectral.wcs_pix2world(np.arange(numwav), 0)[0]
-            sensfunc = self.flux_spline(senswave)
-
-        # Generate a datacube
-        if self.method in ['subpixel', 'ngp']:
-            # Generate the datacube
-            wl_wvrng = None
-            if self.cubepar['save_whitelight']:
-                wl_wvrng = datacube.get_whitelight_range(np.max(self.mnmx_wv[:, :, 0]),
-                                                np.min(self.mnmx_wv[:, :, 1]),
-                                                self.cubepar['whitelight_range'])
-
-            for ff in range(self.numfiles):
-                outfile = datacube.get_output_filename(
-                    self.scidir, self.spec2d[ff], self.cubepar['output_filename'], False, idx=ff+1
-                )
-                # Generate the datacube       
-                flxcube, sigcube, bpmcube, normcube, wave = \
-                    datacube.generate_cube_subpixel(cube_wcs, vox_edges,
-                                                    self.all_sci[ff], self.all_ivar[ff], self.all_wave[ff],
-                                                    self.all_slitid[ff], self.all_wghts[ff], self.all_wcs[ff],
-                                                    self.all_tilts[ff], self.all_slits[ff], self.all_align[ff], 
-                                                    self.all_dar[ff],
-                                                    self.ra_offsets[ff], self.dec_offsets[ff],
-                                                    spec_subpixel=self.spec_subpixel,
-                                                    spat_subpixel=self.spat_subpixel,
-                                                    slice_subpixel=self.slice_subpixel,
-                                                    skip_subpix_weights=self.skip_subpix_weights,
-                                                    correct_dar=self.correct_dar)
-                if self.combine: #& self.align:                   
-                    # If we are combining cubes, then we need to save these for the final combination
-                    # with sigma clipping below, otherwise no need to store these and use more memory
-                    if ff == 0: 
-                        stack_shape = (self.numfiles,) + flxcube.shape
-                        flxcube_stack = np.zeros(stack_shape)
-                        varcube_stack = np.zeros(stack_shape)
-                        bpmcube_stack = np.zeros(stack_shape)
-                        normcube_stack = np.zeros(stack_shape)
-                        # TODO Add proper weights
-                        weightcube_stack = np.ones(stack_shape)
-
-                    flxcube_stack[ff, :] = flxcube
-                    varcube_stack[ff, :] = np.square(sigcube)
-                    bpmcube_stack[ff, :] = bpmcube
-                    normcube_stack[ff, :] = normcube
-                    
-                # Prepare the header
-                hdr = cube_wcs.to_header()
-                if self.fluxcal:
-                    hdr['FLUXUNIT'] = (flux_calib.PYPEIT_FLUX_SCALE, "Flux units -- erg/s/cm^2/Angstrom/arcsec^2")
-                else:
-                    hdr['FLUXUNIT'] = (1, "Flux units -- counts/s/Angstrom/arcsec^2")
-                # Write out the datacube
-                log.info("Saving datacube as: {0:s}".format(str(outfile)))
-                final_cube = DataCube(
-                    flxcube, sigcube, bpmcube.astype(np.uint8), wave, self.specname,
-                    self.blaze_wave, self.blaze_spec, sensfunc=sensfunc, fluxed=self.fluxcal
-                )
-                final_cube.to_file(
-                    str(self.scidir / outfile), primary_hdr=self.all_header[ff],
-                    hdr=hdr, overwrite=self.overwrite
-                )
-                ivarcube = final_cube.ivar
-                if self.cubepar['save_whitelight']:
-                    datacube.make_whitelight(
-                        cube_wcs, flxcube, ivarcube, np.logical_not(bpmcube), wave,
-                        self.scidir, outfile, whitelight_range=wl_wvrng,
-                        overwrite=self.overwrite
-                    )
-
-            if self.combine:
-                sigrej = 3.0
-                maxiters = 10                
-                sci_list_out, var_list_out, combined_gpm, nused = combine.weighted_combine(
-                    weightcube_stack, [flxcube_stack], [varcube_stack],
-                    np.logical_not(bpmcube_stack), sigma_clip=True, sigma_clip_stack=flxcube_stack,
-                    sigrej=sigrej, maxiters=maxiters
-                )
-                combined_cube = sci_list_out[0]
-                combined_sigma = np.sqrt(var_list_out[0])
-                combined_ivar = utils.inverse(var_list_out[0])
-                combined_bpm = np.logical_not(combined_gpm)
-                combined_outfile = datacube.get_output_filename(
-                    self.scidir, "", self.cubepar['output_filename'], True, idx=-1
-                )
-                log.info(f"Saving combined datacube as: {str(combined_outfile)}")
-                final_combined_cube = DataCube(
-                    combined_cube, combined_sigma, combined_bpm.astype(np.uint8), wave,
-                    self.specname, self.blaze_wave, self.blaze_spec, sensfunc=sensfunc,
-                    fluxed=self.fluxcal
-                )
-                final_combined_cube.to_file(
-                    str(self.scidir / combined_outfile), primary_hdr=self.all_header[ff],
-                    hdr=hdr, overwrite=self.overwrite
-                )
-                # Make combined white light image if whitelight is requested
-                if self.cubepar['save_whitelight']:                
-                    datacube.make_whitelight(
-                        cube_wcs, combined_cube, combined_ivar, combined_gpm, wave,
-                        self.scidir, combined_outfile, whitelight_range=wl_wvrng,
-                        overwrite=self.overwrite
-                    )
+        # Do we need to generate individual datacubes or a single combined datacube on a single WCS?
+        if self._save_separate or self.combine:
+            self.make_datacubes()
