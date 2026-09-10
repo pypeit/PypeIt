@@ -1485,6 +1485,33 @@ class Spectrograph:
             raise PypeItError(f'Provided det must have type tuple or integer, not {type(det)}.')
         return 1, (det,)
 
+    @staticmethod
+    def fits_to_pypeit_section(section):
+        """
+        Flip a FITS image-section string into the PypeIt (numpy) order.
+
+        Many instruments provide image sections (e.g., ``TRIMSEC``,
+        ``BIASSEC``) in the FITS convention, ``[x1:x2, y1:y2]``, where x
+        is the NAXIS1 axis and y is the NAXIS2 axis.  PypeIt parses
+        these strings in numpy (row, column) order (see
+        :func:`~pypeit.core.parse.sec2slice`), so the two axes must be
+        swapped.
+
+        Parameters
+        ----------
+        section : :obj:`str`
+            Image section in the FITS convention, e.g.
+            ``'[1:366,1:4099]'``.
+
+        Returns
+        -------
+        :obj:`str`
+            Image section with the axes swapped, e.g.
+            ``'[1:4099,1:366]'``.
+        """
+        xsec, ysec = section.strip().strip('[]').split(',')
+        return f'[{ysec.strip()},{xsec.strip()}]'
+
     def get_rawimage(self, raw_file, det, sec_includes_binning=False):
         """
         Read raw spectrograph image files and return data and relevant metadata
