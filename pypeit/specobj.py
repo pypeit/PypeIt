@@ -39,7 +39,7 @@ class SpecObj(datamodel.DataContainer):
     Args:
         PYPELINE (:obj:`str`):
             Name of the ``PypeIt`` pipeline method.  Allowed options are
-            MultiSlit, Echelle, or SlicerIFU.
+            MultiSlit, Echelle, SlicerIFU, or Fiber.
         DET (:obj:`str`):
             The name of the detector or mosaic from which the spectrum was
             extracted.  For example, DET01.
@@ -248,6 +248,16 @@ class SpecObj(datamodel.DataContainer):
                  'ech_frac_was_fit',
                  # spectrograph
                 'spectrograph',
+                # Fiber pypeline per-fiber throughput scalar
+                'fiber_throughput',
+                # Fiber pypeline per-fiber wavelength refinement (Angstrom)
+                # applied to OPT_WAVE/BOX_WAVE after extraction so the
+                # extracted spectrum is self-consistent with the sky model.
+                'wave_refine_shift_AA',
+                # Fiber pypeline per-fiber spectral LSF sigma (pixels),
+                # measured from the arc-line FWHM and used to broaden the
+                # predicted 1D sky to each fiber's own LSF.
+                'fiber_lsf_sigma_pix',
                 ]
 
     def __init__(self, PYPELINE, DET, OBJTYPE='unknown',
@@ -294,7 +304,7 @@ class SpecObj(datamodel.DataContainer):
         """
         Validate the object.
         """
-        pypelines = ['MultiSlit', 'SlicerIFU', 'Echelle']
+        pypelines = ['MultiSlit', 'SlicerIFU', 'Echelle', 'Fiber']
         if self.PYPELINE not in pypelines:
             raise PypeItError(f'{self.PYPELINE} is not a known pipeline procedure.  Options are: '
                        f"{', '.join(pypelines)}")
@@ -337,9 +347,7 @@ class SpecObj(datamodel.DataContainer):
     def slit_order(self):
         if self.PYPELINE == 'Echelle':
             return self.ECH_ORDER
-        elif self.PYPELINE == 'MultiSlit':
-            return self.SLITID
-        elif self.PYPELINE == 'SlicerIFU':
+        elif self.PYPELINE in ['MultiSlit', 'SlicerIFU', 'Fiber']:
             return self.SLITID
         else:
             raise PypeItError("Bad PYPELINE")
@@ -349,9 +357,7 @@ class SpecObj(datamodel.DataContainer):
     def slit_orderindx(self):
         if self.PYPELINE == 'Echelle':
             return self.ECH_ORDERINDX
-        elif self.PYPELINE == 'MultiSlit':
-            return self.SLITID
-        elif self.PYPELINE == 'SlicerIFU':
+        elif self.PYPELINE in ['MultiSlit', 'SlicerIFU', 'Fiber']:
             return self.SLITID
         else:
             raise PypeItError("Bad PYPELINE")
@@ -453,6 +459,13 @@ class SpecObj(datamodel.DataContainer):
               number, and ``{DET}`` is the string identifier for the detector or
               mosaic.
 
+            - For Fiber data, the name is
+              ``SPATnnnn-{MASKDEF_OBJNAME}-{DET}``, where ``nnnn`` is the
+              nearest integer pixel in the spatial direction and
+              ``{MASKDEF_OBJNAME}`` is the instrument fiber name (e.g.,
+              ``SCI_042``).  Falls back to ``SLITmmmm`` if no fiber metadata
+              is available.
+
             - For echelle data, the name is ``OBJnnnn-{DET}-ORDERoooo``, where
               ``nnnn`` is 1000 times the fractional position along the spatial
               direction rounded to the nearest integer, ``{DET}`` is the string
@@ -483,7 +496,7 @@ class SpecObj(datamodel.DataContainer):
             name += '{:04d}'.format(self.ECH_ORDER)
             self.ECH_NAME = ech_name
             self.NAME = name
-        elif self.PYPELINE in ['MultiSlit', 'SlicerIFU']:
+        elif self.PYPELINE in ['MultiSlit', 'SlicerIFU', 'Fiber']:
             # Spat
             name = naming_model['spat']
             if self['SPAT_PIXPOS_ID'] is None:
@@ -492,9 +505,12 @@ class SpecObj(datamodel.DataContainer):
                 name += '{:04d}'.format(self.SPAT_PIXPOS_ID)
                 #name += '{:04d}'.format(int(np.rint(self.SPAT_PIXPOS)))
 
-            # Slit
-            name += '-'+naming_model['slit']
-            name += '{:04d}'.format(self.SLITID)
+            # Slit or fiber name
+            if self.PYPELINE == 'Fiber' and self['MASKDEF_OBJNAME'] is not None:
+                name += f'-{self.MASKDEF_OBJNAME}'
+            else:
+                name += '-'+naming_model['slit']
+                name += '{:04d}'.format(self.SLITID)
             name += f'-{self.DET}'
             self.NAME = name
         else:

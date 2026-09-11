@@ -6,7 +6,7 @@ import numpy
 
 from astropy.io import fits
 
-from pypeit.bitmask import BitMask
+from pypeit.core.bitmask import BitMask
 from pypeit.slittrace import SlitTraceBitMask
 
 #-----------------------------------------------------------------------------

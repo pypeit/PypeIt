@@ -408,6 +408,7 @@ def ech_fof_sobjs(sobjs:specobjs.SpecObjs,
     ra_fake = fracpos/1000.0  # Divide all angles by 1000 to make geometry euclidian
     dec_fake = np.zeros_like(fracpos)
     if nfound>1:
+        # TODO: Deprecate spheregroup
         inobj_id, multobj_id, firstobj_id, nextobj_id \
                 = pydl.spheregroup(ra_fake, dec_fake, FOF_frac/1000.0)
         # Modify to 1-based indexing
@@ -768,7 +769,7 @@ def ech_cutobj_on_snr(
     nobj = uni_obj_id.size
 
     # Loop over the objects and perform a quick and dirty extraction to assess S/N.
-    varimg = utils.calc_ivar(ivar)
+    varimg = utils.inverse(ivar)
     flux_box = np.zeros((nspec, norders, nobj))
     ivar_box = np.zeros((nspec, norders, nobj))
     mask_box = np.zeros((nspec, norders, nobj))
@@ -795,7 +796,7 @@ def ech_cutobj_on_snr(
                                  row=sobjs_align[indx][0].trace_spec)[0]
             var_tmp  = moment1d(varimg*inmask_iord, sobjs_align[indx][0].TRACE_SPAT, 2*box_rad_pix,
                                 row=sobjs_align[indx][0].trace_spec)[0]
-            ivar_tmp = utils.calc_ivar(var_tmp)
+            ivar_tmp = utils.inverse(var_tmp)
             pixtot  = moment1d(ivar*0 + 1.0, sobjs_align[indx][0].TRACE_SPAT, 2*box_rad_pix,
                                row=sobjs_align[indx][0].trace_spec)[0]
             mask_tmp = moment1d(ivar*inmask_iord == 0.0, sobjs_align[indx][0].TRACE_SPAT, 2*box_rad_pix,
@@ -1988,6 +1989,9 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
     flux_smash_smth = scipy.ndimage.gaussian_filter1d(flux_smash_recen, gauss_smth_sigma, mode='nearest')
 
     # Return if none found and no hand extraction
+    # TODO: Is the information message here specific enough?  No objects were
+    # found because the image was heavily masked, not because no source was
+    # detected.
     if not np.any(gpm_smash): 
         sobjs = specobjs.SpecObjs()
         if hand_extract_dict is None:
@@ -2000,6 +2004,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
             snr_smash_smth = np.zeros_like(flux_smash_smth)
             log.info('No objects found automatically.')
     else:
+
         # Compute the formal corresponding variance over the set of pixels that are not masked by gpm_sigclip
         var_rect = utils.inverse(ivar_rect)
         var_sum_smash = np.sum((var_rect*gpm_sigclip)[find_min_max_out[0]:find_min_max_out[1]], axis=0)

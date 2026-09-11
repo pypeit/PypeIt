@@ -34,6 +34,8 @@ bottom of the :doc:`../spectrographs/spectrographs` page.
    :maxdepth: 1
 
    APF Levy <apf_howto>
+   ARC KOSMOS <arc_kosmos_howto>
+   ARC TRIPLESPEC <arc_tspec_howto>
    Gemini GNIRS <gnirs_howto>
    Keck DEIMOS <deimos_howto>
    Keck HIRES <hires_howto>

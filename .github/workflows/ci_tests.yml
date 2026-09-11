@@ -85,14 +85,21 @@ jobs:
         toxenv: [test, test-alldeps]
     steps:
     - name: Check out repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v7
     - name: Set up Python ${{ matrix.python }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v7
       with:
         python-version: ${{ matrix.python }}
     - name: Install base dependencies
       run: |
         python -m pip install --upgrade pip tox
+    # PyQt6 (a core dependency, pulled in by the pytest-qt dashboard tests) links
+    # libEGL/libGL/libxkbcommon at import time; these are absent on the bare
+    # ubuntu runner, so install them or pytest crashes at startup (exit 3).
+    - name: Install system libraries for headless Qt
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libegl1 libgl1 libxkbcommon0
     - name: Test with tox
       run: |
         tox -e ${{ matrix.python }}-${{ matrix.toxenv }}
@@ -111,14 +118,19 @@ jobs:
         toxenv: [test-numpydev, test-astropydev]
     steps:
     - name: Check out repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v7
     - name: Set up Python ${{ matrix.python }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v7
       with:
         python-version: ${{ matrix.python }}
     - name: Install base dependencies
       run: |
         python -m pip install --upgrade pip tox
+    # See the note in the ci-tests job: PyQt6 needs these system libraries.
+    - name: Install system libraries for headless Qt
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libegl1 libgl1 libxkbcommon0
     - name: Test with tox
       run: |
         tox -e ${{ matrix.python }}-${{ matrix.toxenv }}
@@ -139,9 +151,9 @@ jobs:
         toxenv: [test-alldeps]
     steps:
     - name: Check out repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v7
     - name: Set up Python ${{ matrix.python }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v7
       with:
         python-version: ${{ matrix.python }}
     - name: Install base dependencies
@@ -158,14 +170,19 @@ jobs:
     permissions:
       contents: read
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
     - name: Conda environment check
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v7
       with:
         python-version: '3.13'
     - name: Install base dependencies
       run: |
         python -m pip install --upgrade pip tox
+    # See the note in the ci-tests job: PyQt6 needs these system libraries.
+    - name: Install system libraries for headless Qt
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libegl1 libgl1 libxkbcommon0
     - name: Run pypeit tests from environment built with conda
       run: |
         tox -e conda
@@ -177,9 +194,9 @@ jobs:
     permissions:
       contents: read
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
     - name: Python codestyle check
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v7
       with:
         python-version: '3.13'
     - name: Install base dependencies

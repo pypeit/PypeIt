@@ -55,6 +55,7 @@ def test_legendre():
                                                    -6.84581686e-01, -7.59352737e-17]), atol=1e-9)
 
 
+@pytest.mark.remote_data
 def test_pypeitfitcollection():
 
     # These are results generated from the old TraceSet fitter.  This just

@@ -19,6 +19,8 @@ The datamodel for the
 
 .. include:: include/class_datamodel_detectorcontainer.rst
 
+.. _detectors-table:
+
 Instrument-Specific Data
 ========================
 

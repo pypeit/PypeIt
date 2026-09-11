@@ -12,8 +12,8 @@ import numpy as np
 
 from pypeit import log
 from pypeit import PypeItError
-from pypeit import sampling
 from pypeit import utils
+from pypeit.core import sampling
 
 
 class Spectrum:
@@ -244,7 +244,7 @@ class Spectrum:
 
         If available, errors and masking are both propagated through the
         calculation.  This function is basically a wrapper for
-        :class:`~pypeit.sampling.Resample`.
+        :class:`~pypeit.core.sampling.Resample`.
 
         Parameters
         ----------

@@ -2,7 +2,7 @@
 Module to run tests on arqa
 """
 from pypeit import log
-from pypeit.core import qa
+from pypeit import qa
 
 def test_get_dimen():
     """ Get the plotting dimensions

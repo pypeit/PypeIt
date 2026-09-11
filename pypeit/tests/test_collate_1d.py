@@ -10,9 +10,9 @@ import astropy.units as u
 from astropy.io import fits
 from pypeit import specobjs
 from pypeit.spec2dobj import AllSpec2DObj
-from pypeit.core.collate import collate_spectra_by_source, SourceObject
-from pypeit.scripts.collate_1d import find_spec2d_from_spec1d,find_slits_to_exclude, exclude_source_objects
-from pypeit.scripts.collate_1d import flux, coadd, build_coadd_file_name, get_report_metadata, refframe_correction
+from pypeit.collate import collate_spectra_by_source, SourceObject
+from pypeit.collate import find_spec2d_from_spec1d,find_slits_to_exclude, exclude_source_objects
+from pypeit.collate import flux, coadd, build_coadd_file_name, get_report_metadata, refframe_correction
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.sensfilearchive import SensFileArchive
 from pypeit.par import pypeitpar
@@ -503,6 +503,7 @@ def test_get_report_metadata(monkeypatch):
                                                 ['MASKDEF_OBJNAME', 'NAME'],
                                                 "afilename")
 
+@pytest.mark.remote_data
 def test_flux(monkeypatch):
     
     def mock_get_header(file):

@@ -1,6 +1,6 @@
 """ Module for arcline definitions
 """
-from pypeit.bitmask import BitMask
+from pypeit.core.bitmask import BitMask
 
 # TODO: This doesn't belong here.
 def instruments():

@@ -2,13 +2,10 @@
 
 .. include:: ../include/links.rst
 """
-import inspect
 import copy
 
 import numpy as np
 from scipy import interpolate, ndimage
-from matplotlib import pyplot as plt
-from matplotlib import lines, colormaps
 
 from IPython import embed
 
@@ -20,7 +17,6 @@ from pypeit import tracepca
 
 from pypeit.core import fitting
 from pypeit.core import arc
-from pypeit.core import qa
 from pypeit.core import trace
 from pypeit.core.moment import moment1d
 
@@ -621,14 +617,15 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
     # results though for some instruments where the tracing is
     # problematic. We could consider making this optional to speed
     # things up.
-    debug_pca_fit = False
-    if debug_pca_fit:
-        # !!!! FOR TESTING ONLY!!!!  Evaluate the model fit to the tilts for all of our lines
-        log.info('TESTING: Performing an initial fit before PCA.')
-        # JFH Note spec_order is hard wired here as we don't pass it in
-        tilt_fit_dict0 = fit_tilts(trace_dict0, spat_order=spat_order, spec_order=6, debug=True,
-                                   maxdev=0.2, sigrej=3.0, doqa=True, setup='test', slit=0,
-                                   show_QA=True)
+    # TODO: Should we keep this or remove it?
+    #debug_pca_fit = False
+    #if debug_pca_fit:
+    #    # !!!! FOR TESTING ONLY!!!!  Evaluate the model fit to the tilts for all of our lines
+    #    log.info('TESTING: Performing an initial fit before PCA.')
+    #    # JFH Note spec_order is hard wired here as we don't pass it in
+    #    tilt_fit_dict0 = fit_tilts(trace_dict0, spat_order=spat_order, spec_order=6, debug=True,
+    #                               maxdev=0.2, sigrej=3.0, doqa=True, setup='test', slit=0,
+    #                               show_QA=True)
 
     # Do a PCA fit, which rejects some outliers
     iuse = trace_dict0['use_tilt']
@@ -656,7 +653,6 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
 
 def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, maxdev=0.2,
               maxiter=100, sigrej=3.0, pad_spec=30, pad_spat=5, func2d='legendre2d',
-              doqa=True, calib_key='test', slitord_id=0, show_QA=False, out_dir=None,
               minmax_extrap=(150.,1000.)):
     """
     THIS NEEDS A DOC STRING
@@ -725,9 +721,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
                                    minx=-0.0, maxx=1.0, minx2=-1.0, maxx2=1.0,
                                    use_mad=False, sticky=False)
     fitmask = pypeitFit.bool_gpm.reshape(tilts_dspat.shape)
-    # Compute a rejection mask that we will use later. These are
-    # locations that were fit but were rejected
-    rej_mask = tot_mask & np.logical_not(fitmask)
+
     # Compute and store the 2d tilts fit
     delta_tilt_1 = xnspecmin1 * pypeitFit.eval(tilts_spec[tilts_mask] / xnspecmin1,
                                                x2=tilts_dspat[tilts_mask] / xnspatmin1)
@@ -746,6 +740,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # Report the residuals in pixels
     res_fit = tilts[fitmask] - tilts_2dfit[fitmask]
     rms_fit = np.std(res_fit)
+    trc_tilt_dict_out['rms_fit'] = rms_fit
     log.info("Residuals: 2D Legendre Fit")
     log.info("RMS (pixels): {}".format(rms_fit))
     log.info("RMS/FWHM: {}".format(rms_fit / fwhm))
@@ -794,7 +789,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
 
     # JFH What I find confusing is that this last fit was actually what
     # Burles was doing on the raw tilts, so why was that failing?
-    tilts_ivar1 = utils.calc_ivar((sigma[thismask_grow] / xnspecmin1) ** 2)
+    tilts_ivar1 = utils.inverse((sigma[thismask_grow] / xnspecmin1) ** 2)
     # JFH Something appers wrong in this fit for LRIS-red with a
     # science frame as the tilt image. It appears to be rejecting too
     # much in this fit, which is just a simple inversion of the fit
@@ -819,16 +814,6 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
                          minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0, func=func2d,
                          pypeitFit=pypeitFit)
 
-    # Now do some QA
-    # TODO: I think we should do the QA outside of core functions.
-    if doqa:
-        arc_tilts_2d_qa(tilts_dspat, tilts, tilts_2dfit, tot_mask, rej_mask, spat_order, spec_order,
-                     rms_fit, fwhm, slitord_id=slitord_id, setup=calib_key, show_QA=show_QA, out_dir=out_dir)
-        arc_tilts_spat_qa(tilts_dspat, tilts, tilts_2dfit, tilts_spec, tot_mask, rej_mask, spat_order,
-                       spec_order, rms_fit, fwhm, slitord_id=slitord_id, setup=calib_key, show_QA=show_QA,
-                       out_dir=out_dir)
-        arc_tilts_spec_qa(tilts_spec, tilts, tilts_2dfit, tot_mask, rej_mask, rms_fit, fwhm,
-                       slitord_id=slitord_id, setup=calib_key, show_QA=show_QA, out_dir=out_dir)
 
     return tilt_fit_dict, trc_tilt_dict_out
 
@@ -914,221 +899,4 @@ def fit2tilts(shape, coeff2, func2d, spat_shift=None, slit_mask=None):
     del tilts_vals, spec_pix, spat_pix
 
     return tilts
-
-
-# This method needs to match the name in pypeit.core.qa.set_qa_filename()
-def arc_tilts_2d_qa(tilts_dspat, tilts, tilts_model, tot_mask, rej_mask, spat_order, spec_order, rms, fwhm,
-                 slitord_id=0, setup='A', outfile=None, show_QA=False, out_dir=None):
-    """
-
-    ..todo.. this method needs docs
-
-    Args:
-        tilts_dspat:
-        tilts:
-        tilts_model:
-        tot_mask:
-        rej_mask:
-        spat_order:
-        spec_order:
-        rms:
-        fwhm:
-        slitord_id:
-        setup:
-        outfile:
-        show_QA:
-        out_dir:
-
-    Returns:
-
-    """
-    plt.rcdefaults()
-    plt.rcParams['font.family'] = 'sans-serif'
-
-    # Outfile
-    method = inspect.stack()[0][3]
-    if (outfile is None):
-        outfile = qa.set_qa_filename(setup, method, slit=slitord_id, out_dir=out_dir)
-
-    # Show the fit
-    fig, ax = plt.subplots(figsize=(12, 18))
-    ax.cla()
-    ax.plot(tilts_dspat[tot_mask], tilts[tot_mask], color='black', linestyle=' ', mfc='None', marker='o',
-            markersize=9.0, markeredgewidth=1.0, zorder=4, label='Good Tilt')
-    ax.plot(tilts_dspat[rej_mask], tilts[rej_mask], color='red', linestyle=' ', mfc='None', marker='o',
-            markersize=9.0, markeredgewidth=2.0, zorder=5, label='Rejected')
-    ax.plot(tilts_dspat[tot_mask], tilts_model[tot_mask], color='black', linestyle=' ', marker='o',
-            markersize=2.0, markeredgewidth=1.0, zorder=1, label='2D Model')
-
-    xmin = 1.1 * tilts_dspat[tot_mask].min()
-    xmax = 1.1 * tilts_dspat[tot_mask].max()
-    ax.set_xlim((xmin, xmax))
-    ax.set_xlabel('Spatial Offset from Central Trace (pixels)', fontsize=15)
-    ax.set_ylabel('Spectral Pixel', fontsize=15)
-    ax.legend()
-    ax.set_title('Tilts vs Fit (spat_order, spec_order)=({:d},{:d}) for slit={:d}: RMS = {:5.3f}, '
-                 'RMS/FWHM={:5.3f}'.format(spat_order, spec_order, slitord_id, rms, rms / fwhm), fontsize=15)
-
-    # Finish
-    # plt.tight_layout(pad=1.0, h_pad=1.0, w_pad=1.0)
-
-    if outfile is not None:
-        plt.savefig(outfile, dpi=400)
-
-    if show_QA:
-        plt.show()
-
-    plt.close()
-    plt.rcdefaults()
-
-
-# This method needs to match the name in pypeit.core.qa.set_qa_filename()
-def arc_tilts_spec_qa(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rms, fwhm,
-                   slitord_id=0, setup='A', outfile=None, show_QA=False, out_dir=None):
-    """ Generate a QA plot of the residuals for the fit to the tilts in the spectral direction one slit at a time
-
-    Parameters
-    ----------
-    """
-
-    plt.rcdefaults()
-    plt.rcParams['font.family'] = 'sans-serif'
-
-    # Outfil
-    method = inspect.stack()[0][3]
-    if (outfile is None):
-        outfile = qa.set_qa_filename(setup, method, slit=slitord_id, out_dir=out_dir)
-
-    # Setup
-    plt.figure(figsize=(14, 6))
-    plt.clf()
-    ax = plt.gca()
-
-    # Scatter plot
-    res = (tilts - tilts_model)
-
-    nspat, nuse = tilts.shape
-    # Show the fit residuals as a function of spatial position
-    line_indx = np.outer(np.ones(nspat), np.arange(nuse))
-
-    xmin = 0.90 * (tilts_spec_fit.min())
-    xmax = 1.10 * (tilts_spec_fit.max())
-
-    ax.hlines(0.0, xmin, xmax, linestyle='--', color='green')
-
-    for iline in range(nuse):
-        iall = (line_indx == iline) & tot_mask
-        igd = (line_indx == iline) & tot_mask & (rej_mask == False)
-        irej = (line_indx == iline) & tot_mask & rej_mask
-
-        ax.plot(tilts_spec_fit[igd], (res[igd]), 'ko', mfc='k', markersize=4.0)
-        ax.plot(tilts_spec_fit[irej], (res[irej]), 'ro', mfc='r', markersize=4.0)
-        # Compute the RMS for this line
-        all_rms = np.std(res[iall])
-        good_rms = np.std(res[igd])
-        # ToDo show the mean here as well
-        if np.any(igd):
-            ax.plot(tilts_spec_fit[igd][0], all_rms, marker='s', linestyle=' ', color='g', mfc='g', markersize=7.0)
-            ax.plot(tilts_spec_fit[igd][0], good_rms, marker='^', linestyle=' ', color='orange', mfc='orange',
-                    markersize=7.0)
-
-    ax.text(0.90, 0.90, 'Slit {:d}:  Residual (pixels) = {:0.5f}'.format(slitord_id, rms),
-            transform=ax.transAxes, ha='right', color='black', fontsize=16)
-    ax.text(0.90, 0.80, ' Slit {:d}:  RMS/FWHM = {:0.5f}'.format(slitord_id, rms / fwhm),
-            transform=ax.transAxes, ha='right', color='black', fontsize=16)
-    # Label
-    ax.set_xlabel('Spectral Pixel')
-    ax.set_ylabel('RMS (pixels)')
-    ax.set_title('RMS of Each Arc Line Traced')
-    ax.set_xlim((xmin, xmax))
-    ax.set_ylim((-5.0 * rms, 5.0 * rms))
-    # Legend
-    legend_elements = [lines.Line2D([0], [0], linestyle=' ', color='k', marker='o', mfc='k',
-                                    markersize=4.0, label='good'),
-                       lines.Line2D([0], [0], linestyle=' ', color='r', marker='o', mfc='r',
-                                    markersize=4.0, label='rejected'),
-                       lines.Line2D([0], [0], linestyle=' ', color='g', marker='s', mfc='g',
-                                    markersize=7.0, label='all RMS'),
-                       lines.Line2D([0], [0], linestyle=' ', color='orange', marker='^',
-                                    mfc='orange', markersize=7.0, label='good RMS')]
-    ax.legend(handles=legend_elements)
-
-    # Finish
-    plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-
-    if outfile is not None:
-        plt.savefig(outfile, dpi=400)
-
-    if show_QA:
-        plt.show()
-
-    plt.close()
-    plt.rcdefaults()
-
-
-def arc_tilts_spat_qa(tilts_dspat, tilts, tilts_model, tilts_spec_fit, tot_mask, rej_mask,
-                      spat_order, spec_order, rms, fwhm, setup='A', slitord_id=0, outfile=None,
-                      show_QA=False, out_dir=None):
-    """
-    NEEDS A DOC STRING!
-    """
-    plt.rcdefaults()
-    plt.rcParams['font.family'] = 'sans-serif'
-
-    # Output file
-    method = inspect.stack()[0][3]
-    if outfile is None:
-        outfile = qa.set_qa_filename(setup, method, slit=slitord_id, out_dir=out_dir)
-
-    nspat, nuse = tilts_dspat.shape
-    # Show the fit residuals as a function of spatial position
-    line_indx = np.outer(np.ones(nspat), np.arange(nuse))
-    lines_spec = tilts_spec_fit[0, :]
-    cmap = colormaps['coolwarm'].resampled(nuse)
-
-    fig, ax = plt.subplots(figsize=(14, 12))
-    # dummy mappable shows the spectral pixel
-    dummie_cax = ax.scatter(lines_spec, lines_spec, c=lines_spec, cmap=cmap)
-    ax.cla()
-
-    for iline in range(nuse):
-        iall = (line_indx == iline) & tot_mask
-        irej = (line_indx == iline) & tot_mask & rej_mask
-        this_color = cmap(iline)
-        # plot the residuals
-        ax.plot(tilts_dspat[iall], tilts[iall] - tilts_model[iall], color=this_color,
-                linestyle='-', linewidth=3.0, marker='None', alpha=0.5)
-        ax.plot(tilts_dspat[irej], tilts[irej] - tilts_model[irej], linestyle=' ',
-                marker='o', color='limegreen', mfc='limegreen', markersize=5.0)
-
-    xmin = 1.1 * tilts_dspat[tot_mask].min()
-    xmax = 1.1 * tilts_dspat[tot_mask].max()
-    ax.hlines(0.0, xmin, xmax, linestyle='--', linewidth=2.0, color='k', zorder=10)
-
-    ax.set_xlim((xmin, xmax))
-    ax.set_xlabel('Spatial Offset from Central Trace (pixels)')
-    ax.set_ylabel('Arc Line Tilt Residual (pixels)')
-
-    legend_elements = [lines.Line2D([0], [0], color='cornflowerblue', linestyle='-', linewidth=3.0,
-                                    label='residual'),
-                       lines.Line2D([0], [0], color='limegreen', linestyle=' ', marker='o',
-                                    mfc='limegreen', markersize=7.0, label='rejected')]
-    ax.legend(handles=legend_elements)
-    ax.set_title('Tilts vs Fit (spat_order, spec_order)=({:d},{:d}) for slit={:d}: RMS = {:5.3f}, '
-                 'RMS/FWHM={:5.3f}'.format(spat_order, spec_order, slitord_id, rms, rms / fwhm), fontsize=15)
-    cb = fig.colorbar(dummie_cax, ax=ax, ticks=lines_spec)
-    cb.set_label('Spectral Pixel')
-
-    # Finish
-    plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-
-    if outfile is not None:
-        plt.savefig(outfile, dpi=400)
-
-    if show_QA:
-        plt.show()
-
-    plt.close()
-    plt.rcdefaults()
-
 

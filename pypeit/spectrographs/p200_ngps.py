@@ -13,7 +13,7 @@ Per-channel CCD readout orientation is expressed through PypeIt's stock
 image is reoriented by
 :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.orient_image`
 exactly as for every other spectrograph (and the
-:ref:`instr_par-detectors` table reports the true orientation):
+:ref:`detectors-table` table reports the true orientation):
 
 * R, I: dispersion along NAXIS1 -> ``specaxis=1``.
 * G:    dispersion along NAXIS1 but flipped left-right relative to R/I
@@ -38,8 +38,10 @@ from pathlib import Path
 import numpy as np
 
 from astropy.io import fits
+from astropy.table import Table
 from astropy.time import Time
 
+from pypeit import dataPaths
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import io
@@ -100,6 +102,9 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
     #: 2000-7000 ThAr lines), and pypeit's reidentify second-pass
     #: rejection makes the sparse-list fits unreliable.
     _wave_lamps = ['ThAr']
+    #: Per-lamp wavelength restriction, parallel to ``_wave_lamps``; see the
+    #: ``lamps_wvrng`` parameter.  ``None`` uses each list in full.
+    _wave_lamps_wvrng = None
     _arc_idnames = ('THAR',)
     #: PypeIt wavelength-solution method.  'full_template' uses the
     #: single-slice central-slit ThAr archive and a global
@@ -139,11 +144,18 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
         UVIS=dict(polycorrect=False, resolution=4000),
     )
 
-    #: PypeIt's ``full_template`` drops detected arc peaks whose
-    #: nearest catalog line is more than ``match_toler`` *pixels* away.
-    #: 0.3 binned pixels at NGPS' binspec=3 corresponds to a
-    #: ~0.5-0.6 A window across u/g/r/i.
-    _match_toler_pixels = 0.3
+    #: PypeIt's ``full_template`` drops detected arc peaks whose nearest
+    #: catalog line is more than ``match_toler`` *binned* pixels away.  The
+    #: physically meaningful window is in wavelength, not binned pixels, so we
+    #: hold the tolerance fixed in UNBINNED pixels and divide by the spectral
+    #: binning in :func:`config_specific_par`.  The window is then constant in
+    #: wavelength regardless of on-chip binning:
+    #:
+    #:   - binspec=3 (commissioning) -> 0.30 binned px (~0.5-0.6 A across u/g/r/i)
+    #:   - binspec=1                 -> 0.90 binned px
+    #:
+    #: 0.30 px at binspec=3 reproduces the original commissioning default.
+    _match_toler_unbinned_pixels = 0.9
     #: Per-channel detector gain (electrons / ADU); set by each subclass.
     _gain = 1.0
     #: Per-channel readnoise (electrons).
@@ -310,6 +322,138 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
         """
         return super().pypeit_file_keys()
 
+    #: Counts (e-) below which a pixel is flagged MINCOUNTS and dropped from
+    #: the frame combine; the sentinel used by :func:`_mask_offband_arc`.
+    _mincounts = -1.0e4
+    #: Raw-ADU value written to the unilluminated band of an arc frame.
+    #: Must satisfy ``value * gain < _mincounts``.
+    _offband_adu = -1.0e5
+    #: IMGTYPE of the secondary arc lamp and the wavelength below which it
+    #: replaces the primary lamp in the master arc.  ``None`` disables.
+    _he_idname = None
+    _he_split_wave = None
+    _he_cache: dict = {}
+
+    @classmethod
+    def _he_split_pix(cls, binspec):
+        """
+        Spectral pixel of :attr:`_he_split_wave` at the given binning.
+
+        The wavelength is converted to a pixel using this channel's own
+        reidentification template, which is stored unbinned.
+
+        Args:
+            binspec (:obj:`int`):
+                Spectral binning of the frame.
+
+        Returns:
+            :obj:`int`: The split location, in binned spectral pixels.
+        """
+        key = ('pix', cls.name)
+        if key not in cls._he_cache:
+            wave = Table.read(dataPaths.reid_arxiv.get_file_path(cls._wvarxiv))['wave'].data
+            cls._he_cache[key] = float(np.interp(cls._he_split_wave, wave,
+                                                 np.arange(wave.size)))
+        return int(round(cls._he_cache[key] / binspec))
+
+    @classmethod
+    def _he_frame(cls, ifile, binning):
+        """
+        Test whether a file holds a secondary-lamp frame at the given binning.
+
+        Args:
+            ifile (:obj:`str`, `Path`_):
+                Raw file to test.
+            binning (:obj:`tuple`):
+                Required ``(binspec, binspat)`` of this channel's image
+                extension.
+
+        Returns:
+            :obj:`bool`: True if the file is a frame from the secondary arc
+            lamp read out at the requested binning.
+        """
+        try:
+            with fits.open(ifile) as hdu:
+                if str(hdu[0].header.get('IMGTYPE', '')).strip().upper() != cls._he_idname:
+                    return False
+                ext = [h.header for h in hdu[1:]
+                       if str(h.header.get('EXTNAME', '')).strip().upper() == cls._extname]
+                if len(ext) == 0:
+                    return False
+                return (int(ext[0]['BINSPEC']), int(ext[0]['BINSPAT'])) == binning
+        except (OSError, KeyError, ValueError):
+            log.warning(f'Could not parse {ifile} when looking for {cls._he_idname} '
+                        f'frames; ignoring it.')
+            return False
+
+    @classmethod
+    def _he_present(cls, raw_file, binning):
+        """
+        Test whether secondary-lamp frames accompany a given raw file.
+
+        .. warning::
+
+            This searches the directory holding ``raw_file``, so frames that
+            sit alongside the data but were excluded from the reduction still
+            count.
+
+        Args:
+            raw_file (:obj:`str`, `Path`_):
+                Raw file being processed.
+            binning (:obj:`tuple`):
+                Required ``(binspec, binspat)`` of this channel's image
+                extension.
+        Returns:
+            :obj:`bool`: True if at least one secondary-lamp frame at this
+            binning is present.
+        """
+        parent = Path(raw_file).parent
+        key = ('has', str(parent), cls._extname, binning)
+        if key not in cls._he_cache:
+            cls._he_cache[key] = any(cls._he_frame(f, binning)
+                                     for f in sorted(parent.glob('*.fits')))
+        return cls._he_cache[key]
+
+    def _mask_offband_arc(self, raw_img, hdu):
+        """
+        Restrict each arc lamp to the band it illuminates, in place.
+
+        The primary (``_arc_idnames[0]``) and secondary (:attr:`_he_idname`)
+        arc lamps are disjoint in wavelength.  Blanking each frame outside its
+        own band makes the stock masked combine build the master arc from
+        secondary-lamp frames alone below :attr:`_he_split_wave` and
+        primary-lamp frames alone above it, so neither lamp is a minority of
+        the sigma-clipped stack and neither contributes noise where it has no
+        signal.  Blanked pixels are set to :attr:`_offband_adu`, which is below
+        the detector ``mincounts`` and so is flagged and excluded by the
+        combine.
+
+        This is a no-op unless the channel defines a secondary band and frames
+        for that lamp, at this frame's binning, accompany the one being read.
+
+        Args:
+            raw_img (`numpy.ndarray`_):
+                Raw image in the native readout frame.  Modified in place.
+            hdu (`astropy.io.fits.HDUList`_):
+                Open HDU list for the raw file, used for the frame type,
+                binning and file path.
+        """
+        if self._he_idname is None or self._he_split_wave is None:
+            return
+        imgtype = str(hdu[0].header.get('IMGTYPE', '')).strip().upper()
+        if imgtype not in self._arc_idnames:
+            return
+        hdr = hdu[self._extname_index(hdu)].header
+        binning = (int(hdr['BINSPEC']), int(hdr['BINSPAT']))
+        if not self._he_present(hdu.filename(), binning):
+            return
+        n = self._he_split_pix(binning[0])
+        blue = slice(-n, None) if self._specflip else slice(0, n)
+        red = slice(None, -n) if self._specflip else slice(n, None)
+        sl = [slice(None), slice(None)]
+        sl[self._specaxis] = red if imgtype == self._he_idname else blue
+        raw_img[tuple(sl)] = self._offband_adu
+
     _extname_cache: dict = {}
 
     @classmethod
@@ -371,8 +515,7 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
         elif ftype in ['arc', 'tilt']:
             mask = good_exp & np.isin(fitstbl['idname'], self._arc_idnames)
         elif ftype in ['pixelflat', 'trace', 'illumflat']:
-            mask = ((good_exp & (fitstbl['idname'] == 'DOMEFLAT'))
-                    | (good_exp & (fitstbl['idname'] == 'CONT')))
+            mask = good_exp & (fitstbl['idname'] == 'DOMEFLAT')
         else:
             log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
             return np.zeros(len(fitstbl), dtype=bool)
@@ -524,7 +667,7 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
             darkcurr=0.0,
             saturation=self._saturation_adu,
             nonlinear=40./45.,
-            mincounts=-1e10,
+            mincounts=self._mincounts,
             numamplifiers=1,
             gain=np.atleast_1d(self._gain),
             ronoise=np.atleast_1d(self._ronoise),
@@ -574,6 +717,8 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
                 raise PypeItError(
                     f"Raw image extension {idx} of {raw_file} is not 2D."
                 )
+
+        self._mask_offband_arc(raw_img, hdu)
 
         # Detector container (with native-frame DATASEC/OSCANSEC)
         detector = self.get_detector_par(det=1, hdu=hdu)
@@ -791,6 +936,8 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
                 par['sensfunc'][k] = v
 
         par['calibrations']['wavelengths']['lamps'] = list(cls._wave_lamps)
+        if cls._wave_lamps_wvrng is not None:
+            par['calibrations']['wavelengths']['lamps_wvrng'] = list(cls._wave_lamps_wvrng)
         # Force pypeit to use every arc line it can detect, including
         # the weak ones near the spectral edges of each channel.
         # PypeIt's default sigdetect=5 misses edge lines; the
@@ -818,8 +965,11 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['cc_thresh'] = 0.6
         par['calibrations']['wavelengths']['cc_local_thresh'] = 0.6
         par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 1.0
-        # ``match_toler`` in binned pixels; see _match_toler_pixels docs.
-        par['calibrations']['wavelengths']['match_toler'] = cls._match_toler_pixels
+        # ``match_toler`` is binning-dependent (see _match_toler_unbinned_pixels);
+        # config_specific_par() rescales it to the data's spectral binning.  The
+        # default here is the binspec=3 commissioning value (0.9 / 3 = 0.3 px).
+        par['calibrations']['wavelengths']['match_toler'] = \
+            cls._match_toler_unbinned_pixels / 3.
 
         par['sensfunc']['algorithm'] = 'UVIS'
 
@@ -830,6 +980,37 @@ class P200NGPSSpectrograph(spectrograph.Spectrograph):
         # and target brightness; any hardcoded numeric range will
         # bite at some configuration sooner or later.
 
+        return par
+
+    def config_specific_par(self, inp, inp_par=None):
+        """
+        Adjust parameters based on the configuration of the provided data.
+
+        The wavelength-solution ``match_toler`` is set from the spectral binning
+        of the data.  ``match_toler`` is a tolerance in *binned* pixels, but the
+        physically meaningful window is in wavelength, so we hold it fixed in
+        unbinned pixels (:attr:`_match_toler_unbinned_pixels`) and divide by
+        ``binspec``.  This reproduces the binspec=3 commissioning value
+        (0.9 / 3 = 0.3 px) and gives 0.9 px at binspec=1.
+
+        Args:
+            inp (:obj:`str`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, Header, or a row from the metadata table.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
+                Parameter set to modify.  If None, use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`~pypeit.par.parset.ParSet`: Configuration-adjusted parameters.
+        """
+        par = super().config_specific_par(inp, inp_par=inp_par)
+        # ``inp`` may be a product (e.g. a spec1d) whose header lacks the binning
+        # cards; only override when the binning can actually be read, otherwise
+        # leave the default_pypeit_par value (the binspec=3 commissioning value).
+        binning = self.get_meta_value(inp, 'binning', required=False)
+        if binning is not None:
+            binspec, _ = parse.parse_binning(binning)
+            par['calibrations']['wavelengths']['match_toler'] = \
+                self._match_toler_unbinned_pixels / binspec
         return par
 
 
@@ -943,9 +1124,22 @@ class P200NGPSSpectrograph_u(P200NGPSSpectrograph):
     _datasec_fallback = None
     _oscansec_fallback = None
     _bpm_usebias = False
-    _wvarxiv = 'wvarxiv_p200_ngps_u_thar_central.fits'
-    _wave_lamps = ['ThAr']
-    _arc_idnames = ('THAR',)
+    #: As wvarxiv_p200_ngps_u_thar_central.fits, but with the wave grid
+    #: blueward of 3400 A refit through the He I 3188.67 anchor and that line
+    #: injected into the flux; identical redward of 3500 A.
+    _wvarxiv = 'wvarxiv_p200_ngps_u_thar_central_blueanchor.fits'
+    #: The ThAr lamp has no detectable u lines below 3400 A, but the stock
+    #: list carries ~5 entries/A there, four of them within 0.3 A of the He
+    #: anchor, which would win the nearest-entry match.  ``_wave_lamps_wvrng``
+    #: drops them (see ``lamps_wvrng``).
+    _wave_lamps = ['ThAr', 'HeI_NGPS']
+    _wave_lamps_wvrng = ['3400:None', 'None']
+    _arc_idnames = ('THAR', 'DOMEHE')
+    #: He dome-lamp frames supply He I 3188.67, the only wavelength anchor
+    #: blueward of the bluest detectable ThAr line (~3490 A).  Detected in the
+    #: central image slice only.
+    _he_idname = 'DOMEHE'
+    _he_split_wave = 3400.0
     _gain = 0.755  # e-/ADU, from NGPS_DRP/slice_data.m
     _flatfield_overrides = dict(
         pixelflat_min_wave=3400.0,

@@ -20,6 +20,7 @@ from pypeit import log
 from pypeit import PypeItError
 from pypeit import utils
 from pypeit.core import fitting
+from pypeit.core.plot import pyplot_rcparams, pyplot_rcparams_default
 from IPython import embed
 
 
@@ -67,7 +68,7 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
 
     if debug:
         # set some plotting parameters
-        utils.pyplot_rcparams()
+        pyplot_rcparams()
         plt.figure(figsize=(7,5))
         log.info("Plot identified lines")
         cm = plt.get_cmap('RdYlBu_r')
@@ -115,7 +116,7 @@ def fit2darc_global_qa(pypeitFit, nspec, outfile=None):
     """
     log.info("Creating QA for 2D wavelength solution")
 
-    utils.pyplot_rcparams()
+    pyplot_rcparams()
 
     # Extract info from pypeitFit
     xnspecmin1 = float(nspec - 1)
@@ -186,7 +187,7 @@ def fit2darc_global_qa(pypeitFit, nspec, outfile=None):
         plt.show()
 
     # restore default rcparams
-    utils.pyplot_rcparams_default()
+    pyplot_rcparams_default()
 
 
 def fit2darc_orders_qa(pypeitFit, nspec, outfile=None):
@@ -208,7 +209,7 @@ def fit2darc_orders_qa(pypeitFit, nspec, outfile=None):
 
     log.info("Creating QA for 2D wavelength solution")
 
-    utils.pyplot_rcparams()
+    pyplot_rcparams()
 
     # Extract info from pypeitFit
     xnspecmin1 = float(nspec - 1)

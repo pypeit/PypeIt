@@ -1,0 +1,68 @@
+"""
+A simple full-view dialog for a QA PNG.
+
+The dialog is a basic image window: the PNG is scaled to fit a window that is
+smaller than the screen, so it opens showing the whole figure rather than a
+zoomed-in crop.
+"""
+
+from pathlib import Path
+
+from qtpy.QtWidgets import (QDialog, QVBoxLayout, QLabel, QApplication)
+from qtpy.QtCore import Qt
+from qtpy.QtGui import QPixmap
+
+
+class QaImageDialog(QDialog):
+    """
+    A modeless dialog showing a single QA PNG, scaled to fit a window that is
+    smaller than the screen.
+
+    Parameters
+    ----------
+    png_path : str or `Path`
+        Path to the QA PNG.
+    parent : QWidget, optional
+        The parent widget.
+    """
+
+    def __init__(self, png_path, parent=None):
+        super().__init__(parent=parent)
+        self.setWindowTitle(Path(png_path).name)
+
+        layout = QVBoxLayout(self)
+        label = QLabel()
+        label.setAlignment(Qt.AlignCenter)
+        pixmap = QPixmap(str(png_path))
+        if pixmap.isNull():
+            label.setText(f'Could not load image:\n{png_path}')
+            self.resize(400, 120)
+        else:
+            # Cap the displayed image at ~80% of the available screen, keeping
+            # the aspect ratio, so the dialog opens showing the full figure
+            # but stays smaller than the screen.
+            max_w, max_h = self._max_size()
+            shown = pixmap
+            if pixmap.width() > max_w or pixmap.height() > max_h:
+                shown = pixmap.scaled(max_w, max_h, Qt.KeepAspectRatio,
+                                      Qt.SmoothTransformation)
+            label.setPixmap(shown)
+            # Size the dialog to the shown image (plus a small margin).
+            self.resize(shown.width() + 24, shown.height() + 24)
+        layout.addWidget(label)
+
+    @staticmethod
+    def _max_size():
+        """
+        Return the maximum image size (~80% of the available screen).
+
+        Returns
+        -------
+        tuple
+            ``(max_width, max_height)`` in pixels.
+        """
+        screen = QApplication.primaryScreen()
+        if screen is not None:
+            avail = screen.availableGeometry()
+            return int(avail.width() * 0.8), int(avail.height() * 0.8)
+        return 1000, 800

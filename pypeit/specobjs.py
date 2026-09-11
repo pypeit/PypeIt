@@ -308,7 +308,7 @@ class SpecObjs:
         meta_spec['DET'] = np.array(detector)
         meta_spec['DISPNAME'] = self.header['DISPNAME']
         # Return
-        if self[0].PYPELINE in ['MultiSlit', 'SlicerIFU'] and self.nobj == 1:
+        if self[0].PYPELINE in ['MultiSlit', 'SlicerIFU', 'Fiber'] and self.nobj == 1:
             meta_spec['ECH_ORDERS'] = None
             blaze_ret = blaze_function.reshape(nspec) if blaze_function is not None else None
             return wave.reshape(nspec), flux.reshape(nspec), flux_ivar.reshape(nspec), \
@@ -341,7 +341,7 @@ class SpecObjs:
         pypeline = self[0].PYPELINE
         # TODO: Add a check that all of the spectra use the same pypeline?  Why
         # are we letting the pypeline be SpecObj specific?
-        if pypeline not in ['MultiSlit', 'Echelle', 'SlicerIFU']:
+        if pypeline not in ['MultiSlit', 'Echelle', 'SlicerIFU', 'Fiber']:
             raise PypeItError(f'{pypeline} is not a pipeline path known to PypeIt.')
 
         # Collect the S/N ratios for all spectra.  Try the optimal extractions
@@ -376,8 +376,8 @@ class SpecObjs:
         # than the smallest value in the list.
         SNR = np.array([0. if _snr is None else _snr for _snr in SNR])
 
-        # Is this MultiSlit or Echelle
-        if pypeline in ['MultiSlit', 'SlicerIFU']:
+        # Is this MultiSlit, SlicerIFU, or Fiber
+        if pypeline in ['MultiSlit', 'SlicerIFU', 'Fiber']:
             # initialize sobjs_std
             sobjs_std = SpecObjs(header=self.header)
             # For multiple detectors grab the requested detectors
@@ -459,9 +459,7 @@ class SpecObjs:
         if sobjs_neg[0].PYPELINE == 'Echelle':
             sobjs_neg.ECH_OBJID = -sobjs_neg.ECH_OBJID
             sobjs_neg.OBJID = -sobjs_neg.OBJID
-        elif sobjs_neg[0].PYPELINE == 'MultiSlit':
-            sobjs_neg.OBJID = -sobjs_neg.OBJID
-        elif sobjs_neg[0].PYPELINE == 'SlicerIFU':
+        elif sobjs_neg[0].PYPELINE in ['MultiSlit', 'SlicerIFU', 'Fiber']:
             sobjs_neg.OBJID = -sobjs_neg.OBJID
         else:
             raise PypeItError("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
@@ -480,9 +478,7 @@ class SpecObjs:
         if self.nobj > 0:
             if self[0].PYPELINE == 'Echelle':
                 index = self.ECH_OBJID < 0
-            elif self[0].PYPELINE == 'MultiSlit':
-                index = self.OBJID < 0
-            elif self[0].PYPELINE == 'SlicerIFU':
+            elif self[0].PYPELINE in ['MultiSlit', 'SlicerIFU', 'Fiber']:
                 index = self.OBJID < 0
             else:
                 raise PypeItError("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
@@ -498,9 +494,7 @@ class SpecObjs:
         if self.nobj > 0:
             if self[0].PYPELINE == 'Echelle':
                 index = self.ECH_OBJID < 0
-            elif self[0].PYPELINE == 'MultiSlit':
-                index = self.OBJID < 0
-            elif self[0].PYPELINE == 'SlicerIFU':
+            elif self[0].PYPELINE in ['MultiSlit', 'SlicerIFU', 'Fiber']:
                 index = self.OBJID < 0
             else:
                 raise PypeItError("Should not get here")
@@ -524,9 +518,7 @@ class SpecObjs:
         """
         if self[0].PYPELINE == 'Echelle':
             indx = self.ECH_ORDER == slitorder
-        elif self[0].PYPELINE == 'MultiSlit':
-            indx = self.SLITID == slitorder
-        elif self[0].PYPELINE == 'SlicerIFU':
+        elif self[0].PYPELINE in ['MultiSlit', 'SlicerIFU', 'Fiber']:
             indx = self.SLITID == slitorder
         else:
             raise PypeItError("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
@@ -548,9 +540,7 @@ class SpecObjs:
         """
         if self[0].PYPELINE == 'Echelle':
             indx = self.ECH_NAME == name
-        elif self[0].PYPELINE == 'MultiSlit':
-            indx = self.NAME == name
-        elif self[0].PYPELINE == 'SlicerIFU':
+        elif self[0].PYPELINE in ['MultiSlit', 'SlicerIFU', 'Fiber']:
             indx = self.NAME == name
         else:
             raise PypeItError("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
@@ -578,11 +568,9 @@ class SpecObjs:
         """
         if self[0].PYPELINE == 'Echelle':
             indx = (self.ECH_ORDER == order) & (self.ECH_FRACPOS_ID == uniq_id)
-        elif self[0].PYPELINE == 'MultiSlit':
+        elif self[0].PYPELINE in ['MultiSlit', 'SlicerIFU', 'Fiber']:
             indx = self.SPAT_PIXPOS_ID == uniq_id
-        elif self[0].PYPELINE == 'SlicerIFU':
-            indx = self.SPAT_PIXPOS_ID == uniq_id
-        else: 
+        else:
             raise PypeItError("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
         
         return indx
@@ -677,7 +665,7 @@ class SpecObjs:
 
         # TODO enbaling this for now in case someone wants to treat the IFU as a slit spectrograph
         #  (not recommnneded but useful for quick reductions where you don't want to construct cubes and don't care about DAR).
-        if spectrograph.pypeline in ['MultiSlit','SlicerIFU']:
+        if spectrograph.pypeline in ['MultiSlit', 'SlicerIFU', 'Fiber']:
             for ii, sci_obj in enumerate(self.specobjs):
                 # PYP_SPEC is needed for each specobj
                 if sci_obj.PYP_SPEC is None:
@@ -981,12 +969,7 @@ class SpecObjs:
                 continue
             # Append
             spat_pixpos.append(specobj.SPAT_PIXPOS)
-            if pypeline == 'MultiSlit':
-                spat_fracpos.append(specobj.SPAT_FRACPOS)
-                slits.append(specobj.SLITID)
-                names.append(specobj.NAME)
-                obj_ids.append(specobj.SPAT_PIXPOS_ID)
-            elif pypeline == 'SlicerIFU':
+            if pypeline in ['MultiSlit', 'SlicerIFU', 'Fiber']:
                 spat_fracpos.append(specobj.SPAT_FRACPOS)
                 slits.append(specobj.SLITID)
                 names.append(specobj.NAME)
@@ -1019,10 +1002,7 @@ class SpecObjs:
         # Generate the table, if we have at least one source
         if len(names) > 0:
             obj_tbl = Table()
-            if pypeline == 'MultiSlit':
-                obj_tbl['slit'] = slits
-                obj_tbl['slit'].format = 'd'
-            elif pypeline == 'SlicerIFU':
+            if pypeline in ['MultiSlit', 'SlicerIFU', 'Fiber']:
                 obj_tbl['slit'] = slits
                 obj_tbl['slit'].format = 'd'
             elif pypeline == 'Echelle':
@@ -1180,7 +1160,7 @@ def get_std_trace(detname, std_outfile, chk_version=True):
         elif 'Echelle' in pypeline:
             std_tab['ECH_ORDER'] = sobjs_std.ECH_ORDER
             std_tab['TRACE_SPAT'] = sobjs_std.TRACE_SPAT
-        elif 'SlicerIFU' in pypeline:
+        elif 'SlicerIFU' in pypeline or 'Fiber' in pypeline:
             std_tab = None
         else:
             raise PypeItError('Unrecognized pypeline')

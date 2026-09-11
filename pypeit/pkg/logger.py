@@ -39,6 +39,17 @@ import numpy as np
 warnings.simplefilter('default', np.exceptions.RankWarning)
 
 
+# Custom logging level used to broadcast pipeline-progress milestones (e.g. the
+# current calibration step) to listeners such as the PypeIt Dashboard.  It is
+# placed *below* DEBUG so that these records never appear in a normal console
+# run: all scripts default to verbosity level 2 (see ScriptBase.get_parser),
+# which sets the stream (and file) handlers to DEBUG.  STEP records are only
+# received by handlers explicitly set to a level at or below STEP (e.g. the
+# dashboard's log queue).
+STEP = 5
+logging.addLevelName(STEP, "STEP")
+
+
 def color_text(
     text:str,
     color:list[int],
@@ -188,8 +199,9 @@ class PypeItLogger(logging.Logger):
         # instance of PypeItLogger.
         self.warnings_logger = logging.getLogger("py.warnings")
 
-        # Set the base level of the logger to DEBUG    
-        self.setLevel(logging.DEBUG)
+        # Set the base level of the logger to the lowest level used (STEP is
+        # below DEBUG), so that level filtering is performed by each handler.
+        self.setLevel(min(STEP, logging.DEBUG))
 
         # Clear handlers before recreating.
         for handler in self.handlers.copy():
@@ -347,7 +359,7 @@ class PypeItLogger(logging.Logger):
             self, name, level, pathname, lineno, msg, args, exc_info, func=func, extra=extra,
             sinfo=sinfo
         )
-    
+
     def close_file(self):
         """
         Explicitly close the log file.
