@@ -283,7 +283,8 @@ def find_reduced_spec2d(science_dir, row, spectrograph):
     mjd = row['mjd'] if 'mjd' in row.colnames else None
     if mjd is not None:
         expected_basename = construct_basename(
-            raw_filename, target, spectrograph.camera, mjd, spectrograph.allowed_extensions
+            raw_filename, spectrograph.camera, spectrograph.allowed_extensions, target=target,
+            mjd=mjd
         )
         exact = Path(science_dir) / f'spec2d_{expected_basename}.fits'
         if exact.is_file():

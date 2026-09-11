@@ -39,6 +39,8 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         'msa.fits', 'rate.fits', 'rate.fits.gz', 'uncal.fits', 'uncal.fits.gz', '.fits', '.fits.gz'
     ]
 
+    # NOTE: I left this derived class method as is.  We should integrate it with
+    # the new functions in `outputfiles`, if possible.
     def rawfile_basename(self, filename, targname=None, slitname=None):
         """
         Return the basename of a raw file, which is used for naming output
