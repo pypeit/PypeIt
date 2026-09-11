@@ -2304,8 +2304,18 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
             sobjs[iobj].SPAT_PIXPOS_ID = int(np.rint(sobjs[iobj].SPAT_PIXPOS))
             sobjs[iobj].set_name()
 
-        # Create a QA plot for the object traces based on plots in ``fit_trace``
-        objtraceQA_filename = None if objfindQA_filename is None else objfindQA_filename.replace("prof","trace")
+        # Create a QA plot for the object traces based on plots in ``fit_trace``.
+        # NOTE: The renaming is restricted to the file name (as opposed to
+        # using objfindQA_filename.replace() directly) so that a "prof"
+        # substring in the parent directory path is not inadvertently
+        # altered.
+        if objfindQA_filename is None:
+            objtraceQA_filename = None
+        else:
+            _objfindQA_filename = Path(objfindQA_filename).absolute()
+            objtraceQA_filename = str(
+                _objfindQA_filename.parent / _objfindQA_filename.name.replace("prof", "trace")
+            )
         objtrace_QA(xfit_gweight, trace_results.out_gpm.T, cen, np.logical_not(msk.astype(bool)),
                     xinit_fweight, np.logical_not(trc_inmask), trace_names=sobjs.NAME,
                     qa_title=qa_title, objtraceQA_filename=objtraceQA_filename)
