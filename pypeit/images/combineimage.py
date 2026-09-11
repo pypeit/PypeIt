@@ -215,12 +215,13 @@ class CombineImage:
         if self.par['scale_to_mean']:
             log.info("Scaling images to have the same mean before combining")
             # calculate the mean of the images
-            [mean_img], _, mean_gpm, _ = combine.weighted_combine(np.ones(self.nimgs, dtype=float)/self.nimgs,
-                                                                  [img_stack],
+            [mean_img], _, mean_gpm, _ = combine.weighted_combine([img_stack],
                                                                   [rn2img_stack],
                                                                   # var_list is added because it is
                                                                   # required by the function but not used
-                                                                  gpm_stack, sigma_clip=self.par['clip'],
+                                                                  gpm_stack,
+                                                                  weights=None,
+                                                                  sigma_clip=self.par['clip'],
                                                                   sigma_clip_stack=img_stack,
                                                                   sigrej=self.par['comb_sigrej'], maxiters=maxiters)
 
@@ -240,12 +241,10 @@ class CombineImage:
 
         # Coadd them
         if self.par['combine'] == 'mean':
-            weights = np.ones(self.nimgs, dtype=float)/self.nimgs
             img_list_out, var_list_out, gpm, nframes \
-                    = combine.weighted_combine(weights,
-                                               [img_stack, scl_stack],  # images to stack
+                    = combine.weighted_combine([img_stack, scl_stack],  # images to stack
                                                [rn2img_stack, basev_stack], # variances to stack
-                                               gpm_stack, sigma_clip=self.par['clip'],
+                                               gpm_stack, weights=None, sigma_clip=self.par['clip'],
                                                sigma_clip_stack=img_stack,  # clipping based on img
                                                sigrej=self.par['comb_sigrej'], maxiters=maxiters)
             comb_img, comb_scl = img_list_out
