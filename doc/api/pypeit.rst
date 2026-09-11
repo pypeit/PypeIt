@@ -9,6 +9,7 @@ Subpackages
 
    pypeit.containers
    pypeit.core
+   pypeit.dashboard
    pypeit.display
    pypeit.gui
    pypeit.images
@@ -17,6 +18,7 @@ Subpackages
    pypeit.scripts
    pypeit.spectrographs
    pypeit.specutils
+   pypeit.state
 
 Submodules
 ----------

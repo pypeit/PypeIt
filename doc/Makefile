@@ -45,6 +45,7 @@ apirst:
 	python ./scripts/build_telluric_table.py
 	python ./scripts/make_spatprof_figures.py
 	python ./scripts/patch_apidoc_for_dataclasses.py
+	python ./scripts/write_contributors_table.py
 	python ./scripts/write_script_help.py
 
 examples:

@@ -504,7 +504,6 @@ def reidentify(
     November 2018 by J.F. Hennawi. Built from an initial version of cross_match
     code written by Ryan Cooke.
     """
-    # TODO -- Break up this morass into multiple methods
 
     # Do some input checking
     if spec.ndim != 1:
@@ -713,7 +712,8 @@ def reidentify(
                 ', stretch = {:5.4f}'.format(stretch_vec[iarxiv]) +
                 ', wv_cen = {:7.1f}'.format(wcen[iarxiv]) +
                 ', disp = {:5.3f}'.format(disp[iarxiv]))
-            plt.ylim(1.2*use_spec.min(), 1.5 *use_spec.max())
+            plt.ylim(10.0, 1.5*use_spec.max())
+            plt.yscale('log')
             plt.legend()
             plt.show()
 
@@ -838,6 +838,7 @@ def reidentify(
             'least 3 required).'
         )
         patt_dict_slit['acceptable'] = False
+
 
     return detections, spec_cont_sub, patt_dict_slit
 
@@ -1213,7 +1214,8 @@ def full_template(
 #    debug=True
 
     # Load line lists
-    line_lists, _, _ = waveio.load_line_lists(lamps, include_unknown=False)
+    line_lists, _, _ = waveio.load_line_lists(lamps, include_unknown=False,
+                                              lamps_wvrng=par['lamps_wvrng'])
 
     # Load template
     if template_dict is None:
@@ -1268,7 +1270,6 @@ def full_template(
         obs_spec_i = spec[:,slit]
         # get FWHM for this slit
         fwhm = set_fwhm(par, measured_fwhm=measured_fwhms[slit], verbose=True)
-        
         # Find the shift
         ncomb = temp_spec.size
         # Remove the continuum before adding the padding to obs_spec_i
@@ -1848,7 +1849,7 @@ class ArchiveReid:
 
         # Load the line lists
         self.tot_line_list, self.line_lists, self.unknwns = waveio.load_line_lists(
-            lamps, include_unknown=self.use_unknowns)
+            lamps, include_unknown=self.use_unknowns, lamps_wvrng=self.par['lamps_wvrng'])
 
         # Read in the wv_calib_arxiv and pull out some relevant quantities
         # ToDO deal with different binnings!
@@ -2100,7 +2101,7 @@ class HolyGrail:
             restrict = spectrograph if self._par['use_instr_flag'] else None
             self._tot_list, self._line_lists, self._unknwns = waveio.load_line_lists(
                 self._lamps, include_unknown=self._use_unknowns,
-                restrict_on_instr=restrict)
+                restrict_on_instr=restrict, lamps_wvrng=self._par['lamps_wvrng'])
 
 
         # Generate the final linelist and sort

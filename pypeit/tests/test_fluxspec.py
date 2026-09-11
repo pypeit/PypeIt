@@ -21,6 +21,7 @@ from pypeit import PypeItError
 from pypeit import scripts
 
 
+@pytest.mark.remote_data
 def test_flux_calib(tmp_path, monkeypatch):
     """ Some of these items are also tested in test_fluxspec.py"""
 
@@ -91,9 +92,11 @@ def test_flux_calib(tmp_path, monkeypatch):
 # TODO: Include tests for coadd2d, sensfunc
 
 
+@pytest.mark.remote_data
 def test_extinction_correction_uvis():
     extinction_correction_tester('UVIS')
 
+@pytest.mark.remote_data
 def test_extinction_correction_ir():
     extinction_correction_tester('IR')
 

@@ -1,0 +1,195 @@
+{
+    "pypeit_file": "keck_nires_A.pypeit",
+    "current_step": "flats",
+    "current_det": 1,
+    "current_calibID": 0,
+    "previous_step": "tilts",
+    "bias": [],
+    "dark": [],
+    "slits": [
+        {
+            "calib_id": 0,
+            "det": 1,
+            "step": "slits",
+            "required": true,
+            "output_file": "Slits_A_all_DET01.fits.gz",
+            "status": "success",
+            "nslits": 5,
+            "slits": {
+                "3": {
+                    "status": "success",
+                    "center": 512.0,
+                    "slitord_id": 3
+                },
+                "4": {
+                    "status": "success",
+                    "center": 512.0,
+                    "slitord_id": 4
+                },
+                "5": {
+                    "status": "success",
+                    "center": 512.0,
+                    "slitord_id": 5
+                },
+                "6": {
+                    "status": "success",
+                    "center": 512.0,
+                    "slitord_id": 6
+                },
+                "7": {
+                    "status": "success",
+                    "center": 512.0,
+                    "slitord_id": 7
+                }
+            }
+        }
+    ],
+    "arc": [
+        {
+            "calib_id": 0,
+            "det": 1,
+            "step": "arc",
+            "required": true,
+            "output_file": "Arc_A_0_DET01.fits",
+            "status": "success"
+        }
+    ],
+    "tiltimg": [
+        {
+            "calib_id": 0,
+            "det": 1,
+            "step": "tiltimg",
+            "required": true,
+            "output_file": "Tiltimg_A_0_DET01.fits",
+            "status": "success"
+        }
+    ],
+    "wv_calib": [
+        {
+            "calib_id": 0,
+            "det": 1,
+            "step": "wv_calib",
+            "required": true,
+            "output_file": "WaveCalib_A_0_DET01.fits",
+            "status": "success",
+            "slits": {
+                "3": {
+                    "status": "success",
+                    "rms": 0.065
+                },
+                "4": {
+                    "status": "success",
+                    "rms": 0.07
+                },
+                "5": {
+                    "status": "success",
+                    "rms": 0.07500000000000001
+                },
+                "6": {
+                    "status": "success",
+                    "rms": 0.08
+                },
+                "7": {
+                    "status": "success",
+                    "rms": 0.085
+                }
+            }
+        }
+    ],
+    "tilts": [
+        {
+            "calib_id": 0,
+            "det": 1,
+            "step": "tilts",
+            "required": true,
+            "output_file": "Tilts_A_0_DET01.fits",
+            "status": "success",
+            "slits": {
+                "3": {
+                    "status": "success",
+                    "rms": 0.026000000000000002
+                },
+                "4": {
+                    "status": "success",
+                    "rms": 0.028
+                },
+                "5": {
+                    "status": "success",
+                    "rms": 0.03
+                },
+                "6": {
+                    "status": "success",
+                    "rms": 0.032
+                },
+                "7": {
+                    "status": "success",
+                    "rms": 0.034
+                }
+            }
+        }
+    ],
+    "scattlight": [],
+    "flats": [
+        {
+            "calib_id": 0,
+            "det": 1,
+            "step": "flats",
+            "required": true,
+            "output_file": "Flat_A_all_DET01.fits",
+            "status": "success",
+            "corrections": [
+                "pixelflat",
+                "spat_illum"
+            ],
+            "pixelflat_source": "raw",
+            "slits": {
+                "3": {
+                    "status": "success",
+                    "corrections": {
+                        "pixelflat": {
+                            "mean": 1.0,
+                            "rms": 0.03
+                        }
+                    }
+                },
+                "4": {
+                    "status": "success",
+                    "corrections": {
+                        "pixelflat": {
+                            "mean": 1.0,
+                            "rms": 0.03
+                        }
+                    }
+                },
+                "5": {
+                    "status": "success",
+                    "corrections": {
+                        "pixelflat": {
+                            "mean": 1.0,
+                            "rms": 0.03
+                        }
+                    }
+                },
+                "6": {
+                    "status": "success",
+                    "corrections": {
+                        "pixelflat": {
+                            "mean": 1.0,
+                            "rms": 0.03
+                        }
+                    }
+                },
+                "7": {
+                    "status": "success",
+                    "corrections": {
+                        "pixelflat": {
+                            "mean": 1.0,
+                            "rms": 0.03
+                        }
+                    }
+                }
+            }
+        }
+    ],
+    "align": []
+}
