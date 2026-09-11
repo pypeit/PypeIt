@@ -1381,6 +1381,157 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order
     return sobjs_ech
 
 
+def ech_slit_center_objs(image, ivar, slitmask, slit_left, slit_righ,
+                         slit_spat_id, order_vec, det='DET01',
+                         inmask=None, specobj_dict=None):
+    """
+    Create one object per echelle order, forced at the order center.
+
+    This routine bypasses peak-detection object finding entirely.  It
+    is intended for spectrographs where the target always fills the
+    (short) slit -- e.g., Shane/Hamspec -- so the smashed spatial
+    profile has no peak for the standard object finder to detect.  One
+    :class:`~pypeit.specobj.SpecObj` is created per order with:
+
+        - the trace set to the order center (midpoint of the left and
+          right order edges at each spectral pixel);
+        - the FWHM set to the median order width (the object fills the
+          slit, so its profile is the slit profile);
+        - the boxcar radius set to half the median order width, so a
+          boxcar extraction spans the full order.
+
+    A quick boxcar extraction is performed for each order to assign
+    the per-order S/N (``ech_snr``), which the downstream echelle
+    extraction (:func:`~pypeit.core.skysub.ech_local_skysub_extract`)
+    uses to set the order in which the orders are reduced.
+
+    Args:
+        image (`numpy.ndarray`_):
+            (Floating-point) Image to use for the quick S/N
+            extraction, shape (nspec, nspat).  The first dimension
+            (nspec) is spectral, the second (nspat) is spatial.
+        ivar (`numpy.ndarray`_):
+            Floating-point inverse variance image for the input image.
+            Shape must match ``image``.
+        slitmask (`numpy.ndarray`_):
+            Integer image indicating the pixels that belong to each
+            order.  Pixels that are not on an order have value -1, and
+            those that are on an order have a value equal to the slit
+            spatial ID.  Shape must match ``image``.
+        slit_left (`numpy.ndarray`_):
+            Left boundary of orders to be extracted (given as
+            floating-point pixels).  Shape is (nspec, norders).
+        slit_righ (`numpy.ndarray`_):
+            Right boundary of orders to be extracted (given as
+            floating-point pixels).  Shape is (nspec, norders).
+        slit_spat_id (`numpy.ndarray`_):
+            Slit spat_id values (spatial position 1/2 way up the
+            detector) for the orders.  Shape is (norders,).
+        order_vec (`numpy.ndarray`_):
+            Vector identifying the echelle order number for each pair
+            of order edges.  Shape is (norders,).
+        det (:obj:`str`, optional):
+            The name of the detector containing the object.  Only
+            used if ``specobj_dict`` is None.
+        inmask (`numpy.ndarray`_, optional):
+            Good-pixel mask for the input image.  Must have the same
+            shape as ``image``.  If None, all pixels in ``slitmask``
+            with non-negative values are considered good.
+        specobj_dict (:obj:`dict`, optional):
+            Dictionary containing meta-data for the objects that will
+            be propagated into the :class:`~pypeit.specobj.SpecObj`
+            objects (PYPELINE, DET, OBJTYPE).  The default is
+            ``{'SLITID': 999, 'DET': det, 'OBJTYPE': 'unknown',
+            'PYPELINE': 'Echelle'}``.
+
+    Returns:
+        :class:`~pypeit.specobjs.SpecObjs`: Object containing one
+        :class:`~pypeit.specobj.SpecObj` per order, all sharing
+        ``ECH_OBJID = OBJID = 1``.
+    """
+    norders = slit_left.shape[1]
+    if slit_righ.shape[1] != norders:
+        raise PypeItError('Number of left and right slits must be the same.')
+    if order_vec.size != norders:
+        raise PypeItError('Number of orders in order_vec and left/right '
+                          'slits must be the same.')
+
+    if specobj_dict is None:
+        specobj_dict = {'SLITID': 999, 'DET': det, 'OBJTYPE': 'unknown',
+                        'PYPELINE': 'Echelle'}
+    if inmask is None:
+        inmask = slitmask != -1
+
+    nspec = image.shape[0]
+    spec_vec = np.arange(nspec)
+    specmid = nspec // 2
+    varimg = utils.inverse(ivar)
+
+    sobjs = specobjs.SpecObjs()
+    for iord in range(norders):
+        left = slit_left[:, iord]
+        righ = slit_righ[:, iord]
+        # Median order width in pixels; floor at 1 px to protect the
+        # boxcar/FWHM assignments against a degenerate (mis-traced)
+        # order with left == right.
+        med_width = max(float(np.median(righ - left)), 1.0)
+
+        thisobj = specobj.SpecObj(specobj_dict['PYPELINE'],
+                                  specobj_dict['DET'],
+                                  OBJTYPE=specobj_dict['OBJTYPE'],
+                                  ECH_ORDERINDX=iord,
+                                  ECH_ORDER=order_vec[iord])
+        # Force the trace to the order center
+        thisobj.TRACE_SPAT = 0.5*(left + righ)
+        thisobj.trace_spec = spec_vec
+        thisobj.SPAT_PIXPOS = thisobj.TRACE_SPAT[specmid]
+        thisobj.SPAT_PIXPOS_ID = int(np.rint(thisobj.SPAT_PIXPOS))
+        thisobj.SPAT_FRACPOS = 0.5
+        # The object fills the slit: profile width = order width, and
+        # the boxcar aperture spans the full order.
+        thisobj.FWHM = med_width
+        thisobj.maskwidth = med_width
+        thisobj.BOX_R_PIX = med_width/2.0
+        thisobj.ECH_FRACPOS = 0.5
+        thisobj.ECH_FRACPOS_ID = 500
+        thisobj.ECH_OBJID = 1
+        thisobj.OBJID = 1
+        thisobj.SLITID = slit_spat_id[iord]
+        thisobj.ech_frac_was_fit = False
+
+        # Quick boxcar extraction to assess the per-order S/N, needed
+        # by ech_local_skysub_extract to order the reduction (mirrors
+        # the S/N assessment in ech_cutobj_on_snr).
+        inmask_iord = inmask & (slitmask == thisobj.SLITID)
+        box_width = 2.0*thisobj.BOX_R_PIX
+        flux_tmp = moment1d(image*inmask_iord, thisobj.TRACE_SPAT,
+                            box_width, row=thisobj.trace_spec)[0]
+        var_tmp = moment1d(varimg*inmask_iord, thisobj.TRACE_SPAT,
+                           box_width, row=thisobj.trace_spec)[0]
+        ivar_tmp = utils.inverse(var_tmp)
+        pixtot = moment1d(ivar*0 + 1.0, thisobj.TRACE_SPAT,
+                          box_width, row=thisobj.trace_spec)[0]
+        mask_tmp = moment1d(ivar*inmask_iord == 0.0, thisobj.TRACE_SPAT,
+                            box_width, row=thisobj.trace_spec)[0] != pixtot
+        if np.any(mask_tmp):
+            _, med_sn, _ = astropy.stats.sigma_clipped_stats(
+                flux_tmp[mask_tmp]*np.sqrt(np.fmax(ivar_tmp[mask_tmp], 0.)),
+                sigma_lower=5.0, sigma_upper=5.0)
+        else:
+            med_sn = 0.0
+        thisobj.ech_snr = med_sn if np.isfinite(med_sn) else 0.0
+        thisobj.smash_snr = thisobj.ech_snr
+        thisobj.smash_peakflux = float(np.median(flux_tmp[mask_tmp])) \
+            if np.any(mask_tmp) else 0.0
+
+        thisobj.set_name()
+        sobjs.add_sobj(thisobj)
+
+    log.info(f'Forced one object at the center of each of the {norders} '
+             'orders (force_center_obj=True).')
+    return sobjs
+
+
 def objfind_QA(spat_peaks, snr_peaks, spat_vector, snr_vector, snr_thresh, qa_title, peak_gpm,
                near_edge_bpm, nperslit_bpm, objfindQA_filename=None, show=False):
     """

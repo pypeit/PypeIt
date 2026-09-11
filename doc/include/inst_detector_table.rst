@@ -94,6 +94,7 @@ Instrument                    Det  specaxis  specflip  spatflip  namp      gain 
 ``p200_ngps_r``               1    1         False     False     1         0.9                         8.5                     0.0       -1.0e+04  40000.0       0.8889     0.1870    
 ``p200_ngps_u``               1    0         True      False     1         0.755                       8.5                     0.0       -1.0e+04  40000.0       0.8889     0.1870    
 ``p200_tspec``                1    1         True      False     1         3.8                         3.5                     306.0     -1.0e+10  28000         0.9000     0.3700    
+``shane_hamspec``             1    1         False     True      2         0.92, 0.92                  3.2, 3.2                0.0       -1.0e+10  65535.0       0.8600     0.5000    
 ``shane_kast_blue``           1    1         False     False     2         1.2, 1.2                    3.7, 3.7                0.0       -1.0e+10  65535.0       0.7600     0.4300    
 ``shane_kast_red``            1    0         False     False     2         1.9, 1.9                    3.8, 3.8                0.0       -1.0e+10  65535.0       0.7600     0.4300    
 ``shane_kast_red_ret``        1    1         False     False     1         3.0                         12.5                    0.0       -1.0e+10  120000.0      0.7600     0.7740    
