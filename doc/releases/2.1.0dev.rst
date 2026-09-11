@@ -52,6 +52,7 @@ Functionality/Performance Improvements and Additions
 - Adds ability to select the specific archive of standard stars to use when
   searching for a match to an observed standard.  This is particularly import
   for LBT/MODS.
+- Adds new QA plots showing the results of the spatial profile fitting.
 
 Instrument-specific Updates
 ---------------------------
@@ -186,6 +187,8 @@ Under-the-hood Improvements
   the data are significantly narrower than the template.  A loop has been added
   that iteratively increments the FWHM until the number of good template lines
   reaches some minimum fraction of all lines detected in the template spectrum.
+- Significant refactoring of the spatial profile fitting code.  Code is now more
+  modular and provides improved QA plots.
 
 Bug Fixes
 ---------
