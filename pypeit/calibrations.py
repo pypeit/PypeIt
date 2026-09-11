@@ -2163,7 +2163,7 @@ class IFUCalibrations(Calibrations):
             PYP_SPEC=self.spectrograph.name,
             binspec=binspec,
             binspat=binspat,
-            pad=self.par['slitedges']['pad'],
+            pad=np.asarray(self.par['slitedges']['pad'], dtype=float),
         )
 
         # Set calibration paths and save
