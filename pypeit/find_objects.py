@@ -943,6 +943,25 @@ class EchelleFindObjects(FindObjects):
                         'OBJTYPE': self.objtype,
                         'PYPELINE': self.pypeline}
 
+        # Forced slit-center apertures: for spectrographs where the target
+        # fills the (short) slit (e.g., Shane/Hamspec), peak-detection object
+        # finding cannot work because the smashed spatial profile has no
+        # peak.  Instead, force one object per order at the order center.
+        if self.par['reduce']['findobj']['force_center_obj']:
+            reduce_gpm = np.logical_not(self.reduce_bpm)
+            sobjs_ech = findobj_skymask.ech_slit_center_objs(
+                image, ivar, self.slitmask,
+                self.slits_left[:, reduce_gpm],
+                self.slits_right[:, reduce_gpm],
+                self.slits.spat_id[reduce_gpm], self.order_vec[reduce_gpm],
+                det=self.det, inmask=inmask, specobj_dict=specobj_dict)
+            self.steps.append(inspect.stack()[0][3])
+            if show:
+                gpm = self.sciImg.select_flag(invert=True)
+                self.show('image', image=image*gpm.astype(float),
+                          chname='ech_objfind', sobjs=sobjs_ech, slits=False)
+            return sobjs_ech, len(sobjs_ech)
+
         objfindQA_filename = self.get_findobj_qa_filename(999, neg, save_objfindQA)
 
         #This could cause problems if there are more than one object on the echelle slit, i,e, this tacitly
