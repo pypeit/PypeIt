@@ -993,7 +993,7 @@ class AlignPar(ParSet):
     see :ref:`parameters`.
     """
 
-    def __init__(self, locations=None, trace_npoly=None, trim_edge=None, snr_thresh=None):
+    def __init__(self, locations=None, trace_npoly=None, trim_edge=None, snr_thresh=None, grow_slit_edge=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1029,6 +1029,15 @@ class AlignPar(ParSet):
                               'then only use the N most significant detections, where N is the number ' \
                               'of elements specified in the "locations" keyword argument'
 
+        defaults['grow_slit_edge'] = 0.0  
+        dtypes['grow_slit_edge'] = [int, float]
+        descr['grow_slit_edge'] = 'Grow the slit edges by this number of pixels when searching ' \
+                                  'for alignnment traces. This parameter should typically be invoked ' \
+                                  'when alignment fails because an alignment trace is falling off the edge of the ' \
+                                  'slit. Both the left and right edges will be expanded by this number of pixels for ' \
+                                  'the purpose of alignment trace finding.'
+        
+
         # Instantiate the parameter set
         super(AlignPar, self).__init__(list(pars.keys()),
                                             values=list(pars.values()),
@@ -1041,7 +1050,7 @@ class AlignPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['locations', 'trace_npoly', 'trim_edge', 'snr_thresh']
+        parkeys = ['locations', 'trace_npoly', 'trim_edge', 'snr_thresh', 'grow_slit_edge']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -1630,6 +1639,8 @@ class Coadd2DPar(ParSet):
             self['manual'] = ';'.join(parse.fix_config_par_image_location(self['manual']))
 
 
+# TODO: This needs to be broken up into parameters that are relevant to the
+# basic reduction and those needed for afterburn scripts like coadding.
 class CubePar(ParSet):
     """
     The parameter set used to hold arguments for functionality relevant
@@ -1639,12 +1650,13 @@ class CubePar(ParSet):
     see :ref:`parameters`.
     """
 
-    def __init__(self, slit_spec=None, weight_method=None, align=None, combine=None, output_filename=None,
-                 sensfile=None, reference_image=None, save_whitelight=None, whitelight_range=None, method=None,
+    def __init__(self, slit_spec=None, weight_method=None, save_native=None, save_separate=None, combine=None,
+                 output_filename=None, sensfile=None, alignment_method=None, method=None, extraction=None,
+                 reference_image=None, save_whitelight=None, whitelight_range=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                  spatial_delta=None, wave_delta=None, astrometric=None, scale_corr=None,
                  skysub_frame=None, spec_subpixel=None, spat_subpixel=None, slice_subpixel=None,
-                 correct_dar=None):
+                 correct_dar=None, weights_init_obj_pos=None, sn_smooth_npix=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1660,6 +1672,11 @@ class CubePar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
+
+        # Extraction of the cube
+        defaults['extraction'] = CubeExtractionPar()
+        dtypes['extraction'] = [ ParSet, dict ]
+        descr['extraction'] = 'Parameters for cube spectral extraction algorithms'
 
         # Cube Parameters
         defaults['slit_spec'] = True
@@ -1690,13 +1707,15 @@ class CubePar(ParSet):
                         "'ivar' -- Use inverse variance weighting. This is not well tested and should probably be deprecated."
 
 
-        defaults['align'] = False
-        dtypes['align'] = [bool]
-        descr['align'] = 'If set to True, the input frames will be spatially aligned by cross-correlating the ' \
-                         'whitelight images with either a reference image (see ``reference_image``) or the whitelight ' \
-                         'image that is generated using the first spec2d listed in the coadd3d file. Alternatively, ' \
-                         'the user can specify the offsets (i.e. Delta RA x cos(dec) and Delta Dec, both in arcsec) ' \
-                         'in the spec2d block of the coadd3d file. See the documentation for examples of this usage.'
+        defaults['save_native'] = False
+        dtypes['save_native'] = [bool]
+        descr['save_native'] = ('If set to True, PypeIt will write spec3d datacube files for each of the '
+                                'input spec2d files, at the native sampling of the instrument.')
+
+        defaults['save_separate'] = False
+        dtypes['save_separate'] = [bool]
+        descr['save_separate'] = ('If set to True, PypeIt will write spec3d datacube files for each of the '
+                                  'input spec2d files, at the final (combined) sampling of the instrument.')
 
         defaults['combine'] = False
         dtypes['combine'] = [bool]
@@ -1715,6 +1734,27 @@ class CubePar(ParSet):
         descr['sensfile'] = 'Filename of a sensitivity function to use to flux calibrate your datacube. ' \
                             'The sensitivity function file will also be used to correct the relative scales ' \
                             'of the slits.'
+
+        defaults['alignment_method'] = 'phase'
+        dtypes['alignment_method'] = str
+        options['alignment_method'] = CubePar.valid_alignment_methods()
+        descr['alignment_method'] = (
+            'Whitelight images of all input frames will be generated and spatially aligned using either a '
+            'reference image (see ``reference_image``) or the whitelight '
+            'image of the first spec2d listed in the coadd3d file. This parameter allows you to set the '
+            'method used to spatially align the datacubes. The current allowed options include "none", "phase", '
+            '"cc", "fit", and "user". Setting ``alignment_method = phase`` (the default) will use a phase '
+            'cross-correlation method to determine the offsets, where the cross-correlation is always with '
+            'respect to a reference image. To use an ordinary cross-correlation, set ``alignment_method = cc``. '
+            'To use the phase cross-correlation, you need to install the scikit-image package; otherwise the '
+            'the standard scipy cross-correlation method (i.e. ``alignment_method = cc``) will be used. '
+            'Setting ``alignment_method = fit`` requires that photutils is installed. For each '
+            'datacube being combined, a 2D Gaussian is fit the brightest point-like object found '
+            'in each whitelight image and used to set the alignment coordinate. Setting ``alignment_method = user`` '
+            'allows the user to specify the offsets (i.e. Delta RA x cos(dec) and Delta Dec, both in arcsec) '
+            'in the spec2d block of the coadd3d file. See the documentation for examples of this usage. Finally,'
+            'setting ``alignment_method = none`` will turn off the alignment, and use only the world coordinate '
+            'system specified in the input spec2d files.')
 
         defaults['reference_image'] = None
         dtypes['reference_image'] = str
@@ -1852,6 +1892,29 @@ class CubePar(ParSet):
                                 'exposure time; the sky model will be scaled to the science frame based on the ' \
                                 'relative exposure time.'
 
+        # manual extraction
+        defaults['weights_init_obj_pos'] = None
+        dtypes['weights_init_obj_pos'] = str
+        descr['weights_init_obj_pos'] = (
+            'The initial guess for the object position in the image for computing the optimal '
+            'weighting.  If set, this value will be input into '
+            ':func:`~pypeit.core.datacube.fitGaussian2D` as the initial guess for the object '
+            'position.  The 2D Gaussian fit will then be performed with the position constrained '
+            'to be within +/- fwhm/3 in x and y.  If not set, the position will be determined by '
+            'running DAOStarFinder on the image.  Formatting follows the manual extraction '
+            'parameters convention, i.e. x:y.  The x,y values are the image coordinates read '
+            'from Ginga or DS9.  In numpy terms, if the image has shape (ny, nx), a position '
+            '(x, y) refers to image[y, x].'
+        )
+
+        defaults['sn_smooth_npix'] = None
+        dtypes['sn_smooth_npix'] = [int, float]
+        descr['sn_smooth_npix'] = 'Number of pixels to median filter by when computing S/N used to decide how to scale ' \
+                                  'and weight spectra. If set to None (default), the code will determine the effective ' \
+                                  'number of good pixels per spectrum in the stack that is being co-added and use 10% of ' \
+                                  'this neff.'                                
+
+
         # Instantiate the parameter set
         super(CubePar, self).__init__(list(pars.keys()),
                                       values=list(pars.values()),
@@ -1866,10 +1929,12 @@ class CubePar(ParSet):
         k = np.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = ['slit_spec', 'output_filename', 'sensfile', 'reference_image', 'save_whitelight',
-                   'method', 'spec_subpixel', 'spat_subpixel', 'slice_subpixel', 'ra_min', 'ra_max', 'dec_min', 'dec_max',
-                   'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'weight_method', 'align', 'combine',
-                   'astrometric', 'scale_corr', 'skysub_frame', 'whitelight_range', 'correct_dar']
+        parkeys = ['slit_spec', 'output_filename', 'sensfile', 'save_native', 'save_separate', 'save_whitelight',
+                   'reference_image', 'extraction', 'method',
+                   'spec_subpixel', 'spat_subpixel', 'slice_subpixel',
+                   'ra_min', 'ra_max', 'dec_min', 'dec_max',
+                   'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'weight_method', 'alignment_method', 'combine',
+                   'astrometric', 'scale_corr', 'skysub_frame', 'whitelight_range', 'correct_dar', 'weights_init_obj_pos', 'sn_smooth_npix']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -1878,6 +1943,10 @@ class CubePar(ParSet):
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
+
+        pk = 'extraction'
+        kwargs[pk] = CubeExtractionPar.from_dict(cfg[pk]) if pk in k else None
+
         return cls(**kwargs)
 
     def validate(self):
@@ -1894,6 +1963,190 @@ class CubePar(ParSet):
         allowed_weight_methods = Coadd1DPar.valid_weight_methods()
         if self.data['weight_method'] not in allowed_weight_methods:
             raise ValueError("'weight_method' must be one of:\n" + ", ".join(allowed_weight_methods))
+
+    @staticmethod
+    def valid_alignment_methods():
+        """
+        Return the valid method identifiers for registration
+        """
+        return ['none', 'user', 'phase', 'cc', 'fit']
+
+
+
+
+# TODO: The `manual` parameter below currently only supports a single `x:y`
+# position. `ManualCubeExtractionObj.parse()` (pypeit/manual_extract.py) already
+# parses the documented `x:y:fwhm:boxcar_radius` format and semi-colon-separated
+# multiple positions, but neither per-object FWHM/boxcar-radius overrides nor
+# multi-object extraction is yet consumed downstream (e.g. in
+# `datacube.extract_point_source()`). Add support for these elements in a future
+# PR once that integration work is ready, and update `manual`'s description and
+# `validate()` accordingly.
+class CubeExtractionPar(ParSet):
+    """
+    The parameter set used to hold arguments for functionality relevant to
+    extracting 1D spectra from IFU datacubes.
+
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`parameters`.
+    """
+
+    def __init__(self, output_filename=None, whitelight_range=None, fwhm=None, 
+                 snr_thresh=None,  manual=None, boxcar_radius=None, opt_prof_method=None,
+                 skysub_resid=None):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Fill out parameter specifications.  Only the values that are
+        # *not* None (i.e., the ones that are defined) need to be set
+
+        defaults['output_filename'] = None
+        dtypes['output_filename'] = str
+        descr['output_filename'] = 'basename for output files, i.e. outputs will be written to ' \
+                                   'spec1d_basename.fits and spec2d_basename.fits. Default is None, which ' \
+                                   'means that the basename will be taken from the input file.'
+
+        defaults['whitelight_range'] = [None, None]
+        dtypes['whitelight_range'] = list
+        descr['whitelight_range'] = 'A two element list specifying the wavelength range over which to generate the ' \
+                                    'white light image. The first (second) element is the minimum (maximum) ' \
+                                    'wavelength to use. If either of these elements are None, PypeIt will ' \
+                                    'automatically use a wavelength range that ensures all spaxels have the ' \
+                                    'same wavelength coverage.' 
+
+                              
+        
+        # Object finding parameters 
+        defaults['fwhm'] = 1.5
+        dtypes['fwhm'] = [int, float]
+        descr['fwhm'] = 'FWHM of the PSF in arcseconds. Used to determine the degree of smoothing of the ' \
+                        'whitelight image, the kernel size for the initial object finding, and the bounds of ' \
+                        'the parameters for the 2D Gaussian fit. Note that if the opt_prof_method is set to ' \
+                        '\'user_gauss\', this parameter will also be used as the FWHM of the 2D (symmetric) ' \
+                        'Gaussian spatial profile for optimal extraction. Default is 1.5 arcseconds.'        
+        
+        defaults['snr_thresh'] = 5.0
+        dtypes['snr_thresh'] = [int, float]
+        descr['snr_thresh'] = 'The signal-to-noise ratio threshold to use when determining the initial ' \
+                              'object position in the whitelight image with DAOStarFinder' \
+                              ' (this is the nsigma parameter in :func:`~pypeit.core.datacube.fitGaussian2D`)'
+
+        # manual extraction
+        defaults['manual'] = None
+        dtypes['manual'] = str
+        descr['manual'] = (
+            'Manual extraction position for pypeit_extract_datacube, in the format ``x:y``, '
+            'where x,y are the image coordinates read from Ginga or DS9.  In numpy terms, if '
+            'the image has shape (ny, nx), a position (x, y) refers to image[y, x].  Manual '
+            'extraction is currently only possible for a single object; a semi-colon-separated '
+            'list of multiple x:y positions is not supported and will raise an error.'
+        )
+
+        defaults['boxcar_radius'] = None
+        dtypes['boxcar_radius'] = [int, float]
+        descr['boxcar_radius'] = (
+            'Radius of the circular boxcar (in arcseconds) to use for the extraction.  By '
+            'default, the radius will be set to 4 times the sigma of the 2D Gaussian fit to '
+            'the whitelight image.'
+        )
+
+        #Extraction parameters 
+        defaults['opt_prof_method'] = 'fit_gauss'
+        options['opt_prof_method'] = CubeExtractionPar.valid_opt_prof_methods()
+        dtypes['opt_prof_method'] = str
+        descr['opt_prof_method'] = (
+            'The method to be used to determine the object spatial profile for optimal '
+            'extraction. Options are ``\'fit_gauss\'`` (default), ``\'user_gauss\'``, or '
+            '``\'whitelight\'``: ``\'fit_gauss\'`` uses the (possibly asymmetric) 2D Gaussian '
+            'fit to the whitelight image, which was used to determine the object position.  This '
+            'creates a model using :func:`~pypeit.core.datacube.fitGaussian2D` but the offset is '
+            'set to zero.  ``\'user_gauss\'`` uses a 2D symmetric Gaussian profile. The FWHM of '
+            'the Gaussian is determined by the fwhm parameter, which was also used for '
+            'the object finding.  Note that this assumes the spatial pixel (spaxel) sampling is '
+            'the same in both x and y.  ``\'whitelight\'`` uses the whitelight image to determine '
+            'a non-parametric spatial profile. The whitelight image is smoothed with a Gaussian '
+            'kernel of width 0.5*sigma, where sigma is the standard deviation (fwhm/2.35) '
+            'corresponding to the fwhm parameter.'
+        )
+
+
+        defaults['skysub_resid'] = True
+        dtypes['skysub_resid'] = bool
+        descr['skysub_resid'] = ('If True, the residual sky in the cube will be subtracted before extraction. '
+                                 'The residual sky in the whitelight image will also be subtracted.')
+
+        # Instantiate the parameter set
+        super(CubeExtractionPar, self).__init__(list(pars.keys()),
+                                      values=list(pars.values()),
+                                      defaults=list(defaults.values()),
+                                      options=list(options.values()),
+                                      dtypes=list(dtypes.values()),
+                                      descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = np.array([*cfg.keys()])
+
+        # Basic keywords
+        parkeys = ['output_filename', 'whitelight_range', 'fwhm', 
+                'snr_thresh', 'manual', 'boxcar_radius', 'opt_prof_method', 'skysub_resid']        
+
+        badkeys = np.array([pk not in parkeys for pk in k])
+        if np.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for CubePar.'.format(k[badkeys]))
+
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        # Check the skysub options
+        if len(self.data['whitelight_range']) != 2:
+            raise ValueError("The 'whitelight_range' must be a two element list of either NoneType or float")
+
+        allowed_opt_prof_methods = CubeExtractionPar.valid_opt_prof_methods()
+        if self.data['opt_prof_method'] not in allowed_opt_prof_methods:
+            raise ValueError("'opt_prof_method' must be one of:\n" + ", ".join(allowed_opt_prof_methods))
+
+        # Check that only x and y are provided for manual extraction, and that
+        # only a single object is requested. A semi-colon-separated string
+        # (e.g. '10:20;30:40') would otherwise be silently accepted here and
+        # correctly parsed into multiple positions downstream by
+        # ManualCubeExtractionObj.parse() -- the x,y values all cast to
+        # floats without error -- but only the first position is ever used
+        # (see coadd3d.py's manual_position = (spatx[0], spaty[0])), so
+        # anything past the first object would be silently dropped. Allowing
+        # multiple manual extraction positions is left for future
+        # development; reject the semi-colon explicitly for now.
+        if self.data['manual'] is not None:
+            if ';' in self.data['manual']:
+                raise ValueError("Manual extraction parameters must specify a single object; only "
+                                 "the x:y format is currently supported, and a semi-colon-separated "
+                                 "list of multiple objects is not.")
+            parse = self.data['manual'].split(':')
+            if len(parse) != 2:
+                raise ValueError("When providing manual extraction parameters, only x and y can be "
+                                 "provided, and the format must be x:y (e.g. --manual 10.0:14.0). Only "
+                                 "a single object can currently be extracted at a time.")
+
+    @staticmethod
+    def valid_opt_prof_methods():
+        """ Return the valid options for the weighting of spectra. """
+        return ['user_gauss', 'fit_gauss', 'whitelight']
+
+
 
 
 class FluxCalibratePar(ParSet):
@@ -2929,7 +3182,8 @@ class WavelengthSolutionPar(ParSet):
                  nfitpix=None, boxcar_radius=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
                  ech_2dfit=None, ech_separate_2d=None, redo_slits=None, reference_slit=None, qa_log=None,
-                 cc_percent_ceil=None, echelle_pad=None, cc_offset_minmax=None, stretch_func=None):
+                 cc_percent_ceil=None, echelle_pad=None, ech_angle_fits_file=None,
+                 ech_composite_arc_file=None, ech_direct_cc=None, cc_offset_minmax=None, stretch_func=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3258,6 +3512,31 @@ class WavelengthSolutionPar(ParSet):
                                 'method. Values > 0 allow for some error in the reddest order guess, '  \
                                 'but require sufficient reference orders.'
 
+        dtypes['ech_angle_fits_file'] = str
+        descr['ech_angle_fits_file'] = 'For the ``echelle`` method, the archive file with the fits '  \
+                                       'of the per-order wavelength solutions vs the echelle and '  \
+                                       'cross-disperser angles (e.g., ``keck_hires_angle_fits.fits``). '  \
+                                       'If None, the file is taken from the spectrograph class '  \
+                                       '(``get_echelle_angle_files``).  Must be set together with '  \
+                                       '``ech_composite_arc_file``.'
+
+        dtypes['ech_composite_arc_file'] = str
+        descr['ech_composite_arc_file'] = 'For the ``echelle`` method, the archive file with the '  \
+                                          'composite arc spectrum of each order (e.g., '  \
+                                          '``keck_hires_composite_arc.fits``).  If None, the file is '  \
+                                          'taken from the spectrograph class '  \
+                                          '(``get_echelle_angle_files``).  Must be set together with '  \
+                                          '``ech_angle_fits_file``.'
+
+        defaults['ech_direct_cc'] = False
+        dtypes['ech_direct_cc'] = bool
+        descr['ech_direct_cc'] = 'For the echelle method order identification, cross-correlate the '  \
+                                 'stacked arc spectra directly instead of first building synthetic '  \
+                                 'line-only arcs and continuum-subtracting the correlation function. '  \
+                                 'Much faster for large spectral formats (e.g., 4k detectors with '  \
+                                 '~100 orders, such as Shane/Hamspec); the default (False) preserves '  \
+                                 'the original behavior.'
+
         defaults['cc_offset_minmax'] = 1.0
         dtypes['cc_offset_minmax'] = float
         descr['cc_offset_minmax'] = 'Fraction of the total spectral pixels used to determine the range of '  \
@@ -3297,7 +3576,8 @@ class WavelengthSolutionPar(ParSet):
                    'nlocal_cc', 'rms_thresh_frac_fwhm', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix', 'boxcar_radius',
                    'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 'reference_slit',
-                   'redo_slits', 'qa_log', 'cc_percent_ceil', 'echelle_pad', 'cc_offset_minmax', 'stretch_func']
+                   'redo_slits', 'qa_log', 'cc_percent_ceil', 'echelle_pad', 'ech_angle_fits_file',
+                   'ech_composite_arc_file', 'ech_direct_cc', 'cc_offset_minmax', 'stretch_func']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -3425,7 +3705,8 @@ class EdgeTracePar(ParSet):
                                    'the text should be a comma separated list of pixel ranges (in the x direction) ' \
                                    'to be excluded and the detector number. For example, the following string ' \
                                    '1:0:20,1:300:400  would select two regions in det=1 between pixels 0 and 20 ' \
-                                   'and between 300 and 400.'
+                                   'and between 300 and 400. If only a single range is provided, do not forget the commas, i.e. ' \
+                                   '1:0:20, is the correct format.'
 
         defaults['follow_span'] = 20
         dtypes['follow_span'] = int
@@ -4282,7 +4563,7 @@ class ReducePar(ParSet):
         defaults['cube'] = CubePar()
         dtypes['cube'] = [ ParSet, dict ]
         descr['cube'] = 'Parameters for cube generation algorithms'
-
+        
         defaults['trim_edge'] = [3, 3]
         dtypes['trim_edge'] = list
         descr['trim_edge'] = 'Trim the slit by this number of pixels left/right when performing sky subtraction'
@@ -4339,7 +4620,8 @@ class FindObjPar(ParSet):
                  find_fwhm=None, ech_find_max_snr=None, ech_find_min_snr=None, find_numiterfit=None,
                  ech_find_nabove_min_snr=None, skip_second_find=None, skip_final_global=None,
                  skip_skysub=None, find_negative=None, find_min_max=None, trace_min_max=None,
-                 std_spec1d=None, use_std_trace=None, fof_link = None):
+                 std_spec1d=None, use_std_trace=None, fof_link = None,
+                 force_center_obj=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -4474,6 +4756,16 @@ class FindObjPar(ParSet):
                                  'to explicitly override this default behavior, set this parameter to True to find negative objects or False to ignore ' \
                                  'them.'
 
+        defaults['force_center_obj'] = False
+        dtypes['force_center_obj'] = bool
+        descr['force_center_obj'] = 'If True, skip automated (peak-detection) object finding and ' \
+                                    'instead force a single object at the center of each slit/order, ' \
+                                    'with the FWHM and boxcar radius set by the slit width. Use this ' \
+                                    'for spectrographs where the target always fills the slit (e.g., ' \
+                                    'Shane/Hamspec), so the smashed spatial profile has no peak for ' \
+                                    'the object finder to detect. Currently only implemented for ' \
+                                    'Echelle reductions; it is ignored by the other pipelines.'
+
         defaults['find_min_max'] = None
         dtypes['find_min_max'] = list
         descr['find_min_max'] = 'It defines the minimum and maximum of your object in pixels in the spectral direction on the ' \
@@ -4515,7 +4807,8 @@ class FindObjPar(ParSet):
                    'trace_maxdev', 'find_numiterfit', 'find_fwhm', 'ech_find_max_snr',
                    'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find',
                    'skip_final_global', 'skip_skysub', 'find_negative', 'find_min_max',
-                   'trace_min_max', 'std_spec1d', 'use_std_trace', 'fof_link']
+                   'trace_min_max', 'std_spec1d', 'use_std_trace', 'fof_link',
+                   'force_center_obj']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
