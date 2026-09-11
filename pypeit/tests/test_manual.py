@@ -4,8 +4,12 @@ import pytest
 
 import numpy as np
 
+from astropy.table import Table
+
 from pypeit.manual_extract import ManualExtractionObj
 from pypeit.spectrographs.util import load_spectrograph
+from pypeit import PypeItError
+from pypeit.pypeit_steps import get_manual_flexure
 
 def test_instantiate():
 
@@ -56,3 +60,42 @@ def test_dict_for_obj():
     dobj2 = mex3.dict_for_objfind('DET01', neg=True)
     assert dobj2['detname'] == 'DET01'
     assert np.isclose(dobj2['spat'][0], 1183.8)
+
+
+def test_manual_flexure():
+    """
+    Test the manual spatial-flexure sentinel (Issue #2180): a blank
+    ``shift`` entry means "no manual value"; any numeric entry
+    (including 0.) is a user-requested override.
+    """
+    # Mimic the fitstbl: blank default, a finite override, an explicit
+    # 0. override (still "manual"), and a literal 'None'
+    tbl = Table()
+    tbl['filename'] = ['a.fits', 'b.fits', 'c.fits', 'd.fits']
+    tbl['shift'] = ['', '2.5', '0.', 'None']
+
+    # Blank default -> no manual flexure
+    assert get_manual_flexure(tbl, 0) is None, \
+        'Blank shift should mean no manual flexure'
+    # Numeric value -> manual flexure
+    assert get_manual_flexure(tbl, 1) == 2.5, \
+        'Numeric shift should be returned as the manual flexure'
+    # 0. is numeric and therefore a valid manual override
+    assert get_manual_flexure(tbl, 2) == 0., \
+        'A shift of 0. should still count as a manual flexure'
+    # Literal None -> no manual flexure
+    assert get_manual_flexure(tbl, 3) is None, \
+        'A shift of "None" should mean no manual flexure'
+
+    # Missing column -> no manual flexure
+    tbl_noshift = Table()
+    tbl_noshift['filename'] = ['a.fits']
+    assert get_manual_flexure(tbl_noshift, 0) is None, \
+        'Missing shift column should mean no manual flexure'
+
+    # A non-numeric entry raises an error
+    tbl_bad = Table()
+    tbl_bad['filename'] = ['a.fits']
+    tbl_bad['shift'] = ['bad']
+    with pytest.raises(PypeItError):
+        get_manual_flexure(tbl_bad, 0)

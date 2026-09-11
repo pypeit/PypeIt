@@ -27,7 +27,7 @@ from pypeit.core.mosaic import build_image_mosaic_transform
 from pypeit.images import pypeitimage
 from pypeit import utils
 from pypeit.display import display
-from pypeit import io
+from pypeit import outputfiles
 from pathlib import Path
 
 # TODO: I don't understand why we have some of these attributes.  E.g., why do
@@ -836,7 +836,12 @@ class RawImage:
                        'mosaic) to determine spatial flexure.')
 
         # get filename for QA
-        fname = self.spectrograph.rawfile_basename(Path(self.filename[0]).name if len(self.filename) > 1 else self.filename)
+        fname = self.spectrograph.rawfile_basename(
+            Path(self.filename[0]).name if len(self.filename) > 1 else self.filename
+        )
+        # NOTE: This was a conflict that I (KBW) resolved.  I think
+        # rawfile_basename is new, but I since added the outputfiles functions.
+        # Please check how I resolved this!
         basename = f'{fname}_{self.spectrograph.get_det_name(self.det)}'
         outdir = str(Path(slits.calib_dir).parent) if slits.calib_dir is not None else None
         qa_outfile = qa.set_qa_filename(basename, 'spat_flexure_qa_corr', out_dir=outdir)

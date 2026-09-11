@@ -207,8 +207,8 @@ def remove_suffix(file):
     Remove the suffix of a file name.
 
     For normal filenames, this simply returns the file string without its last
-    suffix.  For gzipped files, this removes both the '.gz' suffix, and the one
-    preceding it.
+    suffix.  For compressed files (`.gz`, `.bz2`, `.fz`), this also removes
+    the suffix preceding the compression suffix.
 
     Args:
         file (:obj:`str`):
@@ -227,10 +227,17 @@ def remove_suffix(file):
         'dot.separated.file.name'
         >>> remove_suffix('gzipped_file.fits.gz')
         'gzipped_file'
+        >>> remove_suffix('bz2_file.fits.bz2')
+        'bz2_file'
+        >>> remove_suffix('fpacked_file.fits.fz')
+        'fpacked_file'
 
     """
+    _compression_suffixes = ('.gz', '.bz2', '.fz')
     _file = Path(file)
-    return (_file.with_suffix('')).stem if _file.suffix == '.gz' else _file.stem
+    while _file.suffix in _compression_suffixes:
+        _file = _file.with_suffix('')
+    return _file.stem
 
 
 def parse_hdr_key_group(hdr, prefix='F'):

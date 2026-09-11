@@ -39,6 +39,7 @@ from astropy.table import Table
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import io
+from pypeit import outputfiles
 from pypeit.core import parse
 from pypeit.core import procimg
 from pypeit.core import meta
@@ -423,7 +424,7 @@ class Spectrograph:
         # Return
         return spec_dict
 
-    def rawfile_basename(self, filename, targname=None, slitname=None):
+    def rawfile_basename(self, filename, targname=None, slitname=None, mjd=None):
         """
         Return the basename of a raw file, which is used for naming output
         files by the function :func:`~pypeit.metadata.construct_basename`.
@@ -438,23 +439,17 @@ class Spectrograph:
             slitname (:obj:`str`, optional):
                 Slit name to be added in the basename for per-slit outputs.
                 If None, no slit name will be added.
+            mjd : float
+                The MJD of the observation.
 
         Returns:
             :obj:`str`:
             The basename of the input file.
 
         """
-
-        _filename = filename.split('.fits')[0]
-
-        if targname is not None:
-            _filename = _filename + '-' + targname
-
-        # Embed slit name in basename (for per-slit outputs)
-        if slitname is not None:
-            _filename = _filename + f'_{slitname}'
-
-        return _filename
+        return outputfiles.construct_basename(
+            filename, self.camera, self.allowed_extensions, target=targname, mjd=mjd, slit=slitname
+        )
 
     def subheader_for_spec(self, row_fitstbl, raw_header, extra_header_cards=None,
                            allow_missing=False):
@@ -1543,6 +1538,33 @@ class Spectrograph:
             raise PypeItError(f'Provided det must have type tuple or integer, not {type(det)}.')
         return 1, (det,)
 
+    @staticmethod
+    def fits_to_pypeit_section(section):
+        """
+        Flip a FITS image-section string into the PypeIt (numpy) order.
+
+        Many instruments provide image sections (e.g., ``TRIMSEC``,
+        ``BIASSEC``) in the FITS convention, ``[x1:x2, y1:y2]``, where x
+        is the NAXIS1 axis and y is the NAXIS2 axis.  PypeIt parses
+        these strings in numpy (row, column) order (see
+        :func:`~pypeit.core.parse.sec2slice`), so the two axes must be
+        swapped.
+
+        Parameters
+        ----------
+        section : :obj:`str`
+            Image section in the FITS convention, e.g.
+            ``'[1:366,1:4099]'``.
+
+        Returns
+        -------
+        :obj:`str`
+            Image section with the axes swapped, e.g.
+            ``'[1:4099,1:366]'``.
+        """
+        xsec, ysec = section.strip().strip('[]').split(',')
+        return f'[{ysec.strip()},{xsec.strip()}]'
+
     def get_rawimage(self, raw_file, det, sec_includes_binning=False, keys=None):
         """
         Read raw spectrograph image files and return data and relevant metadata
@@ -1977,7 +1999,8 @@ class Spectrograph:
         Returns:
             :obj:`tuple`: Three 1D `numpy.ndarray`_ providing the bins to use
             when constructing a histogram of the spec2d files. The elements
-            are :math:`(x,y,\lambda)`.
+            are :math:`(\lambda,y,x)`, matching the wavelength-first axis
+            order used throughout :mod:`~pypeit.core.datacube`.
         """
         log.warning("No datacube setup for spectrograph: {0:s}".format(self.name))
         return None

@@ -34,8 +34,10 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
     url = 'https://jwst-docs.stsci.edu/jwst-near-infrared-spectrograph'
     pypeline = 'NIRSpecSlit'
     #supported = True
-    allowed_extensions = ['_assign_wcs.fits', '_interpolatedflat.fits', '_interpolatedflat_fs.fits',
-                          '_cal.fits', 'uncal.fits', 'msa.fits']
+    allowed_extensions = [
+        '_assign_wcs.fits', '_interpolatedflat.fits', '_interpolatedflat_fs.fits', '_cal.fits',
+        'msa.fits', 'rate.fits', 'rate.fits.gz', 'uncal.fits', 'uncal.fits.gz', '.fits', '.fits.gz'
+    ]
 
     def rawfile_basename(self, filename, targname=None, slitname=None):
         """

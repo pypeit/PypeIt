@@ -9,7 +9,6 @@ from pathlib import Path
 import io
 import string
 from copy import deepcopy
-import datetime
 
 from IPython import embed
 
@@ -511,16 +510,10 @@ class PypeItMetaData:
             str: The root name for file output.
         """
         _obstime = self.construct_obstime(row) if obstime is None else obstime
-        tiso = time.Time(_obstime, format='isot')
-        dtime = datetime.datetime.strptime(tiso.value, '%Y-%m-%dT%H:%M:%S.%f')
-        _inp_basename = self.spectrograph.rawfile_basename(self['filename'][row],
-                                                           targname=self['target'][row].replace(" ", ""),
-                                                           slitname=slitname)
-
-        return '{0}_{1}_{2}{3}'.format(_inp_basename,
-                                           self.spectrograph.camera,
-                                           datetime.datetime.strftime(dtime, '%Y%m%dT'),
-                                           tiso.value.split("T")[1].replace(':',''))
+        return self.spectrograph.rawfile_basename(
+            self['filename'][row], targname=self['target'][row], slitname=slitname,
+            mjd=None if obstime is None else _obstime.mjd
+        )
 
     def get_configuration_names(self, ignore=None, return_index=False, configs=None):
         """
@@ -1532,7 +1525,9 @@ class PypeItMetaData:
         if 'bkg_id' not in self.keys():
             self['bkg_id'] = -1
         if 'shift' not in self.keys():
-            self['shift'] = 0
+            # Blank means no manual spatial flexure; any numeric value
+            # (including 0.) is a user-requested override.
+            self['shift'] = ''
 
         # NOTE: Importantly, this if statement means that, if the user has
         # defined any non-negative combination IDs in their pypeit file, none of
@@ -1568,7 +1563,9 @@ class PypeItMetaData:
         if 'manual' not in self.keys():
             self['manual'] = ''
         if 'shift' not in self.keys():
-            self['shift'] = 0
+            # Blank means no manual spatial flexure; any numeric value
+            # (including 0.) is a user-requested override.
+            self['shift'] = ''
 
     def write_sorted(self, ofile, overwrite=True, ignore=None, 
                      write_bkg_pairs=False, write_manual=False):

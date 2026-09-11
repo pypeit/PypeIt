@@ -1012,7 +1012,8 @@ def get_sky_spectrum(sciimg, ivar, waveimg, thismask, global_sky, box_radius, sl
     return onespec.OneSpec(wave[mask], None, counts_sky[mask], fluxed=False)
 
 
-def calculate_image_phase(imref, imshift, gpm_ref=None, gpm_shift=None, maskval=None):
+def calculate_image_phase(imref, imshift, gpm_ref=None, gpm_shift=None, maskval=None,
+                          force_cc=False):
     """
     Perform a masked cross-correlation and optical flow calculation to robustly
     estimate the subpixel shifts of two images.
@@ -1036,18 +1037,24 @@ def calculate_image_phase(imref, imshift, gpm_ref=None, gpm_shift=None, maskval=
     maskval : float, optional
         If gpm_ref and gpm_shift are both None, a single value can be specified
         and this value will be masked in both images.
+    force_cc : bool, optional
+        If True, forces the use of the standard (unmasked) cross-correlation
+        method, even if skimage is installed and the input images are the same
+        shape.  This is useful for testing and debugging.
 
     Returns
     -------
-    ra_diff : float
-        Relative shift (in pixels) of image relative to im_ref (x direction).
-        In order to align image with im_ref, ra_diff should be added to the
-        x-coordinates of image
     dec_diff : float
         Relative shift (in pixels) of image relative to im_ref (y direction).
         In order to align image with im_ref, dec_diff should be added to the
         y-coordinates of image
+    ra_diff : float
+        Relative shift (in pixels) of image relative to im_ref (x direction).
+        In order to align image with im_ref, ra_diff should be added to the
+        x-coordinates of image
     """
+    if force_cc:
+        return calculate_image_offset(imref, imshift)
     # Do some checks first
     try:
         from skimage.registration import optical_flow_tvl1, phase_cross_correlation
@@ -1092,7 +1099,7 @@ def calculate_image_phase(imref, imshift, gpm_ref=None, gpm_shift=None, maskval=
 
 
 def calculate_image_offset(im_ref, image, nfit=3):
-    """Calculate the x,y offset between two images
+    """Calculate the y,x offset between two images
 
     Args:
         im_ref (`numpy.ndarray`_):
@@ -1104,13 +1111,13 @@ def calculate_image_offset(im_ref, image, nfit=3):
             fitting the peak of the cross correlation.
 
     Returns:
-        tuple: Returns two floats, the x and y offset of the image.
-          - ra_diff --  Relative shift (in pixels) of image relative to im_ref (x direction).
-            In order to align image with im_ref, ra_diff should be added to the
-            x-coordinates of image
+        tuple: Returns two floats, the y and x offset of the image.
           - dec_diff  -- Relative shift (in pixels) of image relative to im_ref (y direction).
             In order to align image with im_ref, dec_diff should be added to the
             y-coordinates of image
+          - ra_diff --  Relative shift (in pixels) of image relative to im_ref (x direction).
+            In order to align image with im_ref, ra_diff should be added to the
+            x-coordinates of image
     """
     # Subtract median (should be close to zero, anyway)
     image -= np.median(image)
@@ -1143,4 +1150,4 @@ def calculate_image_offset(im_ref, image, nfit=3):
     # Return the RA and DEC shift, in pixels
     xoff = 1 - (ccorr.shape[0] % 2)  # Need to add 1 for even shaped array
     yoff = 1 - (ccorr.shape[1] % 2)  # Need to add 1 for even shaped array
-    return xoff + popt[1] - ccorr.shape[0]//2, yoff+popt[2] - ccorr.shape[1]//2
+    return xoff + popt[1] - ccorr.shape[0]//2, yoff + popt[2] - ccorr.shape[1]//2

@@ -21,7 +21,6 @@ from pypeit.core import arc
 from pypeit.core import fitting
 from pypeit.core import parse
 from pypeit.core.wavecal import autoid, wv_fitting, wvutils
-from pypeit.gui.identify import Identify
 from pypeit import datamodel
 from pypeit import calibframe
 from pypeit.core.wavecal import echelle
@@ -735,8 +734,16 @@ class BuildWaveCalib:
                 self.slits.ech_order = order_vec[:self.slits.nslits]
                 self.arccen = arccen
         elif self.par['method'] == 'echelle':
-            # Echelle calibration files
-            angle_fits_file, composite_arc_file = self.spectrograph.get_echelle_angle_files()
+            # Echelle calibration files: from the (possibly config-specific)
+            # parameters if set, otherwise from the spectrograph class
+            angle_fits_file = self.par['ech_angle_fits_file']
+            composite_arc_file = self.par['ech_composite_arc_file']
+            if (angle_fits_file is None) != (composite_arc_file is None):
+                raise PypeItError('ech_angle_fits_file and ech_composite_arc_file must be '
+                                  'set together (or both left unset).')
+            if angle_fits_file is None:
+                angle_fits_file, composite_arc_file = \
+                        self.spectrograph.get_echelle_angle_files()
 
             # Identify the echelle orders
             log.info("Finding the echelle orders")
@@ -747,7 +754,9 @@ class BuildWaveCalib:
                     angle_fits_file,
                     composite_arc_file,
                     pad=self.par['echelle_pad'],
-                    cc_percent_ceil = self.par['cc_percent_ceil'], debug=False)
+                    cc_percent_ceil = self.par['cc_percent_ceil'],
+                    direct_cc=self.par['ech_direct_cc'],
+                    debug=False)
             # Put the order numbers in the slit object
             self.slits.ech_order = order_vec
             log.info(f"The observation covers the following orders: {order_vec}")

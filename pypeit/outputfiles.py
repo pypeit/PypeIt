@@ -2,13 +2,99 @@
 Module for constructing output file names and paths for PypeIt reductions.
 
 .. include:: ../include/links.rst
-
 """
+import datetime
 import numpy as np
 from pathlib import Path
 
+from astropy import time
+from astropy.io import fits
+
 from pypeit import log
 from pypeit import PypeItError
+from pypeit import inputfiles
+
+
+def strip_raw_extension(filename, allowed_extensions):
+    """Strip the raw-file extension from a filename.
+
+    Parameters
+    ----------
+    filename : str, :class:`Path`
+        The name of the raw file.  Only the file name is used; see
+        :attr:`Path.name`.
+    allowed_extensions : list
+        List of recognized raw-file extensions for the relevant spectrograph,
+        used to correctly strip the extension from ``filename``; see
+        :attr:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_extensions`.
+
+    Returns
+    -------
+    str
+        The file name with the extension removed.  If no extension in
+        ``allowed_extensions`` matches, a warning is issued and the full
+        input name is returned unmodified.
+    """
+    _filename = Path(filename).name
+    root = _filename
+    # NOTE: This for/else python syntax is new to me.  The else clause is only
+    # executed if the for loop completes all of its expected iterations (i.e.,
+    # it never breaks).  Very useful!
+    for ext in sorted(allowed_extensions, key=len, reverse=True):
+        if _filename.endswith(ext):
+            root = _filename[:-len(ext)]
+            break
+    else:
+        log.warning(
+            f'{_filename} does not have a recognized extension; expected one of '
+            f'{allowed_extensions}.'
+        )
+    return root
+
+
+def construct_basename(filename, camera, allowed_extensions, target=None, mjd=None, slit=None):
+    """Construct the root name primarily for PypeIt file output.
+
+    Parameters
+    ----------
+    filename : str, `Path`_
+        The name of the raw file.  The extension is stripped based on
+        ``allowed_extensions`` before constructing the basename.  If no
+        extension in ``allowed_extensions`` matches, a warning is issued and the
+        full input name is used unmodified.
+    camera : str
+        The camera name; see
+        :attr:`~pypeit.spectrographs.spectrograph.Spectrograph.camera`.
+    allowed_extensions : list
+        List of recognized raw-file extensions for the relevant spectrograph,
+        used to correctly strip the extension from ``filename``; see
+        :attr:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_extensions`.
+    target : str, optional
+        The name of the target/object observed.  Can be None.
+    mjd : float, optional
+        The MJD of the observation.
+    slit : :obj:`str`, optional
+        Slit identifier to be added in the basename for per-slit outputs.  If
+        None, no slit name will be added.
+
+    Returns
+    -------
+    str
+        The root name for file output.
+    """
+    root = strip_raw_extension(filename, allowed_extensions)
+    if target is None:
+        idstr = f'{camera}'
+    else:
+        idstr = f'{target.replace(" ", "")}_{camera}'
+    if mjd is not None:
+        tobs = time.Time(mjd, format='mjd')
+        dtime = datetime.datetime.strptime(tobs.isot, '%Y-%m-%dT%H:%M:%S.%f')
+        dtime = datetime.datetime.strftime(dtime, '%Y%m%dT')
+        tobs = tobs.isot.split('T')[1].replace(':', '')
+        idstr = f'{idstr}_{dtime}{tobs}'
+    return f'{root}-{idstr}' if slit is None else f'{root}-{idstr}_{slit.replace(" ", "")}'
+
 
 def get_std_outfile(fitstbl, par, standard_frames:list, slitname:str=None):
     """
@@ -61,8 +147,10 @@ def get_std_outfile(fitstbl, par, standard_frames:list, slitname:str=None):
         raise PypeItError(f'Could not find standard file: {std_outfile}')
     return std_outfile
 
-def intermediate_filename(itype:str, basename:str, det_name:str, 
-                          inter_path:str='Intermediate'):
+
+def intermediate_filename(
+    itype:str, basename:str, det_name:str, inter_path:str='Intermediate'
+):
     """
     Construct the intermediate file name for a given type and detector
 
@@ -82,6 +170,7 @@ def intermediate_filename(itype:str, basename:str, det_name:str,
     """
     return Path(inter_path) / f'{itype}_{basename}_{det_name}.fits'
 
+
 def science_path(par) -> Path:
     """
     Constructs the path to the science directory based on the provided parameters.
@@ -96,8 +185,10 @@ def science_path(par) -> Path:
     """
     return Path(par['rdx']['redux_path']) / par['rdx']['scidir']
 
-def spec_output_file(fitstbl, par, frame:int, twod:bool=False,
-                     slitname:str=None, ext:str='.fits', sci_path:Path=None) -> Path:
+def spec_output_file(
+    fitstbl, par, frame:int, twod:bool=False, slitname:str=None, ext:str='.fits',
+    sci_path:Path=None
+) -> Path:
     """
     Return the path to the spectral output data file.
     
@@ -123,8 +214,137 @@ def spec_output_file(fitstbl, par, frame:int, twod:bool=False,
         `Path`_: The path for the output file
     """
     if sci_path is None:
-        sci_path = science_path(par) 
+        sci_path = science_path(par)
     # Bits and pieces
     basename = fitstbl.construct_basename(frame, slitname=slitname)
     # Finish``
     return sci_path / f'spec{"2" if twod else "1"}d_{basename}{ext}'
+
+
+def spec2d_target(spec2d_file):
+    """
+    Read the target name from a spec2d primary header.
+
+    Parameters
+    ----------
+    spec2d_file : :obj:`str`, `Path`_
+        Path to a spec2d FITS file.
+
+    Returns
+    -------
+    :obj:`str`
+        The first non-empty value found among the ``TARGET``, ``TARGNAME``,
+        and ``OBJECT`` header keywords, in that order. Returns None if none
+        of those keywords are present or non-empty.
+    """
+    header = fits.getheader(spec2d_file, 0)
+    for key in ('TARGET', 'TARGNAME', 'OBJECT'):
+        if key in header and str(header[key]).strip() != '':
+            return str(header[key]).strip()
+    return None
+
+
+def find_reduced_spec2d(science_dir, row, spectrograph):
+    """
+    Find the existing spec2d product for a science-frame row.
+
+    Tries an exact match first, reconstructing the spec2d basename from the row's own
+    metadata via :func:`construct_basename`; a hit is target-correct by construction,
+    since the row's own target was used to build the name, so no header read is
+    needed. Falls back to matching by raw-file stem and verifying the target
+    recorded in each candidate's header, for cases where the exact name can't be
+    reconstructed (e.g. no ``mjd`` column, or a corrupt/missing ``mjd`` value) or
+    doesn't match an existing file (e.g. an older ``.pypeit`` file, or different
+    metadata precision).
+
+    Parameters
+    ----------
+    science_dir : :obj:`str`, `Path`_
+        Directory to search for spec2d files.
+    row : `astropy.table.Row`_
+        Data-table row for the raw science frame whose reduced spec2d product is
+        sought, e.g. the first row of a group from
+        :func:`~pypeit.inputfiles.group_science_rows`. Must have ``filename``,
+        ``target``, and ``mjd`` columns.
+    spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+        Spectrograph instance, used for
+        :attr:`~pypeit.spectrographs.spectrograph.Spectrograph.camera` and
+        :attr:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_extensions`.
+
+    Returns
+    -------
+    `Path`_
+        Path to the matching spec2d file. If more than one candidate matches in the
+        fallback search, the first (alphabetically sorted) is used and a warning is
+        logged. Returns None if no candidate matches.
+    """
+    raw_filename = row['filename']
+    target = row['target']
+    mjd = row['mjd'] if 'mjd' in row.colnames else None
+    if mjd is not None:
+        expected_basename = construct_basename(
+            raw_filename, target, spectrograph.camera, mjd, spectrograph.allowed_extensions
+        )
+        exact = Path(science_dir) / f'spec2d_{expected_basename}.fits'
+        if exact.is_file():
+            return exact
+
+    raw_stem = strip_raw_extension(str(raw_filename).strip(), spectrograph.allowed_extensions)
+    candidates = sorted(Path(science_dir).glob(f'spec2d_{raw_stem}-*.fits'))
+    matches = []
+    for candidate in candidates:
+        try:
+            hdr_target = spec2d_target(candidate)
+        except Exception as exc:
+            log.warning(f'Could not read target from {candidate}; skipping. Original error: {exc}')
+            continue
+        if hdr_target is not None and inputfiles.target_matches(hdr_target, target):
+            matches.append(candidate)
+
+    if len(matches) > 1:
+        log.warning(
+            f'Multiple matching spec2d files found for {raw_stem}; using {matches[0].name}.'
+        )
+    return None if len(matches) == 0 else matches[0]
+
+
+def existing_spec2d_files(pypeit_file, target, science_dir, spectrograph):
+    """
+    Find the current reduced spec2d products expected for a target.
+
+    Parameters
+    ----------
+    pypeit_file : :class:`~pypeit.inputfiles.PypeItFile`
+        The parsed PypeIt reduction file.
+    target : :obj:`str`
+        Target name to match; see :func:`~pypeit.inputfiles.target_matches`.
+    science_dir : :obj:`str`, `Path`_
+        Directory to search for reduced spec2d files.
+    spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+        Spectrograph instance, passed through to :func:`find_reduced_spec2d`.
+
+    Returns
+    -------
+    files : :obj:`list`
+        Paths to the reduced spec2d files found for the target, one per
+        combination group.
+    missing : :obj:`list`
+        Raw-file stems (see :func:`~pypeit.inputfiles.group_science_rows`) for
+        combination groups whose spec2d product has not yet been reduced.
+    target_name : :obj:`str`
+        The literal target name as recorded in the PypeIt file's data
+        block.
+    """
+    rows = inputfiles.matching_science_rows(pypeit_file, target)
+    files = []
+    missing = []
+    for group in inputfiles.group_science_rows(rows):
+        row = group[0]
+        spec2d = find_reduced_spec2d(science_dir, row, spectrograph)
+        if spec2d is None:
+            missing.append(
+                strip_raw_extension(str(row['filename']).strip(), spectrograph.allowed_extensions)
+            )
+            continue
+        files.append(spec2d)
+    return files, missing, str(rows[0]['target']).strip()

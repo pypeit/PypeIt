@@ -14,6 +14,7 @@ Submodules
    pypeit.dashboard.view.qa_dialog
    pypeit.dashboard.view.science_view
    pypeit.dashboard.view.status_view
+   pypeit.dashboard.view.util
 
 Module contents
 ---------------
