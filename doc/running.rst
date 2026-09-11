@@ -111,6 +111,24 @@ This will cause PypeIt to only reduce the calibrations.  In fact, if your
 this option, an error will be raised that will suggest you run the code in this
 mode.
 
+.. _run-pypeit-ncpu:
+
+Running on multiple CPUs
+------------------------
+
+The number of CPUs PypeIt may use is controlled by the ``[rdx] ncpu``
+:ref:`parameter <parameters>` or, equivalently, the ``run_pypeit --ncpu``
+command-line option (the command-line value takes precedence).  The default,
+``ncpu = 1``, runs the code fully serially, exactly as in previous versions.
+
+Currently, ``ncpu > 1`` only affects how the QA figures are written: the PNG
+rendering and encoding is handed to a small pool of background threads, which
+recovers some of the QA overhead on slitmask reductions that generate many
+hundreds of QA files.  Future versions will extend ``ncpu`` to the reduction
+itself (e.g., processing detectors/mosaics concurrently); note that peak memory
+usage is expected to scale roughly linearly with the number of detectors
+reduced at the same time.
+
 ----
 
 .. _run-pypeit-workflow:
