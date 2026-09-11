@@ -1146,6 +1146,13 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
     nfibers_a = 360
     nfibers_b = 356
 
+    # Pointing-separation tolerance (arcsec) below which two science/standard
+    # frames are treated as the same pointing and coadded onto a shared
+    # comb_id (see get_comb_group).  Binospec writes the commanded RA/DEC, so
+    # repeated visits to one position are byte-identical and a tight tolerance
+    # cleanly separates even sub-fiber sampling dithers into their own group.
+    comb_pointing_tol = 0.1
+
     def configuration_keys(self):
         """
         Return the metadata keys that define a unique instrument
@@ -1168,6 +1175,12 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         for DAR correction).
         """
         super().init_meta()
+        # Dither columns filled in by get_comb_group.  Seeded here (with card
+        # defaults) so the columns exist -- and pypeit_file_keys can list them
+        # -- even when get_comb_group is skipped because the user pre-set
+        # comb_id in the pypeit file.
+        self.meta['dithoff'] = dict(ext=1, card=None, default=0.0)
+        self.meta['dithpos'] = dict(ext=1, card=None, default='None')
         # IFU-specific metadata for Fiber pipeline
         self.meta['slitwid'] = dict(card=None, compound=True)
         self.meta['obstime'] = dict(card=None, compound=True, required=False)
@@ -1364,6 +1377,104 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         par['calibrations']['wavelengths']['n_final'] = 5
 
         return par
+
+    def get_comb_group(self, fitstbl):
+        """
+        Automatically assign combination groups from the science/standard
+        pointing pattern.
+
+        Called by
+        :func:`~pypeit.metadata.PypeItMetaData.set_combination_groups` after a
+        unique ``comb_id`` has been assigned to every science/standard frame,
+        and only when the user has not pre-set any ``comb_id`` in the pypeit
+        file.  Within each instrument configuration (``setup``), frames are
+        clustered by their on-sky pointing: frames whose 2-D separation is
+        below :attr:`comb_pointing_tol` share a pointing and are given a common
+        ``comb_id`` so they coadd, while each distinct dither position (or a
+        large sky-acquisition offset) forms its own cluster and reduces to its
+        own spec1d/spec2d.  The Binospec IFU takes sky from dedicated sky
+        fibers via a joint fit, so there is no nod partner and ``bkg_id`` is
+        never set.
+
+        Two informational columns are filled for visibility in the pypeit
+        file: ``dithoff`` (arcsec offset of each frame from its setup's
+        earliest pointing) and ``dithpos`` (the cluster's ``P01``/``P02``/...
+        label).
+
+        Args:
+            fitstbl (`astropy.table.Table`_):
+                Metadata table for all frames.  Modified in place.
+
+        Returns:
+            `astropy.table.Table`_: The modified table.
+        """
+        # init_meta seeds the dithoff/dithpos columns (registered in the core
+        # meta data model) whenever the metadata table is built, so they always
+        # exist here.  dithpos arrives as a fixed-width unicode column (from its
+        # 'None' default); widen it to object dtype so multi-character labels
+        # are never truncated.
+        fitstbl['dithpos'] = np.asarray(fitstbl['dithpos'], dtype=object)
+
+        sci_std = np.array(['science' in ft or 'standard' in ft
+                            for ft in fitstbl['frametype']])
+        if not np.any(sci_std):
+            return fitstbl
+
+        # set_combination_groups always runs after set_configurations, so the
+        # 'setup' column must exist here; its absence means the metadata table
+        # was built out of order.
+        if 'setup' not in fitstbl.colnames:
+            raise PypeItError("'setup' column missing from the metadata table; "
+                              'get_comb_group must run after set_configurations.')
+        setup_col = np.asarray(fitstbl['setup'])
+
+        # Cluster within each configuration and hand out contiguous comb_ids
+        # across the whole table.  Combination never crosses a setup.
+        next_comb = 1
+        for s in np.unique(setup_col[sci_std]):
+            idx = np.where(sci_std & (setup_col == s))[0]
+            # get_meta_value already normalizes ra/dec to float degrees, so let
+            # SkyCoord handle the on-sky separations directly.
+            coords = SkyCoord(ra=fitstbl['ra'][idx], dec=fitstbl['dec'][idx],
+                              unit=units.deg)
+            order = np.argsort(np.asarray(fitstbl['mjd'][idx], dtype=float))
+
+            # Greedy single-pass clustering in time order: each frame joins the
+            # first existing cluster within comb_pointing_tol of its anchor
+            # (the cluster's earliest frame), else starts a new cluster.  With
+            # commanded coordinates written identically for repeated visits,
+            # anchor comparison is stable.
+            clusters = []
+            for a in order:
+                for c in clusters:
+                    if coords[a].separation(c['coord']).arcsec < self.comb_pointing_tol:
+                        c['members'].append(a)
+                        break
+                else:
+                    clusters.append(dict(coord=coords[a], members=[a]))
+
+            for ci, c in enumerate(clusters):
+                members = idx[c['members']]
+                fitstbl['comb_id'][members] = next_comb
+                fitstbl['dithpos'][members] = f'P{ci + 1:02d}'
+                next_comb += 1
+
+            # Offset (arcsec) of each frame from this setup's earliest pointing,
+            # for a quick read of the dither throw in the pypeit file.
+            fitstbl['dithoff'][idx] = coords.separation(coords[order[0]]).arcsec
+
+        return fitstbl
+
+    def pypeit_file_keys(self):
+        """
+        Define the list of columns written to the pypeit file, adding the
+        derived dither columns so the pointing-based combination grouping is
+        visible and editable.
+
+        Returns:
+            :obj:`list`: Column keywords for the pypeit file.
+        """
+        return super().pypeit_file_keys() + ['dithoff', 'dithpos']
 
     @staticmethod
     def _ifu_calib_path() -> PypeItDataPath:
