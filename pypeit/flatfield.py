@@ -2468,7 +2468,7 @@ def spatillum_finecorr_qa(normed, finecorr, left, right, ypos, cut, outfile=None
     # Plot
     fighght = 8.5
     cutrat = fighght*norm_cut.shape[1]/norm_cut.shape[0]
-    plt.figure(figsize=(5 + 3.25*cutrat, fighght))
+    fig = plt.figure(figsize=(5 + 3.25*cutrat, fighght))
     plt.clf()
     # Single panel plot
     gs = gridspec.GridSpec(1, 5, height_ratios=[1], width_ratios=[4.0, cutrat, cutrat, cutrat, cutrat*0.25])
@@ -2526,13 +2526,9 @@ def spatillum_finecorr_qa(normed, finecorr, left, right, ypos, cut, outfile=None
     # Finish
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
     plt.subplots_adjust(wspace=0.03, hspace=0, left=0.12, right=0.9, bottom=0.05, top=0.94)
-    if outfile is None:
-        plt.show()
-    else:
-        plt.savefig(outfile, dpi=400)
-        log.info("Saved QA:\n"+outfile)
-
-    plt.close()
+    if outfile is not None:
+        log.info("Saving QA:\n"+outfile)
+    qa.save_figure(fig, outfile, show=outfile is None, dpi=400)
     plt.rcdefaults()
     return
 
@@ -2564,7 +2560,7 @@ def detector_structure_qa(det_resp, det_resp_model, outfile=None, title="Detecto
 
     # Plot
     fig_height = 3.0
-    plt.figure(figsize=(3*fig_height, fig_height))
+    fig = plt.figure(figsize=(3*fig_height, fig_height))
     plt.clf()
     # Prepare axes
     gs = gridspec.GridSpec(1, 4, height_ratios=[1], width_ratios=[1.0, 1.0, 1.0, 0.05])
@@ -2594,13 +2590,9 @@ def detector_structure_qa(det_resp, det_resp_model, outfile=None, title="Detecto
     # Finish
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
     plt.subplots_adjust(wspace=0.03, hspace=0, left=0.05, right=0.9, bottom=0.1, top=0.9)
-    if outfile is None:
-        plt.show()
-    else:
-        plt.savefig(outfile, dpi=400)
-        log.info("Saved QA:\n" + outfile)
-
-    plt.close()
+    if outfile is not None:
+        log.info("Saving QA:\n" + outfile)
+    qa.save_figure(fig, outfile, show=outfile is None, dpi=400)
     plt.rcdefaults()
     return
 
