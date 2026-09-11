@@ -3178,6 +3178,186 @@ Alterations to the default parameters are:
       [[IR]]
           telgridfile = TellPCA_3000_26000_R10000.fits
 
+.. _instr_par-int_ids_eev10:
+
+INT EEV10 (``int_ids_eev10``)
+-----------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = int_ids_eev10
+  [calibrations]
+      [[biasframe]]
+          exprng = None, 1,
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              mask_cr = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          exprng = None, 600,
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          exprng = None, 600,
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          exprng = None, 600,
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = None, 120,
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[wavelengths]]
+          lamps = NeI, ArI, ArII, CuI,
+      [[slitedges]]
+          sync_predict = nearest
+          bound_detector = True
+  [scienceframe]
+      exprng = 120, None,
+      [[process]]
+          mask_cr = True
+          noise_floor = 0.01
+
+.. _instr_par-int_ids_redplus2:
+
+INT RED+2 (``int_ids_redplus2``)
+--------------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = int_ids_redplus2
+  [calibrations]
+      [[biasframe]]
+          exprng = None, 1,
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              mask_cr = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          exprng = None, 600,
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          exprng = None, 600,
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          exprng = None, 600,
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = None, 120,
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[wavelengths]]
+          lamps = NeI, ArI, ArII, CuI,
+      [[slitedges]]
+          sync_predict = nearest
+          bound_detector = True
+  [scienceframe]
+      exprng = 120, None,
+      [[process]]
+          mask_cr = True
+          noise_floor = 0.01
+
 .. _instr_par-jwst_nircam:
 
 JWST NIRCAM (``jwst_nircam``)
