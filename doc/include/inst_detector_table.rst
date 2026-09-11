@@ -27,6 +27,8 @@ Instrument                    Det  specaxis  specflip  spatflip  namp      gain 
 ``gtc_osiris``                1    0         False     False     1         0.95                        4.5                     0.0       0.0e+00   65535.0       0.9500     0.1270    
 ...                           2    0         False     False     1         0.95                        4.5                     0.0       0.0e+00   65535.0       0.9500     0.1270    
 ``gtc_osiris_plus``           1    1         True      False     1         1.9                         4.3                     5.0       0.0e+00   65535.0       0.9500     0.1250    
+``int_ids_eev10``             1    0         True      False     1         ``None``                    ``None``                4.0       -1.0e+10  65535.0       0.9900     0.4000    
+``int_ids_redplus2``          1    0         False     False     1         ``None``                    ``None``                8.0       -1.0e+10  65535.0       0.9900     0.4400    
 ``jwst_nircam``               1    1         False     False     1         1.84                        8.55                    120.6     -1.0e+10  59200.0       0.9500     0.0630    
 ...                           2    1         False     False     1         1.8                         8.57                    126.0     -1.0e+10  58500.0       0.9500     0.0630    
 ``jwst_nirspec``              1    1         False     False     1         0.996                       5.17                    33.12     -1.0e+10  55100.0       0.9500     0.1000    

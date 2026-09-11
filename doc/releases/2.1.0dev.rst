@@ -156,6 +156,7 @@ Testing
 - Added new tests for :class:`~pypeit.inputfiles.InputFile` objects.
 - Added tests for MMT/Binospec setup grouping and INCAN-based flat/trace frame
   typing.
+- Added new tests for :mod:`~pypeit.core.datacube`.
 
 Under-the-hood Improvements
 ---------------------------
@@ -177,6 +178,9 @@ Under-the-hood Improvements
   development-only files, not suited for the released package.
 - Restructuring of :mod:`~pypeit.core`.
 - Increase the breakpoint spacing when fitting the slit illumination profile.
+- Multiple improvements for datacube generation, including no transpose operations
+  and faster cube generation.
+- Added weights as an optional parameter in ``weighted_combine()``.
 
 
 Bug Fixes
@@ -247,3 +251,10 @@ Bug Fixes
   (``IMGTYPE`` = ``DOMEFLAT``) and no longer includes the internal continuum
   (``IMGTYPE`` = ``CONT``) lamp flats, whose different illumination contaminated
   the combined pixel/illumination flat when both were present in a night.
+- Fixed bugs with the datacube WCS and datacube alignments.
+- Fixed the ``RA``/``DEC`` recorded for a point source extracted from a
+  datacube (:func:`~pypeit.core.datacube.extract_point_source`, used by
+  ``pypeit_extract_datacube``): they were previously set to the datacube's WCS
+  reference point (``CRVAL``) rather than the sky position of the source
+  actually used for the extraction (the fitted or manually-specified
+  position). Affects any SlicerIFU-pypeline point-source extraction.
