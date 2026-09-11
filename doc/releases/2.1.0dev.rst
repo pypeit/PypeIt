@@ -178,6 +178,9 @@ Under-the-hood Improvements
   development-only files, not suited for the released package.
 - Restructuring of :mod:`~pypeit.core`.
 - Increase the breakpoint spacing when fitting the slit illumination profile.
+- Multiple improvements for datacube generation, including no transpose operations
+  and faster cube generation.
+- Added weights as an optional parameter in ``weighted_combine()``.
 - Resolved issue with the wavelength calibration code not detecting lines in the
   ``'keck_deimos_830G.fits'`` template when the FWHM of the lines observed in
   the data are significantly narrower than the template.  A loop has been added
