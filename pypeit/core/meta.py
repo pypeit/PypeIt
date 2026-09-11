@@ -95,7 +95,7 @@ def airmass(ra, dec, obstime, longitude, latitude, elevation, exptime=None):
 
     Returns:
         :obj:`float`: The airmass (:math:`\\sec z`) of the observation.
-        Returns `numpy.nan`_ if the target is below the horizon.
+        Returns `numpy.nan` if the target is below the horizon.
     """
     # Observatory location on the Earth
     location = coordinates.EarthLocation.from_geodetic(
