@@ -65,7 +65,7 @@ if __name__ == '__main__':
     from pypeit.alignframe import Alignments
     from pypeit.edgetrace import EdgeTraceSet
     from pypeit.flatfield import FlatImages, FiberFlatImages
-    from pypeit.manual_extract import ManualExtractionObj
+    from pypeit.manual_extract import ManualExtractionObj, ManualCubeExtractionObj
     from pypeit.onespec import OneSpec
     from pypeit.orderstack import OrderStack
     from pypeit.scattlight import ScatteredLight
@@ -76,7 +76,7 @@ if __name__ == '__main__':
     from pypeit.tracepca import TracePCA
     from pypeit.wavecalib import WaveCalib
     from pypeit.wavetilts import WaveTilts
-    from pypeit.core.bspline import bspline
+    from pypeit.containers.bspline import BSplineContainer, BSpline2DContainer
     from pypeit.coadd3d import DataCube
     from pypeit.core.fitting import PypeItFit
     from pypeit.core.telluric import Telluric
@@ -86,10 +86,13 @@ if __name__ == '__main__':
     from pypeit.images.pypeitimage import PypeItImage
     from pypeit.multislit_flexure import MultiSlitFlexure
 
-    datacontainers = [Alignments, EdgeTraceSet, FlatImages, FiberFlatImages, ManualExtractionObj, OneSpec, OrderStack, ScatteredLight,
-                      SensFunc, SlitTraceSet, Spec2DObj, SpecObj, TracePCA, WaveCalib, WaveTilts,
-                      bspline, DataCube, PypeItFit, MultiSlitFlexure, Telluric, DetectorContainer,
-                      Mosaic, PypeItImage, WaveFit]
+    datacontainers = [
+        Alignments, EdgeTraceSet, FlatImages, FiberFlatImages, ManualExtractionObj,
+        ManualCubeExtractionObj, OneSpec, OrderStack, ScatteredLight, SensFunc, SlitTraceSet,
+        Spec2DObj, SpecObj, TracePCA, WaveCalib, WaveTilts, BSplineContainer, BSpline2DContainer,
+        DataCube, PypeItFit, MultiSlitFlexure, Telluric, DetectorContainer, Mosaic, PypeItImage,
+        WaveFit
+    ]
 
     for obj in datacontainers:
 

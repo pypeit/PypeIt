@@ -366,6 +366,7 @@ class PypeItDataPaths:
                      # Pixel Flats
                      'pixelflat': {'path': 'pixelflats', 'host': 'github'},
                      # Other
+                     'images': {'path': 'images', 'host': None},
                      'sky_spec': {'path': 'sky_spec', 'host': None},
                      'static_calibs': {'path': 'static_calibs', 'host': None},
                      'spectrographs': {'path': 'spectrographs', 'host': None},

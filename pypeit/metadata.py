@@ -9,7 +9,6 @@ from pathlib import Path
 import io
 import string
 from copy import deepcopy
-import datetime
 
 from IPython import embed
 
@@ -20,6 +19,7 @@ from astropy import table, time
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import inputfiles
+from pypeit import outputfiles
 from pypeit.core import framematch
 from pypeit.core import parse
 from pypeit.core import meta
@@ -122,7 +122,7 @@ class PypeItMetaData:
             self.merge(usrdata)
 
         # Impose types on specific columns
-        self._impose_types(['comb_id', 'bkg_id', 'manual', 'shift'], [int, int, str, float])
+        self._impose_types(['comb_id', 'bkg_id', 'manual', 'shift'], [int, int, str, str])
 
         # Initialize internal attributes
         self.configs = None
@@ -496,13 +496,10 @@ class PypeItMetaData:
             str: The root name for file output.
         """
         _obstime = self.construct_obstime(row) if obstime is None else obstime
-        tiso = time.Time(_obstime, format='isot')
-        dtime = datetime.datetime.strptime(tiso.value, '%Y-%m-%dT%H:%M:%S.%f')
-        return '{0}-{1}_{2}_{3}{4}'.format(self['filename'][row].split('.fits')[0],
-                                           self['target'][row].replace(" ", ""),
-                                           self.spectrograph.camera,
-                                           datetime.datetime.strftime(dtime, '%Y%m%dT'),
-                                           tiso.value.split("T")[1].replace(':',''))
+        return outputfiles.construct_basename(
+            self['filename'][row], self['target'][row], self.spectrograph.camera,
+            _obstime.mjd, self.spectrograph.allowed_extensions
+        )
 
     def get_configuration_names(self, ignore=None, return_index=False, configs=None):
         """
@@ -1514,7 +1511,9 @@ class PypeItMetaData:
         if 'bkg_id' not in self.keys():
             self['bkg_id'] = -1
         if 'shift' not in self.keys():
-            self['shift'] = 0
+            # Blank means no manual spatial flexure; any numeric value
+            # (including 0.) is a user-requested override.
+            self['shift'] = ''
 
         # NOTE: Importantly, this if statement means that, if the user has
         # defined any non-negative combination IDs in their pypeit file, none of
@@ -1550,7 +1549,9 @@ class PypeItMetaData:
         if 'manual' not in self.keys():
             self['manual'] = ''
         if 'shift' not in self.keys():
-            self['shift'] = 0
+            # Blank means no manual spatial flexure; any numeric value
+            # (including 0.) is a user-requested override.
+            self['shift'] = ''
 
     def write_sorted(self, ofile, overwrite=True, ignore=None, 
                      write_bkg_pairs=False, write_manual=False):

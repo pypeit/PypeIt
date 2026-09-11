@@ -13,6 +13,9 @@ Documentation Updates
 - Updated the Setup GUI tutorial to reflect the new look of the GUI.
 - Modified the ``update_docs`` script to allow the docs to be built without
   access to ``$PYPEIT_DEV/RAW_DATA``.
+- Registered ``pypeit_status`` in the documented script list and added a
+  :ref:`pypeit_status` section to the scripts documentation (it was a working
+  command-line entry point but was missing from the docs/script registry).
 - Added a :ref:`spectrograph page <soar_triplespec>` and a worked-example
   :ref:`tutorial <soar_triplespec_howto>` for SOAR/TripleSpec.
 
@@ -23,11 +26,22 @@ Dependency Changes
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
+- Added the ``lamps_wvrng`` wavelength-calibration parameter, which restricts
+  the lines used from each entry in ``lamps`` to a wavelength range.  This
+  allows a subset of a shipped line list to be used without copying the file.
+
 - Added a new ``Fiber`` pypeline for fiber-fed spectrographs, where each fiber
   is treated as a distinct object without peak-detection object finding.  The
   pypeline dispatch system (``FiberFindObjects``, ``FiberExtract``) follows the
   existing class-name convention.
 
+- Added the PypeIt Dashboard (``pypeit_dashboard``): a Qt GUI that launches,
+  monitors, and inspects a reduction — calibration and science-frame status,
+  QA drill-downs, and (re)build controls; see :ref:`dashboard`.  Built on the
+  new persistent reduction-state layer (:mod:`pypeit.state`, the
+  ``*_state.json`` file; see :ref:`state`) shared with ``pypeit_status``.
+  Developed by J. X. Prochaska in collaboration with Claude (Anthropic's
+  AI assistant).
 - Setup GUI now uses a standard button bar that can be moved.
 - Re-enabled the Cancel button on the Setup GUI progress dialog.
 - Increased default font size for Setup GUI.
@@ -41,6 +55,13 @@ Functionality/Performance Improvements and Additions
 
 Instrument-specific Updates
 ---------------------------
+
+- P200/NGPS ``u`` channel: support He dome-lamp frames (``IMGTYPE=DOMEHE``) as a
+  second arc lamp.  The internal ThAr lamp has no detectable lines below
+  ~3490 A, leaving the wavelength solution extrapolated over 3050-3490 A.  Each
+  arc frame is now blanked outside the band its own lamp illuminates, so the
+  stock masked combine builds the master arc from He frames alone below 3400 A
+  and ThAr frames alone above it.  Nights without DOMEHE frames are unaffected.
 
 - Added support for the MMT Binospec IFU (``mmt_binospec_ifu``), a fiber-fed
   integral field unit with ~360 fibers per detector side.  This introduces the
@@ -58,6 +79,15 @@ Instrument-specific Updates
     from fiber spectra
 
   See the :ref:`mmt_binospec` documentation for details.
+
+- MMT Binospec IFU: ``pypeit_setup`` now assigns combination groups from the
+  science/standard pointing pattern.  Frames sharing a pointing (to within
+  0.1") are automatically given a common ``comb_id`` so they coadd, while each
+  distinct dither position gets its own ``comb_id`` and reduces to its own
+  spec1d/spec2d — removing the need to edit ``comb_id`` by hand.  Two
+  informational columns, ``dithoff`` (arcsec from the setup's reference
+  pointing) and ``dithpos`` (the group's ``A``/``B``/... label), are written to
+  the pypeit file.
 
 - Rewrote MMT Binospec overscan subtraction in ``binospec_read_amp()`` to match
   the IDL pipeline (``bino_mosaic.pro``): Y-axis postscan first, then X-axis
@@ -126,12 +156,13 @@ Testing
 - Added new tests for :class:`~pypeit.inputfiles.InputFile` objects.
 - Added tests for MMT/Binospec setup grouping and INCAN-based flat/trace frame
   typing.
+- Added new tests for :mod:`~pypeit.core.datacube`.
 
 Under-the-hood Improvements
 ---------------------------
 
 - Adds new :class:`~pypeit.core.fitting.PypeItFitCollection` class to replace
-  the pypeit-specific uses of :class:`~pypeit.core.pydl.TraceSet`.  This was
+  the pypeit-specific uses of ``pypeit.core.pydl.TraceSet``.  This was
   primarily done to avoid a circular import.
 - Separated previous functions in :mod:`~pypeit.core.extract` that have to do
   with modeling the spatial profile of the object into a new module,
@@ -143,10 +174,13 @@ Under-the-hood Improvements
   importing each module in the relevant ``__init__.py`` file, we now define
   ``__all__`` and import all the relevant classes where needed.
 - Moved code used to generate templates (``pypeit/core/wavecal/templates.py``
-  and ``pypeit/core/wavecal/spectrographs``) to the dev-suite.  These were
+  and ``pypeit/core/wavecal/spectrographs/``) to the dev-suite.  These were
   development-only files, not suited for the released package.
 - Restructuring of :mod:`~pypeit.core`.
 - Increase the breakpoint spacing when fitting the slit illumination profile.
+- Multiple improvements for datacube generation, including no transpose operations
+  and faster cube generation.
+- Added weights as an optional parameter in ``weighted_combine()``.
 - Resolved issue with the wavelength calibration code not detecting lines in the
   ``'keck_deimos_830G.fits'`` template when the FWHM of the lines observed in
   the data are significantly narrower than the template.  A loop has been added
@@ -157,23 +191,62 @@ Under-the-hood Improvements
 Bug Fixes
 ---------
 
+- Restore the manual spatial flexure correction (Issue #2180): a value in the
+  pypeit-file ``shift`` column again overrides the automatically computed
+  spatial flexure for that science/standard frame.  The feature was lost in
+  the 2.0.0 step-by-step processing refactor.  The ``shift`` column is
+  now a string entry that is blank by default (like the ``manual``
+  column), so an explicit ``0.0`` is a valid manual override; see
+  :ref:`flexure-spatial-manual`.  The frame's spatial
+  flexure is also passed to the user sky-regions mask again, which the same
+  refactor had dropped.
 - Avoid a circular import by moving
   :func:`~pypeit.core.wavecal.autoid.arc_fit_qa` out of
   :mod:`~pypeit.core.wavecal.wv_fitting`.
 - Fix an error in the platescale provided for 2D coadded data; the previous
   calculation did not account for the ``spat_samp_fact`` parameter.
 - Avoid a circular import by moving
-  :func:`~pypeit.loader.load_wmko_std_spectrum` to the dev-suite repo.
+  ``pypeit.loader.load_wmko_std_spectrum`` to the dev-suite repo.
 - Avoid a circular import by (1) removing the use of the
   :class:`~pypeit.specobj.SpecObj` object in the :mod:`~pypeit.core.extract`
   functions and (2) pulling :class:`~pypeit.multislit_flexure.MultiSlitFlexure`
   into its own file (removing it from :mod:`~pypeit.core.flexure`).
 - Avoid a circular import by moving
-  :func:`~pypeit.core.wavecal.waveio.load_tree` into
+  ``pypeit.core.wavecal.waveio.load_tree`` into
   :func:`~pypeit.core.wavecal.kdtree_generator`.
 - Fix a bug in 2D coaddition where manually identified objects were not being
   used to compute offsets between input frames.  Add description of this failure
   mode to the :ref:`known_issues_coadd2d` documentation for 2D coaddition.
+- Fix an ``IndexError`` in ``pypeit_run_to_calibstep`` when run with
+  ``--calib_group`` (the matched row was indexed as a scalar).
+- ``pypeit_run_to_calibstep`` now writes the reduction state file
+  (``*_state.json``): it passes the ``run_state`` to ``calib_one`` (so each step
+  is recorded as it runs) and refreshes the full state from disk on completion.
+  Previously the state was never updated, so status tools/the Dashboard showed
+  stale statuses after a (re)build.
+- The reduction-state derivation (``Calibrations.run_the_steps`` in reload/
+  status-only mode) now records a calibration whose output file is simply
+  missing as ``pending`` (not yet built) rather than ``fail``; ``fail`` is
+  reserved for genuine build failures.
+- ``Calibrations.run_the_steps`` now marks a calibration step ``fail`` (and
+  persists it to ``*_state.json``) when the step **raises** mid-build, before
+  re-raising the exception.  Previously the step was left stuck at ``running``,
+  so status tools / the Dashboard kept reporting a crashed (re)build as
+  in-progress indefinitely.
+- A **status-only** state derivation (e.g. the Dashboard computing status on
+  launch) no longer **writes** ``*_state.json``: it is a read, so it no longer
+  leaves the last step marked ``running`` / overwrites an existing state file.
+  Only a real run persists state.
+- ``pypeit_reduce_by_step`` now writes the reduction state file: it records the
+  science step it runs (marking it ``running`` then refreshing from disk) and
+  the contributing raw frame(s), so status tools / the Dashboard reflect a
+  step-by-step science (re)build.
+- ``pypeit_reduce_by_step`` and ``pypeit_run_to_calibstep`` now **merge** the
+  existing reduction state (``RunPypeItState.merge_from_disk``) before writing,
+  rather than overwriting it from their fresh, single-purpose state.  Previously
+  a science step-build reset the calibration statuses to ``pending`` (and a
+  calibration build blanked the science entries), since each script only
+  populates its own portion of the shared ``*_state.json``.
 - Fixes a bug in :class:`~pypeit.bspline.bspline.bspline` which was not
   correctly setting ``xmin`` and ``xmax`` when using the ``x2`` option.
 - MMT/Binospec: flat/trace/illumflat frame typing now requires the
@@ -183,3 +256,10 @@ Bug Fixes
   (``IMGTYPE`` = ``DOMEFLAT``) and no longer includes the internal continuum
   (``IMGTYPE`` = ``CONT``) lamp flats, whose different illumination contaminated
   the combined pixel/illumination flat when both were present in a night.
+- Fixed bugs with the datacube WCS and datacube alignments.
+- Fixed the ``RA``/``DEC`` recorded for a point source extracted from a
+  datacube (:func:`~pypeit.core.datacube.extract_point_source`, used by
+  ``pypeit_extract_datacube``): they were previously set to the datacube's WCS
+  reference point (``CRVAL``) rather than the sky position of the source
+  actually used for the extraction (the fitted or manually-specified
+  position). Affects any SlicerIFU-pypeline point-source extraction.

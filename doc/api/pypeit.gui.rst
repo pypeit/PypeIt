@@ -15,6 +15,7 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
+   pypeit.gui.binospec_ifu_extract
    pypeit.gui.edge_inspector
    pypeit.gui.gui_util
    pypeit.gui.identify

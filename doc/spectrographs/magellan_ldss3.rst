@@ -19,11 +19,13 @@ Prepare the .pypeit file
 ========================
 
 To limit spurious object detections, we recommend restricting the object
-finding in the ``.pypeit`` file, e.g.::
+finding in the ``.pypeit`` file, e.g.:
 
-[reduce]
-    [[findobj]]
-        find_trim_edge = 100, 100  # ignore 100 pix at each slit edge
+.. code-block:: ini
+
+    [reduce]
+        [[findobj]]
+            find_trim_edge = 100, 100  # ignore 100 pix at each slit edge
 
 Sensitivity function
 ====================

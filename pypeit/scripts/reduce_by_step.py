@@ -46,6 +46,8 @@ class ReducebyStep(scriptbase.ScriptBase):
     @classmethod
     def main(cls, args):
 
+        scriptbase.configure_matplotlib(args.show)
+
         import numpy as np
         from pathlib import Path
 
@@ -60,6 +62,7 @@ class ReducebyStep(scriptbase.ScriptBase):
         from pypeit import spec2dobj
         from pypeit import exposure
         from pypeit import slittrace
+        from pypeit.state import science_status
 
         from IPython import embed
 
@@ -135,6 +138,22 @@ class ReducebyStep(scriptbase.ScriptBase):
         has_bg, bkg_redux, find_negative = pypeit_steps.set_bkg_negative(
             pypeIt.fitstbl, pypeIt.par, bg_frames)
 
+        # Preserve any existing reduction state — especially the calibration
+        # statuses written by pypeit_run_to_calibstep.  PypeIt starts with a
+        # fresh run_state (calibrations 'pending', no science); without this,
+        # writing the state after a science step would reset the calibrations
+        # to 'pending' and (in the Dashboard) disable every science (Re)Build.
+        pypeIt.run_state.merge_from_disk()
+
+        # Record that this science step is starting, so the PypeIt Dashboard can
+        # show it live (mirrors the run_to_calibstep state-write fix).  State I/O
+        # is non-essential, so use the safe_* wrappers.
+        pypeIt.run_state.safe_update_science(basename, det, step=args.step,
+                                             status='running',
+                                             calib_id=calib_ID,
+                                             objtype=objtype_out)
+        pypeIt.run_state.safe_write()
+
         # Process?
         if args.step == 'process':
             pypeit_steps.process_one_det(
@@ -142,9 +161,7 @@ class ReducebyStep(scriptbase.ScriptBase):
                 frames, det, calib_ID, pypeIt.calibrations_path,
                 bg_frames=bg_frames, sci_outfile=sci_filename,
                 bkg_outfile=bkg_filename)
-
-            # All done
-            return
+            # Fall through to the state refresh below (no early return).
 
         # Find Objects
         if args.step == 'findobj':
@@ -291,3 +308,16 @@ class ReducebyStep(scriptbase.ScriptBase):
                                    pypeIt.par, frame, all_spec2d, sobjs_extract,
                                    pypeIt.calibrations_path,
                                    in_update_det=det)
+
+        # Refresh the science state from the products just written and persist
+        # it, so the Dashboard reflects this (re)build (reached by every step
+        # since 'process' does not return early).  State bookkeeping is
+        # non-essential: log any failure and continue.
+        try:
+            science_status.derive_science_from_disk(pypeIt.run_state,
+                                                    pypeIt.par['rdx']['redux_path'],
+                                                    fitstbl=pypeIt.fitstbl)
+        except (OSError, PypeItError) as e:
+            log.warning(f'Could not update the science state after {args.step}: {e}')
+        else:
+            pypeIt.run_state.safe_write()

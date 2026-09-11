@@ -1,4 +1,7 @@
-""" Module for Magellan/LDSS3 specific codes
+"""
+Module for Magellan/LDSS3 specific codes
+
+.. include:: ../include/links.rst
 """
 import glob
 import numpy as np
@@ -24,7 +27,7 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
     supported = True
     comment = 'Longslit only (so far)'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
@@ -40,7 +43,7 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         """
 
         # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+        binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         detector_dict = dict(
                             binning         = binning,
@@ -320,7 +323,7 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
 
         # detector par
         hdu = io.fits_open(fil[0])
-        detector_par = self.get_detector_par(hdu, det if det is None else 1)
+        detector_par = self.get_detector_par(det if det is None else 1, hdu=hdu)
 
         data1, overscan1, datasec1, biassec1, x1_1, x2_1, nxb1 = ldss3_read_amp(fil[0])
         if have_file2:
