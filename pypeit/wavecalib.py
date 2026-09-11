@@ -695,12 +695,12 @@ class BuildWaveCalib:
             # Now preferred
             if self.binspectral is None:
                 raise PypeItError("You must specify binspectral for the full_template method!")
-            final_fit, order_vec = autoid.full_template(arccen, self.lamps, self.par, ok_mask_idx, self.det,
-                                             self.binspectral, slit_ids=self.slits.slitord_id,
-                                             measured_fwhms=self.measured_fwhms,
-                                             nonlinear_counts=self.nonlinear_counts,
-                                             nsnippet=self.par['nsnippet'], 
-                                             x_percentile=self.par['cc_percent_ceil'])
+            final_fit, order_vec = autoid.full_template(
+                arccen, self.measured_fwhms, self.lamps, self.par, ok_mask_idx, self.det,
+                self.binspectral, slit_ids=self.slits.slitord_id,
+                nonlinear_counts=self.nonlinear_counts, nsnippet=self.par['nsnippet'],
+                x_percentile=self.par['cc_percent_ceil']
+            )
 
             # For SlicerIFU, the wavelength coverage should be roughly the same for all slices, so if just one slit
             # successfully calibrated, try this as the template.
@@ -719,13 +719,12 @@ class BuildWaveCalib:
                                  'lines_pix': None,
                                  'lines_wav': None,
                                  'lines_fit_ord': None}
-                final_fit, order_vec = autoid.full_template(arccen, self.lamps, self.par, ok_mask_idx, self.det,
-                                                            self.binspectral, slit_ids=self.slits.slitord_id,
-                                                            measured_fwhms=self.measured_fwhms,
-                                                            nonlinear_counts=self.nonlinear_counts,
-                                                            nsnippet=self.par['nsnippet'],
-                                                            x_percentile=self.par['cc_percent_ceil'],
-                                                            template_dict=template_dict)
+                final_fit, order_vec = autoid.full_template(
+                    arccen, self.measured_fwhms, self.lamps, self.par, ok_mask_idx, self.det,
+                    self.binspectral, slit_ids=self.slits.slitord_id,
+                    nonlinear_counts=self.nonlinear_counts, nsnippet=self.par['nsnippet'],
+                    x_percentile=self.par['cc_percent_ceil'], template_dict=template_dict
+                )
             # Grab arxiv for redo later?
             if self.par['echelle']: 
                 # Hold for later usage
