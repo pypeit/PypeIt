@@ -287,12 +287,13 @@ def test_profile_return_shapes():
             image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
             spat_img=spat_img, trace_in=trace_in, wave=wave, flux=flux,
             fluxivar=fluxivar, inmask=inmask)
-        assert profile_model.shape == (nspec, nspat)
-        assert xnew.shape == (nspec,)
-        assert fwhmfit.shape == (nspec,)
-        assert isinstance(med_sn2, float)
-        assert np.all(np.isfinite(profile_model))
-        assert np.all(np.isfinite(xnew))
+        assert profile_model.shape == (nspec, nspat), \
+            'profile_model must have shape (nspec, nspat)'
+        assert xnew.shape == (nspec,), 'xnew must have shape (nspec,)'
+        assert fwhmfit.shape == (nspec,), 'fwhmfit must have shape (nspec,)'
+        assert isinstance(med_sn2, float), 'med_sn2 must be a float'
+        assert np.all(np.isfinite(profile_model)), 'profile_model must contain no NaNs or Infs'
+        assert np.all(np.isfinite(xnew)), 'xnew must contain no NaNs or Infs'
 
 
 def test_profile_normalization_bspline():
@@ -304,7 +305,7 @@ def test_profile_normalization_bspline():
         spat_img=spat_img, trace_in=trace_in, wave=wave, flux=flux,
         fluxivar=fluxivar, inmask=inmask, sn_gauss=4.0)
     assert med_sn2 > 4.0 ** 2, "Expected B-spline path (high S/N)"
-    assert np.all(profile_model >= 0)
+    assert np.all(profile_model >= 0), 'profile_model must be non-negative'
     row_sums = profile_model.sum(axis=1)
     nonzero_rows = row_sums > 0
     np.testing.assert_allclose(row_sums[nonzero_rows], 1.0, atol=1e-10)
@@ -331,11 +332,13 @@ def test_profile_normalization_partial_slit():
         image=image, ivar=ivar, waveimg=waveimg, thismask=thismask,
         spat_img=spat_img, trace_in=trace_in, wave=wave, flux=flux,
         fluxivar=fluxivar, inmask=inmask, sn_gauss=4.0)
-    assert np.all(profile_model >= 0)
-    assert np.all(np.isfinite(profile_model))
+    assert np.all(profile_model >= 0), 'profile_model must be non-negative'
+    assert np.all(np.isfinite(profile_model)), 'profile_model must contain no NaNs or Infs'
     # Masked-out rows must have zero profile
-    assert np.all(profile_model[:nspec // 4] == 0.0)
-    assert np.all(profile_model[3 * nspec // 4:] == 0.0)
+    assert np.all(profile_model[:nspec // 4] == 0.0), \
+        'rows masked out at the start of the slit must have zero profile'
+    assert np.all(profile_model[3 * nspec // 4:] == 0.0), \
+        'rows masked out at the end of the slit must have zero profile'
     # Active rows that received non-zero profile must each sum to 1
     row_sums = profile_model.sum(axis=1)
     nonzero = row_sums > 0
@@ -354,8 +357,8 @@ def test_profile_normalization_gaussian():
         spat_img=spat_img, trace_in=trace_in, wave=wave, flux=flux,
         fluxivar=fluxivar, inmask=inmask, sn_gauss=4.0)
     assert med_sn2 < 4.0 ** 2, "Expected Gaussian path (low S/N)"
-    assert np.all(profile_model >= 0)
-    assert np.all(np.isfinite(profile_model))
+    assert np.all(profile_model >= 0), 'profile_model must be non-negative'
+    assert np.all(np.isfinite(profile_model)), 'profile_model must contain no NaNs or Infs'
     # Peak column of each row must be at the trace center (±1 px)
     peak_cols = profile_model.argmax(axis=1)
     np.testing.assert_allclose(peak_cols, nspat // 2, atol=1)
@@ -364,7 +367,8 @@ def test_profile_normalization_gaussian():
     spat_pix = np.arange(nspat)
     far = np.abs(spat_pix - nspat // 2) > 3 * sigma
     assert np.all(profile_model[:, far] <
-                  0.1 * profile_model.max(axis=1, keepdims=True))
+                  0.1 * profile_model.max(axis=1, keepdims=True)), \
+        'profile must drop below 10% of its peak beyond ±3 sigma from the center'
 
 
 def test_forced_gaussian():
@@ -382,8 +386,8 @@ def test_forced_gaussian():
     np.testing.assert_array_equal(xnew, trace_in)
     # fwhmfit is set from the initial sigma and never updated in the Gaussian path
     np.testing.assert_allclose(fwhmfit, fwhm * np.ones(nspec))
-    assert np.all(profile_model >= 0)
-    assert np.all(np.isfinite(profile_model))
+    assert np.all(profile_model >= 0), 'profile_model must be non-negative'
+    assert np.all(np.isfinite(profile_model)), 'profile_model must contain no NaNs or Infs'
 
 
 @pytest.mark.parametrize("fwhm", [6.0, 8.0])
@@ -444,8 +448,8 @@ def test_prof_nsigma_extended():
         thisfwhm=fwhm, prof_nsigma=prof_nsigma, sn_gauss=4.0)
     # Only check shape and finiteness: the broken knot-count formula produces a
     # poor B-spline fit that can go negative, so positivity is not asserted.
-    assert profile_model.shape == (200, nspat)
-    assert np.all(np.isfinite(profile_model))
+    assert profile_model.shape == (200, nspat), 'profile_model must have shape (nspec, nspat)'
+    assert np.all(np.isfinite(profile_model)), 'profile_model must contain no NaNs or Infs'
 
 
 @pytest.mark.parametrize("variant,sn_ratio,nan_flux", [
@@ -542,9 +546,9 @@ def test_prof_nsigma_refactor():
             fluxivar=fluxivar, inmask=inmask,
             thisfwhm=fwhm, prof_nsigma=prof_nsigma, sn_gauss=4.0
         )
-    assert profile_model.shape == (200, nspat)
-    assert np.all(np.isfinite(profile_model))
-    assert np.all(np.isfinite(fwhmfit))
+    assert profile_model.shape == (200, nspat), 'profile_model must have shape (nspec, nspat)'
+    assert np.all(np.isfinite(profile_model)), 'profile_model must contain no NaNs or Infs'
+    assert np.all(np.isfinite(fwhmfit)), 'fwhmfit must contain no NaNs or Infs'
     assert med_sn2 > 4.0 ** 2, "Expected B-spline path (high S/N)"
 
 
@@ -777,7 +781,7 @@ def test_findfwhm_peak_location():
     sig_x = np.arange(-3.0, 3.0 + step, step)
     model = np.exp(-0.5 * sig_x ** 2)
     _, peak_x, _, _ = _findfwhm(model, sig_x)
-    assert abs(peak_x) <= step
+    assert abs(peak_x) <= step, 'peak_x must lie within one grid step of the true center (0)'
 
 
 def test_findfwhm_asymmetric():
@@ -788,7 +792,7 @@ def test_findfwhm_asymmetric():
     sig_x = np.arange(-2.5, 2.5 + step, step)
     model = np.exp(-0.5 * (sig_x - center) ** 2)
     _, peak_x, lwhm, rwhm = _findfwhm(model, sig_x)
-    assert abs(peak_x - center) <= step
+    assert abs(peak_x - center) <= step, 'peak_x must lie within one grid step of the true center'
     np.testing.assert_allclose(rwhm - lwhm, sig2fwhm, rtol=0.02)
 
 
@@ -806,10 +810,10 @@ def test_findfwhm_all_negative_profile():
     sig_x = np.linspace(-1.0, 1.0, 41)
     model = -0.05 * np.ones_like(sig_x)   # all negative: triggers the crash path
     peak, peak_x, lwhm, rwhm = _findfwhm(model, sig_x)
-    assert np.isfinite(peak)
-    assert np.isfinite(peak_x)
-    assert lwhm == sig_x[0]
-    assert rwhm == sig_x[-1]
+    assert np.isfinite(peak), 'peak must be finite even for an all-negative profile'
+    assert np.isfinite(peak_x), 'peak_x must be finite even for an all-negative profile'
+    assert lwhm == sig_x[0], 'lwhm must fall back to the first sig_x sample'
+    assert rwhm == sig_x[-1], 'rwhm must fall back to the last sig_x sample'
 
 
 # ----------------------------------------------------------------------------
@@ -828,13 +832,13 @@ def test_fit_spectrum_success():
             waveimg=waveimg, image=image, ivar=ivar, totmask=totmask, spec_img=None,
             percentile_sn2=70.0, fwhm=4.0
         )
-    assert success
-    assert med_sn2 > 4.0 ** 2
-    assert norm_obj_x.shape == (npix,)
-    assert norm_ivar_x.shape == (npix,)
-    assert sn2_x.shape == (npix,)
-    assert xtemp_x.shape == (npix,)
-    assert spec_x.shape == (npix,)
+    assert success, '_fit_spectrum_and_normalize must succeed for high-S/N input'
+    assert med_sn2 > 4.0 ** 2, 'med_sn2 must reflect the high S/N of the input'
+    assert norm_obj_x.shape == (npix,), 'norm_obj_x must have shape (npix,)'
+    assert norm_ivar_x.shape == (npix,), 'norm_ivar_x must have shape (npix,)'
+    assert sn2_x.shape == (npix,), 'sn2_x must have shape (npix,)'
+    assert xtemp_x.shape == (npix,), 'xtemp_x must have shape (npix,)'
+    assert spec_x.shape == (npix,), 'spec_x must have shape (npix,)'
 
 
 def test_fit_spectrum_failure_nan_flux():
@@ -849,10 +853,12 @@ def test_fit_spectrum_failure_nan_flux():
             waveimg=waveimg, image=image, ivar=ivar, totmask=totmask, spec_img=None,
             percentile_sn2=70.0, fwhm=4.0
         )
-    assert not success
-    assert med_sn2 == 0.0
-    assert norm_obj_x is None and norm_ivar_x is None
-    assert xtemp_x is None and sn2_x is None and spec_x is None
+    assert not success, '_fit_spectrum_and_normalize must fail for all-NaN flux'
+    assert med_sn2 == 0.0, 'med_sn2 must be 0.0 on failure'
+    assert norm_obj_x is None and norm_ivar_x is None, \
+        'norm_obj_x and norm_ivar_x must be None on failure'
+    assert xtemp_x is None and sn2_x is None and spec_x is None, \
+        'xtemp_x, sn2_x, and spec_x must be None on failure'
 
 
 def test_fit_spectrum_sn2_img_nonnegative():
@@ -866,9 +872,9 @@ def test_fit_spectrum_sn2_img_nonnegative():
         waveimg=waveimg, image=image, ivar=ivar, totmask=totmask, spec_img=None,
         percentile_sn2=70.0, fwhm=4.0
     )
-    assert success
-    assert sn2_x.shape == (npix,)
-    assert np.all(sn2_x >= 0.0)
+    assert success, '_fit_spectrum_and_normalize must succeed for high-S/N input'
+    assert sn2_x.shape == (npix,), 'sn2_x must have shape (npix,)'
+    assert np.all(sn2_x >= 0.0), 'sn2_x must be non-negative'
 
 
 def test_fit_spectrum_suppresses_polynomial_flux():
@@ -895,11 +901,11 @@ def test_fit_spectrum_suppresses_polynomial_flux():
         waveimg=waveimg, image=image, ivar=ivar, totmask=totmask, spec_img=None,
         percentile_sn2=70.0, fwhm=fwhm
     )
-    assert success
+    assert success, '_fit_spectrum_and_normalize must succeed for high-S/N input'
 
     # The input polynomial varies by ~53% peak-to-peak
     raw_ptp = (flux_level.max() - flux_level.min()) / flux_level.mean()
-    assert raw_ptp > 0.30
+    assert raw_ptp > 0.30, 'injected quadratic flux_level must vary by more than 30% peak-to-peak'
 
     # Per-row means of norm_obj_x
     n_per_row = np.bincount(spec_x, minlength=nspec)
@@ -947,12 +953,12 @@ def test_bspline_knots_shapes():
         dspat_x=dspat_x, sigma=sigma, spec_x=spec_x, med_sn2=med_sn2, prof_nsigma=None,
         good_x=good_x
     )
-    assert sigma_x.shape == (npix,)
-    assert limit > 0.0
-    assert min_sigma < 0.0 < max_sigma
-    assert bkpt.size >= 2
-    assert np.all(bkpt >= min_sigma)
-    assert np.all(bkpt <= max_sigma)
+    assert sigma_x.shape == (npix,), 'sigma_x must have shape (npix,)'
+    assert limit > 0.0, 'limit must be positive'
+    assert min_sigma < 0.0 < max_sigma, 'min_sigma and max_sigma must straddle zero'
+    assert bkpt.size >= 2, 'bkpt must contain at least two breakpoints'
+    assert np.all(bkpt >= min_sigma), 'all breakpoints must be >= min_sigma'
+    assert np.all(bkpt <= max_sigma), 'all breakpoints must be <= max_sigma'
 
 
 def test_bspline_knots_bug1_fix():
@@ -968,9 +974,9 @@ def test_bspline_knots_bug1_fix():
         dspat_x=dspat_x, sigma=sigma, spec_x=spec_x, med_sn2=med_sn2, prof_nsigma=10.0,
         good_x=good_x
     )
-    assert min_sigma == -10.0
-    assert max_sigma == 10.0
-    assert bkpt.size >= 2
+    assert min_sigma == -10.0, 'min_sigma must equal -prof_nsigma'
+    assert max_sigma == 10.0, 'max_sigma must equal prof_nsigma'
+    assert bkpt.size >= 2, 'bkpt must contain at least two breakpoints'
 
 
 @pytest.mark.parametrize("prof_nsigma", [5.0, 10.0, 15.0, 20.0])
@@ -981,10 +987,10 @@ def test_bspline_knots_prof_nsigma_bounds(prof_nsigma):
         dspat_x=dspat_x, sigma=sigma, spec_x=spec_x, med_sn2=med_sn2,
         prof_nsigma=prof_nsigma, good_x=good_x
     )
-    assert min_sigma == -prof_nsigma
-    assert max_sigma == prof_nsigma
-    assert np.all(bkpt >= min_sigma)
-    assert np.all(bkpt <= max_sigma)
+    assert min_sigma == -prof_nsigma, 'min_sigma must equal -prof_nsigma'
+    assert max_sigma == prof_nsigma, 'max_sigma must equal prof_nsigma'
+    assert np.all(bkpt >= min_sigma), 'all breakpoints must be >= min_sigma'
+    assert np.all(bkpt <= max_sigma), 'all breakpoints must be <= max_sigma'
 
 
 # ----------------------------------------------------------------------------
@@ -1039,10 +1045,10 @@ def test_apodize_output_shape(apodize_bspline):
         f['bset'], f['sigma_x'], f['min_sigma'], f['max_sigma'],
         True, f['ss'], f['median_fit'], f['min_level'], f['limit']
     )
-    assert full_bsp.shape == (f['npix'],)
-    assert np.isfinite(l_limit) and np.isfinite(r_limit)
+    assert full_bsp.shape == (f['npix'],), 'full_bsp must have shape (npix,)'
+    assert np.isfinite(l_limit) and np.isfinite(r_limit), 'l_limit and r_limit must be finite'
     igood = (f['sigma_x'] > f['min_sigma']) & (f['sigma_x'] < f['max_sigma'])
-    assert np.all(full_bsp[igood] >= 0.0)
+    assert np.all(full_bsp[igood] >= 0.0), 'full_bsp must be non-negative within [min_sigma, max_sigma]'
 
 
 def test_apodize_no_apodize(apodize_bspline):
@@ -1052,11 +1058,12 @@ def test_apodize_no_apodize(apodize_bspline):
         f['bset'], f['sigma_x'], f['min_sigma'], f['max_sigma'],
         False, f['ss'], f['median_fit'], f['min_level'], f['limit']
     )
-    assert l_limit == 0.0
-    assert r_limit == 0.0
-    assert full_bsp.shape == (f['npix'],)
+    assert l_limit == 0.0, 'apodize=False must give l_limit == 0'
+    assert r_limit == 0.0, 'apodize=False must give r_limit == 0'
+    assert full_bsp.shape == (f['npix'],), 'full_bsp must have shape (npix,)'
     outside = (f['sigma_x'] <= f['min_sigma']) | (f['sigma_x'] >= f['max_sigma'])
-    assert np.all(full_bsp[outside] == 0.0)
+    assert np.all(full_bsp[outside] == 0.0), \
+        'points outside [min_sigma, max_sigma] must be zero when apodize=False'
 
 
 def test_apodize_tail_continuity(apodize_bspline):
@@ -1080,14 +1087,16 @@ def test_apodize_tail_continuity(apodize_bspline):
     # Left tail: igood pixels below l_limit (tail overwrote the B-spline there)
     left_tail = (sigma_x > f['min_sigma']) & (sigma_x < l_limit)
     if left_tail.any():
-        assert np.all(full_bsp[left_tail] >= 0.0)
-        assert np.all(full_bsp[left_tail] <= l_fit_val + 1e-10)
+        assert np.all(full_bsp[left_tail] >= 0.0), 'left apodization tail must be non-negative'
+        assert np.all(full_bsp[left_tail] <= l_fit_val + 1e-10), \
+            'left apodization tail must not exceed the B-spline value at l_limit'
 
     # Right tail: igood pixels above r_limit
     right_tail = (sigma_x > r_limit) & (sigma_x < f['max_sigma'])
     if right_tail.any():
-        assert np.all(full_bsp[right_tail] >= 0.0)
-        assert np.all(full_bsp[right_tail] <= r_fit_val + 1e-10)
+        assert np.all(full_bsp[right_tail] >= 0.0), 'right apodization tail must be non-negative'
+        assert np.all(full_bsp[right_tail] <= r_fit_val + 1e-10), \
+            'right apodization tail must not exceed the B-spline value at r_limit'
 
 
 
@@ -1118,4 +1127,4 @@ def test_qa_fit_profile(tmp_path):
         fluxivar=fluxivar, inmask=inmask, thisfwhm=fwhm, sn_gauss=4.0,
         generate_qa=outfile,
     )
-    assert (tmp_path / 'qa_spatprof.png').exists()
+    assert (tmp_path / 'qa_spatprof.png').exists(), 'fit_profile with generate_qa must save a PNG file'

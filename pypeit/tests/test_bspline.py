@@ -1709,9 +1709,9 @@ def test_bspline2d_to_1d():
 
     spl1d = spl2d.to_1d()
 
-    assert isinstance(spl1d, BSpline)
-    assert not isinstance(spl1d, BSpline2D)
-    assert spl1d.nord == spl2d.nord
+    assert isinstance(spl1d, BSpline), 'to_1d() must return a BSpline instance'
+    assert not isinstance(spl1d, BSpline2D), 'to_1d() must not return a BSpline2D instance'
+    assert spl1d.nord == spl2d.nord, 'to_1d() must preserve nord'
     np.testing.assert_array_equal(spl1d.coeff, spl2d.coeff[:, 0])
     np.testing.assert_array_equal(spl1d.bkpt_gpm, spl2d.bkpt_gpm)
 
