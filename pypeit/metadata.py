@@ -191,6 +191,42 @@ class PypeItMetaData:
                               f'expected one! Found {instr_names[0]}, expected {self.spectrograph.header_name}.  '
                               'You may have chosen the wrong PypeIt spectrograph name!')
 
+    def _read_meta_row(self, ifile, usr_row, strict):
+        """
+        Read the metadata for a single file into a ``{meta_key: value}`` dict.
+
+        Args:
+            ifile (`Path`_):
+                The file to read.
+            usr_row (`astropy.table.Row`_, optional):
+                User-provided metadata row for this file (e.g. frame type),
+                passed through to
+                :func:`~pypeit.spectrographs.spectrograph.Spectrograph.get_meta_value`.
+            strict (:obj:`bool`):
+                See :func:`_build`.  Passed through to ``get_headarr`` and
+                ``get_meta_value``.
+
+        Returns:
+            :obj:`dict`: The ``{meta_key: value}`` values for this file.
+
+        Raises:
+            IndexError: If the file is missing an expected FITS extension.
+                :func:`_build` catches this to skip unreadable files in
+                non-strict mode.
+        """
+        headarr = self.spectrograph.get_headarr(ifile, strict=strict)
+        row_data = {}
+        for meta_key in self.spectrograph.meta.keys():
+            value = self.spectrograph.get_meta_value(
+                headarr, meta_key, required=strict, usr_row=usr_row,
+                ignore_bad_header=(self.par['rdx']['ignore_bad_headers'] or strict))
+            if isinstance(value, str) and '#' in value:
+                value = value.replace('#', '')
+                log.warning('Removing troublesome # character from {0}.  Returning {1}.'.format(
+                          meta_key, value))
+            row_data[meta_key] = value
+        return row_data
+
     def _build(self, files, strict=True, usrdata=None):
         """
         Generate the fitstbl that will be at the heart of PypeItMetaData.
@@ -238,25 +274,18 @@ class PypeItMetaData:
                                'usrdata argument of instantiation of PypeItMetaData.')
                 usr_row = usrdata[idx]
 
-            # Read the fits headers.  NOTE: If the file cannot be opened,
-            # headarr will be None, and the subsequent loop over the meta keys
-            # will fill the data dictionary with None values.
+            # Read the file's metadata.  A file that is missing an expected
+            # FITS extension -- e.g. a single-HDU acquisition/guider frame that
+            # happens to sit in a raw-data directory of multi-extension science
+            # cubes (MMIRS writes both) -- raises an IndexError while reading
+            # its headers.  In non-strict mode (setup) skip such a file rather
+            # than crash or add a row of Nones; the recorded index lets
+            # __init__ cull the matching usrdata row, and the table columns are
+            # appended only on a successful read (not index-assigned) so a skip
+            # leaves no gap.
             log.info(f'Adding metadata for {_ifile.name}')
             try:
-                headarr = self.spectrograph.get_headarr(_ifile, strict=strict)
-
-                # Grab Meta
-                row_data = {}
-                for meta_key in self.spectrograph.meta.keys():
-                    value = self.spectrograph.get_meta_value(
-                        headarr, meta_key, required=strict, usr_row=usr_row,
-                        ignore_bad_header=(
-                            self.par['rdx']['ignore_bad_headers'] or strict))
-                    if isinstance(value, str) and '#' in value:
-                        value = value.replace('#', '')
-                        log.warning('Removing troublesome # character from {0}.  Returning {1}.'.format(
-                                  meta_key, value))
-                    row_data[meta_key] = value
+                row_data = self._read_meta_row(_ifile, usr_row, strict)
             except IndexError:
                 if strict:
                     raise
