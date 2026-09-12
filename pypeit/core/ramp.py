@@ -49,9 +49,7 @@ def ramp_diffs(reads, covar):
         ``(reads[i+1] - reads[i]) / covar.delta_t[i]``, shape
         ``(ngroups-1, ny, nx)``, in e-/s.
     """
-    diffs = np.diff(reads, axis=0)
-    diffs /= np.asarray(covar.delta_t)[:, None, None]
-    return diffs
+    return np.diff(reads, axis=0) / np.asarray(covar.delta_t)[:, None, None]
 
 
 def effective_ronoise(sig, ngroups):
