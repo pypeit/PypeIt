@@ -23,6 +23,7 @@ covariance, and header this module operates on; MMT/MMIRS
 .. include:: ../include/links.rst
 """
 import os
+import functools
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 
@@ -122,6 +123,42 @@ def _fit_rows(diffs, nb, workers, worker):
         list(ex.map(worker, ranges))
 
 
+def _calibrate_sigma_block(rng, sub, ndiffs, nx, covar, sig_guess, chisq):
+    """
+    Fit one block of subsampled rows without jump detection and store the
+    per-pixel chi-squared.
+
+    A module-level worker for :func:`calibrate_sigma`, bound to its arrays
+    with :func:`functools.partial` and dispatched over row blocks by
+    :func:`_fit_rows`; it writes into the preallocated ``chisq`` array.
+
+    Parameters
+    ----------
+    rng : :obj:`tuple`
+        ``(row_start, row_stop)`` block of ``sub`` to fit.
+    sub : `numpy.ndarray`_
+        Subsampled differences, shape ``(ndiffs, nrows, nx)``.
+    ndiffs : :obj:`int`
+        Number of resultant differences.
+    nx : :obj:`int`
+        Detector width.
+    covar : :class:`~pypeit.ext.fitramp.fitramp.Covar`
+        Covariance object matching ``sub``.
+    sig_guess : :obj:`float`
+        Initial single-read-noise guess in electrons.
+    chisq : `numpy.ndarray`_
+        Preallocated ``(nrows, nx)`` output written in place.
+    """
+    r0, r1 = rng
+    flat = sub[:, r0:r1, :].reshape(ndiffs, (r1 - r0) * nx)
+    sig_row = np.full(flat.shape[1], sig_guess, dtype=np.float64)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        result = fitramp.fit_ramps(flat, covar, sig_row)
+        guess = result.countrate * (result.countrate > 0)
+        result = fitramp.fit_ramps(flat, covar, sig_row, countrateguess=guess)
+    chisq[r0:r1] = result.chisq.reshape(r1 - r0, nx)
+
+
 def calibrate_sigma(diffs, covar, sig_guess=9.0, nrows=200, workers=None,
                     nb=16, return_err=False, n_boot=200, seed=1234):
     """
@@ -176,17 +213,9 @@ def calibrate_sigma(diffs, covar, sig_guess=9.0, nrows=200, workers=None,
     sub = np.ascontiguousarray(diffs[:, row_candidates[indices], :])
     chisq = np.empty((nrows, nx), dtype=np.float64)
 
-    def worker(rng):
-        r0, r1 = rng
-        flat = sub[:, r0:r1, :].reshape(ndiffs, (r1 - r0) * nx)
-        sig_row = np.full(flat.shape[1], sig_guess, dtype=np.float64)
-        with np.errstate(divide='ignore', invalid='ignore'):
-            result = fitramp.fit_ramps(flat, covar, sig_row)
-            guess = result.countrate * (result.countrate > 0)
-            result = fitramp.fit_ramps(flat, covar, sig_row,
-                                       countrateguess=guess)
-        chisq[r0:r1] = result.chisq.reshape(r1 - r0, nx)
-
+    worker = functools.partial(_calibrate_sigma_block, sub=sub, ndiffs=ndiffs,
+                               nx=nx, covar=covar, sig_guess=sig_guess,
+                               chisq=chisq)
     _fit_rows(sub, nb, _resolve_workers(workers), worker)
     expected_chisq = float(ndiffs - 1)
     flat_chisq = chisq.ravel()
@@ -203,6 +232,44 @@ def calibrate_sigma(diffs, covar, sig_guess=9.0, nrows=200, workers=None,
         m_b = np.median(flat_chisq[rng.integers(0, npix, npix)])
         boot[b] = sig_guess * np.sqrt(m_b / expected_chisq)
     return sigma, float(np.std(boot))
+
+
+def _fit_ramp_block(rng, diffs, ndiffs, nx, covar, sig, countrate):
+    """
+    Fit one block of detector rows with jump detection and store the fitted
+    count rates.
+
+    A module-level worker for :func:`fit_ramp`, bound to its arrays with
+    :func:`functools.partial` and dispatched over row blocks by
+    :func:`_fit_rows`; it writes into the preallocated ``countrate`` array.
+
+    Parameters
+    ----------
+    rng : :obj:`tuple`
+        ``(row_start, row_stop)`` block of ``diffs`` to fit.
+    diffs : `numpy.ndarray`_
+        Scaled resultant differences, shape ``(ndiffs, ny, nx)``.
+    ndiffs : :obj:`int`
+        Number of resultant differences.
+    nx : :obj:`int`
+        Detector width.
+    covar : :class:`~pypeit.ext.fitramp.fitramp.Covar`
+        Covariance object matching ``diffs``.
+    sig : :obj:`float`
+        Single-read noise in electrons.
+    countrate : `numpy.ndarray`_
+        Preallocated ``(ny, nx)`` output written in place.
+    """
+    r0, r1 = rng
+    flat = np.ascontiguousarray(diffs[:, r0:r1, :]).reshape(ndiffs,
+                                                            (r1 - r0) * nx)
+    sig_row = np.full(flat.shape[1], sig, dtype=np.float64)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        diffs2use, guess = fitramp.mask_jumps(flat, covar, sig_row)
+        result = fitramp.fit_ramps(flat, covar, sig_row,
+                                   diffs2use=diffs2use,
+                                   countrateguess=guess * (guess > 0))
+    countrate[r0:r1] = result.countrate.reshape(r1 - r0, nx)
 
 
 def fit_ramp(diffs, covar, sig, workers=None, nb=16):
@@ -237,18 +304,8 @@ def fit_ramp(diffs, covar, sig, workers=None, nb=16):
     ndiffs, ny, nx = diffs.shape
     countrate = np.empty((ny, nx), dtype=np.float64)
 
-    def worker(rng):
-        r0, r1 = rng
-        flat = np.ascontiguousarray(diffs[:, r0:r1, :]).reshape(ndiffs,
-                                                                (r1 - r0) * nx)
-        sig_row = np.full(flat.shape[1], sig, dtype=np.float64)
-        with np.errstate(divide='ignore', invalid='ignore'):
-            diffs2use, guess = fitramp.mask_jumps(flat, covar, sig_row)
-            result = fitramp.fit_ramps(flat, covar, sig_row,
-                                       diffs2use=diffs2use,
-                                       countrateguess=guess * (guess > 0))
-        countrate[r0:r1] = result.countrate.reshape(r1 - r0, nx)
-
+    worker = functools.partial(_fit_ramp_block, diffs=diffs, ndiffs=ndiffs,
+                               nx=nx, covar=covar, sig=sig, countrate=countrate)
     _fit_rows(diffs, nb, _resolve_workers(workers), worker)
     return countrate
 
