@@ -19,7 +19,8 @@ up-the-ramp fitting
 MMIRS raw frames store the non-destructive reads of the HAWAII-2 detector as
 separate FITS extensions.  For frames with at least 5 reads, PypeIt performs
 up-the-ramp fitting with likelihood-based jump (cosmic-ray) detection using
-the algorithm of `Brandt (2024) <https://arxiv.org/abs/2404.01326>`__,
+the algorithm of `Brandt (2024) <https://arxiv.org/abs/2404.01326>`__
+(reference implementation: `fitramp <https://github.com/t-brandt/fitramp>`__),
 replacing the correlated double sampling (first minus last read) used
 previously.  Frames with fewer reads still use correlated double sampling
 (fewer than 5 reads do not sample the ramp well enough to fit reliably).
