@@ -133,6 +133,11 @@ observations. For MOS masks, PypeIt ingests the MMIRS ``.msk`` mask-design
 file so that slit tracing, alignment-box registration, and target
 identities all follow the mask design; see the mask-definition section below.
 
+The MMIRS longslit fills the detector, so PypeIt bounds it with synthetic slit
+edges. The default object-tracing parameters are tuned for these edges
+(``[reduce][findobj] trace_npoly = 1``, ``trace_maxdev = 50``, and
+``trace_maxshift = 20``).
+
 Supported grism/filter modes
 ++++++++++++++++++++++++++++
 

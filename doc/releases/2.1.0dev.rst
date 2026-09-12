@@ -145,53 +145,25 @@ Instrument-specific Updates
   grating (``decker`` added to ``configuration_keys``), so frames taken with
   different masks no longer share calibrations.
 
-- MMT/MMIRS raw frames with at least 5 non-destructive reads are now
-  processed with up-the-ramp fitting and cosmic-ray (jump) detection
-  (`Brandt 2024 <https://arxiv.org/abs/2404.01326>`__), replacing the
-  previous first-minus-last correlated double sampling (frames with fewer
-  reads continue to use it).  The single-read noise is calibrated from a
-  dark frame listed in the pypeit file when available, self-calibrated from
-  frames with at least 10 reads otherwise, and falls back to the published
-  per-read noise for frames with too few reads to self-calibrate; the
-  effective read noise is propagated to the detector parameters.  Default MMIRS
-  object-tracing parameters were also adjusted (``trace_npoly = 1``,
-  ``trace_maxdev = 50``, ``trace_maxshift = 20``) to improve tracing with
-  the synthetic slit edges used for this detector-bounded longslit.
-- MMIRS up-the-ramp fitted images are now cached as 2D count-rate files in a
-  ``RampFit`` directory inside the reduction directory (each ramp is fit at
-  most once per dataset), and a new ``pypeit_fit_ramp`` script preprocesses
-  and inspects them ahead of a reduction.
-- The MMIRS single-read noise calibration was refined to account for the fact
-  that the effective per-read noise (read noise plus accumulated dark/shot
-  noise) grows with ramp length.  Only darks whose exposure time matches the
-  science frame are used, each is calibrated independently, and the results are
-  combined as an inverse-variance weighted mean; the calibrated value is floored
-  at the header ``RDNOISE``.  See the :ref:`mmt_mmirs` documentation for details.
-- MMIRS up-the-ramp fitting is now performed in parallel across detector-row
-  blocks, giving roughly a 3x speed-up on a many-read cube.  Two ``[rdx]``
-  parameters expose the tuning: ``ramp_fit_cores`` (worker threads) and
-  ``ramp_fit_chunk_rows`` (rows fit per call).  See the performance-tuning
-  section of the :ref:`mmt_mmirs` documentation.
-- MMIRS science frames taken as an A-B nod sequence are now automatically
-  background-subtracted.  ``pypeit_setup`` derives the along-slit dither offset
-  of each frame from the telescope pointing (recorded in new ``dithoff``,
-  ``dithpos``, ``dithpat``, and ``frameno`` metadata columns) and fills the
-  ``comb_id``/``bkg_id`` columns so each frame is paired with the
-  temporally-adjacent frame at the opposite nod position.  Pairing is done
-  separately for each target within an instrument configuration, and a sequence
-  spanning less than ~1 arcsec is left unpaired as a stare.  See the A-B nod
-  section of the :ref:`mmt_mmirs` documentation.
-- MMIRS multi-object (MOS) masks: ``pypeit_setup`` now ingests the MMIRS
-  ``.msk`` mask-design file (the ``xfitmask`` output) when a matching
-  ``<MOSID>.msk`` is found in the raw-data directory, enabling slitmask-design
-  tracing, alignment-box registration, and stamping of ``MASKDEF_ID``, ``RA``,
-  ``DEC``, and ``MASKDEF_OBJNAME`` (the catalog target name) on each extracted
-  object.  See the mask-definition section of the :ref:`mmt_mmirs` documentation.
-- Added wavelength-solution templates (``mmt_mmirs_H3000_H.fits`` and
-  ``mmt_mmirs_HK_HK3.fits``) and configuration handling for the MMIRS
-  ``H3000``/``H`` and ``HK``/``HK3`` grism/filter combinations, extending the automatic
-  ``full_template`` wavelength calibration to the remaining observatory-recommended
-  configurations.
+- MMT/MMIRS: raw frames with at least 5 non-destructive reads are now processed
+  with up-the-ramp fitting and jump (cosmic-ray) detection (`Brandt 2024
+  <https://arxiv.org/abs/2404.01326>`__), replacing first-minus-last correlated
+  double sampling.  The effective per-read noise is calibrated at the science
+  exposure time, the per-pixel fit runs in parallel, and the fitted 2D
+  count-rate images are cached in a ``RampFit`` directory; a new
+  ``pypeit_fit_ramp`` script preprocesses and inspects them.  See
+  :ref:`mmt_mmirs`.
+- MMT/MMIRS: science frames taken as an A-B nod sequence are now automatically
+  background-subtracted, with the along-slit dither offset of each frame derived
+  from the telescope pointing.  See :ref:`mmt_mmirs`.
+- MMT/MMIRS multi-object (MOS) masks: ``pypeit_setup`` now ingests the MMIRS
+  ``.msk`` mask-design file when present, enabling slitmask-design tracing,
+  alignment-box registration, and target-identity stamping on each extracted
+  object.  See :ref:`mmt_mmirs`.
+- MMT/MMIRS: added ``full_template`` wavelength-solution templates and
+  configuration handling for the ``H3000``/``H`` and ``HK``/``HK3`` grism/filter
+  combinations, completing coverage of the observatory-recommended
+  configurations.  See :ref:`mmt_mmirs`.
 
 Script Changes
 --------------
