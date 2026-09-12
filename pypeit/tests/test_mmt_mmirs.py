@@ -195,13 +195,22 @@ def _write_synth(hdulist, path):
 
 
 def _metadata_for(files, idnames):
-    """Minimal PypeItMetaData carrying directory/filename/idname columns."""
+    """Minimal PypeItMetaData carrying directory/filename/idname columns.
+
+    Frame types are assigned (``dark`` -> dark, anything else -> science) so
+    the PypeItMetaData query methods used by the ramp code (e.g.
+    ``find_frame_files``) work, mirroring a real reduction where the pypeit
+    file's frame types are applied before any ramp fitting.
+    """
     spec = load_spectrograph('mmt_mmirs')
     par = spec.default_pypeit_par()
     data = Table({'filename': [f.name for f in files],
                   'directory': [str(f.parent) for f in files],
                   'idname': idnames})
     fitstbl = PypeItMetaData(spec, par=par, data=data)
+    fitstbl.get_frame_types(
+        user={f.name: ('dark' if idn == 'dark' else 'science')
+              for f, idn in zip(files, idnames)})
     return spec, fitstbl
 
 
@@ -233,9 +242,13 @@ def test_cache_metadata_records_darks(tmp_path):
                                            imagetyp='dark'),
                         tmp_path / 'dark.fits')
     spec, fitstbl = _metadata_for([sci, dark], ['object', 'dark'])
-    # cache_metadata ran inside PypeItMetaData construction (Task 2 hook)
-    assert spec._ramp_dark_files == [dark], \
-        'cache_metadata must record the dark frames for read-noise calibration'
+    # cache_metadata ran inside PypeItMetaData construction: it keeps the
+    # metadata table so the darks can be looked up (via find_frame_files) for
+    # read-noise calibration once frame types are assigned.
+    assert spec._ramp_fitstbl is fitstbl, \
+        'cache_metadata must keep the metadata table for lazy dark lookup'
+    assert [Path(f) for f in fitstbl.find_frame_files('dark')] == [dark], \
+        'the dark frame must be discoverable via find_frame_files'
     # ... and recorded the reduction directory for RampFit output
     assert spec._ramp_output_dir == Path(fitstbl.par['rdx']['redux_path']), \
         'cache_metadata must record the reduction dir for RampFit output'

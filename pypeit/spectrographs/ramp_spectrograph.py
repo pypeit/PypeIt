@@ -80,7 +80,7 @@ class RampSpectrograph:
     """Number of detector rows fit per
     :func:`~pypeit.ext.fitramp.fitramp.fit_ramps` call.  Small chunks keep each
     thread's working set cache-resident; 16 was the empirical sweet spot."""
-    _ramp_dark_files = None
+    _ramp_fitstbl = None
     _ramp_sigma = None
     _ramp_sigma_cache = None
     _ramp_output_dir = None
@@ -99,9 +99,13 @@ class RampSpectrograph:
         Overrides the base
         :func:`~pypeit.spectrographs.spectrograph.Spectrograph.cache_metadata`
         no-op.  The reduction directory determines where preprocessed ramp
-        images are written (its ``[rdx] rampfit_dir`` subdirectory) and the
-        darks are used to calibrate the single-read noise (opened lazily by
-        :func:`get_ramp_sigma`).  Cheap and idempotent, as required of the hook.
+        images are written (its ``[rdx] rampfit_dir`` subdirectory).  The
+        metadata table is kept so the dark frames used to calibrate the
+        single-read noise can be looked up lazily by :func:`_ramp_dark_sigmas`
+        (via :func:`~pypeit.metadata.PypeItMetaData.find_frame_files`) once
+        frame types are assigned -- they are not yet set when this hook runs
+        during ``PypeItMetaData`` construction.  Cheap and idempotent, as
+        required of the hook.
 
         Args:
             fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
@@ -115,21 +119,7 @@ class RampSpectrograph:
             self.ramp_fit_workers = fitstbl.par['rdx']['ramp_fit_cores']
         if fitstbl.par['rdx']['ramp_fit_chunk_rows'] is not None:
             self.ramp_fit_chunk_rows = fitstbl.par['rdx']['ramp_fit_chunk_rows']
-        tbl = fitstbl.table
-        if 'directory' not in tbl.colnames or 'filename' not in tbl.colnames:
-            return
-        if 'frametype' in tbl.colnames:
-            indx = np.array([ft is not None and 'dark' in str(ft)
-                             for ft in tbl['frametype']])
-        elif 'idname' in tbl.colnames:
-            indx = np.array([str(idn).strip().lower() == 'dark'
-                             for idn in tbl['idname']])
-        else:
-            return
-        self._ramp_dark_files = [Path(str(d)) / str(f)
-                                 for d, f in zip(tbl['directory'][indx],
-                                                 tbl['filename'][indx])
-                                 if not str(f).startswith('#')]
+        self._ramp_fitstbl = fitstbl
 
     def _load_ramp(self, hdu, detector_par):
         """
@@ -181,14 +171,16 @@ class RampSpectrograph:
         Calibrate the single-read noise and its uncertainty from every
         recorded dark frame that matches the science ramp depth.
 
-        Each dark with at least :attr:`ramp_min_cal_groups` reads is fit
-        independently.  When ``exptime`` is provided, only darks whose own
-        ``EXPTIME`` matches it (within ``rtol=1e-3``) are used, because the
-        calibrated noise is the effective per-read noise -- instantaneous read
-        noise plus accumulated dark-current/flux shot noise -- which grows with
-        ramp length, so it must be measured at the science exposure time.
-        Darks that cannot be opened, or that yield a non-finite noise or a
-        non-positive uncertainty, are skipped.
+        The darks are the ``dark`` frames of the cached metadata table (via
+        :func:`~pypeit.metadata.PypeItMetaData.find_frame_files`); each with at
+        least :attr:`ramp_min_cal_groups` reads is fit independently.  When
+        ``exptime`` is provided, only darks whose own ``EXPTIME`` matches it
+        (within ``rtol=1e-3``) are used, because the calibrated noise is the
+        effective per-read noise -- instantaneous read noise plus accumulated
+        dark-current/flux shot noise -- which grows with ramp length, so it
+        must be measured at the science exposure time.  Darks that cannot be
+        opened, or that yield a non-finite noise or a non-positive uncertainty,
+        are skipped.
 
         Args:
             exptime (:obj:`float`, optional):
@@ -199,8 +191,14 @@ class RampSpectrograph:
             :obj:`list`: List of ``(name, sigma, sigma_err)`` tuples (in
             electrons) for the qualifying darks; empty if none qualify.
         """
+        # find_frame_files needs the frame types, which are assigned after the
+        # cache_metadata hook runs; before then (e.g. during setup) there is
+        # nothing to calibrate against.
+        fitstbl = self._ramp_fitstbl
+        if fitstbl is None or 'framebit' not in fitstbl.keys():
+            return []
         results = []
-        for f in self._ramp_dark_files or []:
+        for f in fitstbl.find_frame_files('dark'):
             try:
                 with io.fits_open(f) as dhdu:
                     if self._count_reads(dhdu) < self.ramp_min_cal_groups:
