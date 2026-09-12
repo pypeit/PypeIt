@@ -256,6 +256,8 @@ This is equivalent to setting the following in the :ref:`pypeit_file`:
             extract_missing_objs = True
             use_alignbox = True
 
+See :ref:`parameters` for the full description of each parameter.
+
 Because the mask (the ``decker``/``APERTURE`` value) is one of the MMIRS
 configuration keys, frames taken through different masks during the night are
 automatically split into separate instrument configurations by
