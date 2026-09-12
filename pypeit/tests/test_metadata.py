@@ -268,5 +268,7 @@ def test_cache_metadata_hook():
     fitstbl = PypeItMetaData(spec, par=par,
                              data=Table({'filename': ['a.fits'],
                                          'directory': ['/tmp']}))
-    assert len(called) == 1
-    assert called[0] is fitstbl
+    assert len(called) == 1, \
+        'PypeItMetaData construction must call cache_metadata exactly once'
+    assert called[0] is fitstbl, \
+        'cache_metadata must receive the PypeItMetaData instance being built'

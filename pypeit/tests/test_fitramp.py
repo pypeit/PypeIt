@@ -20,9 +20,11 @@ def test_slope_recovery():
     diffs = np.diff(reads, axis=0) / np.asarray(covar.delta_t)[:, None]
     sig_arr = np.full(npix, sig)
     result = fitramp.fit_ramps(diffs, covar, sig_arr)
-    assert np.abs(np.mean(result.countrate) - rate) < 1.0
+    assert np.abs(np.mean(result.countrate) - rate) < 1.0, \
+        'the mean fitted count rate must recover the injected rate'
     # chisq should be ~ndiffs-1 per pixel
-    assert np.abs(np.median(result.chisq) - (ngroups - 2)) < 3.0
+    assert np.abs(np.median(result.chisq) - (ngroups - 2)) < 3.0, \
+        'the median chi-squared must match the expected degrees of freedom'
 
 
 def test_jump_detection_and_masked_fit():
@@ -36,10 +38,13 @@ def test_jump_detection_and_masked_fit():
     sig_arr = np.full(npix, sig)
     diffs2use, countrates = fitramp.mask_jumps(diffs, covar, sig_arr)
     # The jumped diff (index 9) must be masked for all affected pixels
-    assert np.all(diffs2use[9, :50] == 0)
+    assert np.all(diffs2use[9, :50] == 0), \
+        'the diff spanning the injected jump must be masked in all hit pixels'
     # Unaffected pixels should be almost entirely unmasked
-    assert np.mean(diffs2use[:, 50:]) > 0.95
+    assert np.mean(diffs2use[:, 50:]) > 0.95, \
+        'pixels with no jump must be left almost entirely unmasked'
     # Refit with the mask recovers the true rate for the hit pixels
     result = fitramp.fit_ramps(diffs, covar, sig_arr, diffs2use=diffs2use,
                                countrateguess=countrates * (countrates > 0))
-    assert np.abs(np.median(result.countrate[:50]) - rate) < 2.0
+    assert np.abs(np.median(result.countrate[:50]) - rate) < 2.0, \
+        'the jump-masked refit must recover the true rate in the hit pixels'

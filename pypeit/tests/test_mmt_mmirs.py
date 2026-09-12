@@ -7,6 +7,7 @@ import pytest
 from astropy.io import fits
 from astropy.table import Table
 
+from pypeit import dataPaths
 from pypeit import log
 from pypeit.core import ramp
 from pypeit.ext.fitramp import fitramp
@@ -1310,13 +1311,19 @@ def test_pypeit_file_keys_include_dither_columns():
 # Mask-definition (.msk) support
 # ---------------------------------------------------------------------------
 
-from pypeit import dataPaths
+@pytest.fixture(scope='module')
+def msk():
+    """Path to the real MMIRS ``.msk`` test mask (nep.as1).
 
-MSK = dataPaths.tests.get_file_path('nep.as1.msk')
+    A fixture (rather than a module-level constant) so the path resolution,
+    which can fetch the file from the data cache, runs at test time rather
+    than at import/collection time.
+    """
+    return dataPaths.tests.get_file_path('nep.as1.msk')
 
 
-def test_read_mmirs_maskfile_counts_and_header():
-    header, slits = mmt_mmirs.read_mmirs_maskfile(MSK)
+def test_read_mmirs_maskfile_counts_and_header(msk):
+    header, slits = mmt_mmirs.read_mmirs_maskfile(msk)
     assert header['label'] == 'nep.as1', 'the mask label must be parsed from the header'
     assert abs(header['arc2mm'] - 0.165) < 1e-3, \
         'the arc2mm plate scale must be parsed from the header'
@@ -1325,8 +1332,8 @@ def test_read_mmirs_maskfile_counts_and_header():
     assert (slits['type'] == 'BOX').sum() == 5, 'the mask has 5 BOX (alignment) slits'
 
 
-def test_read_mmirs_maskfile_target_row():
-    header, slits = mmt_mmirs.read_mmirs_maskfile(MSK)
+def test_read_mmirs_maskfile_target_row(msk):
+    header, slits = mmt_mmirs.read_mmirs_maskfile(msk)
     row = slits[slits['slit'] == 1][0]
     assert row['object'] == '172220.249+655613.04', \
         'the object name must be parsed for slit 1'
@@ -1346,10 +1353,10 @@ def test_read_mmirs_maskfile_bad_file_raises(tmp_path):
         mmt_mmirs.read_mmirs_maskfile(bad)
 
 
-def test_get_slitmask_science_align_and_objects():
+def test_get_slitmask_science_align_and_objects(msk):
     from pypeit.spectrographs.mmt_mmirs import MMTMMIRSSpectrograph
     spec = MMTMMIRSSpectrograph()
-    sm = spec.get_slitmask(str(MSK))
+    sm = spec.get_slitmask(str(msk))
     assert sm is spec.slitmask, 'get_slitmask must cache the SlitMask on the spectrograph'
     assert sm.nslits == 29, 'the SlitMask must hold all 29 slits'
     # 24 science TARGET, 5 alignment BOX
@@ -1364,10 +1371,10 @@ def test_get_slitmask_science_align_and_objects():
     assert sm.objects.shape[1] == 9, 'the objects table must have the required 9 columns'
 
 
-def test_get_maskdef_slitedges_linear_geometry():
+def test_get_maskdef_slitedges_linear_geometry(msk):
     from pypeit.spectrographs.mmt_mmirs import MMTMMIRSSpectrograph
     spec = MMTMMIRSSpectrograph()
-    left, right, sortindx, sm = spec.get_maskdef_slitedges(filename=str(MSK),
+    left, right, sortindx, sm = spec.get_maskdef_slitedges(filename=str(msk),
                                                            det=1, binning='1,1')
     assert left.size == right.size == 29, \
         'there must be a left and right edge for each of the 29 slits'
@@ -1376,7 +1383,7 @@ def test_get_maskdef_slitedges_linear_geometry():
     scale = arcsec_per_mm / ps          # px per mm
     centers = 0.5 * (left + right)
     # centers must be an exact linear (negative) function of y_mm
-    _, slits = mmt_mmirs.read_mmirs_maskfile(str(MSK))
+    _, slits = mmt_mmirs.read_mmirs_maskfile(str(msk))
     y = np.asarray(slits['y_mm'])
     fit = np.polyfit(y, centers, 1)
     assert abs(fit[0] + scale) < 0.5, \
@@ -1502,7 +1509,7 @@ def test_dithoff_wraps_ra_across_zero():
         f'here), got {dithoff}'
 
 
-def test_config_specific_setup_lines_enables_maskdesign(tmp_path):
+def test_config_specific_setup_lines_enables_maskdesign(tmp_path, msk):
     # pypeit_setup discovers a <decker>.msk next to the raw data and bakes the
     # mask-design parameters into the generated PypeIt file.
     import shutil
@@ -1511,7 +1518,7 @@ def test_config_specific_setup_lines_enables_maskdesign(tmp_path):
     from pypeit.spectrographs.mmt_mmirs import MMTMMIRSSpectrograph
     spec = MMTMMIRSSpectrograph()
     # place a .msk named by the mask label in the raw-data directory
-    shutil.copy(MSK, tmp_path / 'nep.as1.msk')
+    shutil.copy(msk, tmp_path / 'nep.as1.msk')
     subtbl = _Table({'decker': ['nep.as1'], 'filename': ['nep.as1_mos.1822.fits']})
     lines = spec.config_specific_setup_lines(subtbl, [str(tmp_path)])
     assert lines, 'a discovered .msk must yield config lines for the PypeIt file'

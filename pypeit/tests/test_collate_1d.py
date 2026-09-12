@@ -423,19 +423,22 @@ def test_get_report_metadata_uses_disambiguated_name():
     disamb = base.replace('.fits', '_JXXXX.fits')
     source.coaddfile = disamb
     rows, files = get_report_metadata(['MJD'], ['MASKDEF_OBJNAME'], source)
-    assert files is None
-    assert len(rows) >= 1
-    assert all(r[0] == disamb for r in rows)       # column 0 is the coadd file
-    assert rows[0][0] != base
+    assert files is None, 'get_report_metadata must return no file list for a SourceObject'
+    assert len(rows) >= 1, 'the report must have at least one metadata row'
+    assert all(r[0] == disamb for r in rows), \
+        'every row must record the disambiguated coadd file name (column 0)'
+    assert rows[0][0] != base, \
+        'the report must not fall back to the colliding base name when a name is assigned'
 
     # With no assigned name (e.g. a dry run), it falls back to the base name.
     source.coaddfile = None
     rows2, _ = get_report_metadata(['MJD'], ['MASKDEF_OBJNAME'], source)
-    assert rows2[0][0] == base
+    assert rows2[0][0] == base, \
+        'with no assigned coadd name, the report must fall back to the base name'
 
     # Non-SourceObject inputs are unaffected.
     assert get_report_metadata(['MJD'], ['MASKDEF_OBJNAME'], 'not a source') \
-        == (None, None)
+        == (None, None), 'a non-SourceObject input must yield (None, None)'
 
 
 def test_find_slits_to_exclude(monkeypatch):
