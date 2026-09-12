@@ -157,7 +157,7 @@ class MMTMMIRSSpectrograph(RampSpectrograph, spectrograph.Spectrograph):
                     cat_cands.append(Angle(str(hdr['CAT-RA']), unit=unit).deg)
                 except (KeyError, ValueError, TypeError):
                     pass
-            if not cat_cands:
+            if len(cat_cands) == 0:
                 return 0.0
             catra = min(cat_cands,
                         key=lambda c: abs((c - ra + 180.0) % 360.0 - 180.0))

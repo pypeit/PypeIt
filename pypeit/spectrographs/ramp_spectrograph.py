@@ -284,7 +284,7 @@ class RampSpectrograph:
             else max(self.ramp_sig_range[0], float(ron_floor))
         hi = self.ramp_sig_range[1]
         darks = self._ramp_dark_sigmas(exptime=exptime)
-        if darks:
+        if len(darks) > 0:
             names = [d[0] for d in darks]
             sigs = np.array([d[1] for d in darks])
             errs = np.array([d[2] for d in darks])
