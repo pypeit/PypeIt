@@ -878,14 +878,12 @@ class MMTMMIRSSpectrograph(RampSpectrograph, spectrograph.Spectrograph):
         log.info(f'Reading MMIRS file: {fil}')
         hdu = io.fits_open(fil)
 
-        redux_path = self._ramp_output_dir if self._ramp_output_dir is not None \
-                else Path.cwd()
+        rampfit_file = self.rampfit_path(fil)
 
         if hdu[0].header.get('RAMPFIT') is None \
                 and self._count_reads(hdu) >= self.ramp_min_reads:
             # Multi-read cube: swap in a fresh preprocessed 2D image if one
             # exists in the reduction directory
-            rampfit_file = ramp.rampfit_path(fil, redux_path, self._rampfit_dir)
             if ramp.rampfit_fresh(rampfit_file, fil):
                 log.info(f'Loading preprocessed ramp image: {rampfit_file}')
                 hdu.close()
@@ -916,7 +914,6 @@ class MMTMMIRSSpectrograph(RampSpectrograph, spectrograph.Spectrograph):
             # The RampFit directory lives in the reduction directory, which
             # must be writable for the rest of the reduction anyway, so a
             # write failure is left to propagate like any other output.
-            rampfit_file = ramp.rampfit_path(fil, redux_path, self._rampfit_dir)
             ramp.write_rampfit(rampfit_file, rate, hdu, sig, eff_ronoise,
                                self._count_reads(hdu), Path(fil).stat().st_mtime,
                                raw_file=fil)

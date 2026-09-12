@@ -121,6 +121,29 @@ class RampSpectrograph:
             self.ramp_fit_chunk_rows = fitstbl.par['rdx']['ramp_fit_chunk_rows']
         self._ramp_fitstbl = fitstbl
 
+    def rampfit_path(self, raw_file):
+        """
+        Path to the cached ramp-fit image for a raw cube during a reduction.
+
+        Resolves the ``[rdx] rampfit_dir`` subdirectory of the reduction
+        directory recorded by :func:`cache_metadata`.  When that hook never
+        fired (e.g. direct API use of :func:`get_rawimage` outside a
+        reduction), the current working directory is used instead.  This is
+        the reduction-time counterpart of :func:`preprocess_ramp_file`, which
+        takes the reduction directory explicitly from the ``pypeit_fit_ramp``
+        script.
+
+        Args:
+            raw_file (:obj:`str`, `Path`_):
+                Path to the raw up-the-ramp cube.
+
+        Returns:
+            `Path`_: Path to the (possibly not-yet-written) preprocessed image.
+        """
+        redux_path = self._ramp_output_dir if self._ramp_output_dir is not None \
+            else Path.cwd()
+        return ramp.rampfit_path(raw_file, redux_path, self._rampfit_dir)
+
     def _load_ramp(self, hdu, detector_par):
         """
         Load the non-destructive reads of a raw up-the-ramp cube.
