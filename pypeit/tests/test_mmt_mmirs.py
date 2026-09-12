@@ -10,6 +10,7 @@ from astropy.table import Table
 from pypeit import log
 from pypeit.ext.fitramp import fitramp
 from pypeit.metadata import PypeItMetaData
+from pypeit.par import pypeitpar
 from pypeit.pypeitsetup import PypeItSetup
 from pypeit.scripts.fit_ramp import FitRamp
 from pypeit.spectrographs import mmt_mmirs
@@ -609,7 +610,37 @@ def test_findobj_trace_defaults():
 def test_rampfit_path():
     p = mmt_mmirs.mmirs_rampfit_path('/data/raw/sci.0001.fits', '/data/rdx')
     assert p == Path('/data/rdx/RampFit/sci.0001.fits'), \
-        'the sidecar path must be <redux>/RampFit/<raw basename>'
+        'the sidecar path must default to <redux>/RampFit/<raw basename>'
+    # A custom directory name (from the [rdx] rampfit_dir parameter) is honored
+    p = mmt_mmirs.mmirs_rampfit_path('/data/raw/sci.0001.fits', '/data/rdx',
+                                     'Ramps')
+    assert p == Path('/data/rdx/Ramps/sci.0001.fits'), \
+        'a custom rampfit_dir must replace the RampFit subdirectory name'
+
+
+def test_rampfit_dir_par_default():
+    """The rdx parameter that names the ramp-fit directory defaults to RampFit."""
+    par = pypeitpar.ReduxPar()
+    assert par['rampfit_dir'] == 'RampFit', \
+        "the rdx rampfit_dir parameter must default to 'RampFit'"
+    # And the MMIRS spectrograph honors a non-default value via cache_metadata
+    spec = load_spectrograph('mmt_mmirs')
+    assert spec._rampfit_dir == 'RampFit', \
+        'the MMIRS class default for the ramp-fit directory must be RampFit'
+
+
+def test_get_rawimage_honors_custom_rampfit_dir(tmp_path):
+    """get_rawimage must write the sidecar to the configured rampfit_dir."""
+    path = _write_synth(synth_ramp_hdulist(6, rate=20., seed=85),
+                        tmp_path / 'sci.fits')
+    spec = load_spectrograph('mmt_mmirs')
+    spec._ramp_output_dir = tmp_path
+    spec._rampfit_dir = 'Ramps'
+    spec.get_rawimage(str(path), 1)
+    assert mmt_mmirs.mmirs_rampfit_path(path, tmp_path, 'Ramps').exists(), \
+        'the sidecar must be written to the configured rampfit_dir'
+    assert not mmt_mmirs.mmirs_rampfit_path(path, tmp_path).exists(), \
+        'no sidecar must land in the default RampFit dir when overridden'
 
 
 def test_write_rampfit_roundtrip(tmp_path):

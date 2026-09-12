@@ -50,6 +50,13 @@ class FitRamp(scriptbase.ScriptBase):
                             help='Reduction directory in which the RampFit '
                                  'output directory is created (default: '
                                  'current directory)')
+        parser.add_argument('--rampfit-dir', dest='rampfit_dir', type=str,
+                            default='RampFit',
+                            help='Name of the output subdirectory, relative to '
+                                 '--odir, for the preprocessed count-rate '
+                                 'images (default: RampFit).  Match this to the '
+                                 '[rdx] rampfit_dir parameter if you changed it '
+                                 'in your pypeit file.')
         parser.add_argument('--sig', type=float, default=None,
                             help='Force this single-read noise (e-) instead '
                                  'of calibrating it')
@@ -99,7 +106,8 @@ class FitRamp(scriptbase.ScriptBase):
 
         for f in args.files:
             raw = Path(f)
-            rampfit_file = mmt_mmirs.mmirs_rampfit_path(raw, args.odir)
+            rampfit_file = mmt_mmirs.mmirs_rampfit_path(raw, args.odir,
+                                                        args.rampfit_dir)
             if not args.force and mmt_mmirs.mmirs_rampfit_fresh(rampfit_file,
                                                                 raw):
                 log.info(f'{raw.name}: up-to-date preprocessed image exists; '

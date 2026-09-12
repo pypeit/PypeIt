@@ -2782,7 +2782,7 @@ class ReduxPar(ParSet):
     def __init__(self, spectrograph=None, detnum=None, sortroot=None, calwin=None, scidir=None,
                  qadir=None, redux_path=None, ignore_bad_headers=None, slitspatnum=None,
                  maskIDs=None, quicklook=None, chk_version=None, ramp_fit_cores=None,
-                 ramp_fit_chunk_rows=None):
+                 ramp_fit_chunk_rows=None, rampfit_dir=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2893,6 +2893,12 @@ class ReduxPar(ParSet):
                                        'independent).  This is an expert knob; larger values ' \
                                        'raise peak memory and usually reduce throughput.'
 
+        defaults['rampfit_dir'] = 'RampFit'
+        dtypes['rampfit_dir'] = str
+        descr['rampfit_dir'] = 'Directory, relative to the reduction directory, where ' \
+                               'preprocessed up-the-ramp count-rate images are written and ' \
+                               'then reused by the reduction (currently only MMT/MMIRS).'
+
         # Instantiate the parameter set
         super(ReduxPar, self).__init__(list(pars.keys()),
                                         values=list(pars.values()),
@@ -2909,7 +2915,7 @@ class ReduxPar(ParSet):
         # Basic keywords
         parkeys = [ 'spectrograph', 'quicklook', 'detnum', 'sortroot', 'calwin', 'scidir', 'qadir',
                     'redux_path', 'ignore_bad_headers', 'slitspatnum', 'maskIDs', 'chk_version',
-                    'ramp_fit_cores', 'ramp_fit_chunk_rows']
+                    'ramp_fit_cores', 'ramp_fit_chunk_rows', 'rampfit_dir']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

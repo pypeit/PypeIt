@@ -78,6 +78,13 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
     _ramp_sigma = None
     _ramp_sigma_cache = None
     _ramp_output_dir = None
+    _rampfit_dir = 'RampFit'
+    """
+    str: Name of the subdirectory (relative to the reduction directory) where
+    preprocessed up-the-ramp count-rate images are written and reused.  The
+    default is overridden from the ``[rdx] rampfit_dir`` parameter in
+    :func:`cache_metadata`.
+    """
     _ramp_match_dark_exptime = True
     """
     bool: Restrict read-noise-calibration darks to those matching the science
@@ -218,6 +225,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
                 The class holding the metadata for all the frames.
         """
         self._ramp_output_dir = Path(fitstbl.par['rdx']['redux_path'])
+        self._rampfit_dir = fitstbl.par['rdx']['rampfit_dir']
         # Let the user override the ramp-fit threading/chunking from the
         # [rdx] block of the pypeit file; unset (None) keeps the class default.
         if fitstbl.par['rdx']['ramp_fit_cores'] is not None:
@@ -1064,7 +1072,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
                 and mmirs_count_reads(hdu) >= self.ramp_min_reads:
             # Multi-read cube: swap in a fresh preprocessed 2D image if one
             # exists in the reduction directory
-            rampfit_file = mmirs_rampfit_path(fil, redux_path)
+            rampfit_file = mmirs_rampfit_path(fil, redux_path, self._rampfit_dir)
             if mmirs_rampfit_fresh(rampfit_file, fil):
                 log.info(f'Loading preprocessed ramp image: {rampfit_file}')
                 hdu.close()
@@ -1095,7 +1103,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             # The RampFit directory lives in the reduction directory, which
             # must be writable for the rest of the reduction anyway, so a
             # write failure is left to propagate like any other output.
-            rampfit_file = mmirs_rampfit_path(fil, redux_path)
+            rampfit_file = mmirs_rampfit_path(fil, redux_path, self._rampfit_dir)
             mmirs_write_rampfit(rampfit_file, rate, hdu, sig, eff_ronoise,
                                 Path(fil).stat().st_mtime, raw_file=fil)
             log.info(f'Wrote preprocessed ramp image: {rampfit_file}')
@@ -1259,13 +1267,14 @@ def mmirs_count_reads(hdu):
                and h.header.get('NAXIS1', 0) > 0)
 
 
-def mmirs_rampfit_path(raw_file, redux_path):
+def mmirs_rampfit_path(raw_file, redux_path, rampfit_dir='RampFit'):
     """
     Return the preprocessed-image path for a raw MMIRS cube.
 
-    Preprocessed 2D count-rate images live in a ``RampFit`` directory
+    Preprocessed 2D count-rate images live in the ramp-fit directory
     inside the reduction directory (alongside ``Calibrations``,
-    ``Science``, etc.), with the same file name as the raw cube.
+    ``Science``, etc.), with the same file name as the raw cube.  The
+    directory name is set by the ``[rdx] rampfit_dir`` parameter.
 
     Parameters
     ----------
@@ -1273,13 +1282,15 @@ def mmirs_rampfit_path(raw_file, redux_path):
         Path to the raw MMIRS cube.
     redux_path : :obj:`str`, `Path`_
         Path to the reduction directory.
+    rampfit_dir : :obj:`str`, optional
+        Name of the ramp-fit subdirectory, relative to ``redux_path``.
 
     Returns
     -------
     `Path`_
-        ``<redux_path>/RampFit/<raw filename>``
+        ``<redux_path>/<rampfit_dir>/<raw filename>``
     """
-    return Path(redux_path) / 'RampFit' / Path(raw_file).name
+    return Path(redux_path) / rampfit_dir / Path(raw_file).name
 
 
 def mmirs_rampfit_fresh(rampfit_file, raw_file):

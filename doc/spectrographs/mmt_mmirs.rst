@@ -116,7 +116,8 @@ count-rate image (units of e-/s) is written to a ``RampFit`` directory
 inside the reduction directory (alongside ``Calibrations``, ``Science``,
 and ``QA``) the first time each cube is loaded, and reused on subsequent
 loads.  A preprocessed image is re-fit automatically if the raw cube's
-modification time changes.
+modification time changes.  The subdirectory name defaults to ``RampFit`` and
+can be changed with the ``[rdx] rampfit_dir`` parameter.
 
 The fitted images can also be created (and inspected) ahead of a reduction
 with:
