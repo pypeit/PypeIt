@@ -524,7 +524,7 @@ class MMTMMIRSSpectrograph(RampSpectrograph, spectrograph.Spectrograph):
 
         self.slitmask = SlitMask(corners,
                                  slitid=np.array(slits['slit'], dtype=int),
-                                 align=~is_target,
+                                 align=np.logical_not(is_target),
                                  science=is_target,
                                  onsky=onsky,
                                  objects=objects,
