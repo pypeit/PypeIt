@@ -30,11 +30,16 @@ was inspired by the prototype at
 <https://github.com/zhechenghu/mmt-mmirs-up-the-ramp-pypeit>`__.
 
 The per-read noise needed by the fit is not the instantaneous detector read
-noise but an **effective** noise: the read noise plus the shot noise from dark
-current (and any flux) that accumulates over the ramp.  It therefore *grows
-with exposure time* -- measured on MMIRS darks, roughly 5.7 e- for a 3-read
-(3 s) ramp, 8.3 e- for 8 reads (10 s), and 9.4 e- for 69 reads (300 s) -- so it
-must be measured at the science exposure time.
+noise but an **effective** noise that *grows with exposure time* -- measured on
+MMIRS darks, roughly 5.7 e- for a 3-read (3 s) ramp, 8.3 e- for 8 reads (10 s),
+and 9.4 e- for 69 reads (300 s).  This growth is far larger than the shot noise
+from dark current can account for (dark current is only ~0.01 e-/s), and a white
+per-read noise would not depend on the number of reads at all, so the excess is
+dominated by correlated, low-frequency (1/f-like) noise that accumulates over
+the integration.  Because that component is not captured by a first-principles
+read-noise-plus-Poisson model, it must be measured empirically -- from darks, at
+the science exposure time -- which is why properly modeling the MMIRS noise
+relies on matched darks.
 
 PypeIt calibrates it from the dark frames listed in the :ref:`pypeit_file`
 (include darks in your raw-data directory when running :ref:`pypeit_setup` to
