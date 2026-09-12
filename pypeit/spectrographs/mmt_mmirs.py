@@ -898,7 +898,7 @@ class MMTMMIRSSpectrograph(RampSpectrograph, spectrograph.Spectrograph):
         xbin, ybin = [int(ibin) for ibin in binning.split(' ')]
 
         # Need the exposure time
-        exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
+        exptime = self.get_meta_value(hdu, 'exptime')
         gain = detector_par['gain'][0]
 
         if hdu[0].header.get('RAMPFIT') is not None:
