@@ -686,6 +686,9 @@ def show_1dspec(filename, ext=0, masked=True, fluxed=False, extraction='OPT'):
     """
     viewer = connect_to_ginga(raise_err=True, allow_new=True)
     sh = viewer.shell()
+    # NOTE: ext may be a numpy integer, which doesn't marshall over the
+    # RPC interface that Ginga currently uses--coerce to a regular Python int
+    ext = int(ext)
 
     chname, plname = "Spec1d", "Spec1dView"
     sh.add_channel(chname)

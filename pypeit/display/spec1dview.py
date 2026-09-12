@@ -297,6 +297,11 @@ class Spec1dView(GingaPlugin.LocalPlugin):
 
         self.fv.gui_do(self.plot_lines)
 
+    def fit_y(self):
+        """Zoom to fit Y axis"""
+        viewer = self.channel.get_viewer('Ginga Plot')
+        viewer.zoom_fit(axis='y')
+
     def set_extraction_cb(self, w, idx):
         """Callback for changing the `extraction` option in the plugin.
 
@@ -314,6 +319,7 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         self.fluxed = self.fluxed_options[idx]
         self.logger.debug(f"Selected fluxed option: {self.fluxed}")
         self.recalc()
+        self.fit_y()
 
     def set_masked_cb(self, w, idx):
         """Callback for changing the `masked` option in the plugin.
