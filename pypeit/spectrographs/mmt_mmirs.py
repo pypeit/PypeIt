@@ -456,7 +456,30 @@ class MMTMMIRSSpectrograph(RampSpectrograph, spectrograph.Spectrograph):
             The slitmask, also stored in :attr:`slitmask`.
         """
         header, slits = read_mmirs_maskfile(filename)
+        return self._build_slitmask(header, slits)
 
+    def _build_slitmask(self, header, slits):
+        """
+        Build :attr:`slitmask` from an already-parsed ``.msk`` design.
+
+        Factored out of :func:`get_slitmask` so that
+        :func:`get_maskdef_slitedges`, which also needs the raw ``header`` and
+        ``slits``, can reuse a single parse of the file instead of reading it
+        twice.
+
+        Parameters
+        ----------
+        header : :obj:`dict`
+            The mask-level header, as returned by :func:`read_mmirs_maskfile`.
+        slits : `astropy.table.Table`_
+            The per-slit design table, as returned by
+            :func:`read_mmirs_maskfile`.
+
+        Returns
+        -------
+        :class:`~pypeit.spectrographs.slitmask.SlitMask`
+            The slitmask, also stored in :attr:`slitmask`.
+        """
         arcsec_per_mm = 1.0 / header['arc2mm']
         n = len(slits)
 
@@ -587,7 +610,7 @@ class MMTMMIRSSpectrograph(RampSpectrograph, spectrograph.Spectrograph):
         platescale = self.get_detector_par(det=det)['platescale']
 
         header, slits = read_mmirs_maskfile(_fname)
-        self.get_slitmask(_fname)
+        self._build_slitmask(header, slits)
 
         arcsec_per_mm = 1.0 / header['arc2mm']
         scale = arcsec_per_mm / platescale / bin_spat        # px/mm
