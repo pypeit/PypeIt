@@ -18,8 +18,8 @@ Because the script reads the same pypeit file as the reduction, it uses the same
 reduction directory, ramp-fit directory, and dark frames (for the per-read noise
 calibration) automatically.
 
-Up-the-ramp fitting is currently only implemented for MMT/MMIRS, so the
-spectrograph must be one of :data:`RAMP_SPECTROGRAPHS`.
+Only spectrographs read out up-the-ramp (currently MMT/MMIRS) implement the
+required interface; any other spectrograph raises an error.
 
 .. include:: ../include/links.rst
 """
@@ -29,11 +29,6 @@ from __future__ import annotations
 import argparse
 
 from pypeit.scripts import scriptbase
-
-#: Spectrographs for which up-the-ramp preprocessing is implemented.  Adding a
-#: new instrument here is the only change needed to enable it for this script,
-#: provided the spectrograph implements the ramp-fitting interface used below.
-RAMP_SPECTROGRAPHS = ('mmt_mmirs',)
 
 
 class FitRamp(scriptbase.ScriptBase):
@@ -45,8 +40,8 @@ class FitRamp(scriptbase.ScriptBase):
                         'images (e-/s) ahead of a reduction, using the same '
                         'pypeit file that run_pypeit will use.  This step is '
                         'optional: run_pypeit fits any ramp it does not find '
-                        'already preprocessed.  Currently only supports: '
-                        f'{", ".join(RAMP_SPECTROGRAPHS)}.',
+                        'already preprocessed.  Only spectrographs read out '
+                        'up-the-ramp (currently MMT/MMIRS) are supported.',
             width=width,
             default_log_file=True)
         parser.add_argument('pypeit_file', type=str,
@@ -68,6 +63,7 @@ class FitRamp(scriptbase.ScriptBase):
 
         from pypeit import inputfiles, PypeItError
         from pypeit.metadata import PypeItMetaData
+        from pypeit.spectrographs.spectrograph import Spectrograph
 
         cls.init_log(args)
 
@@ -78,12 +74,13 @@ class FitRamp(scriptbase.ScriptBase):
         # parameters -- exactly as run_pypeit does, so the preprocessed images
         # land where the reduction will look for them.
         pypeitFile = inputfiles.PypeItFile.from_file(args.pypeit_file)
-        # Guard on the spectrograph name before reading any frame.
-        if pypeitFile.get_spectrograph().name not in RAMP_SPECTROGRAPHS:
+        # Reject spectrographs not read out up-the-ramp before reading any
+        # frame: they do not override the base preprocess_ramp_file() hook.
+        spec = pypeitFile.get_spectrograph()
+        if type(spec).preprocess_ramp_file is Spectrograph.preprocess_ramp_file:
             raise PypeItError(
-                'Up-the-ramp fitting is not implemented for '
-                f'{pypeitFile.get_spectrograph().name}; supported '
-                f'spectrographs: {", ".join(RAMP_SPECTROGRAPHS)}.')
+                f'{spec.name} is not read out up-the-ramp; there is nothing '
+                'for pypeit_fit_ramp to preprocess.')
 
         spec, par, _ = pypeitFile.get_pypeitpar()
         fitstbl = PypeItMetaData(spec, par, files=pypeitFile.filenames,

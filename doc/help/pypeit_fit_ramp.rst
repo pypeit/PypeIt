@@ -7,8 +7,8 @@
     
     Preprocess up-the-ramp cubes into 2D count-rate images (e-/s) ahead of a
     reduction, using the same pypeit file that run_pypeit will use. This step is
-    optional: run_pypeit fits any ramp it does not find already preprocessed.
-    Currently only supports: mmt_mmirs.
+    optional: run_pypeit fits any ramp it does not find already preprocessed. Only
+    spectrographs read out up-the-ramp (currently MMT/MMIRS) are supported.
     
     positional arguments:
       pypeit_file           PypeIt reduction file (see pypeit_setup). The raw frames
