@@ -37,9 +37,9 @@ can account for (dark current is only ~0.01 e-/s), and a genuinely white per-rea
 noise would not depend on the number of reads at all, so the per-read noise is
 dominated by correlated, low-frequency (1/f-like) noise that accumulates over the
 integration.  Because that component is not captured by a first-principles
-read-noise-plus-Poisson model, the per-read noise must be measured empirically --
-from darks, at the science exposure time -- which is why properly modeling the
-MMIRS noise relies on matched darks.
+read-noise-plus-Poisson model, the per-read noise must be measured empirically.
+This is why properly modeling the
+MMIRS noise relies on using darks that are matched to science exposure times.
 
 PypeIt calibrates it from the dark frames listed in the :ref:`pypeit_file`
 (include darks in your raw-data directory when running :ref:`pypeit_setup` to
