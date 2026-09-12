@@ -821,25 +821,6 @@ def test_get_rawimage_stale_sidecar_refits(tmp_path):
         'the refit sidecar must be fresh again for the changed raw cube'
 
 
-def test_get_rawimage_unwritable_fallback(tmp_path, monkeypatch):
-    """Sidecar write failure must warn and continue, not raise."""
-    path = _write_synth(synth_ramp_hdulist(6, rate=20., seed=84),
-                        tmp_path / 'sci.fits')
-
-    def read_only(*args, **kwargs):
-        raise OSError('read-only filesystem')
-    monkeypatch.setattr(mmt_mmirs, 'mmirs_write_rampfit', read_only)
-    spec = load_spectrograph('mmt_mmirs')
-    spec._ramp_output_dir = tmp_path
-    detpar, img, *_ = spec.get_rawimage(str(path), 1)
-    assert img.shape == (56, 56), \
-        'the ramp fit must still return a trimmed image when the sidecar write fails'
-    assert detpar['ronoise'][0] != 3.14, \
-        'the in-memory ramp fit must still update the effective read noise'
-    assert not mmt_mmirs.mmirs_rampfit_path(path, tmp_path).exists(), \
-        'a failed sidecar write must leave no sidecar file'
-
-
 def test_mmirs_ramp_script(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)          # keep the log file out of the repo
     raw = _write_synth(synth_ramp_hdulist(6, rate=20., seed=91),
@@ -868,30 +849,6 @@ def test_mmirs_ramp_script_skips_few_reads(tmp_path, monkeypatch):
     FitRamp.main(FitRamp.parse_args(['mmt_mmirs', str(raw)]))    # must not raise
     assert not mmt_mmirs.mmirs_rampfit_path(raw, tmp_path).exists(), \
         'a CDS frame (too few reads) must be skipped, writing no sidecar'
-
-
-def test_mmirs_ramp_script_continues_after_write_failure(tmp_path, monkeypatch):
-    """A write failure for one file must not abort the rest of the batch."""
-    monkeypatch.chdir(tmp_path)
-    raw1 = _write_synth(synth_ramp_hdulist(6, rate=20., seed=95),
-                        tmp_path / 'sci1.fits')
-    raw2 = _write_synth(synth_ramp_hdulist(6, rate=20., seed=96),
-                        tmp_path / 'sci2.fits')
-    bad_sidecar = mmt_mmirs.mmirs_rampfit_path(raw1, tmp_path)
-    real_write_rampfit = mmt_mmirs.mmirs_write_rampfit
-
-    def flaky_write_rampfit(rampfit_file, *args, **kwargs):
-        if Path(rampfit_file) == bad_sidecar:
-            raise OSError('disk full')
-        return real_write_rampfit(rampfit_file, *args, **kwargs)
-    monkeypatch.setattr(mmt_mmirs, 'mmirs_write_rampfit', flaky_write_rampfit)
-
-    FitRamp.main(FitRamp.parse_args(['mmt_mmirs', str(raw1), str(raw2), '--sig', '8.0',
-                                         '--odir', str(tmp_path)]))
-    assert not bad_sidecar.exists(), \
-        'the file whose sidecar write failed must have no sidecar'
-    assert mmt_mmirs.mmirs_rampfit_path(raw2, tmp_path).exists(), \
-        'a write failure on one file must not abort processing of the rest'
 
 
 def test_mmirs_ramp_script_dark(tmp_path, monkeypatch):

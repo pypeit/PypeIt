@@ -116,8 +116,7 @@ count-rate image (units of e-/s) is written to a ``RampFit`` directory
 inside the reduction directory (alongside ``Calibrations``, ``Science``,
 and ``QA``) the first time each cube is loaded, and reused on subsequent
 loads.  A preprocessed image is re-fit automatically if the raw cube's
-modification time changes; if the ``RampFit`` directory is not writable,
-the fit proceeds in memory with a warning and nothing is cached.
+modification time changes.
 
 The fitted images can also be created (and inspected) ahead of a reduction
 with:

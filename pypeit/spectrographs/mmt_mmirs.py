@@ -1091,15 +1091,14 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             rate, sig, eff_ronoise = self._ramp_fit_image(hdu, detector_par)
             detector_par['ronoise'] = np.atleast_1d(eff_ronoise)
             array = rate * exptime / gain
-            # Persist the fit so later loads (and other scripts) reuse it
+            # Persist the fit so later loads (and other scripts) reuse it.
+            # The RampFit directory lives in the reduction directory, which
+            # must be writable for the rest of the reduction anyway, so a
+            # write failure is left to propagate like any other output.
             rampfit_file = mmirs_rampfit_path(fil, redux_path)
-            try:
-                mmirs_write_rampfit(rampfit_file, rate, hdu, sig, eff_ronoise,
-                                    Path(fil).stat().st_mtime, raw_file=fil)
-                log.info(f'Wrote preprocessed ramp image: {rampfit_file}')
-            except OSError as e:
-                log.warning(f'Could not write preprocessed ramp image '
-                            f'{rampfit_file} ({e}); continuing without it.')
+            mmirs_write_rampfit(rampfit_file, rate, hdu, sig, eff_ronoise,
+                                Path(fil).stat().st_mtime, raw_file=fil)
+            log.info(f'Wrote preprocessed ramp image: {rampfit_file}')
         else:
             # Correlated double sampling (first minus last read)
             datasec = head1['DATASEC']

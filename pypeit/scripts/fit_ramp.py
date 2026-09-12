@@ -120,14 +120,9 @@ class FitRamp(scriptbase.ScriptBase):
                 detector_par = spec.get_detector_par(1, hdu=hdu)
                 rate, sig, eff_ronoise = spec._ramp_fit_image(hdu,
                                                               detector_par)
-                try:
-                    mmt_mmirs.mmirs_write_rampfit(rampfit_file, rate, hdu,
-                                                  sig, eff_ronoise,
-                                                  raw.stat().st_mtime,
-                                                  raw_file=raw)
-                except OSError as e:
-                    log.error(f'{raw.name}: could not write {rampfit_file} '
-                              f'({e}); skipping')
-                    continue
+                mmt_mmirs.mmirs_write_rampfit(rampfit_file, rate, hdu,
+                                              sig, eff_ronoise,
+                                              raw.stat().st_mtime,
+                                              raw_file=raw)
             log.info(f'{raw.name}: single-read noise {sig:.2f} e-, effective '
                      f'read noise {eff_ronoise:.2f} e- -> {rampfit_file}')
