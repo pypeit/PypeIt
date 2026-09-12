@@ -756,11 +756,11 @@ class MMTMMIRSSpectrograph(RampSpectrograph, spectrograph.Spectrograph):
 
             # Informational A/B (+prime) labels: within each nod side, distinct
             # dithoff values (rounded to 0.1") get a prime suffix by first
-            # appearance in time.
+            # appearance in time.  `side` (dithoff > midpoint) is the A/B split.
             dithpos = np.array(['None'] * idx.size, dtype=object)
-            for is_A, base in [(True, 'A'), (False, 'B')]:
-                grp = np.where(side == is_A)[0]
-                grp = grp[np.argsort(order.argsort()[grp])]   # time order
+            for base, on_side in [('A', side), ('B', np.logical_not(side))]:
+                # local indices on this nod side, in time (mjd) order
+                grp = order[on_side[order]]
                 seen = []
                 for g in grp:
                     val = round(float(dithoff[g]), 1)
