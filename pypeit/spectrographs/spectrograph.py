@@ -156,6 +156,15 @@ class Spectrograph:
     Defines the allowed extensions for the input fits files.
     """
 
+    is_up_the_ramp = False
+    """
+    Flag that this spectrograph is read out up-the-ramp.  False on the base
+    class; spectrographs read out up-the-ramp set it True by mixing in
+    :class:`~pypeit.spectrographs.ramp_spectrograph.RampSpectrograph`, which
+    supplies the ramp-fitting implementation.  ``pypeit_fit_ramp`` and the
+    reduction use this flag to detect ramp support.
+    """
+
     def __init__(self):
         self.dispname = None
         self.rawdatasec_img = None
@@ -2115,7 +2124,9 @@ class Spectrograph:
         including during setup when the metadata may be incomplete (e.g.,
         frame types may not have been assigned yet).  Implementations must
         therefore be cheap and idempotent: record what is needed and defer
-        any expensive processing.  The base class does nothing.
+        any expensive processing.  The base class does nothing; spectrographs
+        read out up-the-ramp record the reduction directory and dark frames
+        via :class:`~pypeit.spectrographs.ramp_spectrograph.RampSpectrograph`.
 
         Args:
             fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
@@ -2128,11 +2139,12 @@ class Spectrograph:
         """
         Fit one raw up-the-ramp cube and cache its 2D count-rate image.
 
-        Only spectrographs read out up-the-ramp (currently MMT/MMIRS)
-        implement this; it backs the ``pypeit_fit_ramp`` script and mirrors
-        the fit that :func:`get_rawimage` performs during a reduction, writing
-        the preprocessed image where the reduction will find and reuse it.  The
-        base class does not support ramp fitting.
+        Only spectrographs read out up-the-ramp support this; they mix in
+        :class:`~pypeit.spectrographs.ramp_spectrograph.RampSpectrograph`,
+        which supplies the implementation (see
+        :func:`~pypeit.spectrographs.ramp_spectrograph.RampSpectrograph.preprocess_ramp_file`),
+        and report :attr:`is_up_the_ramp` True.  The base class does not
+        support ramp fitting.
 
         Args:
             raw_file (:obj:`str`, `Path`_):
@@ -2148,8 +2160,7 @@ class Spectrograph:
 
         Returns:
             `Path`_: The path to the preprocessed image, or None if the frame
-            was skipped (already up to date, already preprocessed, or too few
-            reads).
+            was skipped.
         """
         raise NotImplementedError(
             f'{self.name} is not read out up-the-ramp; '

@@ -63,7 +63,6 @@ class FitRamp(scriptbase.ScriptBase):
 
         from pypeit import inputfiles, PypeItError
         from pypeit.metadata import PypeItMetaData
-        from pypeit.spectrographs.spectrograph import Spectrograph
 
         cls.init_log(args)
 
@@ -75,9 +74,9 @@ class FitRamp(scriptbase.ScriptBase):
         # land where the reduction will look for them.
         pypeitFile = inputfiles.PypeItFile.from_file(args.pypeit_file)
         # Reject spectrographs not read out up-the-ramp before reading any
-        # frame: they do not override the base preprocess_ramp_file() hook.
+        # frame: they do not implement the ramp-fitting hooks.
         spec = pypeitFile.get_spectrograph()
-        if type(spec).preprocess_ramp_file is Spectrograph.preprocess_ramp_file:
+        if not spec.is_up_the_ramp:
             raise PypeItError(
                 f'{spec.name} is not read out up-the-ramp; there is nothing '
                 'for pypeit_fit_ramp to preprocess.')

@@ -8,6 +8,7 @@ from astropy.io import fits
 from astropy.table import Table
 
 from pypeit import log
+from pypeit.core import ramp
 from pypeit.ext.fitramp import fitramp
 from pypeit.metadata import PypeItMetaData
 from pypeit.par import pypeitpar
@@ -83,8 +84,8 @@ def test_calibrate_sigma_recovers_truth():
     reads, head1 = mmt_mmirs.mmirs_load_ramp(hdu)
     reads *= gain                              # ADU -> electrons
     covar = fitramp.Covar([grptime * (i + 1) for i in range(ngroups)])
-    diffs = mmt_mmirs.mmirs_ramp_diffs(reads, covar)
-    sig_cal = mmt_mmirs.mmirs_calibrate_sigma(diffs, covar)
+    diffs = ramp.ramp_diffs(reads, covar)
+    sig_cal = ramp.calibrate_sigma(diffs, covar)
     assert np.abs(sig_cal - sig) < 1.5, \
         f'calibrated read noise {sig_cal} must recover the injected sigma {sig}'
 
@@ -98,15 +99,15 @@ def test_calibrate_sigma_returns_uncertainty():
     reads, head1 = mmt_mmirs.mmirs_load_ramp(hdu)
     reads *= gain
     covar = fitramp.Covar([grptime * (i + 1) for i in range(ngroups)])
-    diffs = mmt_mmirs.mmirs_ramp_diffs(reads, covar)
-    sig_cal, sig_err = mmt_mmirs.mmirs_calibrate_sigma(diffs, covar,
+    diffs = ramp.ramp_diffs(reads, covar)
+    sig_cal, sig_err = ramp.calibrate_sigma(diffs, covar,
                                                        return_err=True)
     assert np.abs(sig_cal - sig) < 1.5, \
         f'calibrated read noise {sig_cal} must recover the injected sigma {sig}'
     assert np.isfinite(sig_err) and sig_err > 0., \
         f'the bootstrap uncertainty must be finite and positive, got {sig_err}'
     # Deterministic: same seed -> identical uncertainty.
-    _, sig_err2 = mmt_mmirs.mmirs_calibrate_sigma(diffs, covar, return_err=True)
+    _, sig_err2 = ramp.calibrate_sigma(diffs, covar, return_err=True)
     assert sig_err == sig_err2, \
         'the uncertainty must be deterministic for a fixed seed'
 
@@ -118,8 +119,8 @@ def test_fit_ramp_recovers_rate():
     reads, head1 = mmt_mmirs.mmirs_load_ramp(hdu)
     reads *= gain
     covar = fitramp.Covar([grptime * (i + 1) for i in range(ngroups)])
-    diffs = mmt_mmirs.mmirs_ramp_diffs(reads, covar)
-    countrate = mmt_mmirs.mmirs_fit_ramp(diffs, covar, sig)
+    diffs = ramp.ramp_diffs(reads, covar)
+    countrate = ramp.fit_ramp(diffs, covar, sig)
     interior = countrate[10:-10, 10:-10]
     assert np.abs(np.median(interior) - rate) < 1.0, \
         f'fitted count rate {np.median(interior)} must recover the injected {rate}'
@@ -136,15 +137,15 @@ def test_fit_ramp_threaded_matches_serial():
     reads, head1 = mmt_mmirs.mmirs_load_ramp(hdu)
     reads *= gain
     covar = fitramp.Covar([grptime * (i + 1) for i in range(ngroups)])
-    diffs = mmt_mmirs.mmirs_ramp_diffs(reads, covar)
+    diffs = ramp.ramp_diffs(reads, covar)
 
-    serial = mmt_mmirs.mmirs_fit_ramp(diffs, covar, 8., workers=1)
-    threaded = mmt_mmirs.mmirs_fit_ramp(diffs, covar, 8., workers=4)
+    serial = ramp.fit_ramp(diffs, covar, 8., workers=1)
+    threaded = ramp.fit_ramp(diffs, covar, 8., workers=4)
     assert np.array_equal(serial, threaded, equal_nan=True), \
         'threaded, chunked ramp fitting must be numerically identical to serial'
 
-    sig_serial = mmt_mmirs.mmirs_calibrate_sigma(diffs, covar, workers=1, nrows=40)
-    sig_threaded = mmt_mmirs.mmirs_calibrate_sigma(diffs, covar, workers=4, nrows=40)
+    sig_serial = ramp.calibrate_sigma(diffs, covar, workers=1, nrows=40)
+    sig_threaded = ramp.calibrate_sigma(diffs, covar, workers=4, nrows=40)
     assert sig_serial == sig_threaded, \
         'threaded noise calibration must match the serial result exactly'
 
@@ -161,13 +162,13 @@ def test_ramp_fit_forwards_configured_chunk_rows(monkeypatch):
     def fake_fit(diffs, covar, sig, workers=None, nb=16):
         seen['nb'] = nb
         return np.zeros(diffs.shape[1:])
-    monkeypatch.setattr(mmt_mmirs, 'mmirs_fit_ramp', fake_fit)
+    monkeypatch.setattr(ramp, 'fit_ramp', fake_fit)
 
     hdu = synth_ramp_hdulist(6, seed=31)
     detector_par = spec.get_detector_par(1, hdu=hdu)
     spec._ramp_fit_image(hdu, detector_par)
     assert seen['nb'] == 7, \
-        'the configured ramp_fit_chunk_rows must be forwarded to mmirs_fit_ramp'
+        'the configured ramp_fit_chunk_rows must be forwarded to ramp.fit_ramp'
 
 
 def test_effective_ronoise_formula():
@@ -182,7 +183,7 @@ def test_effective_ronoise_formula():
                                countrateguess=np.zeros(npix))
     total_exp = grptime * (ngroups - 1)
     measured = np.std(result.countrate * total_exp)
-    expected = mmt_mmirs.mmirs_effective_ronoise(sig, ngroups)
+    expected = ramp.effective_ronoise(sig, ngroups)
     assert np.abs(measured / expected - 1.) < 0.06, \
         f'the effective read-noise formula ({expected}) must match the ' \
         f'Monte-Carlo total-count noise ({measured})'
@@ -288,7 +289,7 @@ def test_ramp_sigma_from_dark_and_cached(tmp_path):
     with fits.open(sci) as hdu:
         reads, head1 = mmt_mmirs.mmirs_load_ramp(hdu)
     covar = fitramp.Covar([grptime * (i + 1) for i in range(ngroups)])
-    diffs = mmt_mmirs.mmirs_ramp_diffs(reads * gain, covar)
+    diffs = ramp.ramp_diffs(reads * gain, covar)
 
     sig = spec.get_ramp_sigma(diffs, covar)
     assert np.abs(sig - sig_true) < 1.5, \
@@ -316,7 +317,7 @@ def test_ramp_sigma_weighted_mean_over_darks(tmp_path, monkeypatch):
 
     def fake_calib(diffs, covar, **kwargs):
         return controlled[diffs.shape[0]]
-    monkeypatch.setattr(mmt_mmirs, 'mmirs_calibrate_sigma', fake_calib)
+    monkeypatch.setattr(ramp, 'calibrate_sigma', fake_calib)
 
     covar = fitramp.Covar([2. * (i + 1) for i in range(6)])
     sig = spec.get_ramp_sigma(np.zeros((5, 4, 4)), covar)
@@ -342,7 +343,7 @@ def test_ramp_sigma_reports_max_of_ivar_err_and_sem(tmp_path, monkeypatch):
 
     def fake_calib(diffs, covar, **kwargs):
         return controlled[diffs.shape[0]]
-    monkeypatch.setattr(mmt_mmirs, 'mmirs_calibrate_sigma', fake_calib)
+    monkeypatch.setattr(ramp, 'calibrate_sigma', fake_calib)
 
     infos = []
     monkeypatch.setattr(log, 'info',
@@ -401,7 +402,7 @@ def test_ramp_sigma_ignores_darks_with_too_few_reads(tmp_path, monkeypatch):
     def fake_calib(diffs, covar, **kwargs):
         seen.append(diffs.shape[0])
         return (7.0, 1.0)
-    monkeypatch.setattr(mmt_mmirs, 'mmirs_calibrate_sigma', fake_calib)
+    monkeypatch.setattr(ramp, 'calibrate_sigma', fake_calib)
 
     covar = fitramp.Covar([2. * (i + 1) for i in range(6)])
     sig = spec.get_ramp_sigma(np.zeros((5, 4, 4)), covar)
@@ -427,7 +428,7 @@ def test_ramp_sigma_matches_dark_exptime_to_science(tmp_path, monkeypatch):
     def fake_calib(diffs, covar, **kwargs):
         seen.append(diffs.shape[0])
         return (9.0, 1.0)
-    monkeypatch.setattr(mmt_mmirs, 'mmirs_calibrate_sigma', fake_calib)
+    monkeypatch.setattr(ramp, 'calibrate_sigma', fake_calib)
 
     covar = fitramp.Covar([2. * (i + 1) for i in range(20)])
     sig = spec.get_ramp_sigma(np.zeros((19, 4, 4)), covar, exptime=2. * 19)
@@ -452,7 +453,7 @@ def test_ramp_sigma_no_exptime_match_falls_back(tmp_path):
 
     reads, head1 = mmt_mmirs.mmirs_load_ramp(fits.open(sci))
     covar = fitramp.Covar([grptime * (i + 1) for i in range(15)])
-    diffs = mmt_mmirs.mmirs_ramp_diffs(reads * gain, covar)
+    diffs = ramp.ramp_diffs(reads * gain, covar)
 
     sig = spec.get_ramp_sigma(diffs, covar, exptime=grptime * 14)
     assert np.abs(sig - sig_true) < 1.5, \
@@ -468,7 +469,7 @@ def test_ramp_sigma_floored_at_header_rdnoise(tmp_path, monkeypatch):
     dark = _write_synth(synth_ramp_hdulist(12, imagetyp='dark', seed=262),
                         tmp_path / 'dark.fits')
     spec, _ = _metadata_for([sci, dark], ['object', 'dark'])
-    monkeypatch.setattr(mmt_mmirs, 'mmirs_calibrate_sigma',
+    monkeypatch.setattr(ramp, 'calibrate_sigma',
                         lambda d, c, **k: (2.0, 1.0))     # below the 3.14 floor
 
     covar = fitramp.Covar([2. * (i + 1) for i in range(12)])
@@ -498,7 +499,7 @@ def test_ramp_sigma_selfcal_fallback(tmp_path):
                              grptime=grptime, seed=31)
     reads, head1 = mmt_mmirs.mmirs_load_ramp(hdu)
     covar = fitramp.Covar([grptime * (i + 1) for i in range(ngroups)])
-    diffs = mmt_mmirs.mmirs_ramp_diffs(reads * gain, covar)
+    diffs = ramp.ramp_diffs(reads * gain, covar)
 
     spec = load_spectrograph('mmt_mmirs')          # fresh: no darks recorded
     sig = spec.get_ramp_sigma(diffs, covar)
@@ -516,7 +517,7 @@ def test_ramp_sigma_few_groups_uses_published_guess(tmp_path):
                              grptime=grptime, seed=131)
     reads, head1 = mmt_mmirs.mmirs_load_ramp(hdu)
     covar = fitramp.Covar([grptime * (i + 1) for i in range(ngroups)])
-    diffs = mmt_mmirs.mmirs_ramp_diffs(reads * gain, covar)
+    diffs = ramp.ramp_diffs(reads * gain, covar)
 
     spec = load_spectrograph('mmt_mmirs')          # fresh: no darks recorded
     sig = spec.get_ramp_sigma(diffs, covar)
@@ -543,7 +544,7 @@ def test_ramp_sigma_missing_dark_falls_back(tmp_path):
     with fits.open(sci) as hdu:
         reads, head1 = mmt_mmirs.mmirs_load_ramp(hdu)
     covar = fitramp.Covar([grptime * (i + 1) for i in range(ngroups)])
-    diffs = mmt_mmirs.mmirs_ramp_diffs(reads * gain, covar)
+    diffs = ramp.ramp_diffs(reads * gain, covar)
 
     sig = spec.get_ramp_sigma(diffs, covar)
     assert np.abs(sig - sig_true) < 1.5, \
@@ -593,7 +594,7 @@ def test_get_rawimage_cds_path(tmp_path, ngroups):
     assert detpar['ronoise'][0] == 3.14, \
         'the CDS path must keep the header/default read noise'
     # CDS frames never get a preprocessed sidecar
-    assert not mmt_mmirs.mmirs_rampfit_path(path, tmp_path).exists(), \
+    assert not ramp.rampfit_path(path, tmp_path).exists(), \
         'a CDS frame must not produce a RampFit sidecar'
 
 
@@ -608,11 +609,11 @@ def test_findobj_trace_defaults():
 
 
 def test_rampfit_path():
-    p = mmt_mmirs.mmirs_rampfit_path('/data/raw/sci.0001.fits', '/data/rdx')
+    p = ramp.rampfit_path('/data/raw/sci.0001.fits', '/data/rdx')
     assert p == Path('/data/rdx/RampFit/sci.0001.fits'), \
         'the sidecar path must default to <redux>/RampFit/<raw basename>'
     # A custom directory name (from the [rdx] rampfit_dir parameter) is honored
-    p = mmt_mmirs.mmirs_rampfit_path('/data/raw/sci.0001.fits', '/data/rdx',
+    p = ramp.rampfit_path('/data/raw/sci.0001.fits', '/data/rdx',
                                      'Ramps')
     assert p == Path('/data/rdx/Ramps/sci.0001.fits'), \
         'a custom rampfit_dir must replace the RampFit subdirectory name'
@@ -637,9 +638,9 @@ def test_get_rawimage_honors_custom_rampfit_dir(tmp_path):
     spec._ramp_output_dir = tmp_path
     spec._rampfit_dir = 'Ramps'
     spec.get_rawimage(str(path), 1)
-    assert mmt_mmirs.mmirs_rampfit_path(path, tmp_path, 'Ramps').exists(), \
+    assert ramp.rampfit_path(path, tmp_path, 'Ramps').exists(), \
         'the sidecar must be written to the configured rampfit_dir'
-    assert not mmt_mmirs.mmirs_rampfit_path(path, tmp_path).exists(), \
+    assert not ramp.rampfit_path(path, tmp_path).exists(), \
         'no sidecar must land in the default RampFit dir when overridden'
 
 
@@ -651,12 +652,12 @@ def test_write_rampfit_roundtrip(tmp_path):
     with fits.open(raw) as hdu:
         detpar = spec.get_detector_par(1, hdu=hdu)
         rate, sig, eff = spec._ramp_fit_image(hdu, detpar)
-        sidecar = mmt_mmirs.mmirs_rampfit_path(raw, tmp_path)
-        mmt_mmirs.mmirs_write_rampfit(sidecar, rate, hdu, sig, eff,
+        sidecar = ramp.rampfit_path(raw, tmp_path)
+        ramp.write_rampfit(sidecar, rate, hdu, sig, eff, ngroups,
                                       raw.stat().st_mtime)
     assert sidecar == tmp_path / 'RampFit' / 'sci.fits', \
         'the sidecar must land in the RampFit subdir under the redux path'
-    assert sidecar.exists(), 'mmirs_write_rampfit must create the sidecar file'
+    assert sidecar.exists(), 'ramp.write_rampfit must create the sidecar file'
     with fits.open(sidecar) as shdu:
         assert shdu[0].header['RAMPFIT'], 'the sidecar must be flagged RAMPFIT'
         assert shdu[0].header['NGROUPS'] == ngroups, \
@@ -676,12 +677,12 @@ def test_write_rampfit_roundtrip(tmp_path):
         assert shdu[1].header['EXPTIME'] == 10., \
             'EXPTIME must be preserved on the sidecar'
         np.testing.assert_allclose(shdu[1].data, rate, rtol=1e-5, atol=1e-3)
-    assert mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw), \
+    assert ramp.rampfit_fresh(sidecar, raw), \
         'a just-written sidecar must be fresh for its raw source'
     # Bumping the raw mtime makes the sidecar stale
     st = raw.stat()
     os.utime(raw, (st.st_atime, st.st_mtime + 10.))
-    assert not mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw), \
+    assert not ramp.rampfit_fresh(sidecar, raw), \
         'bumping the raw mtime must make the sidecar stale'
 
 
@@ -705,18 +706,18 @@ def test_rampfit_fresh_rejects_mismatched_source(tmp_path):
     with fits.open(raw1) as hdu:
         detpar = spec.get_detector_par(1, hdu=hdu)
         rate, sig, eff = spec._ramp_fit_image(hdu, detpar)
-        sidecar = mmt_mmirs.mmirs_rampfit_path(raw1, tmp_path)
-        mmt_mmirs.mmirs_write_rampfit(sidecar, rate, hdu, sig, eff,
+        sidecar = ramp.rampfit_path(raw1, tmp_path)
+        ramp.write_rampfit(sidecar, rate, hdu, sig, eff, ngroups,
                                       raw1.stat().st_mtime, raw_file=raw1)
     # Both cubes map to the same sidecar path (identical basename).
-    assert mmt_mmirs.mmirs_rampfit_path(raw2, tmp_path) == sidecar, \
+    assert ramp.rampfit_path(raw2, tmp_path) == sidecar, \
         'same-named raw cubes map to the same sidecar path'
     assert fits.getval(sidecar, 'RAWPATH') == str(raw1.resolve()), \
         'the sidecar must record the resolved path of its source cube'
     # Fresh for its own source, stale for the same-named cube elsewhere.
-    assert mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw1), \
+    assert ramp.rampfit_fresh(sidecar, raw1), \
         'the sidecar must be fresh for the cube it was built from'
-    assert not mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw2), \
+    assert not ramp.rampfit_fresh(sidecar, raw2), \
         'RAWPATH must distinguish a same-named cube from another directory'
 
 
@@ -729,14 +730,14 @@ def test_write_rampfit_atomic_on_failure(tmp_path, monkeypatch):
     with fits.open(raw) as hdu:
         detpar = spec.get_detector_par(1, hdu=hdu)
         rate, sig, eff = spec._ramp_fit_image(hdu, detpar)
-        sidecar = mmt_mmirs.mmirs_rampfit_path(raw, tmp_path)
+        sidecar = ramp.rampfit_path(raw, tmp_path)
 
         def boom(self, *args, **kwargs):
             raise OSError('disk full')
         monkeypatch.setattr(fits.HDUList, 'writeto', boom)
 
         with pytest.raises(OSError):
-            mmt_mmirs.mmirs_write_rampfit(sidecar, rate, hdu, sig, eff,
+            ramp.write_rampfit(sidecar, rate, hdu, sig, eff, ngroups,
                                           raw.stat().st_mtime)
     assert not sidecar.exists(), \
         'a failed write must not leave a partial sidecar'
@@ -747,14 +748,14 @@ def test_write_rampfit_atomic_on_failure(tmp_path, monkeypatch):
 
 def test_rampfit_fresh_missing_or_invalid(tmp_path):
     raw = _write_synth(synth_ramp_hdulist(4, seed=72), tmp_path / 'sci.fits')
-    sidecar = mmt_mmirs.mmirs_rampfit_path(raw, tmp_path)
+    sidecar = ramp.rampfit_path(raw, tmp_path)
     # No sidecar
-    assert not mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw), \
+    assert not ramp.rampfit_fresh(sidecar, raw), \
         'a missing sidecar must be reported as not fresh'
     # Sidecar without RAWMTIME card
     sidecar.parent.mkdir()
     fits.PrimaryHDU().writeto(sidecar)
-    assert not mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw), \
+    assert not ramp.rampfit_fresh(sidecar, raw), \
         'a sidecar lacking the freshness cards must be reported as not fresh'
 
 
@@ -767,11 +768,11 @@ def test_rampfit_fresh_missing_raw_file(tmp_path):
     with fits.open(raw) as hdu:
         detpar = spec.get_detector_par(1, hdu=hdu)
         rate, sig, eff = spec._ramp_fit_image(hdu, detpar)
-        sidecar = mmt_mmirs.mmirs_rampfit_path(raw, tmp_path)
-        mmt_mmirs.mmirs_write_rampfit(sidecar, rate, hdu, sig, eff,
+        sidecar = ramp.rampfit_path(raw, tmp_path)
+        ramp.write_rampfit(sidecar, rate, hdu, sig, eff, ngroups,
                                       raw.stat().st_mtime)
     raw.unlink()
-    assert mmt_mmirs.mmirs_rampfit_fresh(sidecar, raw) is False, \
+    assert ramp.rampfit_fresh(sidecar, raw) is False, \
         'a sidecar whose raw source is gone must be reported as not fresh'
 
 
@@ -788,16 +789,16 @@ def test_get_rawimage_writes_and_reuses_sidecar(tmp_path, monkeypatch):
                         tmp_path / 'sci.fits')
     spec = load_spectrograph('mmt_mmirs')
     detpar1, img1, hdu1, exp1, _, _ = spec.get_rawimage(str(path), 1)
-    sidecar = mmt_mmirs.mmirs_rampfit_path(path, tmp_path)
+    sidecar = ramp.rampfit_path(path, tmp_path)
     assert sidecar.exists(), \
         'the first ramp load must write a sidecar (cwd fallback)'
-    assert mmt_mmirs.mmirs_rampfit_fresh(sidecar, path), \
+    assert ramp.rampfit_fresh(sidecar, path), \
         'the freshly-written sidecar must be fresh for its raw source'
 
     # Second load must come from the sidecar: make refitting impossible
     def boom(*args, **kwargs):
         raise AssertionError('ramp was re-fit despite a fresh sidecar')
-    monkeypatch.setattr(mmt_mmirs, 'mmirs_fit_ramp', boom)
+    monkeypatch.setattr(ramp, 'fit_ramp', boom)
     spec2 = load_spectrograph('mmt_mmirs')
     detpar2, img2, hdu2, exp2, _, _ = spec2.get_rawimage(str(path), 1)
     assert exp2 == exp1, 'the reused sidecar must yield the same exposure time'
@@ -818,11 +819,11 @@ def test_get_rawimage_direct_preprocessed(tmp_path, monkeypatch):
     spec = load_spectrograph('mmt_mmirs')
     spec._ramp_output_dir = tmp_path
     _, img1, *_ = spec.get_rawimage(str(path), 1)
-    sidecar = mmt_mmirs.mmirs_rampfit_path(path, tmp_path)
+    sidecar = ramp.rampfit_path(path, tmp_path)
 
     def boom(*args, **kwargs):
         raise AssertionError('ramp was re-fit for a preprocessed input')
-    monkeypatch.setattr(mmt_mmirs, 'mmirs_fit_ramp', boom)
+    monkeypatch.setattr(ramp, 'fit_ramp', boom)
     spec2 = load_spectrograph('mmt_mmirs')
     detpar2, img2, hdu2, exp2, _, _ = spec2.get_rawimage(str(sidecar), 1)
     np.testing.assert_allclose(img2, img1, rtol=1e-4, atol=1e-3)
@@ -837,7 +838,7 @@ def test_get_rawimage_stale_sidecar_refits(tmp_path):
     spec = load_spectrograph('mmt_mmirs')
     spec._ramp_output_dir = tmp_path
     spec.get_rawimage(str(path), 1)
-    sidecar = mmt_mmirs.mmirs_rampfit_path(path, tmp_path)
+    sidecar = ramp.rampfit_path(path, tmp_path)
     old_mtime = fits.getval(sidecar, 'RAWMTIME')
 
     # Raw cube "changes": sidecar must be refit and rewritten
@@ -848,7 +849,7 @@ def test_get_rawimage_stale_sidecar_refits(tmp_path):
     spec2.get_rawimage(str(path), 1)
     assert fits.getval(sidecar, 'RAWMTIME') != old_mtime, \
         'a stale sidecar must be refit and its RAWMTIME updated'
-    assert mmt_mmirs.mmirs_rampfit_fresh(sidecar, path), \
+    assert ramp.rampfit_fresh(sidecar, path), \
         'the refit sidecar must be fresh again for the changed raw cube'
 
 
