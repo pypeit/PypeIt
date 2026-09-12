@@ -1184,6 +1184,32 @@ class Spectrograph:
 
         pass
 
+    def config_specific_setup_lines(self, subtbl, paths):
+        """
+        Return configuration lines to bake into a setup's PypeIt file.
+
+        This hook is called once per setup by
+        :func:`~pypeit.metadata.PypeItMetaData.write_pypeit`, giving a
+        spectrograph the chance to add configuration-specific parameters that
+        depend on the raw data itself -- for example, the location of a
+        mask-design file discovered next to the frames -- directly into the
+        generated PypeIt file, instead of re-deriving them at run time.  The
+        returned lines are merged into the setup's configuration block, so the
+        user can see and edit them.
+
+        Args:
+            subtbl (`astropy.table.Table`_):
+                The metadata rows belonging to this setup.
+            paths (:obj:`list`):
+                The unique raw-data directories for this setup.
+
+        Returns:
+            :obj:`list`: Configuration lines (formatted as they would appear in
+            a PypeIt file) to merge into this setup's configuration.  The
+            base-class implementation returns an empty list.
+        """
+        return []
+
     def get_comb_group(self, fitstbl):
         """
         Automatically assign combination groups and background images by parsing

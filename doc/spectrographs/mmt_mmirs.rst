@@ -236,7 +236,10 @@ directory, PypeIt automatically:
 - force-extracts designed targets that were not auto-detected, at their
   predicted positions.
 
-This is equivalent to setting the following in the :ref:`pypeit_file`:
+These parameters are written directly into the generated :ref:`pypeit_file`
+(with an absolute ``maskdesign_filename``), so the whole reduction flows from
+the file — you can review the choice, point it at a different mask, or delete
+the block to fall back to generic slit tracing:
 
 .. code-block:: ini
 

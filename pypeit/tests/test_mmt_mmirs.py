@@ -1502,56 +1502,80 @@ def test_dithoff_wraps_ra_across_zero():
         f'here), got {dithoff}'
 
 
-def test_config_specific_par_enables_maskdesign(tmp_path, monkeypatch):
+def test_config_specific_setup_lines_enables_maskdesign(tmp_path):
+    # pypeit_setup discovers a <decker>.msk next to the raw data and bakes the
+    # mask-design parameters into the generated PypeIt file.
     import shutil
-    from pypeit.spectrographs.mmt_mmirs import MMTMMIRSSpectrograph
-    spec = MMTMMIRSSpectrograph()
-    # place a .msk named by the mask label next to a fake sci file
-    shutil.copy(MSK, tmp_path / 'nep.as1.msk')
-    scifile = tmp_path / 'nep.as1_mos.1822.fits'
-    scifile.write_text('')  # presence only
-    monkeypatch.setattr(spec, 'get_meta_value',
-                        lambda inp, key, **kw: 'nep.as1' if key == 'decker' else None)
-    par = spec.config_specific_par(str(scifile))
-    assert par['calibrations']['slitedges']['use_maskdesign'] is True, \
-        'a discovered .msk must enable mask-design slit edges'
-    assert Path(par['calibrations']['slitedges']['maskdesign_filename']).name == 'nep.as1.msk', \
-        'the mask-design filename must point at the discovered .msk'
-    assert par['reduce']['slitmask']['assign_obj'] is True, \
-        'mask-design mode must enable object assignment'
-    assert par['reduce']['slitmask']['extract_missing_objs'] is True, \
-        'mask-design mode must enable extraction of missing objects'
-
-
-def test_config_specific_par_enables_maskdesign_from_table_row(tmp_path, monkeypatch):
-    # The full run_pypeit path passes a single-row Table whose 'filename'
-    # column holds the full path (no 'directory' column). Discovery must
-    # derive the raw-data directory from that filename.
-    import shutil
+    import configobj
     from astropy.table import Table as _Table
     from pypeit.spectrographs.mmt_mmirs import MMTMMIRSSpectrograph
     spec = MMTMMIRSSpectrograph()
+    # place a .msk named by the mask label in the raw-data directory
     shutil.copy(MSK, tmp_path / 'nep.as1.msk')
-    scifile = tmp_path / 'nep.as1_mos.1822.fits'
-    scifile.write_text('')
-    row = _Table()
-    row['filename'] = [str(scifile)]
-    monkeypatch.setattr(spec, 'get_meta_value',
-                        lambda inp, key, **kw: 'nep.as1' if key == 'decker' else None)
-    par = spec.config_specific_par(row)
-    assert par['calibrations']['slitedges']['use_maskdesign'] is True, \
-        'a .msk discovered from a Table-row filename must enable mask-design edges'
-    assert Path(par['calibrations']['slitedges']['maskdesign_filename']).name == 'nep.as1.msk', \
+    subtbl = _Table({'decker': ['nep.as1'], 'filename': ['nep.as1_mos.1822.fits']})
+    lines = spec.config_specific_setup_lines(subtbl, [str(tmp_path)])
+    assert lines, 'a discovered .msk must yield config lines for the PypeIt file'
+    cfg = configobj.ConfigObj(lines)
+    assert cfg['calibrations']['slitedges']['use_maskdesign'] == 'True', \
+        'a discovered .msk must enable mask-design slit edges'
+    assert Path(cfg['calibrations']['slitedges']['maskdesign_filename']).name == 'nep.as1.msk', \
         'the mask-design filename must point at the discovered .msk'
+    assert Path(cfg['calibrations']['slitedges']['maskdesign_filename']).is_absolute(), \
+        'the baked maskdesign_filename must be an absolute path'
+    assert cfg['reduce']['slitmask']['assign_obj'] == 'True', \
+        'mask-design mode must enable object assignment'
+    assert cfg['reduce']['slitmask']['extract_missing_objs'] == 'True', \
+        'mask-design mode must enable extraction of missing objects'
+    assert cfg['reduce']['slitmask']['use_alignbox'] == 'True', \
+        'mask-design mode must enable alignment-box use'
 
 
-def test_config_specific_par_no_maskfile_is_noop(tmp_path, monkeypatch):
+def test_config_specific_setup_lines_no_maskfile_is_noop(tmp_path):
+    # No sidecar .msk in the raw-data directory => no mask-design lines, so the
+    # reduction falls back to generic slit tracing.
+    from astropy.table import Table as _Table
     from pypeit.spectrographs.mmt_mmirs import MMTMMIRSSpectrograph
     spec = MMTMMIRSSpectrograph()
-    scifile = tmp_path / 'nep.as1_mos.1822.fits'
-    scifile.write_text('')
-    monkeypatch.setattr(spec, 'get_meta_value',
-                        lambda inp, key, **kw: 'nep.as1' if key == 'decker' else None)
-    par = spec.config_specific_par(str(scifile))
+    subtbl = _Table({'decker': ['nep.as1'], 'filename': ['nep.as1_mos.1822.fits']})
+    assert spec.config_specific_setup_lines(subtbl, [str(tmp_path)]) == [], \
+        'with no .msk present, no mask-design config lines must be emitted'
+
+
+def test_config_specific_par_does_not_probe_for_maskfile():
+    # config_specific_par no longer touches the filesystem for mask design;
+    # discovery moved to config_specific_setup_lines (pypeit_setup time).
+    spec = load_spectrograph('mmt_mmirs')
+    h1 = fits.Header()
+    h1['DISPERSE'] = 'HK'
+    h1['FILTER'] = 'HK3'
+    par = spec.config_specific_par([fits.Header(), h1])
     assert par['calibrations']['slitedges']['use_maskdesign'] is False, \
-        'with no .msk present, mask-design slit edges must stay disabled'
+        'config_specific_par must not enable mask design; that is now a setup-time decision'
+    assert par['calibrations']['slitedges']['maskdesign_filename'] is None, \
+        'config_specific_par must not set a mask-design filename'
+
+
+def test_write_pypeit_bakes_maskdesign_lines(tmp_path):
+    # End-to-end: pypeit_setup finds the <decker>.msk next to the raw data and
+    # writes the mask-design parameters into the generated PypeIt file, so the
+    # whole reduction flows from the file with no run-time filesystem probing.
+    from pypeit import inputfiles
+    # synthetic MMIRS ramp frame; its decker (header APERTURE) is '1pixel-long'
+    _write_synth(synth_ramp_hdulist(4, seed=7), tmp_path / 'sci.fits')
+    # sidecar mask named by the decker, sitting next to the raw data
+    _write_synthetic_msk(tmp_path / '1pixel-long.msk')
+
+    setup = PypeItSetup.from_file_root(tmp_path, 'mmt_mmirs')
+    _, _, fitstbl = setup.run(setup_only=True)
+    out = tmp_path / 'out'
+    files = fitstbl.write_pypeit(output_path=str(out), cfg_lines=setup.user_cfg,
+                                 configs='all')
+
+    cfg = inputfiles.PypeItFile.from_file(files[0]).config
+    assert cfg['calibrations']['slitedges']['use_maskdesign'] == 'True', \
+        'the generated PypeIt file must enable mask design when a .msk is present'
+    baked = Path(cfg['calibrations']['slitedges']['maskdesign_filename'])
+    assert baked.name == '1pixel-long.msk' and baked.is_absolute() and baked.exists(), \
+        'the generated PypeIt file must point maskdesign_filename at the discovered .msk'
+    assert cfg['reduce']['slitmask']['assign_obj'] == 'True', \
+        'the generated PypeIt file must enable mask-design object assignment'

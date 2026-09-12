@@ -378,60 +378,59 @@ class MMTMMIRSSpectrograph(RampSpectrograph, spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'mmt_mmirs_HK_HK3.fits'
 
-        # Auto-enable slitmask design if a <decker>.msk file sits next to the
-        # data.  Never fatal: any problem falls back to generic tracing and the
-        # SLIT-id keyed coadd workflow.
-        maskfile = self._find_maskfile(inp)
-        if maskfile is not None:
-            par['calibrations']['slitedges']['use_maskdesign'] = True
-            par['calibrations']['slitedges']['maskdesign_filename'] = str(maskfile)
-            par['reduce']['slitmask']['assign_obj'] = True
-            par['reduce']['slitmask']['extract_missing_objs'] = True
-            par['reduce']['slitmask']['use_alignbox'] = True
-
         return par
 
-    def _find_maskfile(self, inp):
+    def config_specific_setup_lines(self, subtbl, paths):
         """
-        Locate a ``<decker>.msk`` mask-design file next to the input frame.
+        Bake mask-design parameters into the PypeIt file when a ``<decker>.msk``
+        sidecar sits next to the raw data.
 
-        The mask label is the ``decker`` metadata value (header ``APERTURE`` ==
-        ``MOSID``); the discovery file is ``<decker>.msk`` in the same directory
-        as the frame.  Any failure to resolve the label or directory returns
-        ``None`` so the caller falls back to generic slit tracing.
+        MMIRS stores its slitmask design in a separate xfitmask ``.msk`` file,
+        unlike DEIMOS/MOSFIRE/Binospec which embed the design in the raw FITS
+        frames.  The sidecar is named ``<decker>.msk`` (``decker`` is header
+        ``APERTURE`` == ``MOSID``) and lives in the raw-data directory; because
+        the MMIRS ``decker`` label carries no longslit/MOS naming convention,
+        the *presence* of the file is also the signal that the observation is a
+        MOS mask rather than a longslit.  When found, this enables mask-design
+        slit tracing and object assignment by writing the parameters into the
+        generated PypeIt file (:func:`config_specific_par` does not probe the
+        filesystem).  If no ``.msk`` is found, no lines are added and the
+        reduction falls back to generic slit tracing and the SLIT-id keyed
+        coadd workflow.
 
         Parameters
         ----------
-        inp : :obj:`str`, `Path`_, `astropy.io.fits.Header`_, or `astropy.table.Table`_
-            The input passed to :func:`config_specific_par`.
+        subtbl : `astropy.table.Table`_
+            The metadata rows for this setup; ``decker`` is constant within a
+            setup (it is a configuration key).
+        paths : :obj:`list`
+            The unique raw-data directories for this setup.
 
         Returns
         -------
-        `Path`_ or :obj:`None`
-            Path to the mask file if found, else ``None``.
+        :obj:`list`
+            Configuration lines enabling mask design, or an empty list.
         """
-        try:
-            label = self.get_meta_value(inp, 'decker')
-        except PypeItError:
-            return None
+        if 'decker' not in subtbl.colnames or len(subtbl) == 0:
+            return []
+        label = subtbl['decker'][0]
         if label is None:
-            return None
-        # Resolve the directory of the frame.  The full run_pypeit path sends a
-        # single-row metadata Table whose 'filename' column holds the full path
-        # (there is no 'directory' column at this stage), while scripts may send
-        # a filename string/Path directly.
-        directory = None
-        if isinstance(inp, (str, Path)):
-            directory = Path(inp).parent
-        elif isinstance(inp, Table):
-            if 'directory' in inp.colnames:
-                directory = Path(str(inp['directory'][0]))
-            elif 'filename' in inp.colnames:
-                directory = Path(str(inp['filename'][0])).parent
-        if directory is None:
-            return None
-        maskfile = directory / f'{label}.msk'
-        return maskfile if maskfile.exists() else None
+            return []
+        for directory in paths:
+            maskfile = (Path(directory) / f'{label}.msk').absolute()
+            if maskfile.exists():
+                return [
+                    '[calibrations]',
+                    '  [[slitedges]]',
+                    '    use_maskdesign = True',
+                    f'    maskdesign_filename = {maskfile}',
+                    '[reduce]',
+                    '  [[slitmask]]',
+                    '    assign_obj = True',
+                    '    extract_missing_objs = True',
+                    '    use_alignbox = True',
+                ]
+        return []
 
     def get_slitmask(self, filename, det=1):
         """
