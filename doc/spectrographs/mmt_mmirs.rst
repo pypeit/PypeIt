@@ -53,6 +53,15 @@ short-ramp frames.  The effective read noise of the fitted image,
 ``sigma * sqrt(12 (N-1) / (N (N+1)))`` for ``N`` reads, is propagated to the
 detector parameters.
 
+Downstream error modeling treats the fitted frame like any other count image:
+the effective read noise above is propagated to the detector ``ronoise`` and
+enters :func:`~pypeit.core.procimg.variance_model` only as the read-noise
+variance term, on top of which the model adds the Poisson noise of the observed
+source+sky counts and the dark-current term.  Because the single-read noise is
+calibrated on *darks*, it carries no source or sky shot noise, so the flux
+Poisson term is not double-counted; the only overlap is the (negligible)
+dark-current shot noise, making the total variance marginally conservative.
+
 An explicit dark supplied to ``pypeit_fit_ramp --dark`` is used as given,
 without the exposure-time match.
 
