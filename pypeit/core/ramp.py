@@ -307,11 +307,14 @@ def rampfit_fresh(rampfit_file, raw_file):
     rampfit_file = Path(rampfit_file)
     if not rampfit_file.exists():
         return False
+    # Reading the sidecar header is the only I/O here: a corrupt/unreadable
+    # file is not fresh.
     try:
         header = fits.getheader(rampfit_file)
-        mtime = float(header['RAWMTIME'])
-        raw_mtime = Path(raw_file).stat().st_mtime
-    except (KeyError, OSError):
+    except OSError:
+        return False
+    # A file without the freshness card is not a usable preprocessed image.
+    if 'RAWMTIME' not in header:
         return False
     # If the sidecar records which raw cube it came from, require it to match:
     # a same-named raw file from a different directory (raw cube names are only
@@ -322,7 +325,13 @@ def rampfit_fresh(rampfit_file, raw_file):
     if raw_path is not None \
             and str(raw_path) != str(Path(raw_file).resolve()):
         return False
-    return abs(mtime - raw_mtime) < 1.
+    # A sidecar that outlives its raw source cannot be checked, so it is not
+    # fresh.
+    try:
+        raw_mtime = Path(raw_file).stat().st_mtime
+    except OSError:
+        return False
+    return abs(float(header['RAWMTIME']) - raw_mtime) < 1.
 
 
 def write_rampfit(rampfit_file, rate, hdu, sig, eff_ronoise, ngroups, raw_mtime,
