@@ -389,7 +389,7 @@ def test_disambiguate_coadd_file_name():
 def test_build_coadd_file_name_sanitizes_maskdef_objname():
     # A catalog MASKDEF_OBJNAME with path separators / invalid characters must
     # not produce a multi-component or directory-escaping output name.
-    from pypeit.collate import _safe_name_component
+    from pypeit.core.parse import safe_name_component
     spectrograph = load_spectrograph('keck_deimos')
     header = mock_header('spec1d_file1')
     sobj = MockSpecObj(MASKDEF_OBJNAME='foo/../bar:baz qux', MASKDEF_ID='1',
@@ -399,13 +399,19 @@ def test_build_coadd_file_name_sanitizes_maskdef_objname():
                           'ra/dec', outfile_from='maskdef_objname')
     name = build_coadd_file_name(source)
     # The whole name is a single, safe path component.
-    assert '/' not in name and '\\' not in name
-    assert ':' not in name and ' ' not in name
-    assert os.path.basename(name) == name          # cannot escape outdir
+    assert '/' not in name and '\\' not in name, \
+        'the output name must not contain path separators'
+    assert ':' not in name and ' ' not in name, \
+        'the output name must not contain colons or spaces'
+    assert os.path.basename(name) == name, \
+        'the output name must be a single path component that cannot escape outdir'
     # The helper itself maps disallowed characters to underscores.
-    assert _safe_name_component('foo/../bar:baz qux') == 'foo_.._bar_baz_qux'
-    assert _safe_name_component('...') == '_'
-    assert _safe_name_component('  spaced name ') == 'spaced_name'
+    assert safe_name_component('foo/../bar:baz qux') == 'foo_.._bar_baz_qux', \
+        'disallowed characters must be replaced with underscores'
+    assert safe_name_component('...') == '_', \
+        'a name of only dots must reduce to a single underscore'
+    assert safe_name_component('  spaced name ') == 'spaced_name', \
+        'surrounding whitespace must be stripped and inner spaces sanitized'
 
 
 def test_get_report_metadata_uses_disambiguated_name():

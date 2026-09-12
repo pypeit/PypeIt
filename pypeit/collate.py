@@ -25,6 +25,7 @@ from pypeit.spectrographs.util import load_spectrograph
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import coadd1d
+from pypeit.core import parse
 from pypeit.core import wave
 from pypeit.utils import radec_to_coord
 from pypeit.slittrace import SlitTraceBitMask
@@ -288,7 +289,10 @@ def get_report_metadata(object_header_keys, spec_obj_keys, file_info):
 
     # Prefer the disambiguated basename assigned when the coadd was written;
     # fall back to recomputing it (e.g. for a dry run that never wrote a file).
-    coaddfile = getattr(file_info, 'coaddfile', None) or build_coadd_file_name(file_info)
+    if file_info.coaddfile is not None:
+        coaddfile = file_info.coaddfile
+    else:
+        coaddfile = build_coadd_file_name(file_info)
     result_rows = []
     for i in range(len(file_info.spec1d_header_list)):
 
@@ -527,28 +531,6 @@ def flux(par, spectrograph, spec1d_files, failed_fluxing_log):
     # Return the succesfully fluxed files
     return flux_calibrated_files
 
-def _safe_name_component(name):
-    """Sanitize a string for use as a single output-filename component.
-
-    The slitmask-design object name (``MASKDEF_OBJNAME``) is catalog-supplied
-    and may contain path separators (``/``, ``\\``), a drive/stream colon, or
-    other characters that are invalid or dangerous in a filename.  Replace any
-    character outside a conservative safe set (letters, digits, ``.``, ``+``,
-    ``-``, ``_``) with an underscore, so the result is always a single,
-    portable path component that cannot escape the output directory.
-
-    Args:
-        name (:obj:`str`): The raw name.
-
-    Returns:
-        :obj:`str`: A filename-safe component (never empty; ``'_'`` if the
-        input reduces to nothing).
-    """
-    safe = re.sub(r'[^A-Za-z0-9.+_-]', '_', str(name).strip())
-    # Avoid a component that is empty or only dots (e.g. '', '.', '..').
-    return safe if safe.strip('.') else '_'
-
-
 def build_coadd_file_name(source_object):
     """Build the output file name for coadding.
     The filename convention is J<hmsdms+dms>_<instrument name>_<YYYYMMDD>.fits
@@ -578,10 +560,10 @@ def build_coadd_file_name(source_object):
 
     # Prefer the slitmask-design object name if requested and available
     coord_portion = None
-    if getattr(source_object, 'outfile_from', 'coord') == 'maskdef_objname':
+    if source_object.outfile_from == 'maskdef_objname':
         objname = source_object.spec_obj_list[0]['MASKDEF_OBJNAME']
         if objname is not None and str(objname).strip() not in ('', 'None', 'SERENDIP'):
-            coord_portion = _safe_name_component(objname)
+            coord_portion = parse.safe_name_component(objname)
 
     if coord_portion is None:
         if source_object.match_type == 'ra/dec':
