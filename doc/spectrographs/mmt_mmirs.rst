@@ -234,17 +234,33 @@ file (the xfitmask output delivered with the raw data) so that every slit,
 header keyword and the ``decker`` metadata column) is found in the raw-data
 directory, PypeIt automatically:
 
-- enables slitmask-design tracing
-  (``[calibrations][slitedges] use_maskdesign = True``,
-  ``maskdesign_filename`` pointing at the ``.msk``);
+- enables slitmask-design tracing from the ``.msk``;
 - stamps ``MASKDEF_ID``, ``RA``, ``DEC``, and ``MASKDEF_OBJNAME`` (the catalog
-  target name) on each extracted object
-  (``[reduce][slitmask] assign_obj = True``);
+  target name) on each extracted object;
 - flags the alignment-box (``BOX``) slits as alignment rather than science, and
-  uses them to register the mask-to-detector offset
-  (``use_alignbox = True``); and
+  uses them to register the mask-to-detector offset; and
 - force-extracts designed targets that were not auto-detected, at their
-  predicted positions (``extract_missing_objs = True``).
+  predicted positions.
+
+This is equivalent to setting the following in the :ref:`pypeit_file`:
+
+.. code-block:: ini
+
+    [calibrations]
+        [[slitedges]]
+            use_maskdesign = True
+            maskdesign_filename = <MOSID>.msk
+    [reduce]
+        [[slitmask]]
+            assign_obj = True
+            extract_missing_objs = True
+            use_alignbox = True
+
+Because the mask (the ``decker``/``APERTURE`` value) is one of the MMIRS
+configuration keys, frames taken through different masks during the night are
+automatically split into separate instrument configurations by
+:ref:`pypeit_setup`.  Each pypeit file therefore references a single mask, so
+you only define one mask-design file per pypeit file.
 
 The mask ``y`` coordinate (mm) maps linearly, and anti-aligned, to the detector
 spatial pixel (``spat = C - scale * y``, with
