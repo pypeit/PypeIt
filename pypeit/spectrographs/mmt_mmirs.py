@@ -412,7 +412,7 @@ class MMTMMIRSSpectrograph(RampSpectrograph, spectrograph.Spectrograph):
         """
         try:
             label = self.get_meta_value(inp, 'decker')
-        except Exception:
+        except PypeItError:
             return None
         if label is None:
             return None
