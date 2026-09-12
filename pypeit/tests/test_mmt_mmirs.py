@@ -1298,13 +1298,12 @@ def test_pypeit_file_keys_include_dither_columns():
 # ---------------------------------------------------------------------------
 
 from pypeit import dataPaths
-from pypeit.spectrographs import mmirs_maskfile
 
 MSK = dataPaths.tests.get_file_path('nep.as1.msk')
 
 
 def test_read_mmirs_maskfile_counts_and_header():
-    header, slits = mmirs_maskfile.read_mmirs_maskfile(MSK)
+    header, slits = mmt_mmirs.read_mmirs_maskfile(MSK)
     assert header['label'] == 'nep.as1', 'the mask label must be parsed from the header'
     assert abs(header['arc2mm'] - 0.165) < 1e-3, \
         'the arc2mm plate scale must be parsed from the header'
@@ -1314,7 +1313,7 @@ def test_read_mmirs_maskfile_counts_and_header():
 
 
 def test_read_mmirs_maskfile_target_row():
-    header, slits = mmirs_maskfile.read_mmirs_maskfile(MSK)
+    header, slits = mmt_mmirs.read_mmirs_maskfile(MSK)
     row = slits[slits['slit'] == 1][0]
     assert row['object'] == '172220.249+655613.04', \
         'the object name must be parsed for slit 1'
@@ -1331,7 +1330,7 @@ def test_read_mmirs_maskfile_bad_file_raises(tmp_path):
     bad.write_text('not a mask file\n')
     from pypeit import PypeItError
     with pytest.raises(PypeItError):
-        mmirs_maskfile.read_mmirs_maskfile(bad)
+        mmt_mmirs.read_mmirs_maskfile(bad)
 
 
 def test_get_slitmask_science_align_and_objects():
@@ -1364,7 +1363,7 @@ def test_get_maskdef_slitedges_linear_geometry():
     scale = arcsec_per_mm / ps          # px per mm
     centers = 0.5 * (left + right)
     # centers must be an exact linear (negative) function of y_mm
-    _, slits = mmirs_maskfile.read_mmirs_maskfile(str(MSK))
+    _, slits = mmt_mmirs.read_mmirs_maskfile(str(MSK))
     y = np.asarray(slits['y_mm'])
     fit = np.polyfit(y, centers, 1)
     assert abs(fit[0] + scale) < 0.5, \
@@ -1408,7 +1407,7 @@ def _write_synthetic_msk(path, offset_mm=0.1, theta_deg=10.0):
 def test_read_mmirs_maskfile_retains_offset_theta(tmp_path):
     msk = tmp_path / 'synthetic.msk'
     _write_synthetic_msk(msk, offset_mm=0.1, theta_deg=10.0)
-    _, slits = mmirs_maskfile.read_mmirs_maskfile(str(msk))
+    _, slits = mmt_mmirs.read_mmirs_maskfile(str(msk))
     # Fields 10 (offset) and 11 (theta) are retained, not silently dropped.
     assert 'offset_mm' in slits.colnames and 'theta_deg' in slits.colnames, \
         'the offset and theta columns must be retained, not dropped'
