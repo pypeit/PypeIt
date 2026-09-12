@@ -126,14 +126,18 @@ with:
 
     pypeit_fit_ramp mmt_mmirs raw/*.fits
 
-which writes into the ``RampFit`` directory under ``--odir`` (default: the
-current directory, so run it from the reduction directory) and accepts
-``--sig`` to force the per-read noise, ``--dark`` to calibrate it from a
-dark cube, and ``--force`` to re-fit existing outputs.  Preprocessed files
-carry the fit parameters in header cards (``RAMPSIG``, ``RAMPRON``,
-``NGROUPS``) and preserve all raw metadata, so :ref:`pypeit_setup` can be
-run directly on a ``RampFit`` directory if preferred.  ``run_pypeit`` never
-requires the manual step.
+which writes into the ramp-fit directory under ``--odir`` (default: the current
+directory, so run it from the reduction directory) and accepts ``--sig`` to
+force the per-read noise, ``--dark`` to calibrate it from a dark cube,
+``--force`` to re-fit existing outputs, and ``--rampfit-dir`` to name the output
+subdirectory.
+
+Either way, you always list the raw data in your :ref:`pypeit_file` as usual.
+``run_pypeit`` auto-detects an up-to-date preprocessed image and uses it,
+otherwise fitting the ramp itself; manually preprocessed images are found only
+when ``--odir`` and ``--rampfit-dir`` match the reduction directory and the
+``[rdx] rampfit_dir`` parameter (they agree by default).  ``run_pypeit`` never
+requires preprocessing the ramp files with ``pypeit_fit_ramp``.
 
 Changing the noise-calibration source between runs (e.g. adding dark frames
 to the raw-data directory, or forcing a different ``--sig``) does not
