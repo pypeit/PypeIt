@@ -29,17 +29,17 @@ was inspired by the prototype at
 `mmt-mmirs-up-the-ramp-pypeit
 <https://github.com/zhechenghu/mmt-mmirs-up-the-ramp-pypeit>`__.
 
-The per-read noise needed by the fit is not the instantaneous detector read
-noise but an **effective** noise that *grows with exposure time* -- measured on
-MMIRS darks, roughly 5.7 e- for a 3-read (3 s) ramp, 8.3 e- for 8 reads (10 s),
-and 9.4 e- for 69 reads (300 s).  This growth is far larger than the shot noise
-from dark current can account for (dark current is only ~0.01 e-/s), and a white
-per-read noise would not depend on the number of reads at all, so the excess is
-dominated by correlated, low-frequency (1/f-like) noise that accumulates over
-the integration.  Because that component is not captured by a first-principles
-read-noise-plus-Poisson model, it must be measured empirically -- from darks, at
-the science exposure time -- which is why properly modeling the MMIRS noise
-relies on matched darks.
+The per-read noise needed by the fit is not the fixed instantaneous detector
+read noise; it *grows with exposure time* -- measured on MMIRS darks, roughly
+5.7 e- for a 3-read (3 s) ramp, 8.3 e- for 8 reads (10 s), and 9.4 e- for 69
+reads (300 s).  This growth is far larger than the shot noise from dark current
+can account for (dark current is only ~0.01 e-/s), and a genuinely white per-read
+noise would not depend on the number of reads at all, so the per-read noise is
+dominated by correlated, low-frequency (1/f-like) noise that accumulates over the
+integration.  Because that component is not captured by a first-principles
+read-noise-plus-Poisson model, the per-read noise must be measured empirically --
+from darks, at the science exposure time -- which is why properly modeling the
+MMIRS noise relies on matched darks.
 
 PypeIt calibrates it from the dark frames listed in the :ref:`pypeit_file`
 (include darks in your raw-data directory when running :ref:`pypeit_setup` to
@@ -49,20 +49,21 @@ rescaling the ramp-fit chi-squared, and the results are combined as an
 **inverse-variance weighted mean** (each dark weighted by the bootstrap
 uncertainty on its own calibrated noise).  With no matching dark, a frame with
 at least 10 reads self-calibrates from itself; a frame with fewer reads is too
-poorly constrained and instead uses a starting-guess effective noise of 9 e-.
+poorly constrained and instead uses a starting-guess per-read noise of 9 e-.
 
 The calibrated value is floored at the instantaneous read noise from the header
 ``RDNOISE`` card (a derived noise below the physical read noise is unphysical);
 ``RDNOISE`` is also used as the correlated-double-sampling read noise for
-short-ramp frames.  The effective read noise of the fitted image,
-``sigma * sqrt(12 (N-1) / (N (N+1)))`` for ``N`` reads, is propagated to the
+short-ramp frames.  The **effective read noise** of the fitted image is then
+derived from this per-read noise and the number of reads,
+``sigma * sqrt(12 (N-1) / (N (N+1)))`` for ``N`` reads, and is propagated to the
 detector parameters.
 
 Downstream error modeling treats the fitted frame like any other count image:
 the effective read noise above is propagated to the detector ``ronoise`` and
 enters :func:`~pypeit.core.procimg.variance_model` only as the read-noise
 variance term, on top of which the model adds the Poisson noise of the observed
-source+sky counts and the dark-current term.  Because the single-read noise is
+source+sky counts and the dark-current term.  Because the per-read noise is
 calibrated on *darks*, it carries no source or sky shot noise, so the flux
 Poisson term is not double-counted; the only overlap is the (negligible)
 dark-current shot noise, making the total variance marginally conservative.
@@ -127,7 +128,7 @@ with:
 
 which writes into the ``RampFit`` directory under ``--odir`` (default: the
 current directory, so run it from the reduction directory) and accepts
-``--sig`` to force the single-read noise, ``--dark`` to calibrate it from a
+``--sig`` to force the per-read noise, ``--dark`` to calibrate it from a
 dark cube, and ``--force`` to re-fit existing outputs.  Preprocessed files
 carry the fit parameters in header cards (``RAMPSIG``, ``RAMPRON``,
 ``NGROUPS``) and preserve all raw metadata, so :ref:`pypeit_setup` can be
