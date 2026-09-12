@@ -1161,6 +1161,43 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         log.info(f'Effective read noise: {eff_ronoise:.2f} e-')
         return countrate, sig, eff_ronoise
 
+    def preprocess_ramp_file(self, raw_file, redux_path, rampfit_dir='RampFit',
+                             force=False):
+        """
+        Fit one raw MMIRS up-the-ramp cube and cache its count-rate image.
+
+        Backs the ``pypeit_fit_ramp`` script; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.preprocess_ramp_file`
+        for the interface.  Frames that are already up to date, already
+        preprocessed, or too short to fit are skipped.
+        """
+        raw = Path(raw_file)
+        rampfit_file = mmirs_rampfit_path(raw, redux_path, rampfit_dir)
+        if not force and mmirs_rampfit_fresh(rampfit_file, raw):
+            log.info(f'{raw.name}: up-to-date preprocessed image exists; '
+                     'skipping (use force=True to re-fit)')
+            return None
+        with io.fits_open(raw) as hdu:
+            if hdu[0].header.get('RAMPFIT') is not None:
+                log.warning(f'{raw.name} is already a preprocessed image; '
+                            'skipping')
+                return None
+            n_reads = mmirs_count_reads(hdu)
+            if n_reads < self.ramp_min_reads:
+                log.info(f'{raw.name}: only {n_reads} read(s); up-the-ramp '
+                         f'fitting requires at least {self.ramp_min_reads} '
+                         '(the reduction uses correlated double sampling). '
+                         'Skipping.')
+                return None
+            log.info(f'{raw.name}: fitting {n_reads} reads')
+            detector_par = self.get_detector_par(1, hdu=hdu)
+            rate, sig, eff_ronoise = self._ramp_fit_image(hdu, detector_par)
+            mmirs_write_rampfit(rampfit_file, rate, hdu, sig, eff_ronoise,
+                                raw.stat().st_mtime, raw_file=raw)
+        log.info(f'{raw.name}: single-read noise {sig:.2f} e-, effective '
+                 f'read noise {eff_ronoise:.2f} e- -> {rampfit_file}')
+        return rampfit_file
+
 def mmirs_read_amp(img, namps=32):
     """
     MMIRS has 32 reading out channels. Need to deal with this issue a little

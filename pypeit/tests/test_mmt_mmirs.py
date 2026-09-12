@@ -954,6 +954,13 @@ def test_fit_ramp_script_rejects_unsupported_spectrograph(tmp_path, monkeypatch)
         FitRamp.main(FitRamp.parse_args([str(pypeit_file)]))
 
 
+def test_preprocess_ramp_file_unsupported_spectrograph():
+    """The base spectrograph interface rejects ramp preprocessing."""
+    spec = load_spectrograph('shane_kast_blue')
+    with pytest.raises(NotImplementedError):
+        spec.preprocess_ramp_file('frame.fits', '.', 'RampFit')
+
+
 # ---------------------------------------------------------------------------
 # A-B nod dither support
 # ---------------------------------------------------------------------------

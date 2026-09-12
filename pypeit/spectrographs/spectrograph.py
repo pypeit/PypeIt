@@ -2123,6 +2123,38 @@ class Spectrograph:
         """
         pass
 
+    def preprocess_ramp_file(self, raw_file, redux_path, rampfit_dir='RampFit',
+                             force=False):
+        """
+        Fit one raw up-the-ramp cube and cache its 2D count-rate image.
+
+        Only spectrographs read out up-the-ramp (currently MMT/MMIRS)
+        implement this; it backs the ``pypeit_fit_ramp`` script and mirrors
+        the fit that :func:`get_rawimage` performs during a reduction, writing
+        the preprocessed image where the reduction will find and reuse it.  The
+        base class does not support ramp fitting.
+
+        Args:
+            raw_file (:obj:`str`, `Path`_):
+                Path to the raw up-the-ramp cube to fit.
+            redux_path (:obj:`str`, `Path`_):
+                The reduction directory holding the ramp-fit subdirectory.
+            rampfit_dir (:obj:`str`, optional):
+                Name of the ramp-fit subdirectory, relative to ``redux_path``
+                (the ``[rdx] rampfit_dir`` parameter).
+            force (:obj:`bool`, optional):
+                Re-fit and overwrite an existing, up-to-date preprocessed
+                image instead of skipping it.
+
+        Returns:
+            `Path`_: The path to the preprocessed image, or None if the frame
+            was skipped (already up to date, already preprocessed, or too few
+            reads).
+        """
+        raise NotImplementedError(
+            f'{self.name} is not read out up-the-ramp; '
+            'up-the-ramp preprocessing is not supported.')
+
 
 #    JXP says -- LEAVE THIS HERE FOR NOW. WE MAY NEED IT
 #    def mm_per_pix(self, det=1):

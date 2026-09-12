@@ -66,9 +66,8 @@ class FitRamp(scriptbase.ScriptBase):
 
         import numpy as np
 
-        from pypeit import inputfiles, io, log, PypeItError
+        from pypeit import inputfiles, PypeItError
         from pypeit.metadata import PypeItMetaData
-        from pypeit.spectrographs import mmt_mmirs
 
         cls.init_log(args)
 
@@ -94,33 +93,8 @@ class FitRamp(scriptbase.ScriptBase):
         redux_path = Path(par['rdx']['redux_path'])
         rampfit_dir = par['rdx']['rampfit_dir']
 
+        # Fit each listed frame through the spectrograph interface, so the
+        # script stays agnostic of the instrument-specific ramp code.
         for raw in map(Path, fitstbl.frame_paths(np.arange(len(fitstbl)))):
-            rampfit_file = mmt_mmirs.mmirs_rampfit_path(raw, redux_path,
-                                                        rampfit_dir)
-            if not args.force and mmt_mmirs.mmirs_rampfit_fresh(rampfit_file,
-                                                                raw):
-                log.info(f'{raw.name}: up-to-date preprocessed image exists; '
-                         'skipping (use --force to re-fit)')
-                continue
-            with io.fits_open(raw) as hdu:
-                if hdu[0].header.get('RAMPFIT') is not None:
-                    log.warning(f'{raw.name} is already a preprocessed '
-                                'image; skipping')
-                    continue
-                n_reads = mmt_mmirs.mmirs_count_reads(hdu)
-                if n_reads < spec.ramp_min_reads:
-                    log.info(f'{raw.name}: only {n_reads} read(s); up-the-ramp '
-                             f'fitting requires at least {spec.ramp_min_reads} '
-                             '(the reduction uses correlated double sampling). '
-                             'Skipping.')
-                    continue
-                log.info(f'{raw.name}: fitting {n_reads} reads')
-                detector_par = spec.get_detector_par(1, hdu=hdu)
-                rate, sig, eff_ronoise = spec._ramp_fit_image(hdu,
-                                                              detector_par)
-                mmt_mmirs.mmirs_write_rampfit(rampfit_file, rate, hdu,
-                                              sig, eff_ronoise,
-                                              raw.stat().st_mtime,
-                                              raw_file=raw)
-            log.info(f'{raw.name}: single-read noise {sig:.2f} e-, effective '
-                     f'read noise {eff_ronoise:.2f} e- -> {rampfit_file}')
+            spec.preprocess_ramp_file(raw, redux_path, rampfit_dir,
+                                      force=args.force)
