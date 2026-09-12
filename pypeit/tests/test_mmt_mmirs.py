@@ -852,59 +852,106 @@ def test_get_rawimage_stale_sidecar_refits(tmp_path):
         'the refit sidecar must be fresh again for the changed raw cube'
 
 
+def _write_pypeit_file(tmp_path, frames, redux, rampfit_dir=None):
+    """
+    Write synthetic raw cubes and generate a pypeit file that lists them.
+
+    ``frames`` is a list of ``(HDUList, filename)`` tuples; ``redux`` is the
+    reduction directory written as the ``[rdx] redux_path``; ``rampfit_dir``,
+    if given, sets the ``[rdx] rampfit_dir`` parameter.  Returns the path to
+    the generated pypeit file.
+    """
+    rawdir = tmp_path / 'raw'
+    rawdir.mkdir(exist_ok=True)
+    for hdul, name in frames:
+        _write_synth(hdul, rawdir / name)
+    setup = PypeItSetup.from_file_root(str(rawdir), 'mmt_mmirs')
+    setup.run(setup_only=True)
+    cfg = ['[rdx]', '    spectrograph = mmt_mmirs', f'    redux_path = {redux}']
+    if rampfit_dir is not None:
+        cfg.append(f'    rampfit_dir = {rampfit_dir}')
+    outdir = tmp_path / 'setup_files'
+    outdir.mkdir(exist_ok=True)
+    setup.fitstbl.write_pypeit(output_path=str(outdir), cfg_lines=cfg,
+                               config_subdir=False, configs='all')
+    pypeit_files = sorted(outdir.glob('*.pypeit'))
+    assert len(pypeit_files) == 1, \
+        f'expected a single pypeit file, got {pypeit_files}'
+    return pypeit_files[0]
+
+
 def test_mmirs_ramp_script(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)          # keep the log file out of the repo
-    raw = _write_synth(synth_ramp_hdulist(6, rate=20., seed=91),
-                       tmp_path / 'sci.fits')
-    FitRamp.main(FitRamp.parse_args(['mmt_mmirs', str(raw), '--sig', '8.0']))
-    sidecar = mmt_mmirs.mmirs_rampfit_path(raw, tmp_path)
-    assert sidecar.exists(), 'the fit_ramp script must write a sidecar'
-    assert np.isclose(fits.getval(sidecar, 'RAMPSIG'), 8.0), \
-        'the sidecar must record the --sig read noise passed to the script'
+    redux = tmp_path / 'redux'
+    pypeit_file = _write_pypeit_file(
+        tmp_path, [(synth_ramp_hdulist(6, rate=20., seed=91), 'sci.fits')], redux)
+    FitRamp.main(FitRamp.parse_args([str(pypeit_file)]))
+    sidecar = redux / 'RampFit' / 'sci.fits'
+    assert sidecar.exists(), \
+        'the fit_ramp script must write a sidecar into the redux ramp-fit dir'
+    assert np.isfinite(fits.getval(sidecar, 'RAMPSIG')), \
+        'the sidecar must record the per-read noise used for the fit'
 
     # Re-run without --force: fresh sidecar is skipped, file untouched
     mtime_ns = sidecar.stat().st_mtime_ns
-    FitRamp.main(FitRamp.parse_args(['mmt_mmirs', str(raw), '--sig', '8.0']))
+    FitRamp.main(FitRamp.parse_args([str(pypeit_file)]))
     assert sidecar.stat().st_mtime_ns == mtime_ns, \
         'a re-run without --force must skip a fresh sidecar, leaving it untouched'
 
     # --force refits and overwrites
-    FitRamp.main(FitRamp.parse_args(['mmt_mmirs', str(raw), '--sig', '9.0', '--force']))
-    assert np.isclose(fits.getval(sidecar, 'RAMPSIG'), 9.0), \
-        '--force must refit and overwrite the sidecar with the new read noise'
+    FitRamp.main(FitRamp.parse_args([str(pypeit_file), '--force']))
+    assert sidecar.stat().st_mtime_ns != mtime_ns, \
+        '--force must refit and overwrite an existing sidecar'
 
 
 def test_mmirs_ramp_script_skips_few_reads(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    raw = _write_synth(synth_ramp_hdulist(2, seed=92), tmp_path / 'cds.fits')
-    FitRamp.main(FitRamp.parse_args(['mmt_mmirs', str(raw)]))    # must not raise
-    assert not mmt_mmirs.mmirs_rampfit_path(raw, tmp_path).exists(), \
+    redux = tmp_path / 'redux'
+    pypeit_file = _write_pypeit_file(tmp_path, [
+        (synth_ramp_hdulist(6, rate=20., seed=92), 'sci.fits'),
+        (synth_ramp_hdulist(2, rate=20., seed=93), 'cds.fits'),
+    ], redux)
+    FitRamp.main(FitRamp.parse_args([str(pypeit_file)]))    # must not raise
+    assert (redux / 'RampFit' / 'sci.fits').exists(), \
+        'a multi-read frame in the pypeit file must be fit'
+    assert not (redux / 'RampFit' / 'cds.fits').exists(), \
         'a CDS frame (too few reads) must be skipped, writing no sidecar'
 
 
-def test_mmirs_ramp_script_dark(tmp_path, monkeypatch):
+def test_mmirs_ramp_script_honors_rampfit_dir(tmp_path, monkeypatch):
+    """The [rdx] rampfit_dir in the pypeit file sets the output subdirectory."""
     monkeypatch.chdir(tmp_path)
-    sig_true = 8.
-    raw = _write_synth(synth_ramp_hdulist(6, rate=20., sig=sig_true, seed=93),
-                       tmp_path / 'sci.fits')
-    dark = _write_synth(synth_ramp_hdulist(12, rate=0.1, sig=sig_true,
-                                           seed=94, imagetyp='dark'),
-                        tmp_path / 'dark.fits')
-    FitRamp.main(FitRamp.parse_args(['mmt_mmirs', str(raw), '--dark', str(dark)]))
-    sidecar = mmt_mmirs.mmirs_rampfit_path(raw, tmp_path)
-    assert sidecar.exists(), 'the script must write a sidecar for the science frame'
-    assert np.abs(fits.getval(sidecar, 'RAMPSIG') - sig_true) < 1.5, \
-        'the --dark read noise must recover the injected sigma'
+    redux = tmp_path / 'redux'
+    pypeit_file = _write_pypeit_file(
+        tmp_path, [(synth_ramp_hdulist(6, rate=20., seed=94), 'sci.fits')],
+        redux, rampfit_dir='Ramps')
+    FitRamp.main(FitRamp.parse_args([str(pypeit_file)]))
+    assert (redux / 'Ramps' / 'sci.fits').exists(), \
+        'the script must write into the [rdx] rampfit_dir subdirectory'
+    assert not (redux / 'RampFit' / 'sci.fits').exists(), \
+        'no sidecar must land in the default RampFit dir when rampfit_dir is set'
 
 
 def test_fit_ramp_script_rejects_unsupported_spectrograph(tmp_path, monkeypatch):
     """A spectrograph without up-the-ramp support must be rejected up front."""
     from pypeit import PypeItError
     monkeypatch.chdir(tmp_path)
-    # The guard fires before any file is opened, so the path need not exist.
+    _write_synth(synth_ramp_hdulist(4, seed=5), tmp_path / 'frame.fits')
+    pypeit_file = tmp_path / 'kast.pypeit'
+    pypeit_file.write_text(
+        '[rdx]\n'
+        '    spectrograph = shane_kast_blue\n\n'
+        'setup read\n'
+        'Setup A:\n'
+        'setup end\n\n'
+        'data read\n'
+        f' path {tmp_path}\n'
+        'filename | frametype\n'
+        'frame.fits | science\n'
+        'data end\n')
+    # The guard fires on the spectrograph name, before any frame is read.
     with pytest.raises(PypeItError):
-        FitRamp.main(FitRamp.parse_args(['shane_kast_blue',
-                                         str(tmp_path / 'nonexistent.fits')]))
+        FitRamp.main(FitRamp.parse_args([str(pypeit_file)]))
 
 
 # ---------------------------------------------------------------------------

@@ -85,15 +85,6 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
     default is overridden from the ``[rdx] rampfit_dir`` parameter in
     :func:`cache_metadata`.
     """
-    _ramp_match_dark_exptime = True
-    """
-    bool: Restrict read-noise-calibration darks to those matching the science
-    exposure time.  True for the reduction (darks are auto-discovered and may
-    span several exposure times); set False when a dark is supplied explicitly
-    (e.g. ``pypeit_fit_ramp --dark``), where the user's choice should be used
-    as given.
-    """
-
     nod_min_offset = 1.0
     """
     float: Minimum peak-to-peak along-slit dither offset (arcsec) for a
@@ -343,8 +334,8 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         Returns:
             :obj:`float`: Single-read noise in electrons.
         """
-        # An explicitly forced value (e.g. pypeit_fit_ramp --sig) is global
-        # and always wins.
+        # An explicitly forced value (``_ramp_sigma`` set on the instance) is
+        # global and always wins.
         if self._ramp_sigma is not None:
             return self._ramp_sigma
         # Automatic dark calibration is cached per (exptime, ron_floor): the
@@ -359,8 +350,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         lo = self.ramp_sig_range[0] if ron_floor is None \
             else max(self.ramp_sig_range[0], float(ron_floor))
         hi = self.ramp_sig_range[1]
-        match_exptime = exptime if self._ramp_match_dark_exptime else None
-        darks = self._ramp_dark_sigmas(exptime=match_exptime)
+        darks = self._ramp_dark_sigmas(exptime=exptime)
         if darks:
             names = [d[0] for d in darks]
             sigs = np.array([d[1] for d in darks])

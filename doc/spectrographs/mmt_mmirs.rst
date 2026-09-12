@@ -68,9 +68,6 @@ calibrated on *darks*, it carries no source or sky shot noise, so the flux
 Poisson term is not double-counted; the only overlap is the (negligible)
 dark-current shot noise, making the total variance marginally conservative.
 
-An explicit dark supplied to ``pypeit_fit_ramp --dark`` is used as given,
-without the exposure-time match.
-
 The per-pixel fit is independent across the detector, so it is performed in
 parallel: the rows are split into small blocks that are fit concurrently in a
 thread pool (NumPy releases the GIL during the element-wise arithmetic that
@@ -119,31 +116,28 @@ loads.  A preprocessed image is re-fit automatically if the raw cube's
 modification time changes.  The subdirectory name defaults to ``RampFit`` and
 can be changed with the ``[rdx] rampfit_dir`` parameter.
 
-The fitted images can also be created (and inspected) ahead of a reduction
-with:
+The fitted images can also be created (and inspected) ahead of a reduction by
+running ``pypeit_fit_ramp`` on the same :ref:`pypeit_file` that ``run_pypeit``
+will use:
 
 .. code-block:: bash
 
-    pypeit_fit_ramp mmt_mmirs raw/*.fits
+    pypeit_setup ...
+    pypeit_fit_ramp my_setup.pypeit   # optional
+    run_pypeit my_setup.pypeit
 
-which writes into the ramp-fit directory under ``--odir`` (default: the current
-directory, so run it from the reduction directory) and accepts ``--sig`` to
-force the per-read noise, ``--dark`` to calibrate it from a dark cube,
-``--force`` to re-fit existing outputs, and ``--rampfit-dir`` to name the output
-subdirectory.
-
-Either way, you always list the raw data in your :ref:`pypeit_file` as usual.
-``run_pypeit`` auto-detects an up-to-date preprocessed image and uses it,
-otherwise fitting the ramp itself; manually preprocessed images are found only
-when ``--odir`` and ``--rampfit-dir`` match the reduction directory and the
-``[rdx] rampfit_dir`` parameter (they agree by default).  ``run_pypeit`` never
-requires preprocessing the ramp files with ``pypeit_fit_ramp``.
+Because it reads the pypeit file, ``pypeit_fit_ramp`` fits every listed frame
+into the same reduction directory and ramp-fit directory that the reduction
+uses, calibrating the per-read noise from the same darks; add ``--force`` to
+re-fit images that already exist.  The step is entirely optional: ``run_pypeit``
+auto-detects an up-to-date preprocessed image and uses it, and otherwise fits
+the ramp itself, so it never requires preprocessing the ramp files with
+``pypeit_fit_ramp``.
 
 Changing the noise-calibration source between runs (e.g. adding dark frames
-to the raw-data directory, or forcing a different ``--sig``) does not
-invalidate an existing preprocessed image, since freshness is only judged
-against the raw cube's modification time; use ``pypeit_fit_ramp --force``
-to re-fit with the new calibration.
+to the pypeit file) does not invalidate an existing preprocessed image, since
+freshness is only judged against the raw cube's modification time; use
+``pypeit_fit_ramp --force`` to re-fit with the new calibration.
 
 Multislit observations
 ++++++++++++++++++++++

@@ -1,14 +1,22 @@
 """
 Preprocess up-the-ramp cubes into 2D count-rate images.
 
-Each multi-read raw cube is fit up the ramp (with jump detection; see
-:mod:`pypeit.ext.fitramp.fitramp`) and the result is written to the ``RampFit``
-directory inside the reduction directory (``--odir``, defaulting to the
-current directory), with the same file name as the raw cube.  The reduction
-finds and reuses these files automatically — and creates them itself when
-missing — so running this script is optional: it lets users inspect the
-fitted images (units of e-/s) before a full reduction and front-loads the
-fitting cost.
+Given a :ref:`pypeit_file`, each multi-read raw cube it lists is fit up the ramp
+(with jump detection; see :mod:`pypeit.ext.fitramp.fitramp`) and the result is
+written to the ramp-fit directory inside the reduction directory (the ``[rdx]``
+``redux_path`` and ``rampfit_dir`` parameters), with the same file name as the
+raw cube.  ``run_pypeit`` finds and reuses these files automatically — and
+creates them itself when missing — so running this script is optional; it lets
+users inspect the fitted images (units of e-/s) before a full reduction and
+front-loads the fitting cost.  The intended workflow is::
+
+    pypeit_setup ...
+    pypeit_fit_ramp blah.pypeit   # optional
+    run_pypeit blah.pypeit
+
+Because the script reads the same pypeit file as the reduction, it uses the same
+reduction directory, ramp-fit directory, and dark frames (for the per-read noise
+calibration) automatically.
 
 Up-the-ramp fitting is currently only implemented for MMT/MMIRS, so the
 spectrograph must be one of :data:`RAMP_SPECTROGRAPHS`.
@@ -34,35 +42,19 @@ class FitRamp(scriptbase.ScriptBase):
     def get_parser(cls, width: int | None = None) -> argparse.ArgumentParser:
         parser = super().get_parser(
             description='Preprocess up-the-ramp cubes into 2D count-rate '
-                        'images (e-/s), written to the RampFit directory '
-                        'inside the reduction directory.  Currently only '
-                        f'supports: {", ".join(RAMP_SPECTROGRAPHS)}.',
+                        'images (e-/s) ahead of a reduction, using the same '
+                        'pypeit file that run_pypeit will use.  This step is '
+                        'optional: run_pypeit fits any ramp it does not find '
+                        'already preprocessed.  Currently only supports: '
+                        f'{", ".join(RAMP_SPECTROGRAPHS)}.',
             width=width,
             default_log_file=True)
-        parser.add_argument('spectrograph', type=str,
-                            help='Spectrograph that took the data.  Up-the-ramp '
-                                 'fitting is currently implemented only for: '
-                                 f'{", ".join(RAMP_SPECTROGRAPHS)}.')
-        parser.add_argument('files', type=str, nargs='+',
-                            help='One or more raw multi-read cubes')
-        parser.add_argument('--odir', type=str, default='.',
-                            help='Reduction directory in which the RampFit '
-                                 'output directory is created (default: '
-                                 'current directory)')
-        parser.add_argument('--rampfit-dir', dest='rampfit_dir', type=str,
-                            default='RampFit',
-                            help='Name of the output subdirectory, relative to '
-                                 '--odir, for the preprocessed count-rate '
-                                 'images (default: RampFit).  Match this to the '
-                                 '[rdx] rampfit_dir parameter if you changed it '
-                                 'in your pypeit file.')
-        parser.add_argument('--sig', type=float, default=None,
-                            help='Force this single-read noise (e-) instead '
-                                 'of calibrating it')
-        parser.add_argument('--dark', type=str, default=None,
-                            help='Raw dark cube used to calibrate the '
-                                 'single-read noise (calibrated once, used '
-                                 'for all files). Ignored if --sig is given.')
+        parser.add_argument('pypeit_file', type=str,
+                            help='PypeIt reduction file (see pypeit_setup).  '
+                                 'The raw frames it lists are fit up the ramp '
+                                 'and written to the reduction directory (the '
+                                 '[rdx] redux_path and rampfit_dir), where '
+                                 'run_pypeit reuses them.')
         parser.add_argument('--force', default=False, action='store_true',
                             help='Re-fit and overwrite existing up-to-date '
                                  'preprocessed images')
@@ -72,41 +64,39 @@ class FitRamp(scriptbase.ScriptBase):
     def main(cls, args: argparse.Namespace) -> None:
         from pathlib import Path
 
-        from pypeit import io, log, PypeItError
+        import numpy as np
+
+        from pypeit import inputfiles, io, log, PypeItError
+        from pypeit.metadata import PypeItMetaData
         from pypeit.spectrographs import mmt_mmirs
-        from pypeit.spectrographs.util import load_spectrograph
 
         cls.init_log(args)
 
-        spec = load_spectrograph(args.spectrograph)
-        if spec.name not in RAMP_SPECTROGRAPHS:
+        # Read the pypeit file and build the metadata table.  Building the
+        # metadata calls the spectrograph's cache_metadata(), which configures
+        # the ramp-fit output directory ([rdx] redux_path + rampfit_dir), the
+        # dark frames used to calibrate the per-read noise, and the threading
+        # parameters -- exactly as run_pypeit does, so the preprocessed images
+        # land where the reduction will look for them.
+        pypeitFile = inputfiles.PypeItFile.from_file(args.pypeit_file)
+        # Guard on the spectrograph name before reading any frame.
+        if pypeitFile.get_spectrograph().name not in RAMP_SPECTROGRAPHS:
             raise PypeItError(
-                f'Up-the-ramp fitting is not implemented for {spec.name}; '
-                f'supported spectrographs: {", ".join(RAMP_SPECTROGRAPHS)}.')
+                'Up-the-ramp fitting is not implemented for '
+                f'{pypeitFile.get_spectrograph().name}; supported '
+                f'spectrographs: {", ".join(RAMP_SPECTROGRAPHS)}.')
 
-        if args.sig is not None:
-            # Seeds the sigma cache: used for every frame
-            spec._ramp_sigma = float(args.sig)
-            log.info(f'Using forced single-read noise: {args.sig:.2f} e-')
-        elif args.dark is not None:
-            dark = Path(args.dark)
-            with io.fits_open(dark) as dhdu:
-                n_dark_reads = mmt_mmirs.mmirs_count_reads(dhdu)
-            if n_dark_reads < spec.ramp_min_cal_groups:
-                log.warning(f'{dark.name} has only {n_dark_reads} read(s), '
-                            f'fewer than the {spec.ramp_min_cal_groups} '
-                            'required for read-noise calibration; '
-                            'self-calibration will be used instead')
-            # Reuse the reduction's dark-calibration path (calibrated on
-            # first use, then cached).  An explicitly supplied dark is used as
-            # given, without filtering by the science exposure time.
-            spec._ramp_dark_files = [dark]
-            spec._ramp_match_dark_exptime = False
+        spec, par, _ = pypeitFile.get_pypeitpar()
+        fitstbl = PypeItMetaData(spec, par, files=pypeitFile.filenames,
+                                 usrdata=pypeitFile.data, strict=True)
+        fitstbl.finalize_usr_build(pypeitFile.frametypes, pypeitFile.setup_name)
 
-        for f in args.files:
-            raw = Path(f)
-            rampfit_file = mmt_mmirs.mmirs_rampfit_path(raw, args.odir,
-                                                        args.rampfit_dir)
+        redux_path = Path(par['rdx']['redux_path'])
+        rampfit_dir = par['rdx']['rampfit_dir']
+
+        for raw in map(Path, fitstbl.frame_paths(np.arange(len(fitstbl)))):
+            rampfit_file = mmt_mmirs.mmirs_rampfit_path(raw, redux_path,
+                                                        rampfit_dir)
             if not args.force and mmt_mmirs.mmirs_rampfit_fresh(rampfit_file,
                                                                 raw):
                 log.info(f'{raw.name}: up-to-date preprocessed image exists; '
@@ -119,9 +109,10 @@ class FitRamp(scriptbase.ScriptBase):
                     continue
                 n_reads = mmt_mmirs.mmirs_count_reads(hdu)
                 if n_reads < spec.ramp_min_reads:
-                    log.warning(f'{raw.name}: only {n_reads} read(s); '
-                                f'up-the-ramp fitting requires at least '
-                                f'{spec.ramp_min_reads}. Skipping.')
+                    log.info(f'{raw.name}: only {n_reads} read(s); up-the-ramp '
+                             f'fitting requires at least {spec.ramp_min_reads} '
+                             '(the reduction uses correlated double sampling). '
+                             'Skipping.')
                     continue
                 log.info(f'{raw.name}: fitting {n_reads} reads')
                 detector_par = spec.get_detector_par(1, hdu=hdu)
