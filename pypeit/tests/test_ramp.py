@@ -106,10 +106,10 @@ def test_effective_ronoise_matches_montecarlo():
 def test_rampfit_path_default_and_custom():
     from pathlib import Path
     p = ramp.rampfit_path('/data/raw/sci.0001.fits', '/data/rdx')
-    assert p == Path('/data/rdx/RampFit/sci.0001.fits'), \
-        'the sidecar path must default to <redux>/RampFit/<raw basename>'
+    assert p == Path('/data/rdx/RampFit/sci.0001_rampfit.fits'), \
+        'the sidecar must default to <redux>/RampFit/<raw stem>_rampfit<ext>'
     p = ramp.rampfit_path('/data/raw/sci.0001.fits', '/data/rdx', 'Ramps')
-    assert p == Path('/data/rdx/Ramps/sci.0001.fits'), \
+    assert p == Path('/data/rdx/Ramps/sci.0001_rampfit.fits'), \
         'a custom rampfit_dir must replace the RampFit subdirectory name'
 
 
@@ -135,7 +135,7 @@ def test_write_rampfit_roundtrip_and_freshness(tmp_path):
     ramp.write_rampfit(sidecar, rate, hdu, sig=7.0, eff_ronoise=2.5, ngroups=6,
                        raw_mtime=raw.stat().st_mtime, raw_file=raw)
     hdu.close()
-    assert sidecar == tmp_path / 'RampFit' / 'sci.fits', \
+    assert sidecar == tmp_path / 'RampFit' / 'sci_rampfit.fits', \
         'the sidecar must land in the RampFit subdir under the redux path'
     with fits.open(sidecar) as shdu:
         assert shdu[0].header['RAMPFIT'], 'the sidecar must be flagged RAMPFIT'

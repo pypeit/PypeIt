@@ -261,8 +261,10 @@ def rampfit_path(raw_file, redux_path, rampfit_dir='RampFit'):
 
     Preprocessed 2D count-rate images live in the ramp-fit directory
     inside the reduction directory (alongside ``Calibrations``,
-    ``Science``, etc.), with the same file name as the raw cube.  The
-    directory name is set by the ``[rdx] rampfit_dir`` parameter.
+    ``Science``, etc.), named after the raw cube with a ``_rampfit`` marker
+    inserted before the extension so the processed product is distinct from
+    the raw file.  The directory name is set by the ``[rdx] rampfit_dir``
+    parameter.
 
     Parameters
     ----------
@@ -276,9 +278,10 @@ def rampfit_path(raw_file, redux_path, rampfit_dir='RampFit'):
     Returns
     -------
     `Path`_
-        ``<redux_path>/<rampfit_dir>/<raw filename>``
+        ``<redux_path>/<rampfit_dir>/<raw stem>_rampfit<ext>``
     """
-    return Path(redux_path) / rampfit_dir / Path(raw_file).name
+    raw = Path(raw_file)
+    return Path(redux_path) / rampfit_dir / f'{raw.stem}_rampfit{raw.suffix}'
 
 
 def rampfit_fresh(rampfit_file, raw_file):

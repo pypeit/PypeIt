@@ -623,12 +623,12 @@ def test_findobj_trace_defaults():
 
 def test_rampfit_path():
     p = ramp.rampfit_path('/data/raw/sci.0001.fits', '/data/rdx')
-    assert p == Path('/data/rdx/RampFit/sci.0001.fits'), \
-        'the sidecar path must default to <redux>/RampFit/<raw basename>'
+    assert p == Path('/data/rdx/RampFit/sci.0001_rampfit.fits'), \
+        'the sidecar must default to <redux>/RampFit/<raw stem>_rampfit<ext>'
     # A custom directory name (from the [rdx] rampfit_dir parameter) is honored
     p = ramp.rampfit_path('/data/raw/sci.0001.fits', '/data/rdx',
                                      'Ramps')
-    assert p == Path('/data/rdx/Ramps/sci.0001.fits'), \
+    assert p == Path('/data/rdx/Ramps/sci.0001_rampfit.fits'), \
         'a custom rampfit_dir must replace the RampFit subdirectory name'
 
 
@@ -668,7 +668,7 @@ def test_write_rampfit_roundtrip(tmp_path):
         sidecar = ramp.rampfit_path(raw, tmp_path)
         ramp.write_rampfit(sidecar, rate, hdu, sig, eff, ngroups,
                                       raw.stat().st_mtime)
-    assert sidecar == tmp_path / 'RampFit' / 'sci.fits', \
+    assert sidecar == tmp_path / 'RampFit' / 'sci_rampfit.fits', \
         'the sidecar must land in the RampFit subdir under the redux path'
     assert sidecar.exists(), 'ramp.write_rampfit must create the sidecar file'
     with fits.open(sidecar) as shdu:
@@ -900,7 +900,7 @@ def test_mmirs_ramp_script(tmp_path, monkeypatch):
     pypeit_file = _write_pypeit_file(
         tmp_path, [(synth_ramp_hdulist(6, rate=20., seed=91), 'sci.fits')], redux)
     FitRamp.main(FitRamp.parse_args([str(pypeit_file)]))
-    sidecar = redux / 'RampFit' / 'sci.fits'
+    sidecar = redux / 'RampFit' / 'sci_rampfit.fits'
     assert sidecar.exists(), \
         'the fit_ramp script must write a sidecar into the redux ramp-fit dir'
     assert np.isfinite(fits.getval(sidecar, 'RAMPSIG')), \
@@ -926,9 +926,9 @@ def test_mmirs_ramp_script_skips_few_reads(tmp_path, monkeypatch):
         (synth_ramp_hdulist(2, rate=20., seed=93), 'cds.fits'),
     ], redux)
     FitRamp.main(FitRamp.parse_args([str(pypeit_file)]))    # must not raise
-    assert (redux / 'RampFit' / 'sci.fits').exists(), \
+    assert (redux / 'RampFit' / 'sci_rampfit.fits').exists(), \
         'a multi-read frame in the pypeit file must be fit'
-    assert not (redux / 'RampFit' / 'cds.fits').exists(), \
+    assert not (redux / 'RampFit' / 'cds_rampfit.fits').exists(), \
         'a CDS frame (too few reads) must be skipped, writing no sidecar'
 
 
@@ -940,9 +940,9 @@ def test_mmirs_ramp_script_honors_rampfit_dir(tmp_path, monkeypatch):
         tmp_path, [(synth_ramp_hdulist(6, rate=20., seed=94), 'sci.fits')],
         redux, rampfit_dir='Ramps')
     FitRamp.main(FitRamp.parse_args([str(pypeit_file)]))
-    assert (redux / 'Ramps' / 'sci.fits').exists(), \
+    assert (redux / 'Ramps' / 'sci_rampfit.fits').exists(), \
         'the script must write into the [rdx] rampfit_dir subdirectory'
-    assert not (redux / 'RampFit' / 'sci.fits').exists(), \
+    assert not (redux / 'RampFit' / 'sci_rampfit.fits').exists(), \
         'no sidecar must land in the default RampFit dir when rampfit_dir is set'
 
 

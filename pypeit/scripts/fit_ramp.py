@@ -4,8 +4,9 @@ Preprocess up-the-ramp cubes into 2D count-rate images.
 Given a :ref:`pypeit_file`, each multi-read raw cube it lists is fit up the ramp
 (with jump detection; see :mod:`pypeit.ext.fitramp.fitramp`) and the result is
 written to the ramp-fit directory inside the reduction directory (the ``[rdx]``
-``redux_path`` and ``rampfit_dir`` parameters), with the same file name as the
-raw cube.  ``run_pypeit`` finds and reuses these files automatically — and
+``redux_path`` and ``rampfit_dir`` parameters), named after the raw cube with a
+``_rampfit`` marker before the extension.  ``run_pypeit`` finds and reuses these
+files automatically — and
 creates them itself when missing — so running this script is optional; it lets
 users inspect the fitted images (units of e-/s) before a full reduction and
 front-loads the fitting cost.  The intended workflow is::
