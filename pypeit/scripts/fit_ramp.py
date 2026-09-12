@@ -32,8 +32,6 @@ class FitRamp(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width: int | None = None) -> argparse.ArgumentParser:
-        from pypeit.spectrographs.util import available_spectrographs
-
         parser = super().get_parser(
             description='Preprocess up-the-ramp cubes into 2D count-rate '
                         'images (e-/s), written to the RampFit directory '
@@ -42,8 +40,9 @@ class FitRamp(scriptbase.ScriptBase):
             width=width,
             default_log_file=True)
         parser.add_argument('spectrograph', type=str,
-                            help='A valid spectrograph identifier: {0}'.format(
-                                 ', '.join(available_spectrographs)))
+                            help='Spectrograph that took the data.  Up-the-ramp '
+                                 'fitting is currently implemented only for: '
+                                 f'{", ".join(RAMP_SPECTROGRAPHS)}.')
         parser.add_argument('files', type=str, nargs='+',
                             help='One or more raw multi-read cubes')
         parser.add_argument('--odir', type=str, default='.',
