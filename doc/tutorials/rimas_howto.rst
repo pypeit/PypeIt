@@ -25,6 +25,71 @@ direct your attention to the appropriate section for your data.
 
 ----
 
+Correcting Commissioning Dither Metadata
+========================================
+
+Some RIMAS commissioning data have incorrect or incomplete dither metadata in
+their FITS headers.  This *should* only affect commissioning observations taken
+before summer 2026.  However, because it is possible that the underlying
+instrument-software bug has not yet been fixed, observers should inspect the
+``dithpat``, ``dithpos``, ``comb_id``, and ``bkg_id`` columns produced by
+``pypeit_setup`` even for newer observations.
+
+If the headers are wrong, use the ``rimas_dither_pattern`` command provided by
+the ``obstools`` package in `LDTObserverTools
+<https://lowellobservatory.github.io/LDTObserverTools>`__ to create
+``rimas_dither_corrections.ecsv`` from the hand-written observing log.  Run the
+command from the directory where you will run ``pypeit_setup``.  PypeIt looks
+for the sidecar in that working directory first and, if it is not found there,
+searches the raw-data directories supplied to ``pypeit_setup``.
+
+Each ``-s`` or ``--sequence`` argument describes one complete commanded dither
+sequence.  List the commanded frame numbers in order, including any frame that
+was commanded but not written to disk.  The gaps are significant because the
+tool uses the commanded frame number to recover the position within the dither
+pattern.  Repeat ``-s`` for every sequence recorded in the observing log.
+
+For example, to describe three ABBA sequences, run:
+
+.. code-block:: bash
+
+    conda activate obstools
+    cd <directory-where-pypeit_setup-will-be-run>
+    rimas_dither_pattern ABBA --date 20260305 \
+        -s 86 87 88 89 \
+        -s 90 91 92 93 \
+        -s 94 95 96 97
+
+Bash brace expansion can make consecutive sequences more concise; `e.g.`, the
+first sequence above can be written as ``-s {86..89}``.  For two On/Off
+sequences recorded by both arms, use:
+
+.. code-block:: bash
+
+    rimas_dither_pattern ONOFF --date 20260305 \
+        -s 101 102 \
+        -s 103 104
+
+Both ``YJ`` and ``HK`` arms are included by default.  Use ``--arms YJ`` or
+``--arms HK`` when only one arm should appear in the sidecar.  The optional
+``--source`` argument can record where the correction came from, and
+``--overwrite`` permits replacing an existing sidecar.  See
+``rimas_dither_pattern --help`` for the complete command syntax.
+
+After creating the sidecar, run ``pypeit_setup`` normally from the same
+directory.  For each listed file, PypeIt replaces the in-memory ABBA or On/Off
+pattern and position and limits background matching to the corresponding
+sequence.  Files absent from the sidecar retain their header metadata and are
+not mixed with explicitly corrected sequences.  A sidecar normally contains
+both detector arms; entries for files that are not present in the input data
+produce a warning but do not prevent setup from completing.
+
+Inspect the generated :ref:`pypeit_file` to confirm the corrected grouping
+before starting the reduction.  If its dither metadata is already correct, no
+sidecar is needed.
+
+----
+
 Setup -- Single-Order Spectra (VPH Gratings)
 ============================================
 
