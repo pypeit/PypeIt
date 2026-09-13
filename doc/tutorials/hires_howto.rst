@@ -174,7 +174,9 @@ and an approach that is specific for :ref:`wvcalib-echelle`. This approach
 follows the standard procedure for the 1D wavelength fit, but it also
 performs a 2D fit to the wavelength solutions in order to improve the
 1D fits. The 2D fit is performed on a *per* detector basis, since we find
-the solution for the whole mosaic to be less accurate.
+the solution for the whole mosaic to be less accurate. If you need to inspect or
+construct an echelle wavelength template manually, see
+:ref:`pypeit_identify-echelle`.
 
 Below is the 1D fit wavelength-calibration QA plot for the bluest order in this dataset (order=62).
 Such a plot is produced for each order.

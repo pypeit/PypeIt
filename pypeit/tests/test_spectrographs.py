@@ -311,3 +311,169 @@ def test_ifu_get_datacube_bins_wavelength_axis_first():
         assert xbins.size - 1 == num_slices, \
             f"{spec_name}: get_datacube_bins()[2] should be the {num_slices} slice bins, " \
             f"not the {xbins.size - 1} wavelength bins"
+
+
+def test_ldt_rimas(tmp_path, monkeypatch):
+    """Exercise RIMAS frame typing, mode validation, and dither-sidecar behavior."""
+    rimas = load_spectrograph('ldt_rimas_vph')
+
+    # Flat exposure ranges across the supported configurations.
+    accepted = [
+        ('Vph300', "1.2'' long", 'HK', 5.72),
+        ('Vph300', "1.2'' long", 'YJ', 60.06),
+        ('Vph300', "0.6''", 'HK', 30.0),
+        ('Vph300', "0.6''", 'YJ', 60.06),
+        ('Vph300', "1.0''", 'HK', 15.0),
+        ('Vph300', "1.0''", 'YJ', 60.06),
+        ('Vph300', "2.0''", 'HK', 9.0),
+        ('Vph300', "2.0''", 'YJ', 30.0),
+        ('Vph30', "1.2'' long", 'HK', 5.72),
+        ('Vph30', "1.2'' long", 'YJ', 28.6),
+        ('Vph30', "0.6''", 'HK', 3.0),
+        ('Vph30', "0.6''", 'YJ', 9.0),
+        ('Vph30', "1.0''", 'YJ', 9.0),
+        ('Vph30', "2.0''", 'YJ', 6.0),
+        ('Grism', "0.6''", 'HK', 60.06),
+        ('Grism', "0.6''", 'YJ', 120.12),
+        ('Grism', "1.0''", 'HK', 30.0),
+        ('Grism', "1.0''", 'YJ', 120.12),
+        ('Grism', "2.0''", 'HK', 15.0),
+        ('Grism', "2.0''", 'YJ', 120.12),
+    ]
+    rejected = [
+        ('Vph30', "1.0''", 'HK', 16.0),
+        ('Vph30', "2.0''", 'HK', 11.0),
+        ('Vph300', "1.2'' long", 'HK', 60.06),
+    ]
+    fitstbl = astropy.table.Table(
+        rows=accepted + rejected, names=('dispname', 'decker', 'arm', 'exptime')
+    )
+    fitstbl['idname'] = ['DOME_FLAT'] * len(fitstbl)
+    fitstbl['filter1'] = ['open'] * len(fitstbl)
+    expected = np.array([True] * len(accepted) + [False] * len(rejected))
+    assert np.array_equal(rimas.check_frame_type('pixelflat', fitstbl), expected)
+    fitstbl['idname'] = ['DOME_BACKGROUND'] * len(fitstbl)
+    assert np.array_equal(rimas.check_frame_type('lampoffflats', fitstbl), expected)
+
+    # Darks are retained only when their arm and raw geometry match the mode.
+    fitstbl = astropy.table.Table(
+        rows=[
+            ('vph30.fits', 'Vph30', "1.2'' long", 'Vph30', 'HK', '4096,4230'),
+            ('vph300.fits', 'Vph300', "1.2'' long", 'Vph300', 'YJ', '500,2000'),
+            ('grism.fits', 'Grism', "1.0''", 'Grism', 'HK', '2000,2000'),
+            ('dark_vph30.fits', 'Grism', "1.0''", 'blank', 'HK', '4096,4230'),
+            ('dark_grism.fits', 'Vph30', "1.2'' long", 'blank', 'HK', '2000,2000'),
+            ('dark_wrong_arm.fits', 'Grism', "1.0''", 'blank', 'YJ', '4096,4230'),
+        ],
+        names=('filename', 'dispname', 'decker', 'filter1', 'arm', 'rawshape'),
+    )
+    vph = rimas.validate_fitstbl(fitstbl)
+    assert set(vph['filename']) == {'vph30.fits', 'vph300.fits', 'dark_vph30.fits'}
+    grism = load_spectrograph('ldt_rimas_grism').validate_fitstbl(fitstbl)
+    assert set(grism['filename']) == {'grism.fits', 'dark_grism.fits'}
+
+    sidecar_name = 'rimas_dither_corrections.ecsv'
+    sidecar_columns = ('filename', 'dithpat', 'dithnum', 'dithpos', 'dithseq', 'source')
+
+    def write_sidecar(directory, rows):
+        sidecar = directory / sidecar_name
+        astropy.table.Table(rows=rows, names=sidecar_columns).write(
+            sidecar, format='ascii.ecsv', overwrite=True
+        )
+        return sidecar
+
+    # Prefer the setup directory, then fall back to a raw-data directory.
+    setup_dir, raw_dir = tmp_path / 'setup', tmp_path / 'raw'
+    setup_dir.mkdir()
+    raw_dir.mkdir()
+    raw_sidecar = write_sidecar(
+        raw_dir, [('science.fits', 'ABBA', 2, 'B', 20, 'raw log')]
+    )
+    setup_sidecar = write_sidecar(
+        setup_dir, [('science.fits', 'ABBA', 1, 'A', 10, 'setup log')]
+    )
+    discovery_table = astropy.table.Table(
+        rows=[('science.fits', str(raw_dir))], names=('filename', 'directory')
+    )
+    monkeypatch.chdir(setup_dir)
+    assert rimas._load_dither_corrections(discovery_table) == {
+        'science.fits': ('ABBA', 'A', 10)
+    }
+    setup_sidecar.unlink()
+    assert raw_sidecar.is_file()
+    assert rimas._load_dither_corrections(discovery_table) == {
+        'science.fits': ('ABBA', 'B', 20)
+    }
+
+    # Reject files that do not have the schema produced by the observer tool.
+    monkeypatch.chdir(tmp_path)
+    astropy.table.Table(
+        rows=[('science.fits', 1, 10)], names=('filename', 'dithnum', 'dithseq')
+    ).write(tmp_path / sidecar_name, format='ascii.ecsv')
+    with pytest.raises(PypeItError, match='must contain exactly these columns'):
+        rimas._load_dither_corrections(
+            astropy.table.Table(rows=[('science.fits',)], names=('filename',))
+        )
+
+    def science_table(nframe, pattern, positions, mjd=None):
+        filenames = [f'science_{i}.fits' for i in range(nframe)]
+        table = astropy.table.Table()
+        table['filename'] = filenames
+        table['directory'] = [str(raw_dir)] * nframe
+        table['frametype'] = ['science'] * nframe
+        table['setup'] = ['A'] * nframe
+        table['target'] = ['target'] * nframe
+        table['dithpat'] = np.array([pattern] * nframe, dtype='U8')
+        table['dithpos'] = np.array(positions, dtype='U8')
+        table['mjd'] = np.arange(nframe, dtype=float) if mjd is None else mjd
+        table['comb_id'] = np.arange(nframe, dtype=int)
+        table['bkg_id'] = np.full(nframe, -1, dtype=int)
+        return filenames, table
+
+    # Correct two ABBA sequences while keeping unlisted header-based frames separate.
+    filenames, fitstbl = science_table(
+        6, 'ABBA', ['B', 'A', 'A', 'B', 'A', 'B'], mjd=[0, 10, 1, 2, 20, 21]
+    )
+    write_sidecar(
+        tmp_path,
+        [
+            (filenames[0], 'ABBA', 1, 'A', 10, 'observing log'),
+            (filenames[1], 'ABBA', 2, 'B', 10, 'observing log'),
+            (filenames[2], 'ABBA', 2, 'B', 20, 'observing log'),
+            (filenames[3], 'ABBA', 4, 'A', 20, 'observing log'),
+        ],
+    )
+    result = rimas.get_comb_group(fitstbl)
+    assert list(result['dithpos']) == ['A', 'B', 'B', 'A', 'A', 'B']
+    assert list(result['comb_id']) == [0, 1, 2, 3, 4, 5]
+    assert list(result['bkg_id']) == [1, 0, 3, 2, 5, 4]
+
+    # A complete corrected ABBA sequence is reduced as AA-BB and BB-AA.
+    filenames, fitstbl = science_table(4, 'ABBA', ['A', 'B', 'B', 'A'])
+    write_sidecar(
+        tmp_path,
+        [
+            (filenames[0], 'ABBA', 1, 'A', 1, 'observing log'),
+            (filenames[1], 'ABBA', 2, 'B', 1, 'observing log'),
+            (filenames[2], 'ABBA', 3, 'B', 1, 'observing log'),
+            (filenames[3], 'ABBA', 4, 'A', 1, 'observing log'),
+        ],
+    )
+    result = rimas.get_comb_group(fitstbl)
+    assert list(result['comb_id']) == [0, 1, 1, 0]
+    assert list(result['bkg_id']) == [1, 0, 0, 1]
+
+    # The sidecar can replace an incorrect header pattern with On/Off metadata.
+    filenames, fitstbl = science_table(2, 'NONE', ['Unknown'] * 2)
+    write_sidecar(
+        tmp_path,
+        [
+            (filenames[0], 'ONOFF', 1, 'On', 1, 'observing log'),
+            (filenames[1], 'ONOFF', 2, 'Off', 1, 'observing log'),
+        ],
+    )
+    result = rimas.get_comb_group(fitstbl)
+    assert list(result['dithpat']) == ['OnOff', 'OnOff']
+    assert list(result['dithpos']) == ['On', 'Off']
+    assert list(result['comb_id']) == [0, 1]
+    assert list(result['bkg_id']) == [1, 0]

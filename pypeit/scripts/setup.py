@@ -142,7 +142,7 @@ class Setup(scriptbase.ScriptBase):
             # Write the pypeit files.
             configs = [item.strip() for item in args.cfg_split.split(',')]
             pypeit_files = ps.fitstbl.write_pypeit(output_path=output_path, cfg_lines=ps.user_cfg, 
-                                                   write_bkg_pairs=args.background,
+                                                   write_bkg_pairs=args.background | ps.spectrograph.add_bg_columns,
                                                    write_manual=args.manual_extraction,
                                                    write_shift = args.flexure,
                                                    configs=configs,

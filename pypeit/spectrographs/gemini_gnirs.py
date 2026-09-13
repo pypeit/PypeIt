@@ -36,6 +36,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
     def __init__(self):
         super().__init__()
+        self.dispname = None
+        self.camera_pos = None
 
     def get_detector_par(self, det, hdu=None):
         """
