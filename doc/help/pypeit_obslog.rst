@@ -17,7 +17,8 @@
                             gemini_gmos_north_e2v, gemini_gmos_north_ham,
                             gemini_gmos_north_ham_ns, gemini_gmos_south_ham,
                             gemini_gnirs_echelle, gemini_gnirs_ifu, gtc_maat,
-                            gtc_osiris, gtc_osiris_plus, jwst_nircam, jwst_nirspec,
+                            gtc_osiris, gtc_osiris_plus, int_ids_eev10,
+                            int_ids_redplus2, jwst_nircam, jwst_nirspec,
                             keck_deimos, keck_esi, keck_hires, keck_kcrm, keck_kcwi,
                             keck_lris_blue, keck_lris_blue_orig, keck_lris_red,
                             keck_lris_red_mark4, keck_lris_red_orig, keck_mosfire,
@@ -31,12 +32,13 @@
                             mmt_binospec, mmt_binospec_ifu, mmt_bluechannel,
                             mmt_mmirs, not_alfosc, not_alfosc_vert, ntt_efosc2,
                             p200_dbsp_blue, p200_dbsp_red, p200_ngps_g, p200_ngps_i,
-                            p200_ngps_r, p200_ngps_u, p200_tspec, shane_kast_blue,
-                            shane_kast_red, shane_kast_red_ret, soar_goodman_blue,
-                            soar_goodman_red, soar_tspec, subaru_focas, tng_dolores,
-                            vlt_fors2, vlt_sinfoni, vlt_uves_blue, vlt_uves_red,
-                            vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis,
-                            wht_isis_blue, wht_isis_red
+                            p200_ngps_r, p200_ngps_u, p200_tspec, shane_hamspec,
+                            shane_kast_blue, shane_kast_red, shane_kast_red_ret,
+                            soar_goodman_blue, soar_goodman_red, soar_tspec,
+                            subaru_focas, tng_dolores, vlt_fors2, vlt_sinfoni,
+                            vlt_uves_blue, vlt_uves_red, vlt_xshooter_nir,
+                            vlt_xshooter_uvb, vlt_xshooter_vis, wht_isis_blue,
+                            wht_isis_red
     
     options:
       -h, --help            show this help message and exit

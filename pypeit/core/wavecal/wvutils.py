@@ -461,7 +461,8 @@ def zerolag_shift_stretch(theta, y1, y2, stretch_func = 'quadratic'):
     return -corr_norm
 
 
-def get_xcorr_arc(inspec1, sigdetect=5.0, input_thresh=None, sig_ceil=10.0, percent_ceil=50.0, use_raw_arc=False,
+def get_xcorr_arc(inspec1, sigdetect=5.0, input_thresh=None, 
+                  sig_ceil=10.0, percent_ceil=50.0, use_raw_arc=False,
                   fwhm=4.0, cont_sub=True, debug=False):
     """
     Utility routine to create a synthetic arc spectrum for cross-correlation
@@ -497,12 +498,10 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, input_thresh=None, sig_ceil=10.0, perc
 
     """
 
-
     # Run line detection to get the locations and amplitudes of the lines
-    tampl1, tampl1_cont, tcent1, twid1, centerr1, w1, arc1, nsig1 = arc.detect_lines(inspec1, sigdetect=sigdetect,
-                                                                                     input_thresh=input_thresh,
-                                                                                     fwhm=fwhm, cont_subtract=cont_sub,
-                                                                                     debug=debug)
+    tampl1, tampl1_cont, tcent1, twid1, centerr1, w1, arc1, nsig1 = arc.detect_lines(
+        inspec1, sigdetect=sigdetect, input_thresh=input_thresh, 
+        fwhm=fwhm, cont_subtract=cont_sub, debug=debug)
 
     ampl = tampl1 if use_raw_arc else tampl1_cont
 
@@ -535,7 +534,7 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, input_thresh=None, sig_ceil=10.0, perc
 # ToDO can we speed this code up? I've heard numpy.correlate is faster. Someone should investigate optimization. Also we don't need to compute
 # all these lags.
 def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetect=5.0, sig_ceil=10.0, fwhm=4.0,
-                do_xcorr_arc=True, lag_range=None, max_lag_frac=1.0,  debug=False):
+                do_xcorr_arc=True, cont_subtract=True, lag_range=None, max_lag_frac=1.0,  debug=False):
 
     """
     Determine the shift inspec2 relative to inspec1.  This routine computes the
@@ -573,6 +572,13 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
         synthetic arc will be created to be used for the cross-correlations.  If
         a synthetic arc has already been created by get_xcorr_arc, then set this
         to False
+    cont_subtract : bool, default = True
+        If True, continuum subtract the cross-correlation function before
+        finding its peak (passed to
+        :func:`~pypeit.core.arc.detect_lines`).  Set to False to skip the
+        (iterative, and for very long input spectra slow) continuum fit;
+        the CCF is normalized, so the peak is usually well determined
+        without it.
     lag_range : tuple, default = None
         A tuple of the form (lag_min, lag_max) which sets the range of lags to
         search over. If None, max_lag_frac will be used to set the range of lags.
@@ -608,15 +614,19 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
         lagmin = int((-nspec + 1) * max_lag_frac)
         lagmax = int((nspec - 1) * max_lag_frac)
 
+
     lags = np.linspace(lagmin, lagmax, 2*nspec-1)
     corr = scipy.signal.correlate(y1, y2, mode='full')
 
     corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2*y2))
     corr_norm = corr/corr_denom
-    tampl_true, tampl, pix_max, twid, centerr, ww, arc_cont, nsig = arc.detect_lines(corr_norm, sigdetect=3.0,
-                                                                                     fit_frac_fwhm=1.5, fwhm=5.0,
-                                                                                     cont_frac_fwhm=1.0, cont_samp=30, 
-                                                                                     nfind=1)
+
+    # Find the peak
+    tampl_true, tampl, pix_max, twid, centerr, ww, arc_cont, nsig = arc.detect_lines(
+        corr_norm, sigdetect=3.0, fit_frac_fwhm=1.5, fwhm=5.0,
+        cont_frac_fwhm=1.0, cont_samp=30, nfind=1,
+        cont_subtract=cont_subtract)
+
     corr_max = np.interp(pix_max, np.arange(lags.shape[0]),corr_norm)
     lag_max  = np.interp(pix_max, np.arange(lags.shape[0]),lags)
     if debug:

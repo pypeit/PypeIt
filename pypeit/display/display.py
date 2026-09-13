@@ -272,9 +272,9 @@ def show_points(viewer, ch, spec, spat, color='cyan', legend=None, legend_spec=N
     legend : str
         Label for a legend
     legend_spec : float
-        Spectral pixel loation for legend
+        Spectral pixel location for legend
     legend_spat : float
-        Pixel loation for legend
+        Pixel location for legend
 
     """
     canvas = viewer.canvas(ch._chname)
