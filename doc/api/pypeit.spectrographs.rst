@@ -17,6 +17,7 @@ Submodules
    pypeit.spectrographs.gemini_gmos
    pypeit.spectrographs.gemini_gnirs
    pypeit.spectrographs.gtc_osiris
+   pypeit.spectrographs.int_ids
    pypeit.spectrographs.jwst_nircam
    pypeit.spectrographs.jwst_nirspec
    pypeit.spectrographs.keck_deimos
@@ -45,6 +46,7 @@ Submodules
    pypeit.spectrographs.p200_ngps
    pypeit.spectrographs.p200_tspec
    pypeit.spectrographs.ramp_spectrograph
+   pypeit.spectrographs.shane_hamspec
    pypeit.spectrographs.shane_kast
    pypeit.spectrographs.slitmask
    pypeit.spectrographs.soar_goodman
