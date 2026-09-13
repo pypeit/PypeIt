@@ -1586,3 +1586,41 @@ def test_write_pypeit_bakes_maskdesign_lines(tmp_path):
         'the generated PypeIt file must point maskdesign_filename at the discovered .msk'
     assert cfg['reduce']['slitmask']['assign_obj'] == 'True', \
         'the generated PypeIt file must enable mask-design object assignment'
+
+
+def test_setup_gui_save_bakes_maskdesign_lines(tmp_path, qtbot):
+    # The setup GUI must produce the same mask-design block as the CLI.  Its
+    # PypeItFileModel.save() writes a PypeItFile directly rather than going
+    # through PypeItMetaData.write_pypeit, so it has to fire
+    # config_specific_setup_lines itself -- otherwise a MOS setup saved from
+    # the GUI silently omits use_maskdesign/maskdesign_filename and the whole
+    # mask-design reduction is disabled for GUI users.
+    from pypeit import inputfiles
+    from pypeit.gui.setup_gui.model import PypeItSetupGUIModel
+
+    # synthetic MMIRS ramp frame (decker '1pixel-long') + sidecar .msk, exactly
+    # as in the CLI write_pypeit test above
+    _write_synth(synth_ramp_hdulist(4, seed=7), tmp_path / 'sci.fits')
+    _write_synthetic_msk(tmp_path / '1pixel-long.msk')
+
+    model = PypeItSetupGUIModel()
+    model.obslog_model.set_spectrograph('mmt_mmirs')
+    model.obslog_model.add_raw_data_directory(str(tmp_path))
+    model.run_setup()
+
+    assert len(model.pypeit_files) == 1, \
+        'setup must produce exactly one MMIRS configuration'
+    pf_model = next(iter(model.pypeit_files.values()))
+    pf_model.save_location = str(tmp_path / 'out')
+    pf_model.save()
+
+    written = Path(pf_model.filename)
+    assert written.exists(), 'the GUI must write the .pypeit file'
+    cfg = inputfiles.PypeItFile.from_file(str(written)).config
+    assert cfg['calibrations']['slitedges']['use_maskdesign'] == 'True', \
+        'a GUI-saved MOS setup must enable mask design, matching the CLI'
+    baked = Path(cfg['calibrations']['slitedges']['maskdesign_filename'])
+    assert baked.name == '1pixel-long.msk' and baked.is_absolute() and baked.exists(), \
+        'the GUI-saved file must point maskdesign_filename at the discovered .msk'
+    assert cfg['reduce']['slitmask']['assign_obj'] == 'True', \
+        'the GUI-saved file must enable mask-design object assignment'

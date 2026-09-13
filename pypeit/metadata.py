@@ -12,7 +12,6 @@ from copy import deepcopy
 
 from IPython import embed
 
-import configobj
 import numpy as np
 
 from astropy import table, time
@@ -1820,13 +1819,9 @@ class PypeItMetaData:
 
             # Let the spectrograph add configuration-specific parameters derived
             # from the raw data (e.g. a mask-design file found next to the
-            # frames).  Merge into a fresh copy so nested sections combine
-            # cleanly and the shared base cfg_lines is not mutated across setups.
-            setup_cfg = configobj.ConfigObj(cfg_lines)
-            extra_lines = self.spectrograph.config_specific_setup_lines(subtbl, paths)
-            if extra_lines:
-                setup_cfg.merge(configobj.ConfigObj(extra_lines))
-            this_cfg_lines = setup_cfg.write()
+            # frames).  The setup GUI shares this same merge (see
+            # Spectrograph.merge_setup_cfg_lines).
+            this_cfg_lines = self.spectrograph.merge_setup_cfg_lines(cfg_lines, subtbl, paths)
 
             # Instantiate a PypeItFile
             pypeItFile = inputfiles.PypeItFile(this_cfg_lines, paths, subtbl, setup_dict)

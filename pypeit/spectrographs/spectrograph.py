@@ -1188,8 +1188,10 @@ class Spectrograph:
         """
         Return configuration lines to bake into a setup's PypeIt file.
 
-        This hook is called once per setup by
-        :func:`~pypeit.metadata.PypeItMetaData.write_pypeit`, giving a
+        This hook is called once per setup when the setup's PypeIt file is
+        generated -- by :func:`~pypeit.metadata.PypeItMetaData.write_pypeit`
+        (the ``pypeit_setup`` command line) and by the setup GUI, both via
+        :func:`merge_setup_cfg_lines` -- giving a
         spectrograph the chance to add configuration-specific parameters that
         depend on the raw data itself -- for example, the location of a
         mask-design file discovered next to the frames -- directly into the
@@ -1209,6 +1211,43 @@ class Spectrograph:
             base-class implementation returns an empty list.
         """
         return []
+
+    def merge_setup_cfg_lines(self, cfg_lines, subtbl, paths):
+        """
+        Merge :func:`config_specific_setup_lines` into a setup's config lines.
+
+        This is the single place that folds the spectrograph's setup-time
+        configuration additions (e.g. a discovered mask-design file) into the
+        configuration block written to a PypeIt file, so every path that
+        generates one -- ``pypeit_setup``
+        (:func:`~pypeit.metadata.PypeItMetaData.write_pypeit`) and the setup
+        GUI (:func:`~pypeit.gui.setup_gui.model.PypeItFileModel.save`) -- stays
+        consistent.  The additions are merged into a fresh copy so nested
+        sections combine cleanly and the shared, base ``cfg_lines`` are not
+        mutated across setups.
+
+        Args:
+            cfg_lines (:obj:`list`):
+                The base configuration lines for this setup.
+            subtbl (`astropy.table.Table`_):
+                The metadata rows belonging to this setup.
+            paths (:obj:`list`):
+                The unique raw-data directories for this setup.
+
+        Returns:
+            :obj:`list`: The merged configuration lines.  When
+            :func:`config_specific_setup_lines` returns nothing, the input
+            ``cfg_lines`` are returned unchanged (round-tripped through
+            :class:`~configobj.ConfigObj`).
+        """
+        # Local import: configobj is only needed here, and importing it at
+        # module scope would add it to a very widely imported module.
+        import configobj
+        setup_cfg = configobj.ConfigObj(cfg_lines)
+        extra_lines = self.config_specific_setup_lines(subtbl, paths)
+        if extra_lines:
+            setup_cfg.merge(configobj.ConfigObj(extra_lines))
+        return setup_cfg.write()
 
     def get_comb_group(self, fitstbl):
         """
