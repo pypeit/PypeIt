@@ -16,6 +16,15 @@ dataset, which are observations of the quasar J0100+2802 at z=6.29 taken with th
 cross-disperser, echelle angle of -0.82°, cross-disperser angle of 1.62°, and 1x2
 (spectral x spatial) binning.  See :ref:`here <dev-suite>` to find this example dataset.
 
+Note that this tutorial uses data taken *after* the HIRES detector upgrade (~August 2004), which is
+reduced with the ``keck_hires`` spectrograph.  PypeIt also supports data taken *before* the
+upgrade, i.e., using the original single Tektronix CCD, which is reduced with the
+``keck_hires_orig`` spectrograph.  The overall reduction is the same for both, but there are a
+few important differences; these are described in :ref:`hires_orig` at the end of this tutorial.
+PypeIt will check the correct spectrograph based on the observation date, so make sure
+you use the appropriate name (``keck_hires`` or ``keck_hires_orig``) when running
+:ref:`pypeit_setup`.
+
 If you're having trouble reducing your data, we encourage you to try going
 through this tutorial using this example dataset first.  Please join our `PypeIt
 Users Slack <https://pypeit-users.slack.com>`__ using `this invitation link
@@ -132,7 +141,8 @@ Order Edges
 
 PypeIt, by default, uses a mosaic approach for the reduction. It constructs a mosaic
 of the blue, green, and red detector data and reduces it, instead of processing
-the detector data individually.
+the detector data individually.  (The original Tektronix detector is a single CCD, so no
+mosaic is constructed; see :ref:`hires_orig`.)
 
 The code first uses the mosaiced ``trace`` frames to find all of the order edges
 in the HIRES data. To check that PypeIt correctly identified every order,
@@ -164,6 +174,70 @@ The QA file is a PNG file in the ``QA/PNG/`` folder and it looks like this:
     spatial widths (blue) and gaps (green) in pixels. The colored lines show
     the best fit polynomial model used for the predicted order locations. The
     missing orders that are added are shown as open squares.
+
+.. _edgetrace_pad:
+
+Tracing overlapping orders with the ``pad`` parameter
++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+A common complication for some echelle spectrographs is that the internal quartz flats (typically used
+as the ``pixelflat`` and ``illumflat`` frames) illuminate the full width of the slit, so that adjacent
+orders can overlap.  When the orders overlap, PypeIt is unable to reliably trace the order edges
+directly from the internal flat-field frames.
+
+To work around this, you can trace lines that run *parallel* to the order edges using either a
+frame taken through a pinhole decker or a bright standard-star exposure, and then use the ``pad``
+parameter to extend those traced lines to the true location of the order edges.  In
+practice, this means assigning the ``trace`` frame type to a standard-star (or pinhole-decker)
+exposure rather than to the quartz flats, and assigning the quartz exposures to only the
+``pixelflat`` and ``illumflat`` frame types.
+
+The ``pad`` parameter is set in the :ref:`parameter_block` under
+``[calibrations][[slitedges]]``:
+
+.. code-block:: ini
+
+    [calibrations]
+        [[slitedges]]
+            pad = 8,6
+
+The two values give the padding for the left and right edges separately (in binned pixels): here
+the left edges are extended outward by 8 pixels and the right edges by 6 pixels.  A single value
+(e.g., ``pad = 8``) applies the same padding to both edges.  Positive values *extend* the slit
+edges outward, while negative values *shrink* them, which is useful for excluding the parts of the
+orders that overlap.  Note that ``pad`` does not alter the traced edges themselves; it only defines
+the slit mask used for the subsequent processing steps (flat-fielding, sky subtraction, and
+extraction).
+
+Because the order edges are defined by the padded traces rather than by the flat-field
+illumination profile, it is also recommended to prevent the flat-fielding step from re-tweaking
+or trimming the edges:
+
+.. code-block:: ini
+
+    [calibrations]
+        [[flatfield]]
+            tweak_slits = False
+            slit_trim = 0.0
+
+Putting these together, a typical :ref:`parameter_block` for reducing echelle data with
+overlapping orders looks like this:
+
+.. code-block:: ini
+
+    [calibrations]
+        [[slitedges]]
+            pad = 8,6
+        [[flatfield]]
+            tweak_slits = False
+            slit_trim = 0.0
+
+Remember also to assign the ``trace`` frame type to a standard-star or pinhole-decker exposure (and
+*not* to the quartz flats) in the :ref:`data_block`, so that the order edges are traced from those
+frames and then padded to the true edge locations.
+
+See :ref:`edgetracepar` for the full description of the ``pad`` parameter and the other slit-edge
+tracing options.
 
 
 Wavelengths
@@ -542,3 +616,35 @@ The telluric correction can then be run with:
 This will produce a telluric corrected spectrum, with the suffix ``_tellcorr``, which can still be visualized
 using the `specutils`_ interface as shown above, and a file with the suffix ``_tellmodel`` that contains the
 telluric model used to correct the spectrum.
+
+
+.. _hires_orig:
+
+Original HIRES detector (pre-2004)
+==================================
+
+PypeIt also supports the reduction of data taken *before* the HIRES detector upgrade
+(~August 2004), which used a single Tektronix CCD.  These data are reduced with the
+``keck_hires_orig`` spectrograph, e.g.:
+
+.. code-block:: bash
+
+    pypeit_setup -s keck_hires_orig -r /path/to/raw_data
+
+PypeIt checks the data are either ``keck_hires`` or ``keck_hires_orig`` based on the observation date and
+will raise an error if you use the wrong one for a given dataset.  The full reduction, fluxing,
+and co-adding workflow described above applies equally to the original detector, with the
+following differences:
+
+- **Single detector, no mosaic.**  The original detector is a single Tektronix CCD, so no mosaic
+  is constructed and the default ``detnum`` is simply ``(1)``.  The ``Calibrations/`` and
+  ``Science/`` file names therefore use ``DET01`` rather than ``MSC01``.
+
+- **Cross-disperser.**  There are three cross-dispersers available for ``keck_hires_orig``:
+  ``RED97``, ``RED``, and ``UV``. For data taken on or before 31 December 1997, the cross-disperser
+  is ``RED97``; for data taken after 31 December 1997, the cross-disperser is
+  ``RED`` or ``UV``.  PypeIt automatically determines the correct cross-disperser based on the
+  observation date, as this determines how the wavelength calibration is performed.
+
+- **Bad pixel mask.**  A hard-coded bad pixel mask is applied to mask
+  the known bad regions of the Tektronix detector.
