@@ -53,7 +53,9 @@ def tuple_force(par):
 
 # TODO: May need to disallow parameters being either a tuple or list.  Because
 # of issues with ConfigObj, these may need to be mutually exclusive.
-def set_parameter_definition(dtype=None, default=None, options=None, descr=None):
+def set_parameter_definition(
+    dtype=None, default=None, default_factory=None, options=None, descr=None
+):
     """
     Define a parameter for a :class:`~pypeit.par.parset.ParSet`.
 
@@ -69,10 +71,19 @@ def set_parameter_definition(dtype=None, default=None, options=None, descr=None)
         :class:`~pypeit.par.parset.ParSet` subclass for that parameter.  If a
         parameter is a :class:`~pypeit.par.parset.ParSet`, it
         *cannot have any other type* and it must be a single
-        :class:`~pypeit.par.parset.ParSet` subclass.
-    default : object, callable, optional
-        The default value for the parameter or a callable function that returns
-        the default value.
+        :class:`~pypeit.par.parset.ParSet` subclass.  This should describe
+        only the type(s) of the *resolved* value; it should not include
+        ``Callable`` to accommodate `default_factory`.
+    default : object, optional
+        The default value for the parameter.  Mutually exclusive with
+        `default_factory`.
+    default_factory : callable, optional
+        A callable, taking no arguments, used to compute the parameter's
+        default value.  Unlike `default`, which is set once when the module
+        is imported, `default_factory` is called anew each time the
+        :class:`~pypeit.par.parset.ParSet` is instantiated; use this for a
+        default that can only be known at instantiation time (e.g., the
+        current working directory).  Mutually exclusive with `default`.
     options : object, list, optional
         A list of valid options for the parameter.
     descr : str, optional
@@ -87,8 +98,12 @@ def set_parameter_definition(dtype=None, default=None, options=None, descr=None)
     ------
     ValueError
         Raised if the parameter definition does not adhere to the rules outlined
-        in the ``dtype`` argument.
+        in the ``dtype`` argument, or if both `default` and `default_factory` are
+        provided.
     """
+    if default is not None and default_factory is not None:
+        raise ValueError('Cannot provide both default and default_factory; use only one.')
+
     _dtype = None if dtype is None else np.atleast_1d(dtype).tolist()
     if _dtype is not None:
         # Parameter types are not allowed to be dictionaries
@@ -106,6 +121,7 @@ def set_parameter_definition(dtype=None, default=None, options=None, descr=None)
     return {
         'dtype': _dtype,
         'default': default,
+        'default_factory': default_factory,
         'options': None if options is None else np.atleast_1d(options).tolist(),
         'descr': descr
     }
@@ -122,11 +138,14 @@ class ParSet:
 
     Parameters for each subclass should be defined by the :attr:`parameters`
     dictionary.  Generally, parameters are expected to have a restricted set of
-    data types, and possibly a restricted set of value options.  Parameters can
-    be callable functions or parameter sets themselves.  Components of the
-    :attr:`parameters` should be defined using
-    :func:`~pypeit.par.parset.set_parameter_definition` to ensure it has all of
-    the expected components.
+    data types, and possibly a restricted set of value options.  Parameters
+    can be parameter sets themselves; for a default value that can only be
+    computed at instantiation time (e.g., the current working directory), use
+    the ``default_factory`` argument of
+    :func:`~pypeit.par.parset.set_parameter_definition` rather than storing a
+    callable as the parameter's value.  Components of the :attr:`parameters`
+    should be defined using :func:`~pypeit.par.parset.set_parameter_definition`
+    to ensure it has all of the expected components.
 
     For example implementations of :class:`~pypeit.par.parset.ParSet`
     subclasses, see :mod:`~pypeit.par.pypeitpar`.
@@ -188,8 +207,14 @@ class ParSet:
         # that the defaults in the parameters attribute adhere to their
         # definition, just as any user-defined value should.
         for key in self._data.keys():
+            # default_factory is a callable that takes no arguments and is
+            # invoked here, once per instantiation, to compute the default.
+            default_factory = self.parameters[key]['default_factory']
+            default = (
+                self.parameters[key]['default'] if default_factory is None else default_factory()
+            )
             try:
-                self.__setitem__(key, self.parameters[key]['default'])
+                self.__setitem__(key, default)
             except KeyError as e:
                 raise KeyError(
                     f'Setting the value for {key} in {self.__class__.__name__} caused an error: '
@@ -366,7 +391,7 @@ class ParSet:
             else:
                 data_table[i+1,1] = ParSet._data_string(self._data[key])
                 if not value_only:
-                    data_table[i+1,2] = ParSet._data_string(self.parameters[key]['default'])
+                    data_table[i+1,2] = ParSet._data_string(self._default_string(key))
             if value_only:
                 continue
 
@@ -475,6 +500,30 @@ class ParSet:
 
         return data.__repr__() if use_repr else str(data)
 
+    def _default_string(self, key):
+        """
+        Return a display string for the default value of the parameter
+        `key`, accounting for a ``default_factory`` (there is no fixed
+        default value to show in that case, so the factory's name is shown
+        instead).
+
+        Parameters
+        ----------
+        key : str
+            Keyword of the parameter.
+
+        Returns
+        -------
+        str or object
+            The parameter's default value, or a descriptive string naming its
+            ``default_factory`` if the parameter has one.
+        """
+        default_factory = self.parameters[key]['default_factory']
+        return (
+            self.parameters[key]['default'] if default_factory is None
+            else f'{default_factory.__qualname__}()'
+        )
+
     def _wrap_print(self, head, output, tcols):
         """
         Wrap the contents of an output string for a fixed terminal
@@ -547,32 +596,6 @@ class ParSet:
         """
         pass
 
-    def fill_callable(self, recursive=True):
-        """
-        Fill any callable parameters with their output.
-
-        The callable parameter must not take any arguments and the returned
-        object must have a valid data type.
-
-        Subclasses can override this method to only fill a selection (or none)
-        of the callable parameters.
-
-        .. warning::
-
-            This alters the object *in-place*.
-
-        Parameters
-        ----------
-        recursive : bool, optional
-            Also fill the callable functions for any nested
-            :class:`~pypeit.par.parset.ParSet` instances.
-        """
-        for key in self.keys():
-            if isinstance(self[key], ParSet) and recursive:
-                self[key].fill_callable()
-            elif callable(self[key]):
-                self[key] = self[key]()
-
     def to_rst_table(self, parsets_listed=None, include_keyword_link=True, top_level_only=False):
         """
         Construct a reStructuredText table describing the parameter set.
@@ -622,11 +645,11 @@ class ParSet:
                     '..' if self.parameters[key]['dtype'] is None
                     else ', '.join([t.__name__ for t in self.parameters[key]['dtype']])
                 )
+                default = self._default_string(key)
                 data_table[i+1,3] = (
-                    '..' if self.parameters[key]['default'] is None
+                    '..' if default is None
                     else ParSet._data_string(
-                        self.parameters[key]['default'], use_repr=False, verbatim=True,
-                        check_dir=True
+                        default, use_repr=False, verbatim=True, check_dir=True
                     )
                 )
 
@@ -671,7 +694,7 @@ class ParSet:
             print(f'{key}' if basekey is None else f'{basekey}:{key}')
             self._wrap_print('        Value: ', self._data[key], tcols)
             self._wrap_print(
-                '      Default: ', ParSet._data_string(self.parameters[key]['default']), tcols
+                '      Default: ', ParSet._data_string(self._default_string(key)), tcols
             )
             self._wrap_print(
                 '      Options: ',

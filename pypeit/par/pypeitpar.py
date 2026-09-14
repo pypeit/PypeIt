@@ -4,7 +4,6 @@ functionality.
 
 .. include:: ../include/links.rst
 """
-from collections.abc import Callable
 from pathlib import Path
 
 from configobj import ConfigObj
@@ -3162,11 +3161,11 @@ class ReduxPar(parset.ParSet):
         # change directories and this approach is required for those tests to
         # pass.
         'redux_path': parset.set_parameter_definition(
-            dtype=[str, Path, Callable],
-            default=Path.cwd,
+            dtype=[str, Path],
+            default_factory=Path.cwd,
             descr=(
-                'Path to folder for performing reductions.  By default, this is a callable '
-                'function that returns the current working directory.'
+                'Path to folder for performing reductions.  By default, this is set to the '
+                'current working directory at the time the parameter set is instantiated.'
             ),
         ),
         'chk_version': parset.set_parameter_definition(
@@ -5039,11 +5038,12 @@ class Collate1DPar(parset.ParSet):
         # change directories and this approach is required for those tests to
         # pass.
         'outdir': parset.set_parameter_definition(
-            dtype=[str, Path, Callable],
-            default=Path.cwd,
+            dtype=[str, Path],
+            default_factory=Path.cwd,
             descr=(
                 'The path where all coadded output files and report files will be placed.  By '
-                'default, this is a callable function that returns the current working directory.'
+                'default, this is set to the current working directory at the time the '
+                'parameter set is instantiated.'
             ),
         ),
         'spec1d_outdir': parset.set_parameter_definition(
@@ -5297,7 +5297,7 @@ class PypeItPar(parset.ParSet):
     parameters = {
         'rdx': parset.set_parameter_definition(
             dtype=ReduxPar,
-            default=ReduxPar(),
+            default_factory=ReduxPar,
             descr='PypeIt reduction rules.',
         ),
         'calibrations': parset.set_parameter_definition(
@@ -5363,16 +5363,12 @@ class PypeItPar(parset.ParSet):
         ),
         'collate1d': parset.set_parameter_definition(
             dtype=Collate1DPar,
-            default=Collate1DPar(),
+            default_factory=Collate1DPar,
             descr=(
                 'Par set to control collating 1d spectra.  Only used in the after-burner script.'
             ),
         ),
     }
-
-    def validate(self):
-        # Fill the paths
-        self.fill_callable()
 
     @classmethod
     def from_dict(cls, cfg):

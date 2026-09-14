@@ -308,14 +308,11 @@ def test_dir():
     # Test an instance of ReduxPar, which has no defaults that are also ParSets themselves
     start_cwd = os.getcwd()
     p = pypeitpar.ReduxPar()
-    assert callable(p['redux_path']), 'redux_path should be callable before it is filled in'
-    p.fill_callable()
     assert str(p['redux_path']) == start_cwd, 'Bad default directory'
 
     os.chdir(path)
 
     _p = pypeitpar.ReduxPar()
-    _p.fill_callable()
     assert str(_p['redux_path']) == os.getcwd(), 'Should track directory at instantiation'
 
     _p = pypeitpar.ReduxPar(redux_path=start_cwd)
@@ -324,7 +321,6 @@ def test_dir():
     os.chdir(start_cwd)
 
     _p = pypeitpar.ReduxPar()
-    _p.fill_callable()
     assert str(_p['redux_path']) == start_cwd, 'Should track directory at instantiation'
 
     # Perform the ame tests when instantiating the full PypeItPar set, which
