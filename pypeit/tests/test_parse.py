@@ -124,6 +124,11 @@ def test_parse_image_location():
 
 
 def test_join_image_location():
+    # Fix without parentheses or multiple locations
+    par = '3:1500:331'
+    list_fixed_par = parse.fix_config_par_image_location(par)
+    assert list_fixed_par[0] == par, 'Incorrect parsing of the single element without parentheses'
+
     # Fix without parentheses
     par = ['3:1500:331; 3:1500:635']
     list_fixed_par = parse.fix_config_par_image_location(par)
@@ -146,3 +151,49 @@ def test_join_image_location():
     assert fixed_par[0] == (','.join(par[:3])).split(';')[0], '1st element fix is wrong'
     assert fixed_par[1] == (','.join(par[2:])).split(';')[1].strip(), '2nd element fix is wrong'
 
+    # Do nothing when components are already correct
+    par = '(1,2,3):1500:331'
+    fixed_par = parse.fix_config_par_image_location(par)
+    assert fixed_par[0] == par, 'par should already be fixed and returned as element in a list'
+
+    par = ['(1,2,3):1500:331', '(1,2,3):1500:635']
+    fixed_par = parse.fix_config_par_image_location(par)
+    assert fixed_par == par, 'par should already be fixed and returned as element in a list'
+
+
+    # Now with 4 items separated by colons
+    par = '2:2000:2121:2322; 3:2000:1201:1500'
+    fixed_par = parse.fix_config_par_image_location(par)
+    assert fixed_par[0] == par.split(';')[0], 'Incorrect parsing of the 1st element'
+    assert fixed_par[1] == par.split(';')[1].strip(), 'Incorrect parsing of the 2nd element'
+
+    _fixed_par = parse.fix_config_par_image_location(fixed_par)
+    assert _fixed_par == fixed_par, 'Should return input when already fixed'
+
+    par = ['(1', '2', '3):1537:297.2:353.5; (1', '2', '3):1837:397.2:453.5']
+    fixed_par = parse.fix_config_par_image_location(par)
+    assert fixed_par[0] == (','.join(par)).split(';')[0], '1st element fix is wrong'
+    assert fixed_par[1] == (','.join(par)).split(';')[1].strip(), '2nd element fix is wrong'
+
+    _fixed_par = parse.fix_config_par_image_location(fixed_par)
+    assert _fixed_par == fixed_par, 'Should return input when already fixed'
+
+
+def test_flip_fits_slice():
+
+    inp = '[1:100]'
+    flipped = parse.flip_fits_slice(inp)
+    assert inp == flipped, 'Should not change single dimension slices'
+
+    inp_no_brackets = '1:100'
+    flipped = parse.flip_fits_slice(inp_no_brackets)
+    assert inp == flipped, 'Expect function to add brackets'
+
+    inp_2d = '[1:100,51:150]'
+    flipped_2d = '[51:150,1:100]'
+    flipped = parse.flip_fits_slice(inp_2d)
+    assert flipped == flipped_2d, 'Bad flip'
+
+    inp_2d_no_brackets = '1:100,51:150'
+    flipped = parse.flip_fits_slice(inp_2d_no_brackets)
+    assert flipped == flipped_2d, 'Expect function to add brackets'

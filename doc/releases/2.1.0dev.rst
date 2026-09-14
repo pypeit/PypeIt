@@ -177,7 +177,7 @@ Script Changes
   spec1d files.  Combines both detector sides and produces FITS datacubes
   with 3-axis WCS.
 
-- Removed -G/--gui option from pypeit_obslog.
+- Removed -G/--gui option from ``pypeit_obslog``.
 
 - Added ``pypeit_binospec_ifu_extract`` for interactive selection of
   Binospec IFU fibers and extraction of combined 1D spectra from spec1d
@@ -216,6 +216,8 @@ Under-the-hood Improvements
 - Multiple improvements for datacube generation, including no transpose operations
   and faster cube generation.
 - Added weights as an optional parameter in ``weighted_combine()``.
+- Refactor of :class:`~pypeit.par.parset.Parset`, and relevant modifications to
+  all its subclasses.
 
 
 Bug Fixes

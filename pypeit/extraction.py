@@ -11,6 +11,7 @@ import numpy as np
 import os
 
 from abc import ABCMeta
+from IPython import embed
 
 from pypeit import log, utils
 from pypeit import PypeItError
@@ -581,7 +582,7 @@ class Extract:
         # Save QA
         if flex_list is not None:
             basename = f'{self.basename}_{mode}_{self.spectrograph.get_det_name(self.det)}'
-            out_dir = os.path.join(self.par['rdx']['redux_path'], 'QA')
+            out_dir = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['qadir'])
             spec_flexure_qa(self.slits.slitord_id, self.extract_bpm, basename, flex_list,
                             specobjs=sobjs, out_dir=out_dir)
 

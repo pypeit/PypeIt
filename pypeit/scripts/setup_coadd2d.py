@@ -181,7 +181,7 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
             # This is only used to get the default offsets and weights (see below)
             par = load_spectrograph(spec_name).config_specific_par(spec2d_files[0])
         utils.add_sub_dict(cfg, 'rdx')
-        cfg['rdx']['redux_path'] = par['rdx']['redux_path']
+        cfg['rdx']['redux_path'] = str(par['rdx']['redux_path'])
         cfg['rdx']['scidir'] = par['rdx']['scidir']
         cfg['rdx']['qadir'] = par['rdx']['qadir']
         utils.add_sub_dict(cfg, 'calibrations')
@@ -209,7 +209,7 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
             tbl['filename'] = [f.name for f in files]
             ofile_name = f'{spec_name}_{obj}.coadd2d' if args.pypeit_file is None \
                 else Path(args.pypeit_file).name.replace('.pypeit', f'_{obj}.coadd2d')
-            ofile = str(Path(cfg['rdx']['redux_path']) / ofile_name)
+            ofile = str(Path(cfg['rdx']['redux_path']).absolute() / ofile_name)
 
             inputfiles.Coadd2DFile(config=cfg, file_paths=[str(sc) for sc in sci_dirs],
                                    data_table=tbl).write(ofile)

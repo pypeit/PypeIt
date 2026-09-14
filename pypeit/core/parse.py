@@ -509,11 +509,49 @@ def fix_config_par_image_location(par):
     """
     # Ensure list type; avoid running ','.join(par) on a string!
     _par = [par] if isinstance(par, str) else par
-    # Simply join all the entries with a comma (removed by the configobj parser)
-    # and instead split at the semi-colon and remove leading/trailing whitespace:
+
+    # If none of the strings in _par have a semi-colon, and all of the strings
+    # have 3 or 4 items when split based on a colon, assume that the strings
+    # have already been properly fixed.  Note all items must 3 or all items must
+    # have 4 strings when split by a colon!  The list of strings cannot
+    # currently mix strings with 3 or 4 items.
+    if (
+        not any(';' in p for p in _par) and (
+            all(len(p.split(':')) == 3 for p in _par) or all(len(p.split(':')) == 4 for p in _par)
+        )
+    ):
+        # This should mean that the input has already been fixed
+        return _par
+
+    # Join all the entries with a comma (removed by the configobj parser) and
+    # instead split at the semi-colon and remove leading/trailing whitespace:
     return list(map(str.strip, (','.join(_par)).split(';')))
 
 
 def flip_fits_slice(s: str) -> str:
-    return '[' + ','.join(s.strip('[]').split(',')[::-1]) + ']'
+    """
+    Reverse the dimension ordering of a slice string.
 
+    Parameters
+    ----------
+    s : str
+        String to reverse.  Should be a slice sequence, like ``[1:100,50:150]``.
+        Does not need to include the square brackets.
+
+    Returns
+    -------
+    str
+        Same as the input but with the dimension ordering reversed.  The output
+        will always have square-bracket bookends, even if the input does not.
+
+    Examples
+    --------
+    >>> from pypeit.core.parse import flip_fits_slice
+    >>> flip_fits_slice('[1:100]')
+    '[1:100]'
+    >>> flip_fits_slice('1:100')
+    '[1:100]'
+    >>> flip_fits_slice('[1:100,51:150]')
+    '[51:150,1:100]'
+    """
+    return '[' + ','.join(s.strip('[]').split(',')[::-1]) + ']'

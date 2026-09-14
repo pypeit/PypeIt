@@ -3,14 +3,14 @@ Module providing functions that support primary reduction steps.
 
 .. include:: ../include/links.rst
 """
-import os
-from pathlib import Path
-import numpy as np
 import copy
+from pathlib import Path
 
 from astropy.table import Table
 from astropy.coordinates import SkyCoord
 from astropy import units
+from IPython import embed
+import numpy as np
 
 from pypeit import log
 from pypeit import PypeItError
@@ -30,7 +30,6 @@ from pypeit import outputfiles
 from pypeit import slittrace
 from pypeit import calibrations
 
-from IPython import embed
 
 def get_manual_flexure(fitstbl, frame:int):
     """
@@ -213,7 +212,7 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
 
     """
     if qa_path is None:
-        qa_path = os.path.join(par['rdx']['redux_path'], par['rdx']['qadir'])
+        qa_path = Path(par['rdx']['redux_path']).absolute() / par['rdx']['qadir']
 
     # Handle frames
     in_grp = fitstbl.find_calib_group(calib_ID)
