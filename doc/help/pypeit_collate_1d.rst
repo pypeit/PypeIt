@@ -70,7 +70,7 @@
       --spec1d_outdir SPEC1D_OUTDIR
                             The path where all modified spec1d files are placed.
                             These are only created if flux calibration or refframe
-                            correction are asked for.
+                            correction is asked for.
       --tolerance TOLERANCE
                             The tolerance used when comparing the coordinates of
                             objects. If two objects are within this distance from
@@ -87,7 +87,7 @@
                             Object Ids but will not flux, coadd or archive.
       --ignore_flux         If set, the script will only coadd non-fluxed spectra
                             even if flux data is present. Otherwise fluxed spectra
-                            are coadded if all spec1ds have been fluxed calibrated.
+                            are coadded if all spec1ds have been flux calibrated.
       --flux                If set, the script will flux calibrate using archived
                             sensfuncs before coadding.
       --exclude_slit_trace_bm EXCLUDE_SLIT_TRACE_BM
