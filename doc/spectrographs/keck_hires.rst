@@ -70,10 +70,12 @@ Tektronix CCD, and a few instrument-specific behaviors apply:
 
 - **Bad pixel mask:** A hard-coded bad pixel mask is applied.
 
-- **Cross-disperser:** There are three cross-dispersers available for ``keck_hires_orig``:
-``RED97``, ``RED``, and ``UV``. For data taken on or before 31 December 1997, PypeIt uses the``RED97``
-cross-disperser and wavelength solution. For data taken after 31 December 1997, PypeIt uses either the
-``RED`` or ``UV`` cross-disperser and wavelength solution (read from the headers).
+- **Cross-disperser:** There are three cross-dispersers available for
+  ``keck_hires_orig``: ``RED97``, ``RED``, and ``UV``. For data taken on or
+  before 31 December 1997, PypeIt uses the``RED97`` cross-disperser and
+  wavelength solution. For data taken after 31 December 1997, PypeIt uses either
+  the ``RED`` or ``UV`` cross-disperser and wavelength solution (read from the
+  headers).
 
 
 Calibrations
