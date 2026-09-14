@@ -50,7 +50,9 @@
                             cache file to use (e.g.,
                             TellPCA_3000_26000_R10000.fits).
       -p, --pca_file PCA_FILE
-                            qso_pca_1200_3100.fits
+                            Fits file containing quasar PCA model. Needed for the
+                            QSO model. If you change the default, you might need to
+                            set ``pca_lower`` and ``pca_upper``.
       -t, --tell_file TELL_FILE
                             Configuration file to change default telluric
                             parameters.  The format is identical to any telluric
