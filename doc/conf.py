@@ -71,6 +71,30 @@ autodoc_typehints = "description"
 autodoc_typehints_description_target = "documented_params"
 
 
+def _skip_parset_parameters(app, what, name, obj, skip, options):
+    """
+    Omit the ``parameters`` class attribute from the API documentation of
+    :class:`~pypeit.par.parset.ParSet` subclasses.
+
+    Its value is the full dict used to construct the class (dtype, default,
+    options, and description for every keyword), which autodoc would
+    otherwise render as a single unreadable block of Python source.  That
+    same information is already presented, properly formatted, by the
+    keyword table included directly above in each class's docstring (see
+    :func:`~pypeit.par.parset.ParSet.to_rst_table`).
+    """
+    if (
+        name == 'parameters' and isinstance(obj, dict)
+        and all(isinstance(v, dict) and 'dtype' in v for v in obj.values())
+    ):
+        return True
+    return skip
+
+
+def setup(app):
+    app.connect('autodoc-skip-member', _skip_parset_parameters)
+
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
@@ -362,5 +386,6 @@ intersphinx_mapping = {
     'matplotlib': ('https://matplotlib.org/stable/', None),
     'scipy': ('https://docs.scipy.org/doc/scipy/', None),
     'astropy': ('https://docs.astropy.org/en/stable/', None),
+    'photutils': ('https://photutils.readthedocs.io/en/stable/', None),
 }
 

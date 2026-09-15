@@ -18,7 +18,7 @@ arguments  in the :ref:`pypeit_file` into an instance of
 :class:`~pypeit.par.pypeitpar.PypeItPar` that is passed to all of
 PypeIt's main modules.  The syntax used to set parameters using the
 :ref:`pypeit_file` is important and the nesting of the parameter changes
-must match the `Current PypeItPar Parameter Hierarchy`_.
+must match the :ref:`par-hierarchy`.
 
 .. _parameter-precedence:
 
@@ -87,10 +87,11 @@ that sets the spectrograph:
     [rdx]
         spectrograph = keck_deimos
 
-The nesting of the PypeIt parameters is as illustrated in the `Current PypeItPar
-Parameter Hierarchy`_ section below.  Here are a few examples of how to change
-various parameters; for additional examples see the :ref:`instr_par` section.
-Errors should be raised if you try to define a parameter that doesn't exist.
+The nesting of the PypeIt parameters is as illustrated in the `Parameter
+Hierarchy and Definition Tables`_ section below.  Here are a few examples of how
+to change various parameters; for additional examples see the :ref:`instr_par`
+section.  Errors should be raised if you try to define a parameter that doesn't
+exist.
 
  * To change the threshold used for detecting slit/order edges, add:
 
@@ -113,6 +114,36 @@ Errors should be raised if you try to define a parameter that doesn't exist.
                     sigclip = 6.
             [[pixelflatframe]]
                 exprng = 11,30
+
+Parameter Value Restrictions
+----------------------------
+
+Parameters are restricted to have specific data types (see the allowed types in
+the table below), and some are restricted to a set of options.  If an exception
+is raised with a message that says a specific parameter cannot be assigned to a
+provided type or a specific value, you will need to edit your pypeit file and
+change the relevant parameter.  *If the code complains about a parameter that
+you have not set in your pypeit file, this reflects an error in the code itself
+that developers will need to fix; please submit a GitHub issue if you encounter
+this.*
+
+.. important::
+
+    For parameters that require list types, the syntax for this when there is
+    only one item in the list is a bit obscure.  For example, if you're trying
+    to specify the set of lamps used by your arc frames, you must make sure that
+    the code parses the items as a list.  To identify a single set of lamps, the
+    correct entry would be, e.g.:
+
+    .. code-block:: ini
+        
+        [calibrations]
+            [[wavelengths]]
+                lamps = NeI,
+
+    Note the trailing comma, indicating that ``lamps`` is a list of strings.
+    Setting ``lamps = NeI`` parses ``lamps`` as a single string, which will
+    cause the code to raise an exception.
 
 .. _baseprocess:
 

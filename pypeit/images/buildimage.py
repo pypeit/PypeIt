@@ -242,16 +242,15 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
     """
     # Check
     if not isinstance(frame_par, pypeitpar.FrameGroupPar):
-        raise PypeItError('Provided ParSet must be type FrameGroupPar, not '
-                   f'{frame_par.__class__.__name__}.')
-    if not valid_frametype(frame_par['frametype'], quiet=True):
-        # NOTE: This should not be necessary because FrameGroupPar explicitly
-        # requires frametype to be valid
-        raise PypeItError(f'{frame_par["frametype"]} is not a valid PypeIt frame type.')
+        raise PypeItError(
+            f'Provided ParSet must be type FrameGroupPar, not {frame_par.__class__.__name__}.'
+        )
+    if not valid_frametype(frame_par.frametype, quiet=True):
+        raise PypeItError(f'{frame_par.frametype} is not a valid PypeIt frame type.')
 
     # Should the detectors be reformatted into a single image mosaic?
     if mosaic is None:
-        mosaic = isinstance(det, tuple) and frame_par['frametype'] not in ['bias', 'dark']
+        mosaic = isinstance(det, tuple) and frame_par.frametype not in ['bias', 'dark']
 
     rawImage_list = []
     # Loop on the files
@@ -267,8 +266,8 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
     combineImage = combineimage.CombineImage(rawImage_list, frame_par['process'])
     pypeitImage = combineImage.run(maxiters=maxiters, ignore_saturation=ignore_saturation)
     # Return class type, if returning any of the frame_image_classes
-    cls = frame_image_classes[frame_par['frametype']] \
-            if frame_par['frametype'] in frame_image_classes.keys() else None
+    cls = frame_image_classes[frame_par.frametype] \
+            if frame_par.frametype in frame_image_classes.keys() else None
 
     # Either return the image directly, or decorate and return according to the
     # type of calibration.  For the latter, this specific use of

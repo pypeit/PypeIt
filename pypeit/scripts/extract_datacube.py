@@ -99,7 +99,7 @@ class ExtractDataCube(scriptbase.ScriptBase):
 
         # Extract the spectrum
         extcube.extract_spec(
-            par['reduce'], output_dir=str(coadd_scidir), overwrite=args.overwrite, 
+            par['reduce'], output_dir=str(coadd_scidir), overwrite=args.overwrite,
             debug=args.debug
         )
 

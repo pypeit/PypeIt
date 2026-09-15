@@ -316,10 +316,9 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
                 raise PypeItError(
                     f"{grating} does not have a reid_arxiv solution.  Cannot proceed."
                 )
-        
+
         # Return
         return par
-
 
     def init_meta(self):
         """
