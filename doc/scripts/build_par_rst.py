@@ -16,16 +16,38 @@ from pypeit.spectrographs.util import load_spectrograph, available_spectrographs
 from IPython import embed
 
 
-def link_string(p):
-    return f':ref:`{type(p).__name__.lower()}`'
+def class_index(names):
+    """
+    Build a ``sphinx_design`` grid of cards linking to each ``ParSet``
+    class's dropdown section, keyed by its :func:`~pypeit.par.parset.ParSet.to_rst_table`
+    ``:name:`` target (the lower-cased class name).
+
+    Parameters
+    ----------
+    names : list
+        The (unsorted, possibly duplicated) list of ``ParSet`` subclass
+        names to include in the index.
+
+    Returns
+    -------
+    list
+        The list of rst lines with the grid of cards.
+    """
+    lines = ['.. grid:: 2 3 4 4']
+    lines += ['    :gutter: 2']
+    lines += ['']
+    for name in sorted(set(names)):
+        lines += [f'    .. grid-item-card:: {name}']
+        lines += [f'        :link: {name.lower()}']
+        lines += ['        :link-type: ref']
+        lines += ['']
+    return lines
 
 
 def par_hierarchy(p, indent_level=0, key=''):
     indent_step = ' '*indent_level*4
     line_head = '['*indent_level + key + ']'*indent_level
-    if len(line_head) > 0:
-        line_head = '``' + line_head + '``: '
-    lines = [ indent_step + line_head + link_string(p) ]
+    lines = [ indent_step + line_head ]
 
     for k in p.keys():
         if not isinstance(p[k], ParSet):
@@ -75,18 +97,32 @@ if __name__ == '__main__':
     lines += ['']
 
     # Start to append the automatically generated documentation
-    lines += ['Current PypeItPar Parameter Hierarchy']
-    lines += ['=====================================']
+    lines += ['Parameter Hierarchy and Definition Tables']
+    lines += ['='*len(lines[-1])]
     lines += ['']
 
     p = pypeitpar.PypeItPar()
 
-    lines += ['| '+ l for l in par_hierarchy(p)]
+    # Build the full set of per-class tables first so that the class names
+    # collected along the way (parsets_listed) can be used to build the
+    # jump-to-class index below.
+    parsets_listed = []
+    table_lines = p.to_rst_table(dropdown=True, parsets_listed=parsets_listed)
+
+    lines += class_index(parsets_listed + [type(p).__name__])
+    lines += ['']
+
+    lines += ['.. dropdown:: Current PypeItPar Parameter Hierarchy']
+    lines += ['    :name: par-hierarchy']
+    lines += ['']
+    lines += ['    .. code-block:: ini']
+    lines += ['']
+    lines += ['        ' + l for l in par_hierarchy(p)]
     lines += ['']
     lines += ['----']
     lines += ['']
 
-    lines += p.to_rst_table()
+    lines += table_lines
     lines += ['']
 
     lines += ['.. _instr_par:']
@@ -105,17 +141,23 @@ if __name__ == '__main__':
 
     for spec in available_spectrographs:
         s = load_spectrograph(spec)
-        lines += [ f'.. _instr_par-{s.name}:']
+        title = ' '.join([s.telescope['name'], s.camera, f'(``{s.name}``)'])
+        lines += [f'.. dropdown:: {title}']
+        lines += [f'    :name: instr_par-{s.name}']
         lines += ['']
-        lines += [ ' '.join([s.telescope['name'], s.camera, f'(``{s.name}``)']) ]
-        lines += [ '-'*len(lines[-1]) ]
-        lines += [ 'Alterations to the default parameters are:' ]
-        lines += ['']
-        lines += ['.. code-block:: ini']
+        lines += ['    .. code-block:: ini']
         lines += ['']
         sl = s.default_pypeit_par().to_config(include_descr=False, exclude_defaults=True)
-        lines += [ '  ' + l for l in sl ]
+        lines += ['        ' + l for l in sl]
         lines += ['']
+    lines += ['']
+
+    # Automatically open a dropdown when a link (e.g., from the class index
+    # above) jumps to it.  This is included here, rather than registered
+    # site-wide in conf.py, so the behavior is confined to this page.
+    lines += ['.. raw:: html']
+    lines += ['']
+    lines += ['    <script src="_static/js/dropdown_autoopen.js"></script>']
     lines += ['']
 
     output_rst = pypeit_root / 'doc' / 'pypeit_par.rst'

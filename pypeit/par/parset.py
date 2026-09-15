@@ -408,7 +408,7 @@ class ParSet:
         return '\n'.join(output)
 
     @staticmethod
-    def _data_table_string(data_table, delimeter='print'):
+    def _data_table_string(data_table, delimeter='print', lead=None):
         """
         Provided the array of data, format it with equally spaced
         columns and add a header (first row) and contents delimeter.
@@ -423,6 +423,11 @@ class ParSet:
             the header row.  If anything else, the delimeter is a row of equal
             signs above and below the header row; this is used to construct
             reStructuredText (rst) tables.
+        lead : :obj:`str`, optional
+            A string (e.g., a run of spaces) prepended to every line of the
+            table, so that it can be indented to sit inside the body of an
+            RST directive (e.g., ``dropdown``).  If None, no indentation is
+            added.
 
         Returns
         -------
@@ -450,7 +455,9 @@ class ParSet:
         row_string[1] = '  '.join([data_table[0,j].ljust(col_width[j]) for j in range(ncols)])
         row_string[2] = row_string[0]
         row_string[-1] = row_string[0]
-        return '\n'.join(row_string)+'\n'
+        if lead is None:
+            return '\n'.join(row_string)+'\n'
+        return lead + f'\n{lead}'.join(row_string)+'\n'
 
     @staticmethod
     def _data_string(data, use_repr=False, verbatim=False, check_dir=False):
@@ -596,12 +603,13 @@ class ParSet:
         """
         pass
 
-    def to_rst_table(self, parsets_listed=None, include_keyword_link=True, top_level_only=False):
+    def to_rst_table(self, parsets_listed=None, include_keyword_link=True, top_level_only=False,
+                      dropdown=False):
         """
         Construct a reStructuredText table describing the parameter set.
 
         This works recursively for nested :class:`~pypeit.par.parset.ParSet` instances.
-        
+
         Parameters
         ----------
         parsets_listed : :obj:`list`, optional
@@ -616,7 +624,16 @@ class ParSet:
         top_level_only : :obj:`bool`, optional
             If the :class:`~pypeit.par.parset.ParSet` includes other nested
             parameter sets, only return the rst table for the top level.
-        
+        dropdown : :obj:`bool`, optional
+            Wrap this class's section in a collapsible ``sphinx_design``
+            ``dropdown`` directive (with a ``:name:`` option used as the
+            cross-reference target) instead of a plain anchor and underlined
+            heading.  Nested :class:`~pypeit.par.parset.ParSet` links use a
+            ``:ref:`` role rather than an implicit hyperlink, and no ``----``
+            separator is placed between sibling subsections, since each is
+            already a self-contained collapsible block.  Ignored if
+            ``top_level_only`` is True.
+
         Returns
         -------
         list
@@ -636,10 +653,12 @@ class ParSet:
                     new_parsets += [key]
                 parsets_listed += [ type(self._data[key]).__name__ ]
                 data_table[i+1,1] = type(self._data[key])._rst_class_name()
-                data_table[i+1,3] = (
-                    f'`{type(self._data[key]).__name__} Keywords`_'
-                    if include_keyword_link else '..'
-                )
+                if not include_keyword_link:
+                    data_table[i+1,3] = '..'
+                elif dropdown:
+                    data_table[i+1,3] = f':ref:`{type(self._data[key]).__name__.lower()}`'
+                else:
+                    data_table[i+1,3] = f'`{type(self._data[key]).__name__} Parameters`_'
             else: 
                 data_table[i+1,1] = (
                     '..' if self.parameters[key]['dtype'] is None
@@ -667,19 +686,28 @@ class ParSet:
         if top_level_only:
             return ParSet._data_table_string(data_table, delimeter='rst')
 
-        output = [ f'.. _{self.__class__.__name__.lower()}:']
-        output += [ '' ]
-        output += [ f'{self.__class__.__name__} Keywords']
-        output += [ '-'*len(output[2]) ]
-        output += [ '' ]
-        output += ['Class Instantiation: ' + self.__class__._rst_class_name()]
+        if dropdown:
+            lead = ' '*4
+            output = [f'.. dropdown:: {self.__class__.__name__} Parameters']
+            output += [f'{lead}:name: {self.__class__.__name__.lower()}']
+            output += ['']
+            output += [f'{lead}Class Instantiation: {self.__class__._rst_class_name()}']
+        else:
+            lead = None
+            output = [f'.. _{self.__class__.__name__.lower()}:']
+            output += ['']
+            output += [f'{self.__class__.__name__} Parameters']
+            output += ['-'*len(output[2])]
+            output += ['']
+            output += ['Class Instantiation: ' + self.__class__._rst_class_name()]
         output += ['']
-        output += [ParSet._data_table_string(data_table, delimeter='rst')]
+        output += [ParSet._data_table_string(data_table, delimeter='rst', lead=lead)]
         output += ['']
         for k in new_parsets:
-            output += ['----']
-            output += ['']
-            output += self._data[k].to_rst_table(parsets_listed=parsets_listed)
+            if not dropdown:
+                output += ['----']
+                output += ['']
+            output += self._data[k].to_rst_table(parsets_listed=parsets_listed, dropdown=dropdown)
         return output
 
     def info(self, basekey=None):

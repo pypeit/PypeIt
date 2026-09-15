@@ -18,7 +18,7 @@ arguments  in the :ref:`pypeit_file` into an instance of
 :class:`~pypeit.par.pypeitpar.PypeItPar` that is passed to all of
 PypeIt's main modules.  The syntax used to set parameters using the
 :ref:`pypeit_file` is important and the nesting of the parameter changes
-must match the `Current PypeItPar Parameter Hierarchy`_.
+must match the :ref:`par-hierarchy`.
 
 .. _parameter-precedence:
 
@@ -87,10 +87,11 @@ that sets the spectrograph:
     [rdx]
         spectrograph = keck_deimos
 
-The nesting of the PypeIt parameters is as illustrated in the `Current PypeItPar
-Parameter Hierarchy`_ section below.  Here are a few examples of how to change
-various parameters; for additional examples see the :ref:`instr_par` section.
-Errors should be raised if you try to define a parameter that doesn't exist.
+The nesting of the PypeIt parameters is as illustrated in the `Parameter
+Hierarchy and Definition Tables`_ section below.  Here are a few examples of how
+to change various parameters; for additional examples see the :ref:`instr_par`
+section.  Errors should be raised if you try to define a parameter that doesn't
+exist.
 
  * To change the threshold used for detecting slit/order edges, add:
 
