@@ -297,8 +297,7 @@ coordinate; set ``outfile_from = coord`` to restore coordinate-based names.
     purely a display artifact. Load the file through `specutils`_ instead, which
     applies the mask and returns a strictly monotonic wavelength axis::
 
-        from specutils import Spectrum
-        import pypeit.specutils   # registers the PypeIt loaders
+        from pypeit.specutils import Spectrum
         spec = Spectrum.read('coadd/qso_172239.955+655201.69_MMIRS_<date>.fits')
         # spec.spectral_axis (Angstrom) and spec.flux have the masked bins dropped
 
