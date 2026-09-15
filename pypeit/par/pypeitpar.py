@@ -3644,6 +3644,19 @@ class WavelengthSolutionPar(parset.ParSet):
         ),
     }
 
+    @classmethod
+    def from_dict(cls, cfg):
+        """
+        Instantiate from a dictionary, allowing ``lamps`` to be specified as
+        a single, bare string in a pypeit file (e.g., ``lamps = NeI`` or
+        ``lamps = use_header``) without the otherwise-necessary trailing
+        comma or square brackets needed to force ConfigObj to parse it as a
+        list.
+        """
+        if isinstance(cfg.get('lamps'), str):
+            cfg['lamps'] = [cfg['lamps']]
+        return super().from_dict(cfg)
+
 
 class EdgeTracePar(parset.ParSet):
     """
