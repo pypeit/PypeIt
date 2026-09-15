@@ -38,6 +38,7 @@ __all__ = [
     'install_telluric',
     'install_wvarxiv',
     'lowrdx_skyspec',
+    'fit_ramp',
     'multislit_flexure',
     'obslog',
     'parse_slits',

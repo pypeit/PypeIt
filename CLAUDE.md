@@ -43,6 +43,16 @@ astronomical telescopes into calibrated spectra for scientific analysis.
   the `pypeit.par.pypeitpar.PypeItPar` class, which packages the hierarchy of
   parameter sets used throughout the code.
 
+- Frame metadata is held in `pypeit.metadata.PypeItMetaData` (the `fitstbl`).
+  Select and locate frames with its query methods — `keys`, `find_frames`,
+  `find_frame_files`, `frame_paths`, `find_calib_group`, etc. — rather than
+  hand-rolling operations on the underlying `fitstbl.table`.  Note that frame
+  types (the `framebit`/`frametype` columns) are only assigned once
+  `get_frame_types`/`finalize_usr_build` has run, which is *after*
+  `PypeItMetaData.__init__` (and therefore after the `Spectrograph.cache_metadata`
+  hook); defer type-based lookups such as `find_frames`/`find_frame_files` until
+  after typing.
+
 - Core processing modules, particularly for calibrations, produce FITS files
   that are saved to disk and reused as necessary.  These modules commonly use
   `pypeit.datamodel.DataContainer` as a base class to enforce strict adherence
