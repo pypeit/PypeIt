@@ -7,15 +7,18 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
+   pypeit.containers
    pypeit.core
+   pypeit.dashboard
    pypeit.display
+   pypeit.gui
    pypeit.images
    pypeit.par
    pypeit.pkg
    pypeit.scripts
-   pypeit.setup_gui
    pypeit.spectrographs
    pypeit.specutils
+   pypeit.state
 
 Submodules
 ----------
@@ -50,6 +53,7 @@ Submodules
    pypeit.pypeit
    pypeit.pypeit_steps
    pypeit.pypeitsetup
+   pypeit.qa
    pypeit.scattlight
    pypeit.sensfilearchive
    pypeit.sensfunc

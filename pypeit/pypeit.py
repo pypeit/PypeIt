@@ -17,6 +17,7 @@ import numpy as np
 from pypeit import inputfiles
 from pypeit import qa
 from pypeit import log
+from pypeit import PypeItError
 from pypeit import calibrations
 from pypeit import utils
 from pypeit.history import History
@@ -24,6 +25,7 @@ from pypeit.metadata import PypeItMetaData
 from pypeit import outputfiles
 from pypeit import exposure
 from pypeit import pypeit_steps
+from pypeit.state.run_state import RunPypeItState
 
 
 class PypeIt:
@@ -66,12 +68,11 @@ class PypeIt:
         self.pypeit_file = pypeit_file
 
         # State
-        #self.run_state = state.RunPypeItState(pypeit_file=pypeit_file, 
-        #                                      current_step='init',
-        #                                      current_det=-1,
-        #                                      current_calibID=-1)
+        self.run_state = RunPypeItState(pypeit_file=pypeit_file,
+                                              current_step='init',
+                                              current_det=-1,
+                                              current_calibID=-1)
         #self.run_state = self.run_state.load()
-        self.run_state = None
         
         # Load up PypeIt file
         self.pypeItFile = inputfiles.PypeItFile.from_file(pypeit_file)
@@ -104,8 +105,30 @@ class PypeIt:
         #   - Interpret automated or user-provided data from the PypeIt
         #   file
         self.fitstbl.finalize_usr_build(
-            self.pypeItFile.frametypes, 
+            self.pypeItFile.frametypes,
             self.pypeItFile.setup_name)
+
+        # SlicerIFU reductions do not use the standard spec1d-based flux
+        # calibration pathway; flux calibration is instead performed later,
+        # during datacube construction (see coadd3d.py). Any frame typed
+        # 'standard' would otherwise pass through the reduction unnoticed
+        # (IFU pypelines skip 1D extraction, so no spec1d file is ever
+        # written for it) and only fail later, deep in the science-frame
+        # reduction loop, with an obscure "could not find standard file"
+        # error. Catch it here instead, before any reduction begins.
+        if (
+            self.spectrograph.pypeline == 'SlicerIFU'
+            and np.any(self.fitstbl.find_frames('standard'))
+        ):
+            raise PypeItError(
+                f'{self.spectrograph.name} uses the SlicerIFU pypeline, for which '
+                'standard-star observations must be typed as science, not standard. Flux '
+                'calibration for IFU data is performed separately during datacube '
+                'construction, not via the spec1d sensfunc pathway; see the Flux '
+                f'calibration section of the {self.spectrograph.name} documentation and the '
+                f'3D coadding section. Please update the frame type(s) in {pypeit_file} and '
+                'rerun.'
+            )
 
         # Other Internals
         self.overwrite = overwrite
@@ -122,6 +145,9 @@ class PypeIt:
         if not self.calib_only:
             calibrations.check_for_calibs(self.par, self.fitstbl,
                                           raise_error=self.par['calibrations']['raise_chk_error'])
+
+        # Check for required calibrations
+        self.run_state = calibrations.required_calibs(self.par, self.fitstbl, self.spectrograph, self.run_state)
 
         # --------------------------------------------------------------
         #   - Write .calib file (For QA naming amongst other things)
@@ -162,23 +188,34 @@ class PypeIt:
         qa.gen_mf_html(self.pypeit_file, self.qa_path)
         qa.gen_exp_html()
 
-    def calib_all(self):
+    def calib_all(self, status_only=False, reload_only=False):
         """
         Process all calibration frames.
 
-        Provides an avenue to process the calibrations for a dataset 
+        Provides an avenue to process the calibrations for a dataset
         without (or omitting) any science/standard frames.
+
+        Args:
+            status_only (:obj:`bool`, optional):
+                If True, only check whether calibration output files
+                exist and update the state accordingly, without running
+                any calibrations.
+            reload_only (:obj:`bool`, optional):
+                If True, only reload the calibrations, without running any
+                calibrations.
         """
+
         self.tstart = time.perf_counter()
 
         # Frame indices
         for calib_ID in self.fitstbl.calib_groups:
             # Find all the frames in this calibration group
+
             in_grp = self.fitstbl.find_calib_group(calib_ID)
             if not any(in_grp):
                 continue
             # Find the detectors to reduce
-            detectors = self.spectrograph.select_detectors(subset=self.par['rdx']['detnum'] if self.par['rdx']['slitspatnum'] is None 
+            detectors = self.spectrograph.select_detectors(subset=self.par['rdx']['detnum'] if self.par['rdx']['slitspatnum'] is None
                                               else self.par['rdx']['slitspatnum'])
             log.info(f'Detectors to work on: {detectors}')
 
@@ -187,8 +224,10 @@ class PypeIt:
                 log.info(f'Working on detector {self.det}')
 
                 caliBrate = pypeit_steps.calib_one(self.spectrograph, self.fitstbl, self.par,
-                                       self.det, calib_ID, self.calibrations_path)
-                                       
+                                       self.det, calib_ID, self.calibrations_path,
+                                       run_state=self.run_state,
+                                       status_only=status_only,
+                                       reload_only=reload_only)
 
         # Finish
         self.print_end_time()
@@ -284,7 +323,7 @@ def reduce_calibID(spectrograph, par, fitstbl, calib_ID:str,
             execution until clicked on) and outputs to ginga. Requires
             remote control ginga session via
             ``ginga --modules=RC,SlitWavelength &``
-        run_state (:class:`~pypeit.state.RunPypeItState`, optional):
+        run_state (:class:`~pypeit.state.run_state.RunPypeItState`, optional):
             The current state of the reduction.
         reuse_calibs (:obj:`bool`, optional):
             Reuse any pre-existing calibration files

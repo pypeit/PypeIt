@@ -67,6 +67,8 @@ class RunPypeIt(scriptbase.ScriptBase):
     @classmethod
     def main(cls, args):
 
+        scriptbase.configure_matplotlib(args.show)
+
         from pathlib import Path
         from IPython import embed
 

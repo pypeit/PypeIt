@@ -50,6 +50,7 @@ def test_prediction(vec_coo, bogus_vectors):
     # TODO: More checks?
 
 
+@pytest.mark.remote_data
 def test_rms():
     """Test on some real data."""
     center = np.load(dataPaths.tests.get_file_path('example_trace_deimos_1200G_M_7750.npz'))['center']

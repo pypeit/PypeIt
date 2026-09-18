@@ -32,14 +32,14 @@ class ManualExtractionObj(datamodel.DataContainer):
     Args:
         frame (:obj:`str`):
             The name of the fits file for a manual extraction
-        spat (`numpy.ndarray`_): Array of spatial positions to hand extract
-        spec (`numpy.ndarray`_): Array of spectral positions to hand extract
-        det (`numpy.ndarray`_): Array of detectors for hand extraction. 
+        spat (`numpy.ndarray`_): Array of spatial positions to manually extract
+        spec (`numpy.ndarray`_): Array of spectral positions to manually extract
+        det (`numpy.ndarray`_): Array of detectors for manual extraction.
             This must be a aligned with spec and spat .
             The values can be negative (for negative images)
-        fwhm (`numpy.ndarray`_): Array of FWHM for hand extraction. 
+        fwhm (`numpy.ndarray`_): Array of FWHM for manual extraction.
             This must be aligned with spec and spat.
-        boxcar_rad (`numpy.ndarray`_, optional): Array of boxcar_radii for hand extraction. 
+        boxcar_rad (`numpy.ndarray`_, optional): Array of boxcar_radii for manual extraction.
             This must be aligned with spec and spat.
             It is to be in *pixels*, not arcsec.
             This is only intended for multi-slit reductions (not Echelle)
@@ -52,17 +52,17 @@ class ManualExtractionObj(datamodel.DataContainer):
         'frame': dict(otype=str,
                     descr='The name of the fits file for a manual extraction'),
         'detname': dict(otype=np.ndarray, atype=str,
-                    descr='detectors name for hand extraction.'),
+                    descr='detectors name for manual extraction.'),
         'spec': dict(otype=np.ndarray, atype=np.floating, 
-                    descr='spectral positions to hand extract'),
+                    descr='spectral positions to manually extract'),
         'spat': dict(otype=np.ndarray, atype=np.floating, 
-                    descr='spatial positions to hand extract'),
+                    descr='spatial positions to manually extract'),
         'fwhm': dict(otype=np.ndarray, atype=np.floating, 
-                    descr='FWHMs for hand extractions'),
+                    descr='FWHMs for manual extractions'),
         'neg': dict(otype=np.ndarray, atype=np.bool_,
-                     descr='Flags indicating which hand extract is a negative trace'),
+                     descr='Flags indicating which manual extraction is a negative trace'),
         'boxcar_rad': dict(otype=np.ndarray, atype=np.floating, 
-                    descr='Boxcar radius for hand extractions (optional)'),
+                    descr='Boxcar radius for manual extractions (optional)'),
     }
 
     @classmethod
@@ -133,7 +133,7 @@ class ManualExtractionObj(datamodel.DataContainer):
         if len(self.spec) != len(self.spat):
             raise ValueError("spec and spat not of the same length")
         if len(self.fwhm) != len(self.detname):
-            raise ValueError("FWHM and not det not of the same length")
+            raise ValueError("FWHM and det not of the same length")
 
     def dict_for_objfind(self, detname, neg=False):
         """
@@ -164,3 +164,136 @@ class ManualExtractionObj(datamodel.DataContainer):
         # Return
         return manual_extract_dict
 
+
+
+class ManualCubeExtractionObj(datamodel.DataContainer):
+    """
+    A data container holding the arguments for how to perform the
+    manual extraction of a spectrum from a datacube with 
+    pypeit_extract_datacube.
+    
+    To perform a set of user-defined extractions on a datacube, a list of these 
+    objects is created in the .extract file which can be 
+    input to pypeit_extract_datacube with the -e option. 
+
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_manualcubeextractionobj.rst
+
+    Parameters
+    ----------
+    spatx : :class:`numpy.ndarray`
+        Array of spatial x positions to manually extract.  These are image x
+        coordinates as read from Ginga or DS9, corresponding to the second
+        numpy image axis.
+    spaty : :class:`numpy.ndarray`
+        Array of spatial y positions to manually extract.  These are image y
+        coordinates as read from Ginga or DS9, corresponding to the first numpy
+        image axis.
+    fwhm : :class:`numpy.ndarray`, optional
+        Array of FWHM for manual extraction in arcseconds.  This must be aligned
+        with spatx and spaty.
+    boxcar_rad : :class:`numpy.ndarray`, optional
+        Array of boxcar_radii in arcseconds for manual extraction.  This must be
+        aligned with spatx and spaty.
+    """
+    version = '1.1.0'
+
+    datamodel = {
+        'spatx': dict(otype=np.ndarray, atype=np.floating, 
+                    descr='Cube spatial x positions to manually extract'),
+        'spaty': dict(otype=np.ndarray, atype=np.floating, 
+                    descr='Cube spatial y positions to manually extract'),
+        'fwhm': dict(otype=np.ndarray, atype=np.floating, 
+                    descr='FWHMs for manual extractions in arcseconds (optional, not yet used)'),
+        'boxcar_rad': dict(otype=np.ndarray, atype=np.floating, 
+                    descr='Boxcar radius for manual extractions in arcseconds (optional, not yet used)'),
+    }
+
+    @classmethod
+    def parse(cls, inp: str):
+        """
+        Generate the object from a string input from the manual parameter in the
+        parset.
+
+        Parameters
+        ----------
+        inp : str
+            String specifying the manual aperture, in ``x:y`` format.  The
+            x,y values are the image coordinates read from Ginga or DS9.  In
+            numpy terms, if the image has shape (ny, nx), a position (x, y)
+            refers to image[y, x].  This method also parses the optional
+            ``x:y:fwhm:boxcar_radius`` format and semi-colon-separated
+            multiple positions, but neither is yet supported by the rest of
+            the datacube extraction pipeline, which currently only uses a
+            single ``x:y`` position.
+
+        Returns
+        -------
+        :class:`~pypeit.manual_extract.ManualCubeExtractionObj`
+            Object used to define the extraction.
+        """
+        # Generate a dict
+        idict = dict(spatx=[], spaty=[], fwhm=[], boxcar_rad=[])
+        m_es = inp.split(';')
+        for m_e in m_es:
+            parse = m_e.split(':')
+            idict['spatx'] += [float(parse[0])]
+            idict['spaty'] += [float(parse[1])]
+            
+            # FWHM?
+            if len(parse) >= 3:
+                idict['fwhm'] += [float(parse[2])]
+            else:
+                idict['fwhm'] += [-1.]
+
+            # Boxcar?
+            if len(parse) >= 4:
+                idict['boxcar_rad'] += [float(parse[3])]
+            else:
+                idict['boxcar_rad'] += [-1.]
+
+        # Build me
+        return cls(spatx=np.array(idict['spatx']), 
+                   spaty=np.array(idict['spaty']),
+                   fwhm=np.array(idict['fwhm']),
+                   boxcar_rad=np.array(idict['boxcar_rad']))
+
+    def __init__(self, spatx=None, spaty=None, fwhm=None, boxcar_rad=None):
+        # Parse
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        d = dict([(k,values[k]) for k in args[1:]])
+        # Setup the DataContainer
+        datamodel.DataContainer.__init__(self, d=d)
+
+    def _validate(self):
+        """Validate
+
+        A couple of quick checks..
+
+        Raises:
+            ValueError: Raised if one of the arrays is not set or if they don't have the same length
+        """
+        if len(self.spatx) != len(self.spaty):
+            raise ValueError("spatx and spaty not of the same length")
+        if len(self.fwhm) != len(self.spatx):
+            raise ValueError('Number of FWHM entries does not match the number of coordinates.')
+        if len(self.boxcar_rad) != len(self.spatx):
+            raise ValueError(
+                'Number of boxcar radius entries does not match the number of coordinates.'
+            )
+
+    def to_dict(self):
+        """
+        Repackage into a dict for the extraction code
+
+        Returns:
+            dict or None: To be passed into datacube.extract_point_source
+
+        """
+        # Fill 
+        manual_extract_dict = {}
+        for key in ['spatx', 'spaty', 'fwhm', 'boxcar_rad']:
+            manual_extract_dict[key] = self[key]
+        # Return
+        return manual_extract_dict

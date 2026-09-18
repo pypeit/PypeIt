@@ -1,17 +1,5 @@
-pypeit.core.bspline package
-===========================
-
-Submodules
-----------
-
-.. toctree::
-   :maxdepth: 4
-
-   pypeit.core.bspline.bspline
-   pypeit.core.bspline.util
-
-Module contents
----------------
+pypeit.core.bspline module
+==========================
 
 .. automodule:: pypeit.core.bspline
    :members:

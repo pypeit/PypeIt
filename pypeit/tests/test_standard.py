@@ -103,6 +103,7 @@ def test_archive_classes():
     assert len(classes) == 6, 'Number of classes changed'
 
 
+@pytest.mark.remote_data
 def test_archived_standards():
 
     archive_classes = standard.archived_flux_classes()
@@ -246,6 +247,7 @@ def test_blackbody():
     assert np.array_equal(_bb.flux, bb.flux[:10]), 'Bad fluxes'
 
 
+@pytest.mark.remote_data
 def test_kurucz_models():
     spec = standard.KuruczModelStandard(14., 'B0')
 
@@ -259,6 +261,7 @@ def test_kurucz_models():
         spec = standard.KuruczModelStandard(14., 'K0')
 
 
+@pytest.mark.remote_data
 def test_vega_model():
     spec = standard.VegaStandard(14.0)
     assert spec.size == 21617, 'Spectrum has the wrong length'
@@ -267,6 +270,7 @@ def test_vega_model():
     assert spec.meta['source'] == 'Vega', 'Bad model source'
 
 
+@pytest.mark.remote_data
 def test_phoenix_model():
     spec = standard.PhoenixStandard(14.0)
     assert spec.size == 1554127, 'Spectrum has the wrong length'
@@ -312,6 +316,7 @@ def test_archive_sets():
         archive = standard.get_archive_sets(archives=['junk1', 'junk2'])
 
 
+@pytest.mark.remote_data
 def test_get_archive_standard():
 
     # No star within the tolerance
@@ -369,6 +374,7 @@ def test_get_archive_standard():
     assert spec.meta['Name'] == 'HZ15', 'Found the wrong object'
 
 
+@pytest.mark.remote_data
 def test_get_model_standard():
 
     # Get the TSpecTool model
@@ -396,6 +402,7 @@ def test_get_model_standard():
         spec = standard.get_model_standard('K0', 14.)
 
 
+@pytest.mark.remote_data
 def test_get_standard_spectrum():
 
     # Get the TSpecTool model

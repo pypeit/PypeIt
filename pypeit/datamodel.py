@@ -1221,7 +1221,7 @@ class DataContainer:
                             f"Allowed type(s) are: {self.datamodel[item]['otype']}")
         # Array?
         if 'atype' in self.datamodel[item].keys():
-            if not isinstance(value.flat[0], self.datamodel[item]['atype']):
+            if value.size > 0 and not isinstance(value.flat[0], self.datamodel[item]['atype']):
                 raise TypeError(f'Cannot assign array with data type {type(value.flat[0])} to '
                                 f'{item} array.\nAllowed type(s) for the array are: '
                                 f"{self.datamodel[item]['atype']}")

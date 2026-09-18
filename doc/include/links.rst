@@ -75,6 +75,7 @@
 .. _astropy.io.fits.ImageHDU: https://docs.astropy.org/en/stable/io/fits/api/images.html#imagehdu
 .. _astropy.io.fits.BinTableHDU: https://docs.astropy.org/en/stable/io/fits/api/tables.html#bintablehdu
 .. _astropy.io.fits.Column: https://docs.astropy.org/en/stable/io/fits/api/tables.html#column
+.. _astropy.io.fits.FITS_rec: https://docs.astropy.org/en/stable/io/fits/api/tables.html#astropy.io.fits.FITS_rec
 .. _astropy.table.Table: https://docs.astropy.org/en/stable/table/
 .. _astropy.table.table.Table: https://docs.astropy.org/en/stable/table/
 .. _astropy.table.Table.read: https://docs.astropy.org/en/stable/api/astropy.table.Table.html#astropy.table.Table.read

@@ -8,6 +8,7 @@ from pypeit.core import coadd
 from pypeit.core import standard
 from pypeit.core import meta
 
+@pytest.mark.remote_data
 def test_robust_median():
     # Build some test spectra
     ra, dec = meta.convert_radec('00:31:18.49', '-43:36:23')
@@ -49,6 +50,7 @@ def test_robust_median():
     assert ratio == 1., 'Should be too few good pixels, yielding ratio = 1'
 
 
+@pytest.mark.remote_data
 def test_median_filt_spec():
 
     # Read in an example spectrum
@@ -81,6 +83,7 @@ def test_poly_model_eval():
         poly_r = coadd.poly_model_eval(theta, 'legendre', 'junk', wave, wave[0], wave[-1])
 
 
+@pytest.mark.remote_data
 def test_solve_poly_ratio():
     # Build some test spectra
     ra, dec = meta.convert_radec('00:31:18.49', '-43:36:23')
