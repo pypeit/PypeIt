@@ -122,9 +122,10 @@ command-line option (the command-line value takes precedence).  The default,
 ``ncpu = 1``, runs the code fully serially, exactly as in previous versions.
 
 Currently, ``ncpu > 1`` only affects how the QA figures are written: the PNG
-rendering and encoding is handed to a small pool of background threads, which
-recovers some of the QA overhead on slitmask reductions that generate many
-hundreds of QA files.  Future versions will extend ``ncpu`` to the reduction
+encoding and file writes are handed to a small pool of background threads
+(rendering stays on the main thread, as matplotlib requires), which recovers
+some of the QA overhead on slitmask reductions that generate many hundreds of
+QA files.  Future versions will extend ``ncpu`` to the reduction
 itself (e.g., processing detectors/mosaics concurrently); note that peak memory
 usage is expected to scale roughly linearly with the number of detectors
 reduced at the same time.

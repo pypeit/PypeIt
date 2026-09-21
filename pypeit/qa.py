@@ -27,21 +27,41 @@ from concurrent.futures import ThreadPoolExecutor
 # --------------------------------------------------------------------------
 # Deferred QA figure writing
 #
-# Rendering and encoding a QA PNG (matplotlib text metrics + Agg draw + PIL
-# encode) dominates the QA cost and releases the GIL for most of its duration.
-# When ncpu>1 the savefig call is handed to a small thread pool; the Figure
-# object is only ever *created* and *closed* on the main thread, so pyplot's
-# global state is never mutated concurrently.
+# When ncpu>1, save_figure renders the figure on the MAIN thread and hands only
+# the PNG *encoding* (PIL, which releases the GIL) to a small thread pool.
+# Matplotlib rendering must stay on the main thread: its mathtext parser (and
+# other text-metric machinery) is process-global and not thread-safe, so
+# rendering in a worker races against figure layout on the main thread and
+# corrupts the parser (e.g. "ParseFatalException: Unknown symbol: \\mathdefault"
+# on log-axis tick labels).  Encoding is the thread-safe, GIL-releasing part.
 # --------------------------------------------------------------------------
 
 _QA_POOL = None
-"""ThreadPoolExecutor used to write QA figures, or None for serial writes."""
+"""ThreadPoolExecutor used to encode QA figures, or None for serial writes."""
 
 _QA_PENDING = []
-"""List of (future, figure, close) tuples that have not yet been reaped."""
+"""List of futures for encodes that have not yet been reaped."""
 
-_QA_MAX_PENDING = 16
-"""Maximum number of un-reaped figures; bounds the memory held by open figures."""
+_QA_MAX_PENDING = 4
+"""Maximum number of un-reaped encodes; bounds the memory held by the queued
+RGBA buffers (a large QA figure rasterizes to >100 MB)."""
+
+
+def _encode_png(rgba, outfile, dpi):
+    """
+    Write a rendered RGBA buffer to ``outfile`` as a PNG (worker-thread task).
+
+    Parameters
+    ----------
+    rgba : `numpy.ndarray`_
+        The rendered image, shape ``(nrows, ncols, 4)``, uint8.
+    outfile : :obj:`str`, `Path`_
+        Output PNG file.
+    dpi : :obj:`float`
+        Resolution recorded in the PNG metadata.
+    """
+    from PIL import Image
+    Image.fromarray(rgba).save(outfile, dpi=(dpi, dpi))
 
 
 def init_qa_pool(ncpu:int=1):
@@ -56,7 +76,7 @@ def init_qa_pool(ncpu:int=1):
     Parameters
     ----------
     ncpu : :obj:`int`, optional
-        Number of QA writer threads.  <=1 disables the pool.
+        Number of QA encoder threads.  <=1 disables the pool.
     """
     global _QA_POOL, _QA_PENDING
     old = _QA_POOL
@@ -71,8 +91,13 @@ def init_qa_pool(ncpu:int=1):
 
 def save_figure(fig, outfile, show:bool=False, close:bool=True, **kwargs):
     """
-    Write a matplotlib figure to disk, deferring the write to a background
-    thread when the QA pool is active.
+    Write a matplotlib figure to disk, deferring the PNG encode to a
+    background thread when the QA pool is active.
+
+    In the deferred path the figure is rendered on the calling (main) thread
+    -- matplotlib rendering is not thread-safe -- and only the PIL PNG encode
+    runs in a worker.  The output is pixel-identical to a serial
+    `matplotlib.figure.Figure.savefig`_ call.
 
     Parameters
     ----------
@@ -85,7 +110,9 @@ def save_figure(fig, outfile, show:bool=False, close:bool=True, **kwargs):
     close : :obj:`bool`, optional
         Close the figure once it has been written.
     **kwargs
-        Passed to `matplotlib.figure.Figure.savefig`_ (e.g. ``dpi``).
+        Passed to `matplotlib.figure.Figure.savefig`_ (e.g. ``dpi``).  Only a
+        plain ``dpi`` is compatible with the deferred path; any other keyword
+        (or a non-PNG ``outfile``) falls back to a synchronous ``savefig``.
     """
     if show or _QA_POOL is None:
         if outfile is not None:
@@ -99,31 +126,35 @@ def save_figure(fig, outfile, show:bool=False, close:bool=True, **kwargs):
         if close:
             plt.close(fig)
         return
-    if close:
-        # Deregister the figure from pyplot *before* queueing it, so that later
-        # pyplot-state plotting (e.g. a bare plt.plot) cannot attach to a figure
-        # that is still waiting to be written.  The Figure object stays alive --
-        # referenced by _QA_PENDING -- and its Agg canvas renders identically in
-        # the worker thread.
-        plt.close(fig)
-    _QA_PENDING.append((_QA_POOL.submit(fig.savefig, outfile, **kwargs), fig, False))
+    if pathlib.Path(outfile).suffix.lower() != '.png' or not close \
+            or any(k != 'dpi' for k in kwargs):
+        # Only the plain PNG + close case is handled by the deferred path
+        fig.savefig(outfile, **kwargs)
+        if close:
+            plt.close(fig)
+        return
+    # Render on the main thread at the requested resolution, then queue only
+    # the (thread-safe, GIL-releasing) PNG encode.
+    fig.set_dpi(kwargs.get('dpi', fig.dpi))
+    fig.canvas.draw()
+    rgba = np.asarray(fig.canvas.buffer_rgba()).copy()
+    plt.close(fig)
+    _QA_PENDING.append(_QA_POOL.submit(_encode_png, rgba, outfile, fig.dpi))
     if len(_QA_PENDING) >= _QA_MAX_PENDING:
         flush_qa()
 
 
 def flush_qa():
     """
-    Block until every deferred QA figure has been written, then close them.
+    Block until every deferred QA figure has been written.
 
-    Exceptions raised in the writer threads are re-raised here, on the main
+    Exceptions raised in the encoder threads are re-raised here, on the main
     thread.  Safe to call when the pool is inactive (it is then a no-op).
     """
     global _QA_PENDING
     pending, _QA_PENDING = _QA_PENDING, []
-    for future, fig, close in pending:
+    for future in pending:
         future.result()
-        if close:
-            plt.close(fig)
 
 # TODO: Move these names to the appropriate class.  This always writes
 # to QA directory, even if the user sets something else...

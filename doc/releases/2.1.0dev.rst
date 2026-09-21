@@ -57,9 +57,10 @@ Functionality/Performance Improvements and Additions
   GUI-toolkit overhead from QA figure generation.
 - Added the ``[rdx] ncpu`` parameter and the matching ``run_pypeit --ncpu``
   command-line option (the latter takes precedence).  The default, 1, runs
-  PypeIt exactly as before.  Values greater than 1 currently write QA figures
-  concurrently through a background thread pool; the figures are identical to
-  a serial run.
+  PypeIt exactly as before.  Values greater than 1 currently encode and write
+  the QA PNGs through a background thread pool (rendering stays on the main
+  thread, which matplotlib requires); the figures are identical to a serial
+  run.
 
 Instrument-specific Updates
 ---------------------------
