@@ -496,55 +496,66 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         # or direct images; they are never spectroscopic calibrations or data.
         dispersed = grism != 'open'
         # Explicitly non-spectroscopic object names
-        setup_frame = self._has_keyword(target, ['align', 'thr', 'field', 'focus', 'acq'])
+        setup_frame = self._has_keyword(target, words=self.setup_words)
+        is_arc = self._has_keyword(target, words=self.arc_words)
+        is_flat = self._has_keyword(target, words=self.flat_words,
+                                    substrings=self.flat_substrings)
 
         if ftype == 'bias':
             return good_exp & primary & ((idname == 'bias')
-                                         | self._has_keyword(target, ['zero', 'bias']))
+                                         | self._has_keyword(target, words=['zero', 'bias']))
         if ftype == 'dark':
             return good_exp & primary & ((idname == 'dark')
-                                         | self._has_keyword(target, ['dark']))
+                                         | self._has_keyword(target, words=['dark']))
         if ftype in ['arc', 'tilt']:
             # Checked before the flats: an arc frame is sometimes written with
-            # EXPTYPE='Flat'
-            return good_exp & primary & dispersed \
-                    & self._has_keyword(target, ['arc', 'henear', 'hene', 'lamp', 'comp'])
+            # EXPTYPE='Flat' and an object name that also names the flat
+            return good_exp & primary & dispersed & is_arc
         if ftype in ['pixelflat', 'illumflat', 'trace']:
-            is_flat = self._has_keyword(target, ['flat', 'qh', 'quartz', 'dome'])
-            is_arc = self._has_keyword(target, ['arc', 'henear', 'hene', 'lamp', 'comp'])
             return good_exp & primary & dispersed & is_flat & np.logical_not(is_arc)
         if ftype in ['science', 'standard']:
             # The science/standard split is set by the exposure-time ranges in
             # the 'scienceframe' and 'standardframe' parameters.
-            is_cal = self._has_keyword(target, ['arc', 'henear', 'hene', 'lamp', 'comp',
-                                                'flat', 'qh', 'quartz', 'dome',
-                                                'zero', 'bias', 'dark'])
+            is_cal = is_arc | is_flat | self._has_keyword(target,
+                                                          words=['zero', 'bias', 'dark'])
             return good_exp & primary & dispersed & np.logical_not(is_cal) \
                     & np.logical_not(setup_frame)
 
         log.warning('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
-    @staticmethod
-    def _has_keyword(names, keywords):
-        """
-        Test whether any of ``keywords`` appears as a whitespace-delimited word
-        in each of ``names``.
+    # Object-name keywords used for frame typing.  ``*_words`` are matched
+    # against whitespace-, underscore- or hyphen-delimited words, so that short
+    # or ambiguous tokens cannot match inside a target designation ('arc' must
+    # not match 'Arcturus').  ``*_substrings`` are matched anywhere in the name,
+    # for distinctive tokens that observers run together with others, such as
+    # the 'flat' in 'flatQh'.
+    arc_words = ['arc', 'arcs', 'henear', 'hene', 'lamp', 'comp']
+    flat_words = ['qh', 'ff', 'flatfield']
+    flat_substrings = ['flat', 'quartz', 'dome']
+    setup_words = ['align', 'thr', 'field', 'focus', 'acq']
 
-        Matching on words rather than substrings avoids false positives such as
-        the ``arc`` in ``search`` or the ``qh`` in a target designation.
+    @staticmethod
+    def _has_keyword(names, words=None, substrings=None):
+        """
+        Test each of ``names`` for any of the given keywords.
 
         Args:
             names (`numpy.ndarray`_):
                 Lower-cased strings to test.
-            keywords (:obj:`list`):
-                Lower-case words to look for.
+            words (:obj:`list`, optional):
+                Lower-case words to look for as whitespace-, underscore- or
+                hyphen-delimited words.
+            substrings (:obj:`list`, optional):
+                Lower-case strings to look for anywhere in the name.
 
         Returns:
             `numpy.ndarray`_: Boolean array, one element per entry in ``names``.
         """
-        _keywords = set(keywords)
-        return np.array([len(_keywords & set(re.split(r'[\s_\-]+', n))) > 0 for n in names])
+        _words = set() if words is None else set(words)
+        _subs = [] if substrings is None else substrings
+        return np.array([len(_words & set(re.split(r'[\s_\-]+', n))) > 0
+                         or any(s in n for s in _subs) for n in names])
 
     def get_rawimage(self, raw_file, det):
         """
