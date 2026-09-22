@@ -15,7 +15,6 @@ from pathlib import Path
 
 import numpy as np
 from astropy.time import Time
-from astropy.io import fits
 
 from pypeit import log
 from pypeit import PypeItError
@@ -35,7 +34,9 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
 
     LDS3-C specs: https://www.lco.cl/?epkb_post_type_1=ldss3_c-2
     
+    Currently supported grisms: VPH-All, VPH-Blue and VPH-Red.  Other grisms are not supported.
     
+    Only 1x1 binning has been tested.
     
     """
     ndet = 1
@@ -56,25 +57,17 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
 
     # Read noise for LDSS3-C, in e-, for amplifiers 1 and 2 in each readout mode.
     #
-    # The ENOISE header card is not reliable: every frame we have seen carries
+    # The ENOISE header card is not reliable. All frames carry
     # the Slow-mode value regardless of the mode actually used.
     #
     # Slow and Turbo are published values and are not verified here.  Fast was
     # measured: 6.37 +- 0.07 and 6.65 +- 0.07 e- from the scatter of bias-pair
-    # differences, over 34 pairs at five epochs from 2018 to 2025, with an
-    # epoch-to-epoch spread of 0.4 e-.  Other modes need to be measured if they are ever used,
+    # differences, over 34 pairs at five epochs from 2018 to 2025.  
+    # Other modes need to be measured if they are ever used,
     # but the published values are probably good enough for most purposes.
     #
     # The first bias of a sequence should be discarded. Its pedestal is offset and it carries
-    # structure the rest do not. Estimate the scatter with a sigma-clipped standard deviation,
-    # not a median absolute deviation: on differences of integer frames the latter quantises
-    # in 1 ADU steps and returns the same value at every epoch.
-    #
-    # These values are ~0.5 e- below what the reduction itself wants. The scatter of
-    # (data - sky - object) x sqrt(ivar) comes out at 1.06 with them and 0.99 with 7.0/7.2,
-    # so uncertainties on an extracted spectrum are of order 6% optimistic. The measurement is
-    # kept rather than the value that forces that statistic to unity, since the residual is as
-    # likely to be a missing variance term (overscan subtraction, flat-field propagation).
+    # structure the rest do not. 
     #
 
     ronoise_by_speed = {'slow': (4.4, 5.3),    # from LCO documentation
@@ -83,36 +76,25 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
 
     # Gain for LDSS3-C, in e-/ADU, for amplifiers 1 and 2 in each readout mode.
     #
-    # Slow and Turbo are the values published by LCO and are not verified here:
-    # every frame we have seen was taken in the Fast mode.
+    # Slow and Turbo are the values published by LCO and have not been verified recently.
     #
     # Fast is measured, and differs from the published 1.5/1.8.
     # Photon transfer on flat pairs, over eight data sets spanning 2018 to 2025
     # and three grisms, gives 1.648 +- 0.006 and 1.439 +- 0.007; EGAIN reports
-    # 1.65/1.47.  Both put amplifier 2 *below* amplifier 1, whereas the
-    # published pair puts it above.  The ratio is what the data constrains: a
-    # flat field is continuous across the amplifier boundary, so the wrong ratio
-    # shows up directly as a flux step there
+    # 1.65/1.47.  An abnormal discountinuity seen at the amplifier boundary is due to a gain mismatch.
     # 
     # Measuring these values accurately is needed to remove any step in the
     # image at the amplifier boundary.  
     # On the VPH-All longslit flat,
     # which has a slit spanning the boundary, the step is
     #
-    #     g2/g1 = 0.873 (measured here)   ->   +0.8 %
+    #     g2/g1 = 0.873 (measured)   ->   +0.8 %
     #     g2/g1 = 0.891 (EGAIN)      ->   +2.8 %
     #     g2/g1 = 1.200 (published)  ->  +32.3 %
     #
-    # so the published Fast pair is excluded by the data.  
-    # EGAIN is close but 2.1% high on amplifier 2
     # The value measured here is used as the default, but the EGAIN card is used as a fallback
-    #
-    # Note for Turbo: 65535 ADU at a gain of 2.7 is 176945 e-, which is where
-    # the detector itself starts to depart from linear (1% above ~175000 e-),
-    # rather than comfortably below it as in the other two modes.  The
-    # non-linearity fraction of 0.99 applied to the saturation level happens to
-    # land on that point, so it remains appropriate, but Turbo data has not been
-    # tested.
+    # A similar characterization is needed for other readout modes
+    # 
     gain_by_speed = {'slow': (0.16, 0.19), # from LCO documentation
                      'fast': (1.65, 1.44), # measured 
                      'turbo': (2.7, 3.1)}  # from LCO documentation
@@ -267,8 +249,7 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
                     fallback = float(h.get('EGAIN', self.nominal_gain[min(i, 1)]))
                     log.warning(f'Gain for LDSS3 readout mode {h.get("SPEED")!r} has not '
                                 f'been characterised; falling back on the EGAIN card '
-                                f'({fallback} e-/ADU).  EGAIN is 2% high on amplifier 2 '
-                                'in the Fast mode, and the offset may apply here too.')
+                                f'({fallback} e-/ADU). ')
                     gain.append(fallback)
             gain = np.array(gain)
             # Take the read noise from the published table, keyed on the
@@ -304,8 +285,7 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
                             # LDSS3-C has a full well of ~205000 e- (10%
                             # non-linear) and stays within 1% of linear below
                             # ~175000 e-. The ADC is
-                            # 16-bit, so no pixel can record more than 65535
-                            # ADU. 
+                            # 16-bit, so max ADU is 65535
                             #
                             # The threshold is a single scalar compared in
                             # electrons, while the two amplifiers have different
@@ -799,7 +779,7 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
                 if filename is not None else 1
 
         # Bad columns, as (first, last) inclusive spatial pixel ranges of the
-        # assembled and trimmed *unbinned* frame.  Measured from the column
+        # assembled and trimmed unbinned frame.  Measured from the column
         # median of combined bias frames, and confirmed on two epochs four years
         # apart (2018 and 2022).  The first and last entries are the outer edges
         # of amplifiers 1 and 2.
