@@ -384,9 +384,10 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] \
                     = 'magellan_ldss3_vph_all_HeINeIArI.fits'
-            # The archived VPH-All solution extends well blueward of the real
-            # throughput of the grism; restrict it when it is read.
-            par['calibrations']['wavelengths']['wvrng_arxiv'] = [4000., 10500.]
+            # NOTE: The bluest arc line detectable with VPH-All is near 3890 A,
+            # around pixel 740.  The wavelength solution is therefore
+            # extrapolated over the bluest ~740 pixels, where the grism has no
+            # throughput and the science frames carry no signal either.
         elif grating is not None:
             log.warning(f'No archived LDSS3 wavelength solution for grism {grating}; '
                         'falling back on holy-grail.')
