@@ -291,8 +291,10 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         par['calibrations']['tilts']['spat_order'] = 6
         par['calibrations']['tilts']['spec_order'] = 6
 
-        # edges
+        # edges.  Narrow detector defects otherwise get synced into spurious
+        # few-pixel slits; the narrowest real LDSS3 slitlets are ~5 arcsec.
         par['calibrations']['slitedges']['edge_thresh'] = 20.
+        par['calibrations']['slitedges']['minimum_slit_length'] = 2.
 
         # Processing steps
         turn_off = dict(use_biasimage=False, use_darkimage=False)
@@ -675,15 +677,18 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         """
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
-        # Bad columns on amplifier 1, in spatial pixels of the assembled and
-        # trimmed frame.  These are for unbinned data.
-        # TODO: The amplifier-2 bad columns still need to be re-derived from a
-        # flat field.  Amplifier 2 is flipped during assembly, so the column
-        # indices measured on the raw c2 frame do not carry over directly.
-        binspec, binspat = parse.parse_binning(self.get_meta_value(filename, 'binning')) \
-                if filename is not None else (1, 1)
-        for col in [443]:
-            bpm_img[:, col // binspat] = 1
+        binspat = parse.parse_binning(self.get_meta_value(filename, 'binning'))[1] \
+                if filename is not None else 1
+
+        # Bad columns, as (first, last) inclusive spatial pixel ranges of the
+        # assembled and trimmed *unbinned* frame.  Measured from the column
+        # median of combined bias frames, and confirmed on two epochs four years
+        # apart (2018 and 2022).  The first and last entries are the outer edges
+        # of amplifiers 1 and 2.
+        for c1, c2 in [(0, 11), (443, 443), (608, 608), (1413, 1413), (1492, 1494),
+                       (1549, 1551), (1602, 1606), (1635, 1640), (1688, 1690),
+                       (1695, 1695), (1999, 2000), (2034, 2047)]:
+            bpm_img[:, c1 // binspat:c2 // binspat + 1] = 1
 
         return bpm_img
 
