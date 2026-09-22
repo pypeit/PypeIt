@@ -95,7 +95,7 @@ class SlitTraceSet(calibframe.CalibFrame):
     calib_file_format = 'fits.gz'
     """File format for the calibration frame file."""
 
-    version = '1.1.5'
+    version = '1.1.6'
     """SlitTraceSet data model version."""
 
     bitmask = SlitTraceBitMask()
@@ -120,8 +120,11 @@ class SlitTraceSet(calibframe.CalibFrame):
                                  descr='Number of pixels binned in the spectral direction.'),
                  'binspat': dict(otype=int,
                                  descr='Number of pixels binned in the spatial direction.'),
-                 'pad': dict(otype=int,
-                             descr='Integer number of pixels to consider beyond the slit edges.'),
+                 'pad': dict(otype=np.ndarray, atype=(float,np.floating),
+                             descr='Number of pixels to consider beyond the slit edges. It should be '
+                                   'a 2-element array with the first element being the number of pixels '
+                                   'to extend the left edge and the second element being the number of pixels '
+                                   'to extend the right edge.'),
                  'spat_id': dict(otype=np.ndarray, atype=(int,np.integer),
                                  descr='Slit ID number from SPAT measured at half way point.'),
                  'maskdef_id': dict(otype=np.ndarray, atype=(int,np.integer),
@@ -181,7 +184,7 @@ class SlitTraceSet(calibframe.CalibFrame):
     # The INIT must contain every datamodel item or risk fail on I/O when it is a nested container
     def __init__(self, left_init, right_init, pypeline, detname=None, nspec=None, nspat=None,
                  PYP_SPEC=None, mask_init=None, specmin=None, specmax=None, binspec=1, binspat=1,
-                 pad=0, spat_id=None, maskdef_id=None, maskdef_designtab=None, maskfile=None,
+                 pad=None, spat_id=None, maskdef_id=None, maskdef_designtab=None, maskfile=None,
                  maskdef_posx_pa=None, maskdef_offset=None, maskdef_objpos=None,
                  maskdef_slitcen=None, ech_order=None, nslits=None, left_tweak=None,
                  right_tweak=None, center=None, mask=None):
@@ -199,6 +202,13 @@ class SlitTraceSet(calibframe.CalibFrame):
         """
         Validate the slit traces.
         """
+        # Ensure pad is a 2-element array
+        if self.pad is not None:
+            self.pad = np.atleast_1d(self.pad)
+            if self.pad.size == 1:
+                self.pad = np.array([self.pad[0], self.pad[0]])
+            elif self.pad.size != 2:
+                raise ValueError('pad should be a single value or a 2-element array!')
         # Allow the object to be empty
         if self.left_init is None or self.right_init is None:
             return
@@ -481,9 +491,16 @@ class SlitTraceSet(calibframe.CalibFrame):
         slitlen = right - left
         return np.median(slitlen, axis=1) if median else slitlen
 
-    def get_radec_image(self, wcs, alignSplines, tilts, slit_compute=None, slice_offset=None, initial=False, flexure=None):
-        """Generate an RA and DEC image for every pixel in the frame
-        NOTE: This function is currently only used for SlicerIFU reductions.
+    def get_radec_image(
+            self, wcs, alignSplines, tilts, slit_compute=None, slice_offset=None, initial=False,
+            flexure=None, verbose=False
+        ):
+        """
+        Generate an RA and DEC image for every pixel in the frame
+
+        .. note::
+        
+            This function is currently only used for SlicerIFU reductions.
 
         Parameters
         ----------
@@ -508,6 +525,8 @@ class SlitTraceSet(calibframe.CalibFrame):
             Select the initial slit edges?
         flexure : float, optional
             If provided, offset each slit by this amount.
+        verbose : bool, optional
+            If True, print out additional information.
 
         Returns
         -------
@@ -517,9 +536,9 @@ class SlitTraceSet(calibframe.CalibFrame):
         decimg : `numpy.ndarray`_
             Image with the DEC coordinates of each pixel in degrees.  Shape is
             (nspec, nspat).
-        minmax : `numpy.ndarray`_
+        delta_pix : `numpy.ndarray`_
             The minimum and maximum difference (in pixels) between the WCS
-            reference (usually the centre of the slit) and the edges of the
+            reference (usually the center of the slit) and the edges of the
             slits. Shape is (nslits, 2).
         """
         # Check the input
@@ -533,16 +552,19 @@ class SlitTraceSet(calibframe.CalibFrame):
 
         # Prepare the print out
         substring = '' if slice_offset is None else f' with slice_offset={slice_offset:.3f}'
-        log.info("Generating an RA/DEC image"+substring)
+        if verbose: 
+            log.info("Generating an RA/DEC image"+substring)
         # Check the input
         if slice_offset is None:
             slice_offset = 0.0
         if slice_offset < -0.5 or slice_offset > 0.5:
-            raise PypeItError(f"Slice offset must be between -0.5 and 0.5. slice_offset={slice_offset}")
+            raise PypeItError(
+                f"Slice offset must be between -0.5 and 0.5. slice_offset={slice_offset}"
+            )
         # Initialise the output
         raimg = np.zeros((self.nspec, self.nspat))
         decimg = np.zeros((self.nspec, self.nspat))
-        minmax = np.zeros((self.nslits, 2))
+        delta_pix = np.zeros((self.nslits, 2))
         # Get the slit information
         slitid_img_init = self.slit_img(pad=0, initial=initial, flexure=flexure)
         for slit_idx, spatid in enumerate(self.spat_id):
@@ -551,21 +573,58 @@ class SlitTraceSet(calibframe.CalibFrame):
             onslit = (slitid_img_init == spatid)
             onslit_init = np.where(onslit)
             if self.mask[slit_idx] != 0:
-                log.info(f'Slit {spatid} ({slit_idx+1}/{self.spat_id.size}) is masked. Skipping RA/DEC.')
-                continue
+                raise PypeItError(
+                    f'Slit {spatid} ({slit_idx+1}/{self.spat_id.size}) is masked. Cannot '
+                    'generate RA/DEC image.'
+                )
             # Retrieve the pixel offset from the central trace
             evalpos = alignSplines.transform(slit_idx, onslit_init[1], onslit_init[0])
-            minmax[slit_idx, 0] = np.min(evalpos)
-            minmax[slit_idx, 1] = np.max(evalpos)
+            delta_pix[slit_idx, 0] = np.min(evalpos)
+            delta_pix[slit_idx, 1] = np.max(evalpos)
             # Calculate the WCS from the pixel positions
             slitID = np.ones(evalpos.size) * slit_idx + slice_offset
-            world_ra, world_dec, _ = wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init]*(self.nspec-1), 0)
+            world_ra, world_dec, _ = wcs.wcs_pix2world(
+                slitID, evalpos, tilts[onslit_init]*(self.nspec-1), 0
+            )
             # Set the RA first and DEC next
             raimg[onslit] = world_ra.copy()
             decimg[onslit] = world_dec.copy()
-        return raimg, decimg, minmax
+        return raimg, decimg, delta_pix
 
-    def select_edges(self, initial=False, flexure=None):
+    def get_pad(self, pad=None):
+        """
+        Get the padding for the slit edges.
+
+        Args:
+            pad (:obj:`float`, :obj:`int`, :obj:`numpy.ndarray`, optional):
+                The number of pixels used to pad (extend) the edge of
+                each slit. This can be a single scale to pad both
+                left and right edges equally or a 2-element array that
+                provides separate padding for the left (first
+                element) and right (2nd element) edges separately. If
+                not None, this overrides the value in :attr:`par`.
+                The value can be negative, which means that the
+                widths are **trimmed** instead of padded.
+
+        Returns:
+            `numpy.ndarray`: Returns the padding as a 2-element numpy array. The first element is the
+            padding for the left edge and the second element is the padding for the right edge.
+        """
+        if pad is not None and isinstance(pad, (list, np.ndarray)):
+            if len(pad) != 2:
+                raise PypeItError('Padding for both left and right edges should be provided as a float or 2-element numpy array!')
+            # In case pad is a list, let's convert it to a numpy array
+            pad = np.atleast_1d(pad)
+        # Note that self.pad is set to be the default padding of the slit edges, and pad is the *additional*
+        # padding or trimming to be applied to the slit edges.  So if pad is None, we use self.pad, otherwise
+        # we add self.pad to the input pad.
+        pad_global = np.array([0.0, 0.0])
+        if self.pad is not None:
+            pad_global = self.pad
+        # Now add on the delta pad if it is provided.  If not, use the global pad.
+        return pad_global if pad is None else pad_global + pad
+
+    def select_edges(self, initial=False, flexure=None, pad=None):
         """
         Select between the initial or tweaked slit edges and allow for
         flexure correction.
@@ -582,12 +641,23 @@ class SlitTraceSet(calibframe.CalibFrame):
                 the tweaked edges, set this to True.
             flexure (:obj:`float`, optional):
                 If provided, offset each slit by this amount
+            pad (:obj:`float`, :obj:`int`, :obj:`np.ndarray`, optional):
+                The number of pixels used to pad (extend) the edge of
+                each slit. This can be a single scale to pad both
+                left and right edges equally or a 2-element array that
+                provides separate padding for the left (first
+                element) and right (2nd element) edges separately. If
+                not None, this overrides the value in :attr:`par`.
+                The value can be negative, which means that the
+                widths are **trimmed** instead of padded.
 
         Returns:
             tuple: Returns the full arrays containing the left and right
             edge coordinates and the mask, respectively.
             These are returned as copies.
         """
+        # First get the padding that is needed
+        _pad = self.get_pad(pad=pad)
         # TODO: Add a copy argument?
         if self.left_tweak is not None and self.right_tweak is not None and not initial:
             left, right = self.left_tweak, self.right_tweak
@@ -601,7 +671,7 @@ class SlitTraceSet(calibframe.CalibFrame):
             left, right = self.left_flexure, self.right_flexure
 
         # Return
-        return left.copy(), right.copy(), self.mask.copy()
+        return left.copy()-_pad[0], right.copy()+_pad[1], self.mask.copy()
 
     def slit_img(self, pad=None, slitidx=None, initial=False, flexure=None, exclude_flag=None,
                  use_spatial=True):
@@ -629,10 +699,10 @@ class SlitTraceSet(calibframe.CalibFrame):
               masked with :attr:`mask`.
 
         Args:
-            pad (:obj:`float`, :obj:`int`, :obj:`tuple`, optional):
+            pad (:obj:`float`, :obj:`int`, :obj:`np.ndarray`, optional):
                 The number of pixels used to pad (extend) the edge of
                 each slit. This can be a single scale to pad both
-                left and right edges equally or a 2-tuple that
+                left and right edges equally or a 2-element numpy array that
                 provides separate padding for the left (first
                 element) and right (2nd element) edges separately. If
                 not None, this overrides the value in :attr:`par`.
@@ -664,18 +734,12 @@ class SlitTraceSet(calibframe.CalibFrame):
         #
         if slitidx is not None and exclude_flag is not None:
             raise PypeItError("Cannot pass in both slitidx and exclude_flag!")
-        # Check the input
-        if pad is None:
-            pad = self.pad
-        _pad = pad if isinstance(pad, tuple) else (pad,pad)
-        if len(_pad) != 2:
-            raise PypeItError('Padding for both left and right edges should be provided as a 2-tuple!')
 
         # Pixel coordinates
         spat = np.arange(self.nspat)
         spec = np.arange(self.nspec)
 
-        left, right, _ = self.select_edges(initial=initial, flexure=flexure)
+        left, right, _ = self.select_edges(initial=initial, flexure=flexure, pad=pad)
 
         # Choose the slits to use
         if slitidx is not None:
@@ -695,8 +759,8 @@ class SlitTraceSet(calibframe.CalibFrame):
         slitid_img = np.full((self.nspec,self.nspat), -1, dtype=int)
         for i in slitidx:
             slit_id = self.spat_id[i] if use_spatial else i
-            indx = (spat[None,:] > left[:,i,None] - _pad[0]) \
-                        & (spat[None,:] < right[:,i,None] + _pad[1]) \
+            indx = (spat[None,:] > left[:,i,None]) \
+                        & (spat[None,:] < right[:,i,None]) \
                         & (spec > self.specmin[i])[:,None] & (spec < self.specmax[i])[:,None]
             slitid_img[indx] = slit_id
         # Return
@@ -761,7 +825,7 @@ class SlitTraceSet(calibframe.CalibFrame):
                 raise PypeItError('Provided slit ID image does not have the correct shape!')
 
         # Choose the slit edges to use
-        left, right, _ = self.select_edges(initial=initial, flexure=flexure_shift)
+        left, right, _ = self.select_edges(initial=initial, flexure=flexure_shift, pad=pad)
 
         # Slit width
         slitwidth = right - left
@@ -787,7 +851,7 @@ class SlitTraceSet(calibframe.CalibFrame):
                 coo_img = coo
         return coo_img
 
-    def spatial_coordinates(self, initial=False, flexure=None):
+    def spatial_coordinates(self, initial=False, flexure=None, pad=None):
         """
         Return a fiducial coordinate for each slit.
 
@@ -795,20 +859,31 @@ class SlitTraceSet(calibframe.CalibFrame):
         :func:`slit_spat_pos`.
 
         Args:
-            original (:obj:`bool`, optional):
+            initial (:obj:`bool`, optional):
                 By default, the method will use the tweaked slit
                 edges if they have been defined. If they haven't
                 been, the nominal edges (:attr:`left` and
                 :attr:`right`) are used. To use the nominal edges
                 regardless of the presence of the tweaked edges, set
                 this to True. See :func:`select_edges`.
+            flexure (:obj:`float`, optional):
+                If provided, offset each slit by this amount
+            pad (:obj:`float`, :obj:`int`, :obj:`numpy.ndarray`, optional):
+                The number of pixels used to pad (extend) the edge of
+                each slit. This can be a single scale to pad both
+                left and right edges equally or a 2-element numpy array that
+                provides separate padding for the left (first
+                element) and right (2nd element) edges separately. If
+                not None, this overrides the value in :attr:`par`.
+                The value can be negative, which means that the
+                widths are **trimmed** instead of padded.
 
         Returns:
             `numpy.ndarray`_: Vector with the list of floating point
             spatial coordinates.
         """
         # TODO -- Confirm it makes sense to pass in flexure
-        left, right, _ = self.select_edges(initial=initial, flexure=flexure)
+        left, right, _ = self.select_edges(initial=initial, flexure=flexure, pad=pad)
         return SlitTraceSet.slit_spat_pos(left, right, self.nspat)
 
     @staticmethod
@@ -1727,6 +1802,3 @@ def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, slitmas
                                                             slitmask_par['missing_objs_boxcar_rad']/platescale[i])
 
     return sobjs
-
-
-

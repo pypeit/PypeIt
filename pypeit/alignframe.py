@@ -198,7 +198,7 @@ class TraceAlignment:
             log.info("Fitting alignment traces in slit {0:d}/{1:d}".format(slit_idx+1, self.slits.nslits))
             align_traces = findobj_skymask.objs_in_slit(
                 self.rawalignimg.image, self.rawalignimg.ivar, slitid_img_init == slit_spat,
-                left[:, slit_idx], right[:, slit_idx],
+                left[:, slit_idx] - self.alignpar['grow_slit_edge'], right[:, slit_idx]+self.alignpar['grow_slit_edge'],
                 ncoeff=self.alignpar['trace_npoly'],
                 specobj_dict=specobj_dict, snr_thresh=self.alignpar['snr_thresh'],
                 show_peaks=show_peaks, show_fits=False,
