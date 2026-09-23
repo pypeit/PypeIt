@@ -1,11 +1,11 @@
 """
 Module for Magellan/LDSS3 specific methods.
 
-LDSS3-C reads its single CCD through two amplifiers and writes **each amplifier
+LDSS3-C reads a single CCD through two amplifiers and writes **each amplifier
 to its own file**, e.g. ``ccd0042c1.fits`` and ``ccd0042c2.fits``.  PypeIt joins
 the two halves internally in :func:`MagellanLDSS3Spectrograph.get_rawimage`, so
 no external merging step is required.  Only the amplifier-1 files are ingested
-during setup (see :func:`MagellanLDSS3Spectrograph.find_raw_files`); the
+during setup (see :func:`MagellanLDSS3Spectrograph.find_raw_files`) and the
 amplifier-2 file is located and read automatically.
 
 .. include:: ../include/links.rst
@@ -29,7 +29,14 @@ from pypeit.images import detector_container
 
 class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
     """
-    Child to handle Magellan/LDSS3 specific code
+    Class to handle Magellan/LDSS3 data. Works for both MultiSlit and LongSlit modes.
+    LDSS3 Technical documentation: https://www.lco.cl/technical-documentation/index-2/
+    
+
+    LDS3-C specs: https://www.lco.cl/?epkb_post_type_1=ldss3_c-2
+    
+    
+    
     """
     ndet = 1
     name = 'magellan_ldss3'
@@ -40,12 +47,75 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
     comment = 'Low Dispersion Survey Spectrograph 3-C; VPH-All, VPH-Blue and VPH-Red'
     url = 'https://www.lco.cl/technical-documentation/ldss-3-user-manual/'
 
-    # Nominal amplifier properties, used when the raw headers are unavailable
-    # (e.g., when building the documentation).  The true values are read from
-    # the EGAIN/ENOISE cards of each amplifier file; they depend on the readout
-    # speed (the SPEED header card).
-    nominal_gain = np.array([1.65, 1.47])
-    nominal_ronoise = np.array([4.67, 5.06])
+    # Nominal amplifier properties, used when the raw headers are unavailable.
+    # Both are superseded by the measured tables below whenever the readout mode
+    # is one we have characterised.
+    # This is readout mode-dependent
+    nominal_gain = np.array([1.65, 1.44])
+    nominal_ronoise = np.array([6.4, 6.7])
+
+    # Read noise for LDSS3-C, in e-, for amplifiers 1 and 2 in each readout mode.
+    #
+    # The ENOISE header card is not reliable: every frame we have seen carries
+    # the Slow-mode value regardless of the mode actually used.
+    #
+    # Slow and Turbo are published values and are not verified here.  Fast was
+    # measured: 6.37 +- 0.07 and 6.65 +- 0.07 e- from the scatter of bias-pair
+    # differences, over 34 pairs at five epochs from 2018 to 2025, with an
+    # epoch-to-epoch spread of 0.4 e-.  Other modes need to be measured if they are ever used,
+    # but the published values are probably good enough for most purposes.
+    #
+    # The first bias of a sequence should be discarded. Its pedestal is offset and it carries
+    # structure the rest do not. Estimate the scatter with a sigma-clipped standard deviation,
+    # not a median absolute deviation: on differences of integer frames the latter quantises
+    # in 1 ADU steps and returns the same value at every epoch.
+    #
+    # These values are ~0.5 e- below what the reduction itself wants. The scatter of
+    # (data - sky - object) x sqrt(ivar) comes out at 1.06 with them and 0.99 with 7.0/7.2,
+    # so uncertainties on an extracted spectrum are of order 6% optimistic. The measurement is
+    # kept rather than the value that forces that statistic to unity, since the residual is as
+    # likely to be a missing variance term (overscan subtraction, flat-field propagation).
+    #
+
+    ronoise_by_speed = {'slow': (4.4, 5.3),    # from LCO documentation
+                        'fast': (6.4, 6.7),    # measured
+                        'turbo': (10.0, 10.0)} # from LCO documentation
+
+    # Gain for LDSS3-C, in e-/ADU, for amplifiers 1 and 2 in each readout mode.
+    #
+    # Slow and Turbo are the values published by LCO and are not verified here:
+    # every frame we have seen was taken in the Fast mode.
+    #
+    # Fast is measured, and differs from the published 1.5/1.8.
+    # Photon transfer on flat pairs, over eight data sets spanning 2018 to 2025
+    # and three grisms, gives 1.648 +- 0.006 and 1.439 +- 0.007; EGAIN reports
+    # 1.65/1.47.  Both put amplifier 2 *below* amplifier 1, whereas the
+    # published pair puts it above.  The ratio is what the data constrains: a
+    # flat field is continuous across the amplifier boundary, so the wrong ratio
+    # shows up directly as a flux step there
+    # 
+    # Measuring these values accurately is needed to remove any step in the
+    # image at the amplifier boundary.  
+    # On the VPH-All longslit flat,
+    # which has a slit spanning the boundary, the step is
+    #
+    #     g2/g1 = 0.873 (measured here)   ->   +0.8 %
+    #     g2/g1 = 0.891 (EGAIN)      ->   +2.8 %
+    #     g2/g1 = 1.200 (published)  ->  +32.3 %
+    #
+    # so the published Fast pair is excluded by the data.  
+    # EGAIN is close but 2.1% high on amplifier 2
+    # The value measured here is used as the default, but the EGAIN card is used as a fallback
+    #
+    # Note for Turbo: 65535 ADU at a gain of 2.7 is 176945 e-, which is where
+    # the detector itself starts to depart from linear (1% above ~175000 e-),
+    # rather than comfortably below it as in the other two modes.  The
+    # non-linearity fraction of 0.99 applied to the saturation level happens to
+    # land on that point, so it remains appropriate, but Turbo data has not been
+    # tested.
+    gain_by_speed = {'slow': (0.16, 0.19), # from LCO documentation
+                     'fast': (1.65, 1.44), # measured 
+                     'turbo': (2.7, 3.1)}  # from LCO documentation
 
     # Matches an LDSS3 raw filename of the form ``<stem>c<amp>.fits[.gz]``.  The
     # amplifier index is anchored immediately before the extension so that a
@@ -94,6 +164,8 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         parsed = cls.parse_amp_file(path)
         if parsed is None:
             # Not an amplifier-split name; treat it as a single, merged image
+            log.warning(f'File {raw_file} does not follow the LDSS3 amplifier-split naming '
+                        'convention; assuming it is an already-merged image.')
             return [path]
 
         stem, _, _ = parsed
@@ -149,8 +221,8 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         keep += [v[1] for v in exposures.values()]
         ndropped = len(files) - len(keep)
         if ndropped > 0:
-            log.info(f'Ignoring {ndropped} companion amplifier file(s); they are read '
-                     'automatically with their amplifier-1 counterpart.')
+            log.info(f'Ignoring duplicate amplifier file(s) for {ndropped} exposure(s). Only c1 '
+                     'files are read from the .pypeit and c2 are read automatically.')
         return sorted(keep)
 
     def get_detector_par(self, det, hdu=None, amp_headers=None):
@@ -183,12 +255,39 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
             gain = self.nominal_gain.copy()
             ronoise = self.nominal_ronoise.copy()
         else:
-            # EGAIN/ENOISE track the readout speed (the SPEED card), so prefer
-            # the header values over the nominal ones.
-            gain = np.array([float(h.get('EGAIN', self.nominal_gain[i]))
-                             for i, h in enumerate(amp_headers)])
-            ronoise = np.array([float(h.get('ENOISE', self.nominal_ronoise[i]))
-                                for i, h in enumerate(amp_headers)])
+            # Take the gain from the published table, keyed on the readout mode.
+            gain = []
+            for i, h in enumerate(amp_headers):
+                iamp = int(h.get('OPAMP', i + 1)) - 1
+                speed = str(h.get('SPEED', '')).strip().lower()
+                table = self.gain_by_speed.get(speed)
+                if table is not None and 0 <= iamp < len(table):
+                    gain.append(float(table[iamp]))
+                else:
+                    fallback = float(h.get('EGAIN', self.nominal_gain[min(i, 1)]))
+                    log.warning(f'Gain for LDSS3 readout mode {h.get("SPEED")!r} has not '
+                                f'been characterised; falling back on the EGAIN card '
+                                f'({fallback} e-/ADU).  EGAIN is 2% high on amplifier 2 '
+                                'in the Fast mode, and the offset may apply here too.')
+                    gain.append(fallback)
+            gain = np.array(gain)
+            # Take the read noise from the published table, keyed on the
+            # readout mode
+            ronoise = []
+            for i, h in enumerate(amp_headers):
+                iamp = int(h.get('OPAMP', i + 1)) - 1
+                speed = str(h.get('SPEED', '')).strip().lower()
+                table = self.ronoise_by_speed.get(speed)
+                if table is not None and 0 <= iamp < len(table):
+                    ronoise.append(float(table[iamp]))
+                else:
+                    fallback = float(h.get('ENOISE', self.nominal_ronoise[min(i, 1)]))
+                    log.warning(f'Unrecognised LDSS3 readout mode {h.get("SPEED")!r}; '
+                                f'falling back on the ENOISE card ({fallback} e-), '
+                                'which is known to report the Slow-mode value '
+                                'regardless of the mode actually used.')
+                    ronoise.append(fallback)
+            ronoise = np.array(ronoise)
 
         detector_dict = dict(
                             binning         = binning,
@@ -200,10 +299,20 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
-                            platescale      = 0.189,
-                            darkcurr        = 25.0,
-                            saturation      = 205000.,
-                            nonlinear       = 0.85,
+                            platescale      = 0.189,    # from the LDSS3-C manual
+                            darkcurr        = 25.0,     # from the LDSS3-C manual, in e-/hr/pix
+                            # LDSS3-C has a full well of ~205000 e- (10%
+                            # non-linear) and stays within 1% of linear below
+                            # ~175000 e-. The ADC is
+                            # 16-bit, so no pixel can record more than 65535
+                            # ADU. 
+                            #
+                            # The threshold is a single scalar compared in
+                            # electrons, while the two amplifiers have different
+                            # gains, so it has to be low enough to catch the
+                            # amplifier with the *smaller* gain.
+                            saturation      = 65535. * float(np.min(gain)),
+                            nonlinear       = 0.99,
                             mincounts       = -1e10,
                             numamplifiers   = len(gain),
                             gain            = np.atleast_1d(gain),
@@ -227,6 +336,7 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         self.meta['target'] = dict(ext=0, card='OBJECT')
         self.meta['decker'] = dict(ext=0, card='APERTURE')
         self.meta['binning'] = dict(ext=0, card=None, compound=True)
+        # mjd is not in the header, but can be constructed from UT-DATE and UT-TIME
         self.meta['mjd'] = dict(ext=0, card=None, compound=True)
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
@@ -326,6 +436,7 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
 
         # Set the default exposure time ranges for the frame typing.  The
         # science/standard split is driven entirely by these ranges.
+        # The types have to be checked in the .pypeit file anyways
         par['calibrations']['standardframe']['exprng'] = [None, 100]
         par['calibrations']['arcframe']['exprng'] = [None, 60]
         par['calibrations']['tiltframe']['exprng'] = [None, 60]
@@ -414,6 +525,8 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         """
         # filter1 matters because the order-blocking filter (e.g. BPF-380-590)
         # sets the usable wavelength range for a given grism.
+        # observers are recommended to use the same filter for all exposures in a given configuration, 
+        # but it is not enforced and this can be overwritten in the .pypeit file if necessary
         return ['dispname', 'decker', 'binning', 'filter1']
 
     def valid_configuration_values(self):
@@ -424,6 +537,9 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         Frames taken with the grism wheel open are acquisition, through-slit
         or direct images.  PypeIt cannot reduce them, so they are dropped
         during setup rather than being carried through as untyped rows.
+        
+        Only the three VPH grisms are supported, so the valid values for ``dispname``
+        are hard-coded here. 
 
         Returns:
             :obj:`dict`: Keys are the metadata keywords and values are the
@@ -463,11 +579,13 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         """
         Check for frames of the provided type.
 
-        LDSS3's ``EXPTYPE`` card alone is not sufficient: arc and flat frames
-        both appear as ``EXPTYPE='Flat'`` *and* ``EXPTYPE='Object'`` depending
-        on how the observation was taken.  The ``OBJECT`` card carries the
-        observer's intent, so the two are combined.  See
-        :ref:`magellan_ldss3` for the naming conventions this recognises.
+        LDSS3's ``EXPTYPE`` card alone is not sufficient to identify frame types.
+        The ``OBJECT`` card is the exposure name, which is set by the observer and may not reflect the actual exposure type.
+        
+        This method implements a set of rules to determine the frame type but it is not guaranteed to be correct.  
+        The user should check the frame typing in the .pypeit file and adjust it if necessary based
+        on an observing log.
+        See :ref:`magellan_ldss3` for the naming conventions this recognises.
 
         Args:
             ftype (:obj:`str`):
@@ -486,9 +604,7 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         # Only ever type the amplifier-1 file of an exposure.  find_raw_files()
-        # already filters these out during setup; this guards hand-written
-        # PypeIt files, where listing both halves would reduce every exposure
-        # twice.
+        # already filters these out during setup
         primary = np.array([str(a).strip() in ('1', 'None', '') for a in fitstbl['amp']])
 
         idname = np.array([str(n).strip().lower() for n in fitstbl['idname']])
@@ -529,10 +645,12 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
 
     # Object-name keywords used for frame typing.  ``*_words`` are matched
     # against whitespace-, underscore- or hyphen-delimited words, so that short
-    # or ambiguous tokens cannot match inside a target designation ('arc' must
-    # not match 'Arcturus').  ``*_substrings`` are matched anywhere in the name,
+    # or ambiguous tokens cannot match inside a target designation.
+    # ``*_substrings`` are matched anywhere in the name,
     # for distinctive tokens that observers run together with others, such as
     # the 'flat' in 'flatQh'.
+    # this is intended to help frame typing, but it is not guaranteed to be correct.  
+    # The user should check the frame typing in the .pypeit file and adjust it if necessary based on an observing log.
     arc_words = ['arc', 'arcs', 'henear', 'hene', 'lamp', 'comp']
     flat_words = ['qh', 'ff', 'flatfield']
     flat_substrings = ['flat', 'quartz', 'dome']
