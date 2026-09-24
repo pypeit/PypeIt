@@ -13,6 +13,7 @@
 .. _str.splitlines: https://docs.python.org/3/library/stdtypes.html#str.splitlines
 .. _textwrap.wrap: https://docs.python.org/3/library/textwrap.html#textwrap.wrap
 .. _Path: https://docs.python.org/3/library/pathlib.html
+.. _concurrent.futures.ThreadPoolExecutor: https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.ThreadPoolExecutor
 .. _Path.glob: https://docs.python.org/3.9/library/pathlib.html#pathlib.Path.glob
 .. _io.TextIOWrapper: https://docs.python.org/3/library/io.html#io.TextIOWrapper
 
@@ -55,6 +56,8 @@
 .. matplotlib
 .. _matplotlib: https://matplotlib.org/
 .. _matplotlib.pyplot.imshow: http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.imshow
+.. _matplotlib.figure.Figure: https://matplotlib.org/stable/api/_as_gen/matplotlib.figure.Figure.html
+.. _matplotlib.figure.Figure.savefig: https://matplotlib.org/stable/api/_as_gen/matplotlib.figure.Figure.savefig.html
 .. _matplotlib.axes.Axes: https://matplotlib.org/api/axes_api.html#matplotlib.axes.Axes
 .. _matplotlib.image.AxesImage: https://matplotlib.org/stable/api/image_api.html#matplotlib.image.AxesImage
 .. _matplotlib.backend_bases.Event: https://matplotlib.org/stable/api/backend_bases_api.html#matplotlib.backend_bases.Event

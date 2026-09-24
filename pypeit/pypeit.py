@@ -16,6 +16,7 @@ import numpy as np
 
 from pypeit import inputfiles
 from pypeit import qa
+from pypeit import qaWriter
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import calibrations
@@ -50,6 +51,10 @@ class PypeIt:
             Over-ride reduction path in PypeIt file (e.g. Notebook usage)
         calib_only: (:obj:`bool`, optional):
             Only generate the calibration files that you can
+        ncpu (:obj:`int`, optional):
+            Number of CPUs to use.  If not None, overrides the ``[rdx] ncpu``
+            parameter (e.g., set by the ``run_pypeit --ncpu`` command-line
+            option).  The parameter default, 1, runs fully serially.
 
     Attributes:
         pypeit_file (:obj:`str`):
@@ -61,7 +66,7 @@ class PypeIt:
     """
     def __init__(
         self, pypeit_file, overwrite=True, reuse_calibs=False, show=False, redux_path=None,
-        calib_only=False
+        calib_only=False, ncpu=None
     ):
 
         # Set up logging
@@ -87,6 +92,14 @@ class PypeIt:
         # Check the output paths are ready
         if redux_path is not None:
             self.par['rdx']['redux_path'] = redux_path
+        # The command-line --ncpu overrides the parameter file.  Item assignment
+        # bypasses the ParSet validation applied at instantiation, so re-run it
+        # to catch, e.g., --ncpu 0.
+        if ncpu is not None:
+            self.par['rdx']['ncpu'] = ncpu
+            self.par['rdx'].validate()
+        # QA figures are encoded by a thread pool when ncpu > 1
+        qaWriter.init(ncpu=self.par['rdx']['ncpu'])
 
         # Write the full parameter set here
         # --------------------------------------------------------------
@@ -230,6 +243,7 @@ class PypeIt:
                                        reload_only=reload_only)
 
         # Finish
+        qaWriter.flush()
         self.print_end_time()
 
     def reduce_all(self):
@@ -271,6 +285,7 @@ class PypeIt:
             log.info(f'Finished calibration group {calib_ID}')
 
         # Finish
+        qaWriter.flush()
         self.print_end_time()
 
 

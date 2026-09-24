@@ -19,6 +19,7 @@ from astropy import table
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import utils
+from pypeit import qaWriter
 from pypeit import specobj
 from pypeit import specobjs
 from pypeit.core import pydl
@@ -1578,6 +1579,9 @@ def objfind_QA(spat_peaks, snr_peaks, spat_vector, snr_vector, snr_thresh, qa_ti
 
     """
 
+    # Create a dedicated figure: this routine plots via pyplot state, and the
+    # current figure could otherwise be one still queued by qaWriter.
+    fig = plt.figure()
     plt.plot(spat_vector, snr_vector, drawstyle='steps-mid', color='black', label = 'Collapsed SNR (FWHM convol)')
     plt.hlines(snr_thresh,spat_vector.min(),spat_vector.max(), color='red',linestyle='--',
                label='SNR_THRESH={:5.3f}'.format(snr_thresh))
@@ -1597,15 +1601,12 @@ def objfind_QA(spat_peaks, snr_peaks, spat_vector, snr_vector, snr_thresh, qa_ti
     plt.tick_params(axis="both", which="both", direction="in", top=True, right=True)
     plt.tight_layout()
     #plt.ylim(np.fmax(snr_vector.min(), -20.0), 1.3*snr_vector.max())
-    fig = plt.gcf()
-    if show:
-        plt.show()
     # Write to disk?
+    qafile = None
     if objfindQA_filename is not None:
         qafile = Path(objfindQA_filename).absolute()
         qafile.parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(qafile, dpi=400)
-    plt.close('all')
+    qaWriter.save_figure(fig, qafile, show=show, dpi=400)
 
 
 def objtrace_QA(
@@ -1766,11 +1767,7 @@ def objtrace_QA(
 
     plt.tight_layout()
     # Display and/or save the plot(s)
-    if show:
-        plt.show()
-    if objtraceQA_filename is not None:
-        fig.savefig(objtraceQA_filename, dpi=400)
-    plt.close("all")
+    qaWriter.save_figure(fig, objtraceQA_filename, show=show, dpi=400)
 
 
 def get_fwhm(fwhm_in, nsamp, smash_peakflux, spat_fracpos, flux_smash_smth):

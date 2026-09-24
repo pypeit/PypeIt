@@ -19,6 +19,7 @@ from astropy.stats import sigma_clipped_stats
 from IPython import embed
 
 from pypeit import log
+from pypeit import qaWriter
 
 # TODO: Move these names to the appropriate class.  This always writes
 # to QA directory, even if the user sets something else...
@@ -594,13 +595,7 @@ def arc_tilts_2d_qa(tilts_dspat, tilts, tilts_model, tot_mask, rej_mask, spat_or
     # Finish
     # plt.tight_layout(pad=1.0, h_pad=1.0, w_pad=1.0)
 
-    if outfile is not None:
-        plt.savefig(outfile, dpi=400)
-
-    if show_QA:
-        plt.show()
-
-    plt.close()
+    qaWriter.save_figure(fig, outfile, show=show_QA, dpi=400)
     plt.rcdefaults()
 
 
@@ -622,7 +617,7 @@ def arc_tilts_spec_qa(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rm
         outfile = set_qa_filename(setup, method, slit=slitord_id, out_dir=out_dir)
 
     # Setup
-    plt.figure(figsize=(14, 6))
+    fig = plt.figure(figsize=(14, 6))
     plt.clf()
     ax = plt.gca()
 
@@ -678,13 +673,7 @@ def arc_tilts_spec_qa(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rm
     # Finish
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
 
-    if outfile is not None:
-        plt.savefig(outfile, dpi=400)
-
-    if show_QA:
-        plt.show()
-
-    plt.close()
+    qaWriter.save_figure(fig, outfile, show=show_QA, dpi=400)
     plt.rcdefaults()
 
 
@@ -744,13 +733,7 @@ def arc_tilts_spat_qa(tilts_dspat, tilts, tilts_model, tilts_spec_fit, tot_mask,
     # Finish
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
 
-    if outfile is not None:
-        plt.savefig(outfile, dpi=400)
-
-    if show_QA:
-        plt.show()
-
-    plt.close()
+    qaWriter.save_figure(fig, outfile, show=show_QA, dpi=400)
     plt.rcdefaults()
 
 
@@ -821,7 +804,7 @@ def spec_flexure_qa(slitords:np.ndarray, bpm:np.ndarray, basename:str,
         outfile = set_qa_filename(
             basename, method + '_corr', slit=slitord, det=det, mode=mode, out_dir=out_dir
         )
-        plt.figure(figsize=(8, 5.0))
+        fig = plt.figure(figsize=(8, 5.0))
         plt.clf()
         gs = gridspec.GridSpec(nrow, ncol)
         # Correlation QA
@@ -838,8 +821,7 @@ def spec_flexure_qa(slitords:np.ndarray, bpm:np.ndarray, basename:str,
                 iplt += 1
         # Finish
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-        plt.savefig(outfile)#, dpi=400)
-        plt.close()
+        qaWriter.save_figure(fig, outfile)
 
         # Sky line QA (just one object)
         if slit_cen:
@@ -875,7 +857,7 @@ def spec_flexure_qa(slitords:np.ndarray, bpm:np.ndarray, basename:str,
             basename, method+'_sky', slit=slitord, det=det, mode=mode, out_dir=out_dir
         )
         # Figure
-        plt.figure(figsize=(8, 5.0))
+        fig = plt.figure(figsize=(8, 5.0))
         plt.clf()
         nrow, ncol = 2, 3
         gs = gridspec.GridSpec(nrow, ncol)
@@ -909,8 +891,7 @@ def spec_flexure_qa(slitords:np.ndarray, bpm:np.ndarray, basename:str,
 
         # Finish
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-        plt.savefig(outfile)#, dpi=400)
-        plt.close()
+        qaWriter.save_figure(fig, outfile)
         #log.info("Wrote spectral flexure QA: {}".format(outfile))
 
     plt.rcdefaults()
@@ -1093,6 +1074,5 @@ def spat_flexure_qa(img, slits, shift, gpm=None, vrange=None, outfile=None):
     if debug:
         plt.show()
     else:
-        fig.savefig(outfile, dpi=200)
-        plt.close(fig)
+        qaWriter.save_figure(fig, outfile, dpi=200)
 

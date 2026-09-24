@@ -77,6 +77,15 @@ Functionality/Performance Improvements and Additions
   record no airmass card.
 - Slit edges can now be traced from a pinhole decker or standard star trace, and the trace can be
   padded to the full slit length.
+- ``run_pypeit`` (and ``run_to_calibstep``, ``reduce_by_step``) now force the
+  headless matplotlib ``Agg`` backend (unless ``-s/--show`` is used), removing
+  GUI-toolkit overhead from QA figure generation.
+- Added the ``[rdx] ncpu`` parameter and the matching ``run_pypeit --ncpu``
+  command-line option (the latter takes precedence).  The default, 1, runs
+  PypeIt exactly as before.  Values greater than 1 currently encode and write
+  the QA PNGs through a background thread pool (rendering stays on the main
+  thread, which matplotlib requires); the figures are identical to a serial
+  run.
 
 Instrument-specific Updates
 ---------------------------
@@ -192,6 +201,11 @@ Testing
 - Added tests for MMT/Binospec setup grouping and INCAN-based flat/trace frame
   typing.
 - Added new tests for :mod:`~pypeit.core.datacube`.
+- Added tests for the deferred QA figure-writing machinery
+  (:func:`~pypeit.qa.save_figure` / :func:`~pypeit.qa.flush_qa`): threaded
+  writes are pixel-identical to serial writes, queued figures are isolated
+  from later pyplot-state plotting, and writer-thread exceptions re-raise on
+  the main thread.
 
 Under-the-hood Improvements
 ---------------------------
@@ -205,6 +219,12 @@ Under-the-hood Improvements
 - Restructure modules used to construct globals for an instance of PypeIt (e.g.,
   ``log`` and ``dataPaths``) into a new ``pkg`` module.  This isolates these
   operations from the rest of PypeIt.
+- Added :class:`~pypeit.pkg.qawriter.QAWriter` and the package-level
+  ``qaWriter`` instance it provides, which centralizes the writing of the QA
+  figures.  This follows the same pattern as ``log`` and ``dataPaths``: the
+  instance is created on import, imported by the modules that produce QA, and
+  configured by ``PypeIt.__init__`` via ``qaWriter.init()`` once the reduction
+  parameters are known.
 - Refactor how script and spectrograph classes are imported.  Instead of
   importing each module in the relevant ``__init__.py`` file, we now define
   ``__all__`` and import all the relevant classes where needed.

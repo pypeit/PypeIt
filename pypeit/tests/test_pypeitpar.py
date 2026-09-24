@@ -94,6 +94,22 @@ def test_telluric():
 def test_redux():
     pypeitpar.ReduxPar()
 
+def test_ncpu_default_and_override():
+    par = pypeitpar.ReduxPar()
+    assert par['ncpu'] == 1, 'ncpu must default to 1 (fully serial)'
+    par = pypeitpar.ReduxPar.from_dict({'spectrograph': 'shane_kast_blue', 'ncpu': 4})
+    assert par['ncpu'] == 4
+    with pytest.raises(ValueError):
+        pypeitpar.ReduxPar(ncpu=0)
+
+def test_ncpu_assignment_revalidates():
+    # Item assignment bypasses the validation done at instantiation, so the
+    # run_pypeit --ncpu override re-runs validate(); check it catches a bad value
+    par = pypeitpar.ReduxPar()
+    par['ncpu'] = 0
+    with pytest.raises(ValueError):
+        par.validate()
+
 def test_wavelengthsolution():
     pypeitpar.WavelengthSolutionPar()
 
