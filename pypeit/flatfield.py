@@ -31,6 +31,7 @@ from pypeit import calibframe
 from pypeit import edgetrace
 from pypeit import io
 from pypeit import qa
+from pypeit import qaWriter
 from pypeit.display import display
 from pypeit.images import buildimage
 from pypeit.core import extract
@@ -2528,7 +2529,7 @@ def spatillum_finecorr_qa(normed, finecorr, left, right, ypos, cut, outfile=None
     plt.subplots_adjust(wspace=0.03, hspace=0, left=0.12, right=0.9, bottom=0.05, top=0.94)
     if outfile is not None:
         log.info("Saving QA:\n"+outfile)
-    qa.save_figure(fig, outfile, show=outfile is None, dpi=400)
+    qaWriter.save_figure(fig, outfile, show=outfile is None, dpi=400)
     plt.rcdefaults()
     return
 
@@ -2592,7 +2593,7 @@ def detector_structure_qa(det_resp, det_resp_model, outfile=None, title="Detecto
     plt.subplots_adjust(wspace=0.03, hspace=0, left=0.05, right=0.9, bottom=0.1, top=0.9)
     if outfile is not None:
         log.info("Saving QA:\n" + outfile)
-    qa.save_figure(fig, outfile, show=outfile is None, dpi=400)
+    qaWriter.save_figure(fig, outfile, show=outfile is None, dpi=400)
     plt.rcdefaults()
     return
 

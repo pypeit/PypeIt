@@ -16,6 +16,7 @@ import numpy as np
 
 from pypeit import inputfiles
 from pypeit import qa
+from pypeit import qaWriter
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import calibrations
@@ -97,8 +98,8 @@ class PypeIt:
         if ncpu is not None:
             self.par['rdx']['ncpu'] = ncpu
             self.par['rdx'].validate()
-        # QA figures are written by a thread pool when ncpu > 1
-        qa.init_qa_pool(self.par['rdx']['ncpu'])
+        # QA figures are encoded by a thread pool when ncpu > 1
+        qaWriter.init(ncpu=self.par['rdx']['ncpu'])
 
         # Write the full parameter set here
         # --------------------------------------------------------------
@@ -242,7 +243,7 @@ class PypeIt:
                                        reload_only=reload_only)
 
         # Finish
-        qa.flush_qa()
+        qaWriter.flush()
         self.print_end_time()
 
     def reduce_all(self):
@@ -284,7 +285,7 @@ class PypeIt:
             log.info(f'Finished calibration group {calib_ID}')
 
         # Finish
-        qa.flush_qa()
+        qaWriter.flush()
         self.print_end_time()
 
 

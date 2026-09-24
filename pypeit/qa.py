@@ -19,140 +19,7 @@ from astropy.stats import sigma_clipped_stats
 from IPython import embed
 
 from pypeit import log
-
-from concurrent.futures import ThreadPoolExecutor
-
-# --------------------------------------------------------------------------
-# Deferred QA figure writing
-#
-# When ncpu>1, save_figure renders the figure on the MAIN thread and hands only
-# the PNG *encoding* (PIL, which releases the GIL) to a small thread pool.
-# Matplotlib rendering must stay on the main thread: its mathtext parser (and
-# other text-metric machinery) is process-global and not thread-safe, so
-# rendering in a worker races against figure layout on the main thread and
-# corrupts the parser (e.g. "ParseFatalException: Unknown symbol: \\mathdefault"
-# on log-axis tick labels).  Encoding is the thread-safe, GIL-releasing part.
-# --------------------------------------------------------------------------
-
-_QA_POOL = None
-"""ThreadPoolExecutor used to encode QA figures, or None for serial writes."""
-
-_QA_PENDING = []
-"""List of futures for encodes that have not yet been reaped."""
-
-_QA_MAX_PENDING = 4
-"""Maximum number of un-reaped encodes; bounds the memory held by the queued
-RGBA buffers (a large QA figure rasterizes to >100 MB)."""
-
-
-def _encode_png(rgba, outfile, dpi):
-    """
-    Write a rendered RGBA buffer to ``outfile`` as a PNG (worker-thread task).
-
-    Parameters
-    ----------
-    rgba : `numpy.ndarray`_
-        The rendered image, shape ``(nrows, ncols, 4)``, uint8.
-    outfile : :obj:`str`, `Path`_
-        Output PNG file.
-    dpi : :obj:`float`
-        Resolution recorded in the PNG metadata.
-    """
-    from PIL import Image
-    Image.fromarray(rgba).save(outfile, dpi=(dpi, dpi))
-
-
-def init_qa_pool(ncpu:int=1):
-    """
-    (Re)initialise the QA figure-writing thread pool.
-
-    Call once per process, after the parameters are final.  Calling with
-    ``ncpu<=1`` restores fully serial, in-line figure writing.  Also used to
-    *reset* the pool inside a forked worker process, where the parent's threads
-    do not exist.
-
-    Parameters
-    ----------
-    ncpu : :obj:`int`, optional
-        Number of QA encoder threads.  <=1 disables the pool.
-    """
-    global _QA_POOL, _QA_PENDING
-    old = _QA_POOL
-    _QA_POOL = None
-    _QA_PENDING = []
-    if old is not None:
-        old.shutdown(wait=False)
-    if ncpu is not None and ncpu > 1:
-        _QA_POOL = ThreadPoolExecutor(max_workers=min(int(ncpu), 8),
-                                      thread_name_prefix='pypeit-qa')
-
-
-def save_figure(fig, outfile, show:bool=False, close:bool=True, **kwargs):
-    """
-    Write a matplotlib figure to disk, deferring the PNG encode to a
-    background thread when the QA pool is active.
-
-    In the deferred path the figure is rendered on the calling (main) thread
-    -- matplotlib rendering is not thread-safe -- and only the PIL PNG encode
-    runs in a worker.  The output is pixel-identical to a serial
-    `matplotlib.figure.Figure.savefig`_ call.
-
-    Parameters
-    ----------
-    fig : `matplotlib.figure.Figure`_
-        Figure to write.  Must not be modified after this call.
-    outfile : :obj:`str`, `Path`_, optional
-        Output file.  If None, nothing is written.
-    show : :obj:`bool`, optional
-        Show the figure interactively.  Forces the synchronous path.
-    close : :obj:`bool`, optional
-        Close the figure once it has been written.
-    **kwargs
-        Passed to `matplotlib.figure.Figure.savefig`_ (e.g. ``dpi``).  Only a
-        plain ``dpi`` is compatible with the deferred path; any other keyword
-        (or a non-PNG ``outfile``) falls back to a synchronous ``savefig``.
-    """
-    if show or _QA_POOL is None:
-        if outfile is not None:
-            fig.savefig(outfile, **kwargs)
-        if show:
-            plt.show()
-        if close:
-            plt.close(fig)
-        return
-    if outfile is None:
-        if close:
-            plt.close(fig)
-        return
-    if pathlib.Path(outfile).suffix.lower() != '.png' or not close \
-            or any(k != 'dpi' for k in kwargs):
-        # Only the plain PNG + close case is handled by the deferred path
-        fig.savefig(outfile, **kwargs)
-        if close:
-            plt.close(fig)
-        return
-    # Render on the main thread at the requested resolution, then queue only
-    # the (thread-safe, GIL-releasing) PNG encode.
-    fig.set_dpi(kwargs.get('dpi', fig.dpi))
-    fig.canvas.draw()
-    rgba = np.asarray(fig.canvas.buffer_rgba()).copy()
-    plt.close(fig)
-    _QA_PENDING.append(_QA_POOL.submit(_encode_png, rgba, outfile, fig.dpi))
-    if len(_QA_PENDING) >= _QA_MAX_PENDING:
-        flush_qa()
-
-
-def flush_qa():
-    """
-    Block until every deferred QA figure has been written.
-
-    Exceptions raised in the encoder threads are re-raised here, on the main
-    thread.  Safe to call when the pool is inactive (it is then a no-op).
-    """
-    global _QA_PENDING
-    pending, _QA_PENDING = _QA_PENDING, []
-    for future in pending:
-        future.result()
+from pypeit import qaWriter
 
 # TODO: Move these names to the appropriate class.  This always writes
 # to QA directory, even if the user sets something else...
@@ -728,7 +595,7 @@ def arc_tilts_2d_qa(tilts_dspat, tilts, tilts_model, tot_mask, rej_mask, spat_or
     # Finish
     # plt.tight_layout(pad=1.0, h_pad=1.0, w_pad=1.0)
 
-    save_figure(fig, outfile, show=show_QA, dpi=400)
+    qaWriter.save_figure(fig, outfile, show=show_QA, dpi=400)
     plt.rcdefaults()
 
 
@@ -806,7 +673,7 @@ def arc_tilts_spec_qa(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rm
     # Finish
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
 
-    save_figure(fig, outfile, show=show_QA, dpi=400)
+    qaWriter.save_figure(fig, outfile, show=show_QA, dpi=400)
     plt.rcdefaults()
 
 
@@ -866,7 +733,7 @@ def arc_tilts_spat_qa(tilts_dspat, tilts, tilts_model, tilts_spec_fit, tot_mask,
     # Finish
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
 
-    save_figure(fig, outfile, show=show_QA, dpi=400)
+    qaWriter.save_figure(fig, outfile, show=show_QA, dpi=400)
     plt.rcdefaults()
 
 
@@ -954,7 +821,7 @@ def spec_flexure_qa(slitords:np.ndarray, bpm:np.ndarray, basename:str,
                 iplt += 1
         # Finish
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-        save_figure(fig, outfile)
+        qaWriter.save_figure(fig, outfile)
 
         # Sky line QA (just one object)
         if slit_cen:
@@ -1024,7 +891,7 @@ def spec_flexure_qa(slitords:np.ndarray, bpm:np.ndarray, basename:str,
 
         # Finish
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-        save_figure(fig, outfile)
+        qaWriter.save_figure(fig, outfile)
         #log.info("Wrote spectral flexure QA: {}".format(outfile))
 
     plt.rcdefaults()
@@ -1207,5 +1074,5 @@ def spat_flexure_qa(img, slits, shift, gpm=None, vrange=None, outfile=None):
     if debug:
         plt.show()
     else:
-        save_figure(fig, outfile, dpi=200)
+        qaWriter.save_figure(fig, outfile, dpi=200)
 

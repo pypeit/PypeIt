@@ -219,6 +219,12 @@ Under-the-hood Improvements
 - Restructure modules used to construct globals for an instance of PypeIt (e.g.,
   ``log`` and ``dataPaths``) into a new ``pkg`` module.  This isolates these
   operations from the rest of PypeIt.
+- Added :class:`~pypeit.pkg.qawriter.QAWriter` and the package-level
+  ``qaWriter`` instance it provides, which centralizes the writing of the QA
+  figures.  This follows the same pattern as ``log`` and ``dataPaths``: the
+  instance is created on import, imported by the modules that produce QA, and
+  configured by ``PypeIt.__init__`` via ``qaWriter.init()`` once the reduction
+  parameters are known.
 - Refactor how script and spectrograph classes are imported.  Instead of
   importing each module in the relevant ``__init__.py`` file, we now define
   ``__all__`` and import all the relevant classes where needed.

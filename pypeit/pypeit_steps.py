@@ -14,7 +14,7 @@ from astropy import units
 
 from pypeit import log
 from pypeit import PypeItError
-from pypeit import qa
+from pypeit import qaWriter
 from pypeit.calibframe import CalibFrame
 from pypeit.images import buildimage
 from pypeit import specobjs
@@ -252,7 +252,7 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
         )
 
     # Ensure this detector's deferred QA figures are on disk before returning
-    qa.flush_qa()
+    qaWriter.flush()
 
     return caliBrate
 

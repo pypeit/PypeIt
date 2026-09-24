@@ -27,7 +27,7 @@ from pypeit.core import fitting
 
 from pypeit.core import pca
 from pypeit import utils
-from pypeit import qa
+from pypeit import qaWriter
 
 from pypeit import log
 from pypeit import PypeItError
@@ -146,7 +146,7 @@ def arc_fit_qa(waveFit,
     # If we're only plotting the ID panel, save the figure and return
     if ids_only:
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-        qa.save_figure(fig, outfile, show=outfile is None, dpi=800)
+        qaWriter.save_figure(fig, outfile, show=outfile is None, dpi=800)
         return
 
     # Arc Fit
@@ -189,7 +189,7 @@ def arc_fit_qa(waveFit,
 
     # Finish
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-    qa.save_figure(fig, outfile, show=outfile is None, dpi=400)
+    qaWriter.save_figure(fig, outfile, show=outfile is None, dpi=400)
 
     plt.rcdefaults()
 
@@ -275,7 +275,7 @@ def arc_fwhm_qa(fwhmFit, spat_id, slit_txt="slit", outfile=None, show_QA=False):
         cbar.set_label(label='Fraction along the slit in the spatial direction', weight='bold', fontsize=12)
 
     plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-    qa.save_figure(fig, outfile, show=show_QA, dpi=400)
+    qaWriter.save_figure(fig, outfile, show=show_QA, dpi=400)
     plt.rcdefaults()
 
 

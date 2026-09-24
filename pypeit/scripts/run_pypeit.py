@@ -109,8 +109,8 @@ class RunPypeIt(scriptbase.ScriptBase):
         log.info('Generating QA HTML')
         # Ensure all deferred QA figures are on disk before the HTML wrappers
         # are built
-        from pypeit import qa
-        qa.flush_qa()
+        from pypeit import qaWriter
+        qaWriter.flush()
         pypeIt.build_qa()
 
         return 0
