@@ -91,9 +91,12 @@ class PypeIt:
         # Check the output paths are ready
         if redux_path is not None:
             self.par['rdx']['redux_path'] = redux_path
-        # The command-line --ncpu overrides the parameter file
+        # The command-line --ncpu overrides the parameter file.  Item assignment
+        # bypasses the ParSet validation applied at instantiation, so re-run it
+        # to catch, e.g., --ncpu 0.
         if ncpu is not None:
             self.par['rdx']['ncpu'] = ncpu
+            self.par['rdx'].validate()
         # QA figures are written by a thread pool when ncpu > 1
         qa.init_qa_pool(self.par['rdx']['ncpu'])
 
