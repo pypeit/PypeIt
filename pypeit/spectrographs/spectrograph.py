@@ -481,7 +481,7 @@ class Spectrograph:
             subheader[key] = row_fitstbl[key]
 
         # The following are pulled from the original header, if available
-        header_cards = ['INSTRUME', 'DETECTOR', 'DATE-OBS'] + self.raw_header_cards()
+        header_cards = ['INSTRUME', 'DETECTOR', 'DATE-OBS', 'BUNIT'] + self.raw_header_cards()
         if extra_header_cards is not None:
             header_cards += extra_header_cards  # For specDB and more
         for card in header_cards:
