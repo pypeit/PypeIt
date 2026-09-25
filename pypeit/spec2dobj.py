@@ -253,6 +253,13 @@ class Spec2DObj(datamodel.DataContainer):
         # Return
         return d
 
+    def _primary_header(self, hdr=None):
+        """Record electron units when gain correction was performed."""
+        _hdr = super()._primary_header(hdr=hdr)
+        if self.process_steps is not None and 'apply_gain' in self.process_steps:
+            _hdr['BUNIT'] = ('electron', 'Units of the processed image')
+        return _hdr
+
     def _base_header(self, hdr=None):
         """
         Override the base class method to add useful/identifying internals to
@@ -559,7 +566,7 @@ class AllSpec2DObj:
 
         # Copy most of the information from the raw header
         # TODO: Does astropy provide a way to intelligently merge headers?
-        hdukeys = ['BUNIT', 'COMMENT', '', 'BITPIX', 'NAXIS', 'NAXIS1', 'NAXIS2',
+        hdukeys = ['COMMENT', '', 'BITPIX', 'NAXIS', 'NAXIS1', 'NAXIS2',
                    'HISTORY', 'EXTEND', 'DATASEC']
         for key in raw_header.keys():
             # Use new ones
@@ -576,6 +583,11 @@ class AllSpec2DObj:
         if subheader is not None:
             for key in subheader.keys():
                 hdr[key.upper()] = subheader[key]
+
+        if len(self.detectors) > 0 and all(
+                self[det].process_steps is not None
+                and 'apply_gain' in self[det].process_steps for det in self.detectors):
+            hdr['BUNIT'] = ('electron', 'Units of the processed image')
 
         # PYPEIT
         # TODO Should the spectrograph be written to the header?
