@@ -280,6 +280,9 @@ class RawImage:
         # Convert from DN to counts
         self.image *= np.array(gain)
 
+        for header in self.headarr:
+            header['BUNIT'] = ('electron', 'Units of the processed image')
+
         # NOTE: In ``process``, ``apply_gain`` is called first, meaning that all
         # the variance arrays should be None.
         self.steps[step] = True
