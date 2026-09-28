@@ -23,36 +23,41 @@ def kast_raw_file(request, tmp_path):
     return path
 
 
-@pytest.mark.remote_data
-def test_gain_headers(kast_raw_file):
+@pytest.fixture
+def kast_raw_image(kast_raw_file):
     spectrograph = load_spectrograph('shane_kast_blue')
-    original_file = kast_raw_file.read_bytes()
     raw = rawimage.RawImage(str(kast_raw_file), spectrograph, 1)
     try:
-        original_image = raw.rawimage.copy()
-        original_headers = [hdu.header.copy() for hdu in raw.hdu]
-        assert raw.headarr == original_headers, 'Initial headers should match the raw input.'
-        raw.apply_gain()
-        assert all(header['BUNIT'] == 'electron' for header in raw.headarr), \
-            'Gain correction should set electron units in every processed header.'
-        for amp, gain in enumerate(raw.detector[0].gain, start=1):
-            pixels = (raw.rawdatasec_img == amp) | (raw.oscansec_img == amp)
-            assert np.any(pixels), 'Each Kast amplifier should have pixels in the raw image.'
-            assert np.allclose(raw.image[pixels], original_image[pixels] * gain), \
-                'Science and overscan pixels should be multiplied by their amplifier gain.'
-        corrected_image = raw.image.copy()
-        raw.apply_gain()
-        assert np.array_equal(raw.image, corrected_image), \
-            'Calling apply_gain twice should not apply the correction a second time.'
-        assert np.array_equal(raw.rawimage, original_image), \
-            'Gain correction should leave the original raw pixels unchanged.'
-        assert [hdu.header for hdu in raw.hdu] == original_headers, \
-            'Gain correction should modify copied headers, not the input HDU headers.'
+        yield raw
     finally:
         raw.hdu.close()
+
+
+@pytest.mark.remote_data
+def test_gain_headers(kast_raw_file, kast_raw_image):
+    original_file = kast_raw_file.read_bytes()
+    raw = kast_raw_image
+    original_image = raw.rawimage.copy()
+    original_headers = [hdu.header.copy() for hdu in raw.hdu]
+    assert raw.headarr == original_headers, 'Initial headers should match the raw input.'
+    raw.apply_gain()
+    assert all(header['BUNIT'] == 'electron' for header in raw.headarr), \
+        'Gain correction should set electron units in every processed header.'
+    for amp, gain in enumerate(raw.detector[0].gain, start=1):
+        pixels = (raw.rawdatasec_img == amp) | (raw.oscansec_img == amp)
+        assert np.any(pixels), 'Each Kast amplifier should have pixels in the raw image.'
+        assert np.allclose(raw.image[pixels], original_image[pixels] * gain), \
+            'Science and overscan pixels should be multiplied by their amplifier gain.'
+    corrected_image = raw.image.copy()
+    raw.apply_gain()
+    assert np.array_equal(raw.image, corrected_image), \
+        'Calling apply_gain twice should not apply the correction a second time.'
+    assert np.array_equal(raw.rawimage, original_image), \
+        'Gain correction should leave the original raw pixels unchanged.'
+    assert [hdu.header for hdu in raw.hdu] == original_headers, \
+        'Gain correction should modify copied headers, not the input HDU headers.'
     assert kast_raw_file.read_bytes() == original_file, \
         'Gain correction should not modify the raw FITS file on disk.'
-
 
 @pytest.mark.parametrize('units, bunit', [('e-', 'electron'), ('ADU', 'ADU')])
 @pytest.mark.parametrize('image_class', [pypeitimage.PypeItImage, buildimage.BiasImage])
