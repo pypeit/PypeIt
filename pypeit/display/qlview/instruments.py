@@ -3,7 +3,7 @@ Classes used by the quicklook viewer to configure the frontend.
 
 These classes serve two purposes:
 
-1. If a class is in this file, the quicklook viewer will display it as an opion
+1. If a class is in this file, the quicklook viewer will display it as an option
 in the instrument dropdown.
 
 2. They provide configuration information needed to display instrument info,
@@ -14,11 +14,22 @@ Instrument classes must be added to the InstrumentRegistry class to be seen!
 
 from __future__ import annotations
 
+import glob
 import os
+import re
 from typing import Dict, List
 
 import numpy as np
+import yaml
 from astropy.io import fits
+
+from pypeit.core.mosaic import build_image_mosaic
+from pypeit.images import buildimage
+from pypeit.io import fits_open
+from pypeit.pypeitsetup import PypeItSetup
+from pypeit.scripts.ql import match_to_calibs
+from pypeit.spectrographs.keck_deimos import KeckDEIMOSSpectrograph, deimos_read_1chip
+from pypeit.spectrographs.util import load_spectrograph
 
 
 
@@ -161,9 +172,6 @@ class Instrument:
         a source of errors if the pypeit file format is changed, since this
         won't pick up any parser updates.
         """
-        import glob as _glob
-        import re
-        import yaml
 
         # Only attempt to parse directories whose name matches the PypeIt
         # calibration-set naming convention: {spectrograph}_{letter}
@@ -176,9 +184,9 @@ class Instrument:
         # Search the directory directly, then fall back one level deeper so the
         # method works whether dirpath is a setup dir (keck_mosfire_A/) or its
         # parent (the reductions root).
-        pypeit_files = sorted(_glob.glob(os.path.join(dirpath, "*.pypeit")))
+        pypeit_files = sorted(glob.glob(os.path.join(dirpath, "*.pypeit")))
         if not pypeit_files:
-            pypeit_files = sorted(_glob.glob(os.path.join(dirpath, "*", "*.pypeit")))
+            pypeit_files = sorted(glob.glob(os.path.join(dirpath, "*", "*.pypeit")))
         if not pypeit_files:
             self.logger.info(f"No .pypeit files found in or under: {dirpath}")
             return {}
@@ -247,29 +255,31 @@ class Instrument:
             Calibration directory paths, best match first.  Returns an empty
             list when no match is found or when an error occurs.
         """
+        # Instruments without a PypeIt spectrograph name can't be matched
         if not self.pypeit_name:
             return []
 
-        try:
-            from pypeit.pypeitsetup import PypeItSetup
-            from pypeit.scripts.ql import match_to_calibs
-        except Exception as e:
-            self.logger.warning(f"Could not import PypeIt calibration API: {e}")
-            return []
-
+        # Run PypeIt's setup step on the single raw file.  This reads its
+        # headers and assigns it to a setup (A, B, ...) using the
+        # spectrograph's configuration_keys, exactly as run_pypeit would.
         try:
             ps = PypeItSetup.from_rawfiles([raw_path], self.pypeit_name)
             ps.run(setup_only=True)
         except Exception as e:
-            self.logger.warning(f"PypeItSetup failed for {raw_path}: {e}")
+            self.logger.warning(f"PypeItSetup failed for {raw_path}: {e}", exc_info=True)
             return []
 
+        # Compare that setup against every reduced calibration set found under
+        # cal_root.  This is the same matching pypeit_ql uses to reuse existing
+        # calibrations.
         try:
             matched = match_to_calibs(ps, cal_root)
         except Exception as e:
-            self.logger.warning(f"match_to_calibs failed: {e}")
+            self.logger.warning(f"match_to_calibs failed for {cal_root}: {e}", exc_info=True)
             return []
 
+        # ``matched`` maps each setup in ``ps`` to either None (no compatible
+        # calibrations) or a dict holding the matching ``calib_dir``.
         results = []
         for setup_match in matched.values():
             if setup_match is None:
@@ -434,13 +444,6 @@ class DEIMOS(Instrument):
             ``nspec`` and ``nspat_mosaic`` are determined by
             :func:`~pypeit.core.mosaic.prepare_mosaic`.
         """
-        from pypeit.io import fits_open
-        from pypeit.spectrographs.keck_deimos import (
-            KeckDEIMOSSpectrograph,
-            deimos_read_1chip,
-        )
-        from pypeit.core.mosaic import build_image_mosaic
-
         spectrograph = KeckDEIMOSSpectrograph()
 
         with fits_open(raw_path) as hdu:
@@ -502,8 +505,6 @@ class DEIMOS(Instrument):
         numpy.ndarray
             2-D float array assembled as a simple 2×4 chip grid.
         """
-        from pypeit.io import fits_open
-
         with fits_open(raw_path) as hdu:
             hdr0 = hdu[0].header
             binning = hdr0["BINNING"].split(",")
@@ -642,9 +643,6 @@ class MOSFIRE(Instrument):
         ``biasframe`` processing parameters (overscan subtraction, trimming,
         orientation — no dark or flat calibration).
         """
-        from pypeit.spectrographs.util import load_spectrograph
-        from pypeit.images import buildimage
-
         spec = load_spectrograph("keck_mosfire")
         par = spec.default_pypeit_par()['calibrations']['biasframe']
         img = buildimage.buildimage_fromlist(spec, 1, par, [raw_path], mosaic=False)
@@ -797,9 +795,6 @@ class NIRES(Instrument):
         numpy.ndarray
             Processed 2-D image array.
         """
-        from pypeit.spectrographs.util import load_spectrograph
-        from pypeit.images import buildimage
-
         spec = load_spectrograph("keck_nires")
         par = spec.default_pypeit_par()["calibrations"]["biasframe"]
         img = buildimage.buildimage_fromlist(spec, 1, par, [raw_path], mosaic=False)
@@ -932,9 +927,6 @@ class LRISBlue(Instrument):
         numpy.ndarray
             Processed 2-D image array.
         """
-        from pypeit.spectrographs.util import load_spectrograph
-        from pypeit.images import buildimage
-
         spec = load_spectrograph("keck_lris_blue")
         par = spec.default_pypeit_par()["calibrations"]["biasframe"]
         img = buildimage.buildimage_fromlist(spec, 1, par, [raw_path], mosaic=False)
@@ -1066,9 +1058,6 @@ class LRISRed(Instrument):
         numpy.ndarray
             Processed 2-D image array.
         """
-        from pypeit.spectrographs.util import load_spectrograph
-        from pypeit.images import buildimage
-
         spec = load_spectrograph("keck_lris_red_mark4")
         par = spec.default_pypeit_par()["calibrations"]["biasframe"]
         img = buildimage.buildimage_fromlist(spec, 1, par, [raw_path], mosaic=False)
@@ -1207,9 +1196,6 @@ class NIRSPEC(Instrument):
         numpy.ndarray
             Processed 2-D image array.
         """
-        from pypeit.spectrographs.util import load_spectrograph
-        from pypeit.images import buildimage
-
         spec = load_spectrograph("keck_nirspec_high")
         par = spec.default_pypeit_par()["calibrations"]["biasframe"]
         img = buildimage.buildimage_fromlist(spec, 1, par, [raw_path], mosaic=False)
