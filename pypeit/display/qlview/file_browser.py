@@ -16,7 +16,10 @@ from .instruments import Instrument
 
 
 class FileBrowserController:
-    # Icon assets are injected after construction
+    # Icons shown in the "Type" column of the file browser trees, one each for
+    # directories, FITS files, and all other files.  These are class-level
+    # placeholders; QLView.__init__() replaces them with loaded SVG icons
+    # after construction, since loading requires the Ginga viewer (``fv``).
     folderpb = None
     filepb = None
     fitspb = None
