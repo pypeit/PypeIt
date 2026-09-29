@@ -313,6 +313,13 @@ Running the Server
 
 Brief pointer to the server component documentation.
 
+.. note::
+
+    The client identifies the active instrument to the server by its PypeIt
+    spectrograph name (e.g. ``keck_deimos``).  The viewer and the server must
+    therefore run the same version of PypeIt; the server rejects instrument
+    names it does not recognize.
+
 
 Settings Dialog
 ===============
@@ -366,16 +373,20 @@ responsibility:
     callback methods can reach them without navigating the widget hierarchy.
     Keeps UI construction completely separate from business logic.
 
-``InstrumentRegistry`` / ``Instrument`` subclasses (``pypeit/display/qlview/instruments/``)
-    A registry of supported instruments.  Each ``Instrument`` knows how to
-    read display-ready raw image data (``get_display_image``), extract FITS
-    header metadata for the file-browser tree columns (``get_raw_info`` /
-    ``get_reduced_info``), and match raw frames to their best calibration
-    directory (``recommend_calibrations``).  Swapping instruments at runtime
-    rebuilds the tree-view columns via ``_rebuild_treeview_columns``.
+PypeIt ``Spectrograph`` classes (``pypeit/display/qlview/spectrograph_support.py``, ``pypeit/display/qlview/calib_utils.py``)
+    Instrument-specific behavior lives in the ``qlview_*`` hooks of
+    :class:`~pypeit.spectrographs.spectrograph.Spectrograph`: reading
+    display-ready raw image data (``qlview_display_image``) and extracting
+    FITS header metadata for the file-browser tree columns
+    (``qlview_raw_info`` / ``qlview_reduced_info``).  Spectrographs with
+    ``qlview_supported = True`` are offered in the instrument selector.
+    ``spectrograph_support`` adapts these hooks for the viewer, and
+    ``calib_utils`` matches raw frames to their best calibration directory
+    (``recommend_calibrations``).  Swapping instruments at runtime rebuilds
+    the tree-view columns via ``_rebuild_treeview_columns``.
 
 ``FileBrowserController`` (``pypeit/display/qlview/file_browser.py``)
-    Translates a directory path and an ``Instrument`` into a Ginga
+    Translates a directory path and a ``Spectrograph`` into a Ginga
     tree-view listing dict.  Delegates all filesystem access to the
     injected ``FileBrowserBackend`` so that the same controller works
     against a local disk or a remote server without changes.
@@ -405,16 +416,16 @@ Data Flow
 #. **File browsing** — ``_browse_and_update`` calls
    ``FileBrowserController.browse``, which uses the active
    ``FileBrowserBackend`` to list a directory and reads per-file header
-   metadata via ``Instrument.get_raw_info`` / ``get_reduced_info``.
+   metadata via ``Spectrograph.qlview_raw_info`` / ``qlview_reduced_info``.
    The resulting dict is pushed directly into the Ginga ``TreeView`` widget.
 
 #. **Raw image display** — double-clicking a FITS file calls
    ``open_raw_file``, which delegates mosaic assembly to
-   ``Instrument.get_display_image`` and loads the result into the Ginga
+   ``Spectrograph.qlview_display_image`` and loads the result into the Ginga
    ``AstroImage`` canvas.
 
 #. **Calibration suggestion** — after a raw file is opened,
-   ``_suggest_calibrations`` calls ``Instrument.recommend_calibrations``
+   ``_suggest_calibrations`` calls ``calib_utils.recommend_calibrations``
    on a background thread, then highlights the best-matching calibration
    directory in the reduced tree on the GUI thread via ``fv.gui_do``.
 
@@ -452,82 +463,80 @@ Adding a New Instrument
 Overview
 ~~~~~~~~
 
-Each instrument is a subclass of ``Instrument``
-(``pypeit/display/qlview/instruments/base.py``), defined in its own module
-in ``pypeit/display/qlview/instruments/``, and registered in
-``InstrumentRegistry`` (``instruments/registry.py``).  Adding support for a
-new instrument requires:
+Instrument-specific behavior of the viewer is defined by the ``qlview_*``
+hooks of the instrument's PypeIt spectrograph class (see
+:class:`~pypeit.spectrographs.spectrograph.Spectrograph`).  Adding an
+instrument to the viewer requires:
 
-#. Subclassing ``Instrument`` in a new module (e.g.
-   ``instruments/keck_kcwi.py``) and implementing the required methods.
-#. Registering the subclass in ``InstrumentRegistry``.
+#. Setting ``qlview_supported = True`` and ``qlview_label`` (the name shown
+   in the instrument selector) in the spectrograph class.
+#. Overriding the ``qlview_*`` methods described below, as needed.
 
-No changes to ``QLView``, ``QLViewUI``, ``FileBrowserController``, or
-any backend are needed.
+No changes to ``QLView``, ``QLViewUI``, ``FileBrowserController``, or any
+backend are needed.  Throughout the viewer, including the remote HTTP API,
+the instrument is identified by the spectrograph's PypeIt ``name`` (e.g.
+``keck_deimos``); the ``INSTRUME`` header check uses its ``header_name``.
 
-Required Methods
-~~~~~~~~~~~~~~~~
+The ``qlview_*`` methods are only used by the viewer, never by the
+reduction pipeline, and they must not modify the spectrograph instance.
 
-``__init__``
-    Call ``super().__init__()`` then override ``self.columns`` to define
-    the raw and reduced file-browser column layouts, and set
-    ``self.pypeit_name`` to the PypeIt spectrograph name string (e.g.
-    ``"keck_deimos"``).
+Hooks
+~~~~~
 
-``get_display_image(path)``
-    Return a 2-D ``numpy.ndarray`` suitable for display in Ginga.  For
-    multi-detector instruments this is typically a horizontal mosaic
-    assembled by reading each amplifier extension and concatenating along
-    the spatial axis.
+``qlview_raw_columns()``
+    Return the instrument-specific raw-file columns as a list of
+    ``(display_name, key)`` tuples.  The viewer adds the type-icon, file
+    name, and modification-time columns itself; the file name follows a
+    leading ``FRAMENO`` column, if present.
 
-``get_raw_info(path)``
-    Return a ``dict`` mapping the column keys defined in
-    ``self.columns["raw"]`` to values extracted from the FITS header.
-    Use ``_read_header_fields`` for the common KOA keywords and override
-    only instrument-specific fields.
+``qlview_raw_info(hdr)``
+    Return a ``dict`` mapping each ``key`` in ``qlview_raw_columns()`` to
+    its value in the primary header of a raw file.  Missing keywords must
+    give ``"N/A"``.  The Keck spectrographs use
+    :func:`~pypeit.spectrographs.keck_utils.koa_qlview_header_fields` for
+    the common KOA keywords.
 
-Optional Methods
-~~~~~~~~~~~~~~~~
+``qlview_reduced_columns()``
+    Return the columns for the reduced-calibrations tree.  Each ``key`` is a
+    PypeIt configuration key (see ``configuration_keys()``), which lets the
+    viewer fill the columns for a calibration directory (e.g.
+    ``keck_deimos_A/``) from the setup block of its ``.pypeit`` file.  By
+    default, there is one column per configuration key.
 
-``get_reduced_info(path)``
-    Return a ``dict`` for the reduced-calibrations tree columns.  The
-    base implementation reads generic PypeIt output headers; override
-    only when the default is insufficient.
+``qlview_reduced_info(hdr)``
+    Return a ``dict`` of the reduced-tree column values for an individual
+    reduced FITS file.  By default, this is empty.
 
-``recommend_calibrations(raw_path, cal_root)``
-    Return an ordered list of calibration directory paths ranked by
-    match quality.  The base implementation uses PypeIt's
-    spectrograph metadata system; override for instruments with
-    non-standard directory layouts.
+``qlview_display_image(raw_path)``
+    Return the 2-D ``numpy.ndarray`` displayed for a raw file.  It must be in
+    the same coordinate frame as the ``SlitTraceSet`` objects produced by
+    the reduction, so that slit overlays are registered correctly.  By
+    default, the first detector is processed with the ``biasframe``
+    parameters; instruments with detector mosaics (e.g. DEIMOS) typically
+    concatenate the mosaics along the spatial axis.
 
-Registering the Instrument
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Example
+~~~~~~~
 
-At the bottom of ``instruments.py``, add the new class to the
-``InstrumentRegistry`` instantiation::
+.. code-block:: python
 
-    instrument_registry = InstrumentRegistry([
-        ...,
-        MyNewInstrument,
-    ])
+    class MySpectrograph(spectrograph.Spectrograph):
+        ...
 
-Column Layout
-~~~~~~~~~~~~~
+        qlview_supported = True
+        qlview_label = 'MyInstrument'
 
-``self.columns`` is a ``dict`` with ``"raw"`` and ``"reduced"`` keys.
-Each value is a list of ``(display_name, key)`` tuples passed to
-``TreeView.setup_table``.  The ``key`` strings must match the keys
-returned by ``get_raw_info`` / ``get_reduced_info``::
+        def qlview_raw_columns(self):
+            return [('Object', 'OBJECT'), ('Grating', 'GRATING'),
+                    ('Exp Time', 'EXPTIME')]
 
-    self.columns = {
-        "raw": [
-            ("Name",    "name"),
-            ("Object",  "OBJECT"),
-            ("Grating", "GRATING"),
-            ("ExpTime", "EXPTIME"),
-        ],
-        "reduced": _BASE_REDUCED_COLUMNS,
-    }
+        def qlview_raw_info(self, hdr):
+            return {'OBJECT': hdr.get('OBJECT', 'N/A'),
+                    'GRATING': hdr.get('GRATNAME', 'N/A'),
+                    'EXPTIME': hdr.get('EXPTIME', 'N/A')}
+
+        def qlview_reduced_columns(self):
+            return [('Grating', 'dispname'), ('Slit', 'decker')]
 
 
 .. include:: include/links.rst

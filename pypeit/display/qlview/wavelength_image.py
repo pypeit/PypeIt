@@ -8,7 +8,8 @@ The primary entry points are:
   in a Calibrations directory.
 * :func:`build_waveimg_mosaic` — load or compute a per-MSC wavelength image for
   each triplet and concatenate them into a single array whose spatial axis
-  matches the concatenated display image produced by the instrument class.
+  matches the concatenated display image produced by the spectrograph's
+  ``qlview_display_image`` method.
 """
 
 from __future__ import annotations
@@ -158,7 +159,7 @@ def build_waveimg_mosaic(
     Each triplet is processed concurrently (one thread per MSC), then the
     resulting per-MSC arrays are padded to a common nspec and concatenated along
     the spatial axis, matching the display image layout produced by the
-    instrument's ``get_display_image`` method.
+    spectrograph's ``qlview_display_image`` method.
 
     Parameters
     ----------
