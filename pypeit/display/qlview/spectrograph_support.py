@@ -63,8 +63,21 @@ def load_qlview_spectrograph(name: str) -> Spectrograph:
     return load_spectrograph(name)
 
 
-def label(spec: Spectrograph) -> str:
-    """Return the name shown for *spec* in the instrument selector."""
+def label(spec: Spectrograph | str) -> str:
+    """Return the name shown in the instrument selector.
+
+    Parameters
+    ----------
+    spec : Spectrograph or str
+        Spectrograph instance or PypeIt spectrograph name.
+
+    Returns
+    -------
+    str
+        The spectrograph's ``qlview_label``, or its name if it has none.
+    """
+    if isinstance(spec, str):
+        spec = spectrograph_classes()[spec]
     return spec.qlview_label or spec.name
 
 

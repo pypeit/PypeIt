@@ -15,6 +15,8 @@ from typing import TYPE_CHECKING
 
 from ginga.gw import Widgets
 
+from . import spectrograph_support
+
 if TYPE_CHECKING:
     from .qlview import QLView
 
@@ -72,8 +74,9 @@ class QLViewUI:
         vbox.set_spacing(2)
 
         # --- Instrument selector and tree visibility toggles ---
-        # The dropdown is populated from the InstrumentRegistry; changing it
-        # swaps the column layout of both file browsers.
+        # The dropdown lists the spectrographs with ``qlview_supported = True``
+        # (by ``qlview_label``); changing it swaps the column layout of both
+        # file browsers.
         config_hbox = Widgets.HBox()
         config_hbox.add_widget(Widgets.Label("Instrument:"), stretch=0)
         self.plugin.instrument_combo = Widgets.ComboBox()
@@ -81,8 +84,11 @@ class QLViewUI:
             "Select the active instrument — controls FITS header keywords "
             "and file-browser column layout"
         )
-        for name in self.plugin.instrument_registry.names():
-            self.plugin.instrument_combo.append_text(name)
+        for name in self.plugin.qlview_spectrographs:
+            self.plugin.instrument_combo.append_text(spectrograph_support.label(name))
+        self.plugin.instrument_combo.set_index(
+            self.plugin.qlview_spectrographs.index(self.plugin.spectrograph.name)
+        )
         self.plugin.instrument_combo.add_callback("activated", self.plugin.instrument_combo_cb)
         config_hbox.add_widget(self.plugin.instrument_combo, stretch=0)
 
@@ -103,7 +109,7 @@ class QLViewUI:
         vbox.add_widget(config_hbox, stretch=0)
 
         # The two file browsers.  Their columns come from the active
-        # instrument class and are configured below via ``setup_table``.
+        # spectrograph and are configured below via ``setup_table``.
         color_alternate = self.plugin.settings.get("color_alternate_rows", True)
 
         self.plugin.reduced_treeview = Widgets.TreeView(
@@ -123,7 +129,7 @@ class QLViewUI:
         fr = Widgets.Frame("Raw Data")
         fr_vbox = Widgets.VBox()
         # Single-click selects a file; double-click opens it (or enters a directory)
-        raw_cols = self.plugin.instrument.columns["raw"]
+        raw_cols = self.plugin.columns["raw"]
         self.plugin.raw_treeview.setup_table(raw_cols, 1, "name")
         self.plugin.raw_treeview.add_callback("selected", self.plugin.raw_table_selected_cb)
         self.plugin.raw_treeview.add_callback("activated", self.plugin.raw_table_double_click_cb)
@@ -184,7 +190,7 @@ class QLViewUI:
 
         # Reduced-calibrations browser; selecting a setup directory that
         # contains Calibrations/ enables the buttons below.
-        reduced_cols = self.plugin.instrument.columns["reduced"]
+        reduced_cols = self.plugin.columns["reduced"]
         self.plugin.reduced_treeview.setup_table(reduced_cols, 1, "name")
         self.plugin.reduced_treeview.add_callback("selected", self.plugin.reduced_table_selected_cb)
         self.plugin.reduced_treeview.add_callback("activated", self.plugin.reduced_table_double_click_cb)

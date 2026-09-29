@@ -28,17 +28,20 @@ split into several collaborating components
     without needing to navigate the widget hierarchy.  Keeps UI
     construction completely separate from business logic.
 
-``InstrumentRegistry`` / ``Instrument`` subclasses (``.instruments``)
-    A registry of supported instruments.  Each ``Instrument`` knows how to read display-ready
-    raw image data (``get_display_image``), extract FITS header metadata
-    for the file-browser tree columns (``get_raw_info`` /
-    ``get_reduced_info``), and match raw frames to their best calibration
-    directory (``recommend_calibrations``).  Swapping instruments at
-    runtime rebuilds the tree-view columns via
-    ``_rebuild_treeview_columns``.
+PypeIt ``Spectrograph`` classes (``.spectrograph_support``, ``.calib_utils``)
+    Instrument-specific behavior lives in the ``qlview_*`` hooks of
+    :class:`~pypeit.spectrographs.spectrograph.Spectrograph`: reading
+    display-ready raw image data (``qlview_display_image``) and extracting
+    FITS header metadata for the file-browser tree columns
+    (``qlview_raw_info`` / ``qlview_reduced_info``).  Spectrographs with
+    ``qlview_supported = True`` are offered in the instrument selector.
+    ``.spectrograph_support`` adapts these hooks for the viewer, and
+    ``.calib_utils`` matches raw frames to their best calibration directory
+    (``recommend_calibrations``).  Swapping instruments at runtime rebuilds
+    the tree-view columns via ``_rebuild_treeview_columns``.
 
 ``FileBrowserController`` (``.file_browser``)
-    Translates a directory path and an ``Instrument`` into a Ginga
+    Translates a directory path and a ``Spectrograph`` into a Ginga
     tree-view listing dict.  Delegates all filesystem access to the
     injected ``FileBrowserBackend`` so that the same controller works
     against a local disk or a remote server without changes.
@@ -67,16 +70,16 @@ Data flow
 1. **File browsing** — ``_browse_and_update`` calls
    ``FileBrowserController.browse``, which uses the active
    ``FileBrowserBackend`` to list a directory and reads per-file header
-   metadata via ``Instrument.get_raw_info`` / ``get_reduced_info``.  The
+   metadata via ``Spectrograph.qlview_raw_info`` / ``qlview_reduced_info``.  The
    resulting dict is pushed directly into the Ginga ``TreeView`` widget.
 
 2. **Raw image display** — double-clicking a FITS file calls
    ``open_raw_file``, which delegates mosaic assembly to
-   ``Instrument.get_display_image`` and loads the result into the Ginga
+   ``Spectrograph.qlview_display_image`` and loads the result into the Ginga
    ``AstroImage`` canvas.
 
 3. **Calibration suggestion** — after a raw file is opened,
-   ``_suggest_calibrations`` calls ``Instrument.recommend_calibrations``
+   ``_suggest_calibrations`` calls ``calib_utils.recommend_calibrations``
    on a background thread, then highlights the best-matching calibration
    directory in the reduced tree on the GUI thread via ``fv.gui_do``.
 
@@ -138,8 +141,9 @@ from .backends import (
     RemoteFileBrowserBackend,
     RemoteReductionBackend,
 )
+from . import spectrograph_support
+from .calib_utils import read_pypeit_setup_config, recommend_calibrations
 from .file_browser import FileBrowserController
-from .instruments import InstrumentRegistry
 from .slit_overlay import SlitOverlay
 from .state import QLViewState
 from .ui import QLViewUI
@@ -179,8 +183,12 @@ class QLView(GingaPlugin.LocalPlugin):
 
         self.state = QLViewState()
         self.gui_up = False
-        self.instrument_registry = InstrumentRegistry(self.logger)
-        self.instrument = self.instrument_registry.create("DEIMOS")
+        # Names of the spectrographs offered in the instrument combo box, in
+        # combo-box order.
+        self.qlview_spectrographs = spectrograph_support.supported_spectrographs()
+        self.spectrograph = None
+        self.columns: Dict[str, list] = {}
+        self._set_spectrograph(spectrograph_support.DEFAULT_SPECTROGRAPH)
 
         self.file_backend: FileBrowserBackend = LocalFileBrowserBackend()
         self.reduction_backend: ReductionBackend = LocalReductionBackend()
@@ -255,17 +263,31 @@ class QLView(GingaPlugin.LocalPlugin):
 
     # --- Column management ---
 
+    def _set_spectrograph(self, name: str) -> None:
+        """Make *name* the active spectrograph and update the column definitions.
+
+        Does not touch the GUI; see :meth:`_rebuild_treeview_columns`.
+
+        Parameters
+        ----------
+        name : str
+            PypeIt name of a spectrograph supported by the viewer.
+        """
+        self.spectrograph = spectrograph_support.load_qlview_spectrograph(name)
+        self.columns = {mode: spectrograph_support.build_columns(self.spectrograph, mode)
+                        for mode in ["raw", "reduced"]}
+
     def _compute_name_col_indices(self) -> None:
         """Recompute the name-column indices for the current instrument's column defs.
         Used to know where to pull a filename from when the tree is rebuilt"""
         self._raw_name_col_idx = 0
-        for idx, (_col, attr) in enumerate(self.instrument.columns["raw"]):
+        for idx, (_col, attr) in enumerate(self.columns["raw"]):
             if attr == "name":
                 self._raw_name_col_idx = idx
                 break
 
         self._reduced_name_col_idx = 0
-        for idx, (_col, attr) in enumerate(self.instrument.columns["reduced"]):
+        for idx, (_col, attr) in enumerate(self.columns["reduced"]):
             if attr == "name":
                 self._reduced_name_col_idx = idx
                 break
@@ -275,8 +297,8 @@ class QLView(GingaPlugin.LocalPlugin):
         if not self.gui_up:
             return
         self._compute_name_col_indices()
-        raw_cols = self.instrument.columns["raw"]
-        reduced_cols = self.instrument.columns["reduced"]
+        raw_cols = self.columns["raw"]
+        reduced_cols = self.columns["reduced"]
         self.raw_treeview.setup_table(raw_cols, 1, "name")
         self.reduced_treeview.setup_table(reduced_cols, 1, "name")
         # Re-browse both trees so data rows match the new columns
@@ -602,10 +624,10 @@ class QLView(GingaPlugin.LocalPlugin):
     def instrument_combo_cb(self, *args):
         """Swap the active instrument and refresh both tree views.
 
-        Called when the instrument combo box selection changes.  Instantiates
-        a new :class:`~.instruments.base.Instrument` via
-        :class:`~.instruments.registry.InstrumentRegistry` and rebuilds the tree
-        column headers and listings for the new instrument vocabulary.
+        Called when the instrument combo box selection changes.  Loads the
+        selected :class:`~pypeit.spectrographs.spectrograph.Spectrograph` and
+        rebuilds the tree column headers and listings for the new instrument
+        vocabulary.
 
         Parameters
         ----------
@@ -613,8 +635,7 @@ class QLView(GingaPlugin.LocalPlugin):
             Positional arguments forwarded by the Ginga ``activated``
             callback; unused.
         """
-        selected = self.instrument_combo.get_text()
-        self.instrument = self.instrument_registry.create(selected)
+        self._set_spectrograph(self.qlview_spectrographs[self.instrument_combo.get_index()])
 
         # Rebuild the treeview with the new columns:
         self._rebuild_treeview_columns()
@@ -693,7 +714,7 @@ class QLView(GingaPlugin.LocalPlugin):
                 if left[i] < x < right[i]:
                     found_det_idx = det_idx
                     found_slit_key = f"S{slits.spat_id[i]}"
-                    det_label = f"{self.instrument.detector_prefix}{det_idx}"
+                    det_label = spectrograph_support.det_label(self.spectrograph, det_idx)
                     spat_det = x - offset
                     break
             if det_label:
@@ -859,7 +880,7 @@ class QLView(GingaPlugin.LocalPlugin):
                 continue
             for spat_id in slittrace.spat_id:
                 if slit_key == f"S{spat_id}":
-                    det_label = f"{self.instrument.detector_prefix}{det_idx}"
+                    det_label = spectrograph_support.det_label(self.spectrograph, det_idx)
                     break
             if det_label:
                 break
@@ -891,7 +912,7 @@ class QLView(GingaPlugin.LocalPlugin):
         # Arguments for the ql call. These are parsed directly as if they were
         # command line arguments.
         args = [
-            self.instrument.pypeit_name,
+            self.spectrograph.name,
             "--raw_files",
             *raw_files,
             "--raw_path",
@@ -1647,7 +1668,7 @@ class QLView(GingaPlugin.LocalPlugin):
         """
         try:
             from pypeit.spectrographs.util import load_spectrograph
-            spec = load_spectrograph(self.instrument.pypeit_name)
+            spec = load_spectrograph(self.spectrograph.name)
         except Exception as exc:
             self.logger.warning(f"Could not load spectrograph for B frame suggestion: {exc}")
             return None
@@ -1760,11 +1781,13 @@ class QLView(GingaPlugin.LocalPlugin):
         if hasattr(self, "cal_status_label"):
             self.cal_status_label.set_text("Searching for matching calibrations...")
 
-        instrument = self.instrument  # capture for thread
+        # Capture only the name for the thread; the spectrograph may be
+        # swapped while the search runs.
+        spec_name = self.spectrograph.name
 
         def _search() -> None:
             try:
-                suggestions = instrument.recommend_calibrations(raw_path, cal_root)
+                suggestions = recommend_calibrations(spec_name, raw_path, cal_root, self.logger)
                 if suggestions:
                     self.fv.gui_do(self._on_cal_found, suggestions[0])
                 else:
@@ -1842,24 +1865,18 @@ class QLView(GingaPlugin.LocalPlugin):
             return True
 
         instrume = instrume.strip().upper()
-        expected = self.instrument.instrume_value.upper()
+        expected = (self.spectrograph.header_name or "").upper()
 
         if not expected or instrume == expected:
             return True
 
-        # Find the registry entry that matches the file's instrument.
-        # Use instrume_values() to avoid constructing an instrument instance
-        # just to read a class attribute.
-        matching_name: Optional[str] = None
-        for name, instrume_val in self.instrument_registry.instrume_values():
-            if instrume_val.upper() == instrume:
-                matching_name = name
-                break
+        # Find the supported spectrograph that matches the file's instrument.
+        matching_name = spectrograph_support.match_header_name(instrume)
 
-        current_name = self.instrument.__class__.__name__
+        current_label = spectrograph_support.label(self.spectrograph)
         msg = (
             f"The selected file reports INSTRUME = '{instrume}',\n"
-            f"but the active instrument is '{current_name}'."
+            f"but the active instrument is '{current_label}'."
         )
 
         dialog = QtGui.QMessageBox()
@@ -1869,7 +1886,8 @@ class QLView(GingaPlugin.LocalPlugin):
         switch_btn = None
         if matching_name:
             switch_btn = dialog.addButton(
-                f"Switch to {matching_name}", QtGui.QMessageBox.ActionRole
+                f"Switch to {spectrograph_support.label(matching_name)}",
+                QtGui.QMessageBox.ActionRole,
             )
         continue_btn = dialog.addButton("Continue Anyway", QtGui.QMessageBox.ActionRole)
         cancel_btn = dialog.addButton("Cancel", QtGui.QMessageBox.RejectRole)
@@ -1878,9 +1896,8 @@ class QLView(GingaPlugin.LocalPlugin):
 
         clicked = dialog.clickedButton()
         if switch_btn is not None and clicked == switch_btn:
-            idx = self.instrument_registry.names().index(matching_name)
-            self.instrument_combo.set_index(idx)
-            self.instrument = self.instrument_registry.create(matching_name)
+            self.instrument_combo.set_index(self.qlview_spectrographs.index(matching_name))
+            self._set_spectrograph(matching_name)
             self._rebuild_treeview_columns()
             return True
         if clicked == continue_btn:
@@ -1945,7 +1962,9 @@ class QLView(GingaPlugin.LocalPlugin):
         cal_dir = self.state.reduced_filepath or ""
         if cal_dir.endswith("*"):
             cal_dir = os.path.dirname(cal_dir)
-        self._rendered_cal_config = self.instrument._read_pypeit_setup_config(cal_dir)
+        self._rendered_cal_config = read_pypeit_setup_config(
+            cal_dir, self.spectrograph.name, self.logger
+        )
 
     def show_wavelengths_cb(self, w):
         """Build a wavelength image from calibration files and display it in a new channel.
@@ -2168,10 +2187,10 @@ class QLView(GingaPlugin.LocalPlugin):
         entry instead of propagating.
         """
         mode = "reduced" if which_tree == "reduced" else "raw"
-        columns = self.instrument.columns[mode]
+        columns = self.columns[mode]
         try:
             listing, resize, fullpath = self.file_browser.browse(
-                path, self.instrument, columns=columns, mode=mode
+                path, self.spectrograph, columns=columns, mode=mode
             )
         except ValueError:
             if which_tree == "reduced":
@@ -2226,11 +2245,11 @@ class QLView(GingaPlugin.LocalPlugin):
         consistent with how PypeIt groups frames into calibration sets.  Returns
         an empty dict if the file cannot be read or the spectrograph is unknown.
         """
-        if not self.instrument.pypeit_name or not filepath or not os.path.isfile(filepath):
+        if not filepath or not os.path.isfile(filepath):
             return {}
         try:
             from pypeit.spectrographs.util import load_spectrograph
-            spec = load_spectrograph(self.instrument.pypeit_name)
+            spec = load_spectrograph(self.spectrograph.name)
             config: Dict[str, str] = {}
             for key in spec.configuration_keys():
                 try:
@@ -2412,7 +2431,7 @@ class QLView(GingaPlugin.LocalPlugin):
         """Load a raw FITS file and display it in the main Ginga viewer.
 
         Delegates image assembly to
-        :meth:`~pypeit.display.qlview.instruments.base.Instrument.get_display_image`,
+        :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_display_image`,
         wraps the result in a Ginga :class:`~ginga.AstroImage.AstroImage`, and
         pushes it into :attr:`fitsimage`.
 
@@ -2435,7 +2454,7 @@ class QLView(GingaPlugin.LocalPlugin):
         p = Path(path)
         if ".fits" not in p.name:
             return
-        img_data = self.instrument.get_display_image(path)
+        img_data = self.spectrograph.qlview_display_image(path)
         img = AstroImage(logger=self.logger)
         img.load_data(img_data)
         self.fitsimage.set_image(img)

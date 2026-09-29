@@ -11,8 +11,9 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 from ginga.misc import Bunch
 
+from pypeit.spectrographs.spectrograph import Spectrograph
+
 from .backends import FileBrowserBackend
-from .instruments import Instrument
 
 
 class FileBrowserController:
@@ -48,7 +49,7 @@ class FileBrowserController:
     def browse(
         self,
         path: str,
-        instrument: Instrument,
+        spectrograph: Spectrograph,
         columns: Optional[List] = None,
         mode: str = "raw",
     ) -> Tuple[Dict[str, Bunch.Bunch], bool, str]:
@@ -58,13 +59,13 @@ class FileBrowserController:
         ----------
         path : str
             Directory to list.
-        instrument : Instrument
-            Active instrument; used to read per-file metadata.
+        spectrograph : Spectrograph
+            Active spectrograph; used to read per-file metadata.
         columns : list of (str, str), optional
             Column definitions ``(display_name, attr_name)``.  When *None* the
             value from settings is used as a fallback.
         mode : str
-            ``"raw"`` or ``"reduced"``; controls which instrument method is
+            ``"raw"`` or ``"reduced"``; controls which spectrograph method is
             called to fetch FITS metadata.
 
         Returns
@@ -92,7 +93,7 @@ class FileBrowserController:
         fullpath = os.path.join(dirname, "*")
 
         jumpinfo = list(
-            map(lambda p: self._get_info(p, instrument, columns, mode), filelist)
+            map(lambda p: self._get_info(p, spectrograph, columns, mode), filelist)
         )
         listing, resize = self._makelisting(jumpinfo, columns)
         return listing, resize, fullpath
@@ -100,13 +101,13 @@ class FileBrowserController:
     def _get_info(
         self,
         path: str,
-        instrument: Instrument,
+        spectrograph: Spectrograph,
         columns: List,
         mode: str = "raw",
     ) -> Bunch.Bunch:
         """Collect filesystem and instrument metadata for a single path.
 
-        For plain FITS files the instrument backend is called to extract header
+        For plain FITS files the backend is called to extract header
         metadata.  The same header extraction is performed for directories when
         *mode* is ``"reduced"``, allowing reduced-data directories to surface
         per-directory metadata in the listing.
@@ -115,8 +116,8 @@ class FileBrowserController:
         ----------
         path : str
             Absolute path to the file or directory to inspect.
-        instrument : Instrument
-            Active instrument; used to read per-file or per-directory header
+        spectrograph : Spectrograph
+            Active spectrograph; used to read per-file or per-directory header
             metadata via the backend.
         columns : list of (str, str)
             Column definitions as ``(display_name, attr_name)`` pairs.  Used
@@ -124,7 +125,7 @@ class FileBrowserController:
             ``"N/A"`` so that every returned ``Bunch`` has a consistent set of
             attributes regardless of whether metadata was available.
         mode : str, optional
-            ``"raw"`` (default) or ``"reduced"``; controls which instrument
+            ``"raw"`` (default) or ``"reduced"``; controls which spectrograph
             method the backend calls to fetch FITS metadata.  In
             ``"reduced"`` mode, metadata is also attempted for directories.
 
@@ -169,7 +170,7 @@ class FileBrowserController:
         header_dict: Dict[str, object] = {}
         if ftype == "fits" or (ftype == "dir" and mode == "reduced"):
             try:
-                header_dict = self.backend.get_header_info(path, instrument, mode=mode)
+                header_dict = self.backend.get_header_info(path, spectrograph, mode=mode)
             except Exception as exc:
                 self.logger.error(f"Error reading metadata for {path}: {exc}")
                 header_dict = {}

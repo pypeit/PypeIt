@@ -1,15 +1,20 @@
 from __future__ import annotations
 
 import glob
+import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Protocol, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .instruments import Instrument
+    from pypeit.spectrographs.spectrograph import Spectrograph
 
 from pypeit.scripts import ql
+
+from . import spectrograph_support
+
+logger = logging.getLogger(__name__)
 
 # requests is optional — only needed for the remote backends.
 try:
@@ -68,15 +73,16 @@ class FileBrowserBackend(Protocol):
         """
         ...
 
-    def get_header_info(self, path: str, instrument: "Instrument", mode: str = "raw") -> Dict[str, object]:
+    def get_header_info(self, path: str, spectrograph: "Spectrograph", mode: str = "raw") -> Dict[str, object]:
         """Return header metadata for a FITS file.
 
         Parameters
         ----------
         path : str
-            Path to the FITS file.
-        instrument : Instrument
-            Instrument object used to extract metadata.
+            Path to the FITS file, or to a calibration directory in
+            ``"reduced"`` mode.
+        spectrograph : Spectrograph
+            Active spectrograph, used to extract metadata.
         mode : str, optional
             ``"raw"`` (default) to read raw-frame headers; ``"reduced"`` to
             read reduced-product headers.
@@ -185,29 +191,26 @@ class LocalFileBrowserBackend:
             st_gid=s.st_gid,
         )
 
-    def get_header_info(self, path: str, instrument: "Instrument", mode: str = "raw") -> Dict[str, object]:
+    def get_header_info(self, path: str, spectrograph: "Spectrograph", mode: str = "raw") -> Dict[str, object]:
         """Implements :meth:`FileBrowserBackend.get_header_info` for the local filesystem.
 
         Parameters
         ----------
         path : str
-            Path to the FITS file.
-        instrument : Instrument
-            Instrument object used to extract metadata.
+            Path to the FITS file, or to a calibration directory in
+            ``"reduced"`` mode.
+        spectrograph : Spectrograph
+            Active spectrograph, used to extract metadata.
         mode : str, optional
-            ``"raw"`` (default) delegates to
-            :meth:`~pypeit.display.qlview.instruments.base.Instrument.get_raw_info`;
-            ``"reduced"`` delegates to
-            :meth:`~pypeit.display.qlview.instruments.base.Instrument.get_reduced_info`.
+            ``"raw"`` (default) or ``"reduced"``; see
+            :func:`~pypeit.display.qlview.spectrograph_support.get_header_info`.
 
         Returns
         -------
         dict
             Mapping of header keyword names to their values.
         """
-        if mode == "reduced":
-            return instrument.get_reduced_info(path)
-        return instrument.get_raw_info(path)
+        return spectrograph_support.get_header_info(spectrograph, path, mode, logger)
 
     def check_log_for_failure(self, log_path: str, failure_string: str) -> bool:
         """Implements :meth:`FileBrowserBackend.check_log_for_failure` for the local filesystem.
@@ -371,19 +374,19 @@ class RemoteFileBrowserBackend:
             st_gid=data.get("st_gid", 0),
         )
 
-    def get_header_info(self, path: str, instrument: "Instrument", mode: str = "raw") -> Dict[str, object]:
+    def get_header_info(self, path: str, spectrograph: "Spectrograph", mode: str = "raw") -> Dict[str, object]:
         """Implements :meth:`FileBrowserBackend.get_header_info` over HTTP.
 
-        Sends a GET request to ``<base_url>/api/header_info``.  The instrument
-        class name is passed as a query parameter so the server can instantiate
-        the correct instrument.
+        Sends a GET request to ``<base_url>/api/header_info``.  The PypeIt
+        spectrograph name is passed as the ``instrument`` query parameter so
+        the server can load the same spectrograph.
 
         Parameters
         ----------
         path : str
             Path to the FITS file on the remote host.
-        instrument : Instrument
-            Instrument whose class name is forwarded to the server.
+        spectrograph : Spectrograph
+            Active spectrograph, whose name is forwarded to the server.
         mode : str, optional
             ``"raw"`` (default) or ``"reduced"``.
 
@@ -401,7 +404,7 @@ class RemoteFileBrowserBackend:
             f"{self.base_url}/api/header_info",
             params={
                 "path": path,
-                "instrument": instrument.__class__.__name__,
+                "instrument": spectrograph.name,
                 "mode": mode,
             },
             headers=self._headers(),

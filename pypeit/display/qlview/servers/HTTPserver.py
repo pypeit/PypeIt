@@ -19,7 +19,9 @@ GET  /api/stat_info?path=<path>
     Stat a path.  Returns serialised stat fields.
 
 GET  /api/header_info?path=<path>&instrument=<name>&mode=<raw|reduced>
-    Read FITS or calibration-directory metadata.
+    Read FITS or calibration-directory metadata.  ``instrument`` is the PypeIt
+    name of a spectrograph supported by the quicklook viewer (e.g.
+    ``keck_deimos``); anything else returns 400.
 
 GET  /api/check_log?path=<log_path>&failure_string=<str>
     Returns ``{"failed": true|false}``.
@@ -74,8 +76,8 @@ from typing import Any, Dict, List
 
 from flask import Flask, jsonify, request
 
+from pypeit.display.qlview import spectrograph_support
 from pypeit.display.qlview.backends import LocalFileBrowserBackend, LocalReductionBackend
-from pypeit.display.qlview.instruments import InstrumentRegistry
 
 # ---------------------------------------------------------------------------
 # Flask application
@@ -89,8 +91,6 @@ app = Flask(__name__)
 
 _file_backend = LocalFileBrowserBackend()
 _reduction_backend = LocalReductionBackend()
-_registry: InstrumentRegistry | None = None
-_registry_lock = threading.Lock()
 
 _api_key: str | None = None
 _allowed_roots: List[str] = []  # empty = no restriction
@@ -105,14 +105,6 @@ _JOB_TTL_SECONDS = 3600  # evict completed/failed jobs after 1 hour
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-def _get_registry() -> InstrumentRegistry:
-    global _registry
-    with _registry_lock:
-        if _registry is None:
-            _registry = InstrumentRegistry(app.logger)
-    return _registry
-
 
 def _validate_path(path: str) -> str:
     """Resolve *path* and verify it is under an allowed root.
@@ -211,16 +203,21 @@ def stat_info():
 @app.route("/api/header_info")
 def header_info():
     path = request.args.get("path", "")
-    instrument_name = request.args.get("instrument", "DEIMOS")
+    instrument_name = request.args.get("instrument", "")
     mode = request.args.get("mode", "raw")
 
     if not path:
         return jsonify({"error": "Missing required query parameter: path"}), 400
+    if not instrument_name:
+        return jsonify({"error": "Missing required query parameter: instrument"}), 400
+    try:
+        spectrograph = spectrograph_support.load_qlview_spectrograph(instrument_name)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
 
     try:
         safe = _validate_path(path)
-        instrument = _get_registry().create(instrument_name)
-        info = _file_backend.get_header_info(safe, instrument, mode=mode)
+        info = _file_backend.get_header_info(safe, spectrograph, mode=mode)
         serialisable = {
             k: (str(v) if v is not None else "N/A")
             for k, v in info.items()

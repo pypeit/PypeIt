@@ -5,43 +5,39 @@ Results are compared by column *display name* so that the internal attribute
 names used to key each column are free to change.
 """
 import logging
+import subprocess
+import sys
 
 from astropy.io import fits
 import pytest
 
-from pypeit.display.qlview.instruments.keck_deimos import DEIMOS
-from pypeit.display.qlview.instruments.keck_hires import HIRES
-from pypeit.display.qlview.instruments.keck_lris import LRISBlue, LRISRed
-from pypeit.display.qlview.instruments.keck_mosfire import MOSFIRE
-from pypeit.display.qlview.instruments.keck_nirspec import NIRSPEC
+from pypeit.display.qlview import spectrograph_support
+from pypeit.spectrographs.util import load_spectrograph, spectrograph_classes
 
 # ---------------------------------------------------------------------------
 # Adapters onto the API under test
 # ---------------------------------------------------------------------------
 
-_CLASSES = {c(None).pypeit_name: c for c in [DEIMOS, HIRES, LRISBlue, LRISRed, MOSFIRE, NIRSPEC]}
-
-
-def _inst(name):
-    return _CLASSES[name](logging.getLogger(__name__))
+_LOGGER = logging.getLogger(__name__)
 
 
 def _columns(name, mode):
-    return [d for d, _ in _inst(name).columns[mode]]
+    return [d for d, _ in spectrograph_support.build_columns(load_spectrograph(name), mode)]
 
 
 def _view(name, mode, path):
-    inst = _inst(name)
-    info = inst.get_raw_info(str(path)) if mode == 'raw' else inst.get_reduced_info(str(path))
-    return {d: str(info[a]) for d, a in inst.columns[mode] if a in info}
+    spec = load_spectrograph(name)
+    info = spectrograph_support.get_header_info(spec, str(path), mode, _LOGGER)
+    return {d: str(info[a]) for d, a in spectrograph_support.build_columns(spec, mode)
+            if a in info}
 
 
 def _header_name(name):
-    return _CLASSES[name].instrume_value
+    return load_spectrograph(name).header_name
 
 
 def _det_prefix(name):
-    return _CLASSES[name].detector_prefix
+    return spectrograph_support.det_label(load_spectrograph(name), '01')[:-2]
 
 
 # ---------------------------------------------------------------------------
@@ -227,3 +223,83 @@ def test_reduced_info_unrelated_dir(tmp_path):
     other.mkdir()
     assert _view('keck_deimos', 'reduced', other) \
             == {'Mask/Slit': 'N/A', 'Grating': 'N/A', 'Blocking Filter': 'N/A'}
+
+
+# ---------------------------------------------------------------------------
+# Viewer support
+# ---------------------------------------------------------------------------
+
+def test_supported_spectrographs():
+    assert spectrograph_support.supported_spectrographs() == ['keck_deimos', 'keck_mosfire']
+    for name in spectrograph_support.supported_spectrographs():
+        spec = load_spectrograph(name)
+        assert spec.header_name is not None
+        assert spec.qlview_label is not None
+        for mode in ['raw', 'reduced']:
+            cols = spectrograph_support.build_columns(spec, mode)
+            assert all(isinstance(d, str) and isinstance(a, str) for d, a in cols)
+            assert len({a for _, a in cols}) == len(cols)
+
+
+@pytest.mark.parametrize('name', sorted(spectrograph_classes().keys()))
+def test_qlview_raw_info_empty_header(name):
+    # Every spectrograph must tolerate missing header keywords
+    spec = load_spectrograph(name)
+    info = spec.qlview_raw_info(fits.Header())
+    assert all(info[key] == 'N/A' for _, key in spec.qlview_raw_columns())
+
+
+def test_load_qlview_spectrograph():
+    assert load_spectrograph('keck_mosfire').name \
+            == spectrograph_support.load_qlview_spectrograph('keck_mosfire').name
+    for name in ['keck_lris_blue', 'DEIMOS', 'not_a_spectrograph']:
+        with pytest.raises(ValueError):
+            spectrograph_support.load_qlview_spectrograph(name)
+
+
+def test_match_header_name():
+    assert spectrograph_support.match_header_name(' deimos ') == 'keck_deimos'
+    assert spectrograph_support.match_header_name('MOSFIRE') == 'keck_mosfire'
+    # LRIS is not supported by the viewer
+    assert spectrograph_support.match_header_name('LRIS') is None
+    assert spectrograph_support.label('keck_deimos') == 'DEIMOS'
+
+
+def test_no_viewer_import_from_spectrographs():
+    # The spectrograph classes must not depend on the viewer or on
+    # pypeit.scripts.ql, which itself imports the spectrographs.
+    code = ('import sys; import pypeit.spectrographs.spectrograph; '
+            'from pypeit.spectrographs.util import load_spectrograph; '
+            '[load_spectrograph(n) for n in ["keck_deimos", "keck_mosfire"]]; '
+            'bad = [m for m in sys.modules '
+            'if m.startswith("pypeit.display") or m == "pypeit.scripts.ql"]; '
+            'print(bad); assert not bad')
+    subprocess.run([sys.executable, '-c', code], check=True)
+
+
+# ---------------------------------------------------------------------------
+# HTTP server
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def http_client():
+    pytest.importorskip('flask')
+    from pypeit.display.qlview.servers import HTTPserver
+    HTTPserver.app.config['TESTING'] = True
+    return HTTPserver.app.test_client()
+
+
+def test_http_header_info(http_client, fits_files):
+    full, _ = fits_files
+    resp = http_client.get('/api/header_info',
+                           query_string={'path': str(full), 'instrument': 'keck_deimos'})
+    assert resp.status_code == 200
+    assert resp.get_json()['MASKNAME'] == 'v_SLMSKNAM'
+
+
+@pytest.mark.parametrize('instrument', ['DEIMOS', 'keck_lris_blue', ''])
+def test_http_header_info_bad_instrument(http_client, fits_files, instrument):
+    full, _ = fits_files
+    resp = http_client.get('/api/header_info',
+                           query_string={'path': str(full), 'instrument': instrument})
+    assert resp.status_code == 400
