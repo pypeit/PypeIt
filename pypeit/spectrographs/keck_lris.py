@@ -24,6 +24,7 @@ from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.core import standard
 from pypeit.spectrographs import spectrograph
+from pypeit.spectrographs.keck_utils import koa_qlview_header_fields
 from pypeit.spectrographs import slitmask
 from pypeit.images import detector_container
 from pypeit import dataPaths
@@ -1137,6 +1138,54 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
 
         return bpm_img
 
+    # ------------------------------------------------------------------
+    # Quicklook viewer (pypeit_qlview) hooks
+    #
+    # Untested!  LRIS Blue is not offered in the quicklook viewer.
+    # ------------------------------------------------------------------
+
+    qlview_label = 'LRIS Blue'
+
+    def qlview_raw_columns(self):
+        """
+        Instrument-specific raw-file columns for the quicklook viewer; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_raw_columns`.
+        """
+        return [('Frame No', 'FRAMENO'), ('Object', 'OBJECT'), ('Img Type', 'IMTYPE'),
+                ('Slit/Mask', 'MASKNAME'), ('Grism', 'GRISNAME'),
+                ('Dichroic', 'DICHNAME'), ('Exp Time', 'EXPTIME')]
+
+    def qlview_raw_info(self, hdr):
+        """
+        Read the quicklook-viewer raw-file column values; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_raw_info`.
+        """
+        info = koa_qlview_header_fields(hdr)
+        info['OBJECT'] = hdr.get('TARGNAME', 'N/A')
+        info['MASKNAME'] = hdr.get('SLITNAME', 'N/A')
+        info['GRISNAME'] = hdr.get('GRISNAME', 'N/A')
+        info['DICHNAME'] = hdr.get('DICHNAME', 'N/A')
+        return info
+
+    def qlview_reduced_columns(self):
+        """
+        Instrument-specific reduced-file columns for the quicklook viewer; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_reduced_columns`.
+        """
+        return [('Slit/Mask', 'decker'), ('Grating/Grism', 'dispname'),
+                ('Dichroic', 'dichroic')]
+
+    def qlview_reduced_info(self, hdr):
+        """
+        Read the quicklook-viewer reduced-file column values; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_reduced_info`.
+        """
+        return {
+            'decker': hdr.get('SLITNAME', 'N/A'),
+            'dispname': hdr.get('GRISNAME', 'N/A'),
+            'dichroic': hdr.get('DICHNAME', 'N/A'),
+        }
+
 
 class KeckLRISBOrigSpectrograph(KeckLRISBSpectrograph):
     """
@@ -1814,6 +1863,54 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
         """
         # Note:  There is no way we know to super super super
         return spectrograph.Spectrograph.get_rawimage(self, raw_file, det)
+
+    # ------------------------------------------------------------------
+    # Quicklook viewer (pypeit_qlview) hooks
+    #
+    # Untested!  LRIS Red is not offered in the quicklook viewer.
+    # ------------------------------------------------------------------
+
+    qlview_label = 'LRIS Red'
+
+    def qlview_raw_columns(self):
+        """
+        Instrument-specific raw-file columns for the quicklook viewer; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_raw_columns`.
+        """
+        return [('Frame No', 'FRAMENO'), ('Object', 'OBJECT'), ('Img Type', 'IMTYPE'),
+                ('Slit/Mask', 'MASKNAME'), ('Grating', 'GRANAME'),
+                ('Dichroic', 'DICHNAME'), ('Exp Time', 'EXPTIME')]
+
+    def qlview_raw_info(self, hdr):
+        """
+        Read the quicklook-viewer raw-file column values; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_raw_info`.
+        """
+        info = koa_qlview_header_fields(hdr)
+        info['OBJECT'] = hdr.get('TARGNAME', 'N/A')
+        info['MASKNAME'] = hdr.get('SLITNAME', 'N/A')
+        info['GRANAME'] = hdr.get('GRANAME', 'N/A')
+        info['DICHNAME'] = hdr.get('DICHNAME', 'N/A')
+        return info
+
+    def qlview_reduced_columns(self):
+        """
+        Instrument-specific reduced-file columns for the quicklook viewer; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_reduced_columns`.
+        """
+        return [('Slit/Mask', 'decker'), ('Grating/Grism', 'dispname'),
+                ('Dichroic', 'dichroic')]
+
+    def qlview_reduced_info(self, hdr):
+        """
+        Read the quicklook-viewer reduced-file column values; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_reduced_info`.
+        """
+        return {
+            'decker': hdr.get('SLITNAME', 'N/A'),
+            'dispname': hdr.get('GRANAME', 'N/A'),
+            'dichroic': hdr.get('DICHNAME', 'N/A'),
+        }
 
 
 class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):

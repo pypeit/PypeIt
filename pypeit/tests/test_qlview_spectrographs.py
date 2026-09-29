@@ -86,7 +86,9 @@ EXPECTED = {
         red_dir={'Decker': 'c_decker', 'XDisp': 'c_dispname', 'Filter': 'c_filter1'},
     ),
     'keck_lris_blue': dict(
-        header='LRISBLUE', prefix='MSC',
+        # NOTE: The original viewer used 'MSC' here, but LRIS Blue is displayed
+        # with mosaic=False, so 'DET' is correct.
+        header='LRISBLUE', prefix='DET',
         raw_cols=['Type', 'Frame No', 'Name', 'Object', 'Img Type', 'Slit/Mask', 'Grism',
                   'Dichroic', 'Exp Time', 'Last Changed'],
         red_cols=['Type', 'Name', 'Slit/Mask', 'Grating/Grism', 'Dichroic', 'Last Changed'],
