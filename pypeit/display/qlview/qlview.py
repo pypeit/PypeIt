@@ -473,6 +473,10 @@ class QLView(GingaPlugin.LocalPlugin):
                 resp = _requests.get(f"{base_url}/api/health", timeout=5)
                 resp.raise_for_status()
             except Exception as exc:
+                self.logger.error(
+                    f"Health check failed for remote backend {base_url}: {exc}",
+                    exc_info=True,
+                )
                 QtGui.QMessageBox.critical(
                     None,
                     "Backend Unreachable",
@@ -1515,7 +1519,8 @@ class QLView(GingaPlugin.LocalPlugin):
         # so that permissions errors or non-directory selections are handled safely.
         try:
             enabled = Path(path).is_dir() and Path(path, "Calibrations").is_dir()
-        except OSError:
+        except OSError as exc:
+            self.logger.debug(f"Could not check for Calibrations/ in {path}: {exc}")
             enabled = False
         self.reduced_btn.set_enabled(enabled)
         self.show_wavelengths_btn.set_enabled(enabled)
@@ -1650,12 +1655,17 @@ class QLView(GingaPlugin.LocalPlugin):
         def _get(headarr, key):
             try:
                 return spec.get_meta_value(headarr, key, ignore_bad_header=True)
-            except Exception:
+            except Exception as exc:
+                self.logger.debug(f"Could not read metadata {key!r} for B frame suggestion: {exc}")
                 return None
 
         try:
             a_headarr = spec.get_headarr(raw_path)
-        except Exception:
+        except Exception as exc:
+            self.logger.warning(
+                f"Could not read headers from {raw_path} for B frame suggestion: {exc}",
+                exc_info=True,
+            )
             return None
 
         dithpos = _get(a_headarr, "dithpos") or ""
@@ -1686,7 +1696,8 @@ class QLView(GingaPlugin.LocalPlugin):
                 continue
             try:
                 c_headarr = spec.get_headarr(str(candidate))
-            except Exception:
+            except Exception as exc:
+                self.logger.debug(f"Skipping B frame candidate {candidate}; could not read headers: {exc}")
                 continue
 
             # Must be B/B' dither position
@@ -1759,6 +1770,11 @@ class QLView(GingaPlugin.LocalPlugin):
                 else:
                     self.fv.gui_do(self._on_cal_not_found)
             except Exception as exc:
+                # Log the traceback here; only the message is passed to the GUI thread
+                self.logger.error(
+                    f"Calibration search failed for {raw_path} under {cal_root}: {exc}",
+                    exc_info=True,
+                )
                 self.fv.gui_do(self._on_cal_error, str(exc))
 
         threading.Thread(target=_search, daemon=True).start()
@@ -1783,6 +1799,7 @@ class QLView(GingaPlugin.LocalPlugin):
         self.reduced_text_entry.set_text(str(cal_set_path))
         self.state.reduced_filepath = str(cal_set_path)
         self.reduced_btn.set_enabled(True)
+        self.show_wavelengths_btn.set_enabled(True)
 
     def _on_cal_not_found(self) -> None:
         if hasattr(self, "cal_status_label"):
@@ -1814,8 +1831,12 @@ class QLView(GingaPlugin.LocalPlugin):
         try:
             with fits.open(path) as hdul:
                 instrume = hdul[0].header.get("INSTRUME", None)
-        except Exception:
-            return True  # can't read header; proceed gracefully
+        except Exception as exc:
+            # can't read header; proceed gracefully
+            self.logger.warning(
+                f"Could not read INSTRUME from {path}; skipping instrument check: {exc}"
+            )
+            return True
 
         if instrume is None:
             return True
@@ -2179,7 +2200,8 @@ class QLView(GingaPlugin.LocalPlugin):
                 enabled = bool(cal_dir) and os.path.isdir(
                     os.path.join(cal_dir, "Calibrations")
                 )
-            except OSError:
+            except OSError as exc:
+                self.logger.debug(f"Could not check for Calibrations/ in {cal_dir}: {exc}")
                 enabled = False
             self.reduced_btn.set_enabled(enabled)
             self.show_wavelengths_btn.set_enabled(enabled)
