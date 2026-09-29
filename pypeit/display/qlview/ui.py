@@ -1,3 +1,14 @@
+"""
+Widget layout for the QLView quicklook viewer plugin.
+
+This module holds only the construction of the plugin's control panel
+(instrument selector, file browsers, reduction controls, and button bar).  It
+contains no application logic: every widget is attached to the parent
+:class:`~pypeit.display.qlview.qlview.QLView` plugin, and every callback points
+back to a method on that plugin.  Keeping the layout here keeps ``qlview.py``
+focused on behavior and makes it easier to rearrange the UI.
+"""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -9,6 +20,8 @@ if TYPE_CHECKING:
 
 
 class QLViewUI:
+    """Builds the QLView control panel and attaches its widgets to the plugin."""
+
     def __init__(self, plugin: "QLView") -> None:
         """
         Parameters
@@ -49,6 +62,8 @@ class QLViewUI:
         -------
         None
         """
+        # Outer layout: ``top`` stacks ``vbox`` above the button bar; ``vbox``
+        # holds the instrument row and the three frames.
         top = Widgets.VBox()
         top.set_border_width(4)
 
@@ -56,6 +71,9 @@ class QLViewUI:
         vbox.set_border_width(4)
         vbox.set_spacing(2)
 
+        # --- Instrument selector and tree visibility toggles ---
+        # The dropdown is populated from the InstrumentRegistry; changing it
+        # swaps the column layout of both file browsers.
         config_hbox = Widgets.HBox()
         config_hbox.add_widget(Widgets.Label("Instrument:"), stretch=0)
         self.plugin.instrument_combo = Widgets.ComboBox()
@@ -68,6 +86,7 @@ class QLViewUI:
         self.plugin.instrument_combo.add_callback("activated", self.plugin.instrument_combo_cb)
         config_hbox.add_widget(self.plugin.instrument_combo, stretch=0)
 
+        # Checkboxes that collapse/expand each file browser to save space
         vbox_show = Widgets.VBox()
         self.plugin.hide_reduced_tree = Widgets.CheckBox("Show Reduced Tree")
         self.plugin.hide_reduced_tree.set_state(True)
@@ -83,6 +102,8 @@ class QLViewUI:
         config_hbox.add_widget(vbox_show, stretch=0)
         vbox.add_widget(config_hbox, stretch=0)
 
+        # The two file browsers.  Their columns come from the active
+        # instrument class and are configured below via ``setup_table``.
         color_alternate = self.plugin.settings.get("color_alternate_rows", True)
 
         self.plugin.reduced_treeview = Widgets.TreeView(
@@ -101,12 +122,14 @@ class QLViewUI:
         # --- Raw Data frame ---
         fr = Widgets.Frame("Raw Data")
         fr_vbox = Widgets.VBox()
+        # Single-click selects a file; double-click opens it (or enters a directory)
         raw_cols = self.plugin.instrument.columns["raw"]
         self.plugin.raw_treeview.setup_table(raw_cols, 1, "name")
         self.plugin.raw_treeview.add_callback("selected", self.plugin.raw_table_selected_cb)
         self.plugin.raw_treeview.add_callback("activated", self.plugin.raw_table_double_click_cb)
         fr_vbox.add_widget(self.plugin.raw_treeview, stretch=1)
 
+        # Path entry + "Go" button for typing a raw directory/file directly
         hbox_raw = Widgets.HBox()
         hbox_raw.add_widget(Widgets.Label("Raw Data Path:"), stretch=0)
         self.plugin.raw_text_entry = Widgets.TextEntry()
@@ -123,6 +146,8 @@ class QLViewUI:
         hbox_raw.add_widget(self.plugin.raw_btn, stretch=0)
         fr_vbox.add_widget(hbox_raw, stretch=0)
 
+        # Optional B frame for A-B sky subtraction (e.g. MOSFIRE/NIRES dithers).
+        # "Detect AB Pair" searches the raw directory for a matching frame.
         hbox_bframe = Widgets.HBox()
         hbox_bframe.add_widget(Widgets.Label("B frame (optional):"), stretch=0)
         self.plugin.b_frame_entry = Widgets.TextEntry()
@@ -157,12 +182,16 @@ class QLViewUI:
         )
         fr_vbox.add_widget(self.plugin.cal_status_label, stretch=0)
 
+        # Reduced-calibrations browser; selecting a setup directory that
+        # contains Calibrations/ enables the buttons below.
         reduced_cols = self.plugin.instrument.columns["reduced"]
         self.plugin.reduced_treeview.setup_table(reduced_cols, 1, "name")
         self.plugin.reduced_treeview.add_callback("selected", self.plugin.reduced_table_selected_cb)
         self.plugin.reduced_treeview.add_callback("activated", self.plugin.reduced_table_double_click_cb)
         fr_vbox.add_widget(self.plugin.reduced_treeview, stretch=1)
 
+        # Path entry plus the two calibration-overlay buttons.  Both start
+        # disabled and are enabled once a valid calibration directory is chosen.
         hbox_reduced = Widgets.HBox()
         hbox_reduced.add_widget(Widgets.Label("Reduced Cals Path:"), stretch=0)
         self.plugin.reduced_text_entry = Widgets.TextEntry()
@@ -194,6 +223,8 @@ class QLViewUI:
         fr = Widgets.Frame("Reduction Control")
         self.plugin.vbox_redux = Widgets.VBox()
 
+        # Slit selector (filled after "Render Slits"), reduce button, and the
+        # SNR threshold passed to the quicklook reduction.
         hbox = Widgets.HBox()
         self.plugin.slit_list_box = Widgets.ComboBox()
         self.plugin.slit_list_box.set_tooltip(
@@ -253,6 +284,7 @@ class QLViewUI:
         hbox_params.add_widget(self.plugin.manual_extract_params_entry, stretch=1)
         self.plugin.vbox_redux.add_widget(hbox_params, stretch=0)
 
+        # Reduction option and overlay display toggles
         self.plugin.coadd2d_box = Widgets.CheckBox("CoAdd2D")
         self.plugin.coadd2d_box.set_state(False)
         self.plugin.coadd2d_box.set_tooltip(
@@ -278,9 +310,12 @@ class QLViewUI:
         fr.set_widget(self.plugin.vbox_redux)
         vbox.add_widget(fr, stretch=0)
 
+        # The empty stretch=1 label absorbs extra vertical space so the frames
+        # stay packed at the top and the button bar at the bottom.
         top.add_widget(vbox, stretch=0)
         top.add_widget(Widgets.Label(""), stretch=1)
 
+        # --- Button bar ---
         btns = Widgets.HBox()
         btns.set_spacing(3)
         btn = Widgets.Button("Close")
