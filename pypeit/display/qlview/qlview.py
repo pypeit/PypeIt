@@ -603,8 +603,8 @@ class QLView(GingaPlugin.LocalPlugin):
         """Swap the active instrument and refresh both tree views.
 
         Called when the instrument combo box selection changes.  Instantiates
-        a new :class:`~.instruments.Instrument` via
-        :class:`~.instruments.InstrumentRegistry` and rebuilds the tree
+        a new :class:`~.instruments.base.Instrument` via
+        :class:`~.instruments.registry.InstrumentRegistry` and rebuilds the tree
         column headers and listings for the new instrument vocabulary.
 
         Parameters
@@ -2412,7 +2412,7 @@ class QLView(GingaPlugin.LocalPlugin):
         """Load a raw FITS file and display it in the main Ginga viewer.
 
         Delegates image assembly to
-        :meth:`~pypeit.display.qlview.instruments.Instrument.get_display_image`,
+        :meth:`~pypeit.display.qlview.instruments.base.Instrument.get_display_image`,
         wraps the result in a Ginga :class:`~ginga.AstroImage.AstroImage`, and
         pushes it into :attr:`fitsimage`.
 

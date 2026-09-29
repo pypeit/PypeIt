@@ -196,9 +196,9 @@ class LocalFileBrowserBackend:
             Instrument object used to extract metadata.
         mode : str, optional
             ``"raw"`` (default) delegates to
-            :meth:`~pypeit.display.qlview.instruments.Instrument.get_raw_info`;
+            :meth:`~pypeit.display.qlview.instruments.base.Instrument.get_raw_info`;
             ``"reduced"`` delegates to
-            :meth:`~pypeit.display.qlview.instruments.Instrument.get_reduced_info`.
+            :meth:`~pypeit.display.qlview.instruments.base.Instrument.get_reduced_info`.
 
         Returns
         -------

@@ -366,7 +366,7 @@ responsibility:
     callback methods can reach them without navigating the widget hierarchy.
     Keeps UI construction completely separate from business logic.
 
-``InstrumentRegistry`` / ``Instrument`` subclasses (``pypeit/display/qlview/instruments.py``)
+``InstrumentRegistry`` / ``Instrument`` subclasses (``pypeit/display/qlview/instruments/``)
     A registry of supported instruments.  Each ``Instrument`` knows how to
     read display-ready raw image data (``get_display_image``), extract FITS
     header metadata for the file-browser tree columns (``get_raw_info`` /
@@ -453,10 +453,13 @@ Overview
 ~~~~~~~~
 
 Each instrument is a subclass of ``Instrument``
-(``pypeit/display/qlview/instruments.py``) registered in
-``InstrumentRegistry``.  Adding support for a new instrument requires:
+(``pypeit/display/qlview/instruments/base.py``), defined in its own module
+in ``pypeit/display/qlview/instruments/``, and registered in
+``InstrumentRegistry`` (``instruments/registry.py``).  Adding support for a
+new instrument requires:
 
-#. Subclassing ``Instrument`` and implementing the required methods.
+#. Subclassing ``Instrument`` in a new module (e.g.
+   ``instruments/keck_kcwi.py``) and implementing the required methods.
 #. Registering the subclass in ``InstrumentRegistry``.
 
 No changes to ``QLView``, ``QLViewUI``, ``FileBrowserController``, or
