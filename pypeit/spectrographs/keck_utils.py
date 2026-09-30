@@ -1,5 +1,7 @@
 """
 Utilities shared by the Keck spectrograph classes.
+
+.. include:: ../include/links.rst
 """
 
 
