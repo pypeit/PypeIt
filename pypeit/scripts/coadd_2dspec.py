@@ -37,7 +37,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         """
         Executes 2d coadding
         """
-
+        import time
         from pathlib import Path
         import copy
 
@@ -48,11 +48,14 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         from astropy.io import fits
 
         from pypeit import log
+        from pypeit import utils
         from pypeit import coadd2d
         from pypeit import history
         from pypeit import inputfiles
         from pypeit import specobjs
         from pypeit import spec2dobj
+
+        tstart = time.time()
 
         # Initialize the log
         cls.init_log(args)
@@ -242,5 +245,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                                                redux_path=None)
         # Write spec2d
         all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr)
+        log.info(utils.get_time_string(time.time()-tstart))
+
 
 

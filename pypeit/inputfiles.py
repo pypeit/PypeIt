@@ -310,6 +310,39 @@ class InputFile:
         return self.path_and_files('filename', include_commented_out=self.preserve_comments)
 
     @staticmethod
+    def _strip_legacy_quotes(obj):
+        """
+        Remove the extra double quotes that older versions of PypeIt wrote
+        around setup values that include a colon (e.g., ``'"SINGLE:B"'``).
+
+        Before the fix for Issue #2099, :func:`~pypeit.utils.yamlify` wrapped
+        such strings in double quotes before they were written with
+        ``yaml.dump``, so the quotes became part of the value when the setup
+        block was read back in.  The quotes are removed here so that setup
+        blocks in older files still match the metadata read from the raw
+        files.
+
+        Args:
+            obj (:obj:`object`):
+                Object parsed from the setup block.  Dictionaries and lists are
+                processed recursively.
+
+        Returns:
+            :obj:`object`: The object with the quotes removed from all
+            affected strings.
+        """
+        if isinstance(obj, dict):
+            return {k: InputFile._strip_legacy_quotes(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [InputFile._strip_legacy_quotes(v) for v in obj]
+        if isinstance(obj, str) and len(obj) > 1 and obj[0] == obj[-1] == '"' and ':' in obj:
+            log.warning(f'Removing the extra quotes from the setup value {obj}, written by an '
+                        'older version of PypeIt.  Regenerate your PypeIt file (e.g., with '
+                        'pypeit_setup) to avoid this warning.')
+            return obj[1:-1]
+        return obj
+
+    @staticmethod
     def _parse_setup_lines(lines):
         """
         Return a list of the setup names and corresponding Setup dict
@@ -331,7 +364,7 @@ class InputFile:
 
         # Slurp
         ystr = '\n'.join(line_list)
-        sdict = yaml.safe_load(ystr)
+        sdict = InputFile._strip_legacy_quotes(yaml.safe_load(ystr))
         for key in sdict:
             if 'Setup' in key:
                 tsetup = key.split()[1].strip()
@@ -685,7 +718,8 @@ class InputFile:
         return load_spectrograph(_spec, pypeit_fits=pypeit_fits)
 
     def get_pypeitpar(
-        self, config_specific_file=None, spectrograph_name:str=None, pypeit_fits:bool=False
+        self, config_specific_file=None, spectrograph_name:str=None, pypeit_fits:bool=False,
+        require_rawfile:bool=True
     ):
         """
         Use the configuration lines and a configuration-specific example file to
@@ -711,6 +745,16 @@ class InputFile:
             script where the expected input files are PypeIt-written FITS files
             only.  This has the effect of overriding the :attr:`allowed_extensions`
             attribute to be ``[".fits"]``.
+        require_rawfile : :obj:`bool`, optional
+            If True (default), any failure to read ``config_specific_file`` (e.g.,
+            because the raw file is no longer available on disk) is raised as an
+            exception. If False, that failure is caught and the configuration-specific
+            parameters fall back to
+            :func:`~pypeit.spectrographs.spectrograph.Spectrograph.default_pypeit_par`,
+            so a fully populated :class:`~pypeit.par.pypeitpar.PypeItPar` is still
+            returned. Use this for post-processing scripts that only need the
+            parameter set (e.g., to determine the science/QA output directories)
+            and cannot guarantee the raw data are still present.
 
         Returns
         -------
@@ -731,8 +775,20 @@ class InputFile:
                 config_specific_file = _files[0]
 
         # Get the configuration-specific parameters based on the file
-        spec_par = spec.default_pypeit_par() if config_specific_file is None \
-                    else spec.config_specific_par(config_specific_file)
+        if config_specific_file is None:
+            spec_par = spec.default_pypeit_par()
+        elif require_rawfile:
+            spec_par = spec.config_specific_par(config_specific_file)
+        else:
+            try:
+                spec_par = spec.config_specific_par(config_specific_file)
+            except PypeItError as e:
+                log.warning(
+                    f'Could not determine configuration-specific parameters from '
+                    f'{config_specific_file}; falling back to default parameters for '
+                    f'{spec.name}. Original error: {e}'
+                )
+                spec_par = spec.default_pypeit_par()
         par = pypeitpar.PypeItPar.from_cfg_lines(
             cfg_lines=spec_par.to_config(), merge_with=(self.cfg_lines,)
         )
@@ -779,7 +835,8 @@ class PypeItFile(InputFile):
         return {row['filename']:row['frametype'] for row in self.data}
 
     def get_pypeitpar(
-        self, config_specific_file=None, spectrograph_name:str=None, pypeit_fits:bool=False
+        self, config_specific_file=None, spectrograph_name:str=None, pypeit_fits:bool=False,
+        require_rawfile:bool=True
     ):
         """
         Use the configuration lines and a configuration-specific example file to
@@ -830,6 +887,20 @@ class PypeItFile(InputFile):
             Provided for consistency with the base class.  The files provided by
             the pypeit file are, by definition, raw files, meaning this
             parameter must always be False.
+        require_rawfile : :obj:`bool`, optional
+            If True (default), any failure to read the config-specific raw file
+            (e.g., because it is no longer available on disk) is raised as an
+            exception. If False, that failure is caught and the
+            configuration-specific parameters fall back to
+            :func:`~pypeit.spectrographs.spectrograph.Spectrograph.default_pypeit_par`,
+            so a fully populated :class:`~pypeit.par.pypeitpar.PypeItPar` is still
+            returned. Use this for post-processing scripts that only need the
+            parameter set (e.g., to determine the science/QA output directories)
+            and cannot guarantee the raw data are still present. Note this is
+            rarely needed in practice: :func:`~pypeit.spectrographs.spectrograph.Spectrograph.get_meta_value`
+            reads directly from the data table's own columns first, and only
+            resorts to reading the raw file if a required value is missing from
+            the table.
 
         Returns
         -------
@@ -918,7 +989,7 @@ class PypeItFile(InputFile):
         spec = self.get_spectrograph()
 
         if _config_specific_file is None:
-            spec_par = spec.default_pypeit_par() 
+            spec_par = spec.default_pypeit_par()
         else:
             # Check file extensions
             spec._check_extensions(_config_specific_file)
@@ -931,12 +1002,23 @@ class PypeItFile(InputFile):
             data_row = self.data[csf_indx].copy()
             # Use the full path to the ``config_specific_file`` for insurance
             data_row['filename'] = str(_config_specific_file)
-            spec_par = spec.config_specific_par(data_row)
+            if require_rawfile:
+                spec_par = spec.config_specific_par(data_row)
+            else:
+                try:
+                    spec_par = spec.config_specific_par(data_row)
+                except PypeItError as e:
+                    log.warning(
+                        f'Could not determine configuration-specific parameters from '
+                        f'{_config_specific_file}; falling back to default parameters for '
+                        f'{spec.name}. Original error: {e}'
+                    )
+                    spec_par = spec.default_pypeit_par()
 
         par = pypeitpar.PypeItPar.from_cfg_lines(
             cfg_lines=spec_par.to_config(), merge_with=(self.cfg_lines,)
         )
-        return spec, par, _config_specific_file        
+        return spec, par, _config_specific_file
 
 
 class SensFile(InputFile):
@@ -1394,3 +1476,136 @@ def grab_rawfiles(file_of_files:str=None, list_of_files:list=None, raw_paths:lis
     # Find all files that have the correct extension.  Force the returned list
     # to contain strings, not Path objects.
     return [str(f) for f in files_from_extension(_raw_paths, extension=extension)]
+
+
+def target_match_key(target):
+    """
+    Normalize a target name for permissive matching.
+
+    Parameters
+    ----------
+    target : :obj:`str`
+        Target name, e.g. ``J0750+6927``.
+
+    Returns
+    -------
+    :obj:`str`
+        Normalized target name, e.g. ``J0750p6927``.
+    """
+    return str(target).strip().replace(' ', '').replace('+', 'p').replace('-', 'm')
+
+
+def target_matches(value, target):
+    """
+    Compare target names, allowing either the literal or sanitized form.
+
+    Parameters
+    ----------
+    value : :obj:`str`
+        Target name to test, e.g. as read from a PypeIt file data table.
+    target : :obj:`str`
+        Target name to compare against, e.g. as provided on the command
+        line.
+
+    Returns
+    -------
+    :obj:`bool`
+        True if ``value`` and ``target`` are identical, or if their
+        :func:`target_match_key`-normalized forms are identical.
+    """
+    _value = str(value).strip()
+    _target = str(target).strip()
+    return _value == _target or target_match_key(_value) == target_match_key(_target)
+
+
+def matching_science_rows(pypeit_file, target):
+    """
+    Select science rows matching a target from a PypeIt input file.
+
+    Parameters
+    ----------
+    pypeit_file : :class:`~pypeit.inputfiles.PypeItFile`
+        The parsed PypeIt reduction file.
+    target : :obj:`str`
+        Target name to match against the data block's ``target`` column;
+        see :func:`target_matches`.
+
+    Returns
+    -------
+    :obj:`list`
+        List of data-table rows with frame type ``science`` whose target
+        matches ``target``.
+
+    Raises
+    ------
+    PypeItError
+        If ``pypeit_file`` has no data block, the data block has no
+        ``target`` column, or no matching science rows are found.
+    """
+    if pypeit_file.data is None:
+        raise PypeItError('The PypeIt file has no data block.')
+    if 'target' not in pypeit_file.data.keys():
+        raise PypeItError('The PypeIt file data block has no target column.')
+
+    rows = [
+        row for row in pypeit_file.data
+        if any(ft.strip() == 'science' for ft in str(row['frametype']).split(','))
+        and target_matches(row['target'], target)
+    ]
+    if len(rows) == 0:
+        unique_targets = sorted({str(row['target']).strip() for row in pypeit_file.data})
+        raise PypeItError(
+            f'No science rows found for target={target}. Available targets are: '
+            f'{", ".join(unique_targets)}.'
+        )
+    return rows
+
+
+def science_row_group_key(row):
+    """
+    Construct the grouping key used by :func:`group_science_rows`.
+
+    Parameters
+    ----------
+    row : `astropy.table.Row`_
+        Data-table row to key.
+
+    Returns
+    -------
+    :obj:`str`
+        The row's ``comb_id`` (if present and usable), otherwise its
+        ``filename``.
+    """
+    if 'comb_id' not in row.colnames:
+        return str(row['filename'])
+    comb_id = str(row['comb_id']).strip()
+    return comb_id if comb_id.lower() not in ('', 'none', '-1') else str(row['filename'])
+
+
+def group_science_rows(rows):
+    """
+    Group science rows by comb_id, using the first row in each group as the expected spec2d stem.
+
+    Parameters
+    ----------
+    rows : :obj:`list`
+        Science rows to group, e.g. as returned by :func:`matching_science_rows`.
+
+    Returns
+    -------
+    :obj:`list`
+        List of groups, where each group is a :obj:`list` of rows sharing
+        the same ``comb_id`` (or, if a row has no usable ``comb_id``, a
+        single-row group keyed by its own ``filename``); see
+        :func:`science_row_group_key`.
+    """
+    groups = []
+    seen = set()
+    for row in rows:
+        key = science_row_group_key(row)
+        if key in seen:
+            continue
+        seen.add(key)
+        group = [r for r in rows if science_row_group_key(r) == key]
+        groups.append(group)
+    return groups

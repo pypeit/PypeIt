@@ -11,6 +11,7 @@ import pytest
 from pypeit import PypeItError
 import numpy as np
 from pypeit.spectrographs.spectrograph import Spectrograph
+from pypeit.spectrographs.util import load_spectrograph
 from pypeit.par.pypeitpar import PypeItPar
 
 from pypeit import dataPaths
@@ -421,6 +422,41 @@ def test_parse_setup_lines_colon_and_multi_error():
         inputfiles.InputFile._parse_setup_lines(np.array(['Setup A:', 'Setup B:']))
 
 
+def test_write_pypeitfile_setup_with_colon():
+    # Setup values with colons (e.g., the DEIMOS amplifier mode) must survive
+    # a write/read cycle unchanged (Issue #2099)
+    outfile = Path(tstutils.data_output_path('tmp_colon.pypeit')).absolute()
+    confdict, data, file_paths, _ = _pypeitfile_components()
+    setup_dict = {'Setup A': {'amp': 'SINGLE:B', 'dispname': '600ZD'}}
+    inputfiles.PypeItFile(config=confdict, file_paths=file_paths, data_table=data,
+                          setup=setup_dict).write(outfile)
+    assert "'\"SINGLE:B\"'" not in outfile.read_text(), 'Extra quotes written to setup block'
+    # NOTE: from_file strips the indentation, so the setup block is read flat
+    setup = inputfiles.PypeItFile.from_file(outfile).setup
+    assert setup['amp'] == 'SINGLE:B' and setup['dispname'] == '600ZD', \
+        'Setup value with a colon changed after read/write'
+    outfile.unlink()
+
+
+def test_parse_setup_lines_legacy_quotes():
+    # Older versions of PypeIt wrote extra quotes around values with colons;
+    # these should be removed on read so that the setups still match the raw
+    # metadata (Issue #2099)
+    lines = np.array(['Setup A:', '  --:', "    amp: '\"SINGLE:B\"'", '    dispname: 600ZD',
+                      '    decker: mask03', '    binning: 1,1', '    dispangle: 6500.0',
+                      '    filter1: GG400', "    note: '\"no colon\"'"])
+    _, sdict = inputfiles.InputFile._parse_setup_lines(lines)
+    cfg = sdict['Setup A']['--']
+    assert cfg['amp'] == 'SINGLE:B', 'Legacy quotes not removed'
+    # Only quoted values with colons were written by the old code
+    assert cfg['note'] == '"no colon"', 'Quotes removed from a value without a colon'
+
+    raw_cfg = dict(dispname='600ZD', decker='mask03', binning='1,1', dispangle=6500.0,
+                   amp='SINGLE:B', filter1='GG400')
+    spec = load_spectrograph('keck_deimos')
+    assert spec.same_configuration([raw_cfg, cfg]), 'Legacy setup does not match raw metadata'
+
+
 def test_read_data_file_table_paths_and_preserve_comments():
     # Simulate a data block with two path entries and a commented-out row
     with tempfile.TemporaryDirectory() as td1, tempfile.TemporaryDirectory() as td2:
@@ -663,4 +699,94 @@ def test_rawfiles_basic():
     rtbl['filename'] = ['r1.fits']
     raw = inputfiles.RawFiles(config={'rdx': {}}, file_paths=[str(root)], data_table=rtbl, setup=None, vet=False)
     raw.vet()
+
+
+def test_target_match_key():
+    assert inputfiles.target_match_key('J0750+6927') == 'J0750p6927', \
+        'target_match_key should replace + with p'
+    assert inputfiles.target_match_key('J0750-6927') == 'J0750m6927', \
+        'target_match_key should replace - with m'
+    assert inputfiles.target_match_key(' SDSSJ2222 2745 ') == 'SDSSJ22222745', \
+        'target_match_key should strip surrounding whitespace and remove internal spaces'
+
+
+def test_target_matches():
+    assert inputfiles.target_matches('J0750+6927', 'J0750+6927'), \
+        'identical literal strings should match'
+    assert inputfiles.target_matches('J0750+6927', 'J0750p6927'), \
+        'the sign-safe normalized form should also match'
+    assert not inputfiles.target_matches('J0750+6927', 'J0913+6007'), \
+        'different targets should not match'
+
+
+def _science_rows_pypeitfile():
+    """
+    A small PypeItFile with two comb_id-grouped science exposures for one
+    target and a third exposure for a different target.
+    """
+    confdict = {'rdx': {'spectrograph': 'keck_kcrm'}}
+    data = Table()
+    data['filename'] = [
+        'kr260610_00054.fits', 'kr260610_00055.fits', 'kr260610_00058.fits',
+        'kr260610_00062.fits'
+    ]
+    data['frametype'] = ['tilt, science', 'tilt, science', 'science', 'science']
+    data['target'] = ['J0750+6927', 'J0750+6927', 'J0750+6927', 'J0913+6007']
+    data['comb_id'] = [1, 1, 2, 3]
+    file_paths = [tstutils.data_output_path('')]
+    setup_dict = {'Setup A': ' '}
+    return inputfiles.PypeItFile(
+        config=confdict, file_paths=file_paths, data_table=data, setup=setup_dict
+    )
+
+
+def test_matching_science_rows():
+    pfile = _science_rows_pypeitfile()
+    rows = inputfiles.matching_science_rows(pfile, 'J0750+6927')
+    assert len(rows) == 3, 'all three J0750+6927 science rows should match'
+    rows_alias = inputfiles.matching_science_rows(pfile, 'J0750p6927')
+    assert len(rows_alias) == 3, 'the sign-safe alias should match the same rows'
+    with pytest.raises(PypeItError):
+        inputfiles.matching_science_rows(pfile, 'no-such-target')
+
+
+def test_group_science_rows():
+    pfile = _science_rows_pypeitfile()
+    rows = inputfiles.matching_science_rows(pfile, 'J0750+6927')
+    groups = inputfiles.group_science_rows(rows)
+    assert len(groups) == 2, 'the three rows should collapse into two comb_id groups'
+    group_sizes = sorted(len(g) for g in groups)
+    assert group_sizes == [1, 2], \
+        'comb_id=1 should group two rows together; comb_id=2 should be its own group'
+
+
+def _touched_science_arc_pypeitfile(root):
+    # An empty, "touched" raw file cannot supply the config-specific metadata
+    # keck_hires needs (this mirrors the disabled test_get_pypeitpar_selects_science_file
+    # above, which faults for the same reason).
+    (root / 'sci1.fits').touch()
+    (root / 'arc1.fits').touch()
+    confdict, _, _, setup_dict = _pypeitfile_components()
+    tbl = Table()
+    tbl['filename'] = ['arc1.fits', 'sci1.fits']
+    tbl['frametype'] = ['arc', 'science']
+    tbl['exptime'] = [1.0, 10.0]
+    return inputfiles.PypeItFile(
+        config=confdict, file_paths=[str(root)], data_table=tbl, setup=setup_dict, vet=False,
+    )
+
+
+def test_get_pypeitpar_require_rawfile_true_raises_on_missing_rawfile(tmp_path):
+    pfile = _touched_science_arc_pypeitfile(tmp_path)
+    with pytest.raises(PypeItError):
+        pfile.get_pypeitpar()
+
+
+def test_get_pypeitpar_require_rawfile_false_falls_back_to_defaults(tmp_path):
+    pfile = _touched_science_arc_pypeitfile(tmp_path)
+    spec, par, csf = pfile.get_pypeitpar(require_rawfile=False)
+    assert isinstance(spec, Spectrograph), \
+        'get_pypeitpar should still return a Spectrograph instance'
+    assert isinstance(par, PypeItPar), \
+        'get_pypeitpar should still return a fully populated PypeItPar, via the default_pypeit_par fallback'
 

@@ -487,7 +487,6 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
     ----------------
     November 2018 by J.F. Hennawi. Built from an initial version of cross_match code written by Ryan Cooke.
     """
-    # TODO -- Break up this morass into multiple methods
 
     # Determine the seed for scipy.optimize.differential_evolution optimizer. Just take the sum of all the elements
     # and round that to an integer
@@ -636,7 +635,8 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
                 ', stretch = {:5.4f}'.format(stretch_vec[iarxiv]) +
                 ', wv_cen = {:7.1f}'.format(wcen[iarxiv]) +
                 ', disp = {:5.3f}'.format(disp[iarxiv]))
-            plt.ylim(1.2*use_spec.min(), 1.5 *use_spec.max())
+            plt.ylim(10.0, 1.5*use_spec.max())
+            plt.yscale('log')
             plt.legend()
             plt.show()
 
@@ -724,6 +724,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
     if patt_dict_slit['nmatch'] < 3:
         log.warning(f'Insufficient number of good reidentifications: {patt_dict_slit["nmatch"]} (at least 3 required).')
         patt_dict_slit['acceptable'] = False
+
 
     return detections, spec_cont_sub, patt_dict_slit
 
@@ -1148,7 +1149,6 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         obs_spec_i = spec[:,slit]
         # get FWHM for this slit
         fwhm = set_fwhm(par, measured_fwhm=measured_fwhms[slit], verbose=True)
-        
         # Find the shift
         ncomb = temp_spec.size
         # Remove the continuum before adding the padding to obs_spec_i
@@ -1298,6 +1298,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
                                                               cc_shift_range=par['cc_shift_range'],
                                                               cc_thresh=0.1, fwhm=fwhm,
                                                               stretch_func=par['stretch_func'])
+            
             # Deal with IDs
             sv_det.append(j0 + detections)
             try:
@@ -1440,6 +1441,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
     bad_orders = np.array([], dtype=int)
     # Reidentify each slit, and perform a fit
     for iord in range(norders):
+        # Skip?
         if redo_slits is not None and orders[iord] not in redo_slits:
             continue
         # ToDO should we still be populating wave_calib with an empty dict here?
@@ -1463,9 +1465,11 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
         # get rms threshold for this slit
         rms_thresh = round(par['rms_thresh_frac_fwhm'] * fwhm, 3)
         log.info(f"Using RMS threshold = {rms_thresh} (pixels); RMS/FWHM threshold = {par['rms_thresh_frac_fwhm']}")
+
         detections[str(iord)], spec_cont_sub[:, iord], all_patt_dict[str(iord)] = reidentify(
             spec[:, iord], spec_arxiv[:, iord], wave_arxiv[:, iord], tot_line_list, par['nreid_min'],
-            cont_sub=par['reid_cont_sub'], match_toler=par['match_toler'], cc_shift_range=par['cc_shift_range'],
+            cont_sub=par['reid_cont_sub'], match_toler=par['match_toler'],
+            cc_shift_range=par['cc_shift_range'],
             cc_thresh=cc_thresh, cc_local_thresh=par['cc_local_thresh'], nlocal_cc=par['nlocal_cc'],
             nonlinear_counts=nonlinear_counts, sigdetect=sigdetect, fwhm=fwhm,
             percent_ceil=par['cc_percent_ceil'], max_lag_frac=par['cc_offset_minmax'],

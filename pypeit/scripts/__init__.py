@@ -50,6 +50,7 @@ __all__ = [
     'run_to_calibstep',
     'sensfunc',
     'setup_coadd2d',
+    'setup_datacube',
     'setup',
     'show_1dspec',
     'show_2dspec',
