@@ -291,7 +291,7 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
                             # electrons, while the two amplifiers have different
                             # gains, so it has to be low enough to catch the
                             # amplifier with the *smaller* gain.
-                            saturation      = 65535. * float(np.min(gain)),
+                            saturation      = 65535.,
                             nonlinear       = 0.99,
                             mincounts       = -1e10,
                             numamplifiers   = len(gain),
