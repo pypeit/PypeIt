@@ -27,7 +27,7 @@ class EdgeInspector(scriptbase.ScriptBase):
         from pathlib import Path
         from matplotlib import pyplot
         from pypeit import edgetrace
-        from pypeit.core.gui import edge_inspector
+        from pypeit.gui import edge_inspector
 
         # Initialize the log
         cls.init_log(args)

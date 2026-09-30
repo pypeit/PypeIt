@@ -577,7 +577,7 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, gpm_old, log10_blaze_fun
 
 # TODO: ``sensfunc`` should be something like "conserve_flux". It would be
 # useful to compare these resampling routines against
-# `pypeit.sampling.Resample`.
+# `pypeit.core.sampling.Resample`.
 def interp_spec(wave_new, waves, fluxes, ivars, gpms, log10_blaze_function=None, sensfunc=False, kind='cubic'):
     """
     Interpolate a set of spectra onto a new wavelength grid.
@@ -3168,10 +3168,10 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
     # sci_list_rebin[2] = rebinned sciimg-sky_model images that we used for the sigma clipping
     # NOTE: outmask is a gpm
     sci_list_out, var_list_out, outmask, nused \
-            = combine.weighted_combine(sci_list_rebin[0], sci_list_rebin[1:], var_list_rebin,
-                               norm_rebin_stack != 0, sigma_clip=True,
-                               sigma_clip_stack=sci_list_rebin[2], sigrej=sigrej,
-                               maxiters=maxiters)
+            = combine.weighted_combine(sci_list_rebin[1:], var_list_rebin, norm_rebin_stack != 0,
+                                       weights=sci_list_rebin[0], sigma_clip=True,
+                                       sigma_clip_stack=sci_list_rebin[2], sigrej=sigrej, maxiters=maxiters
+                                       )
     sciimg, imgminsky, waveimg, dspat = sci_list_out
     sciivar = utils.inverse(var_list_out[0])
 

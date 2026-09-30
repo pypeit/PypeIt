@@ -5,6 +5,8 @@ from IPython import embed
 
 from astropy.config import set_temp_cache
 
+import pytest
+
 from pypeit import dataPaths
 from pypeit.scripts import install_telluric
 from pypeit.scripts import install_extinctfile
@@ -87,6 +89,7 @@ def run_install_linelist():
 
 
 # TODO: There's got to be a more concise way to do this...
+@pytest.mark.remote_data
 def test_install_telluric():
 
     root = 'cache_test'

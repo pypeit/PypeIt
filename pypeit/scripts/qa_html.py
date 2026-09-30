@@ -35,7 +35,7 @@ class QAHtml(scriptbase.ScriptBase):
                 Mainly for running the unit test
         """
 
-        from pypeit.core import qa
+        from pypeit import qa
 
         # Initialize the log
         cls.init_log(args)

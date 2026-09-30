@@ -22,7 +22,7 @@ from astropy import units
 from pypeit import log
 from pypeit import dataPaths
 from pypeit.core import arc
-from pypeit import utils
+from pypeit.core.plot import pyplot_rcparams, pyplot_rcparams_default
 from pypeit.core.wave import airtovac
 from pypeit import io
 
@@ -64,7 +64,7 @@ def blackbody(wavelength, T_BB=250., debug=False):
                  * np.power(RADIAN_PER_ARCSEC, 2.)
 
     if debug:
-        utils.pyplot_rcparams()
+        pyplot_rcparams()
         log.info("Plot of the blackbody spectrum.")
         plt.figure()
         plt.plot(wavelength, blackbody,
@@ -77,7 +77,7 @@ def blackbody(wavelength, T_BB=250., debug=False):
         log.info("Close the Figure to continue.")
         plt.show(block=True)
         plt.close()
-        utils.pyplot_rcparams_default()
+        pyplot_rcparams_default()
 
     return blackbody, blackbody_counts
 
@@ -125,7 +125,7 @@ def addlines2spec(wavelength, wl_line, fl_line, resolution,
                      np.exp(-np.power((wl_line_good[ii]-wavelength),2.)/(2.*np.power(sigma[ii],2.)))
 
     if debug:
-        utils.pyplot_rcparams()
+        pyplot_rcparams()
         log.info("Plot of the line spectrum.")
         plt.figure()
         plt.plot(wavelength, line_spec,
@@ -137,7 +137,7 @@ def addlines2spec(wavelength, wl_line, fl_line, resolution,
         log.info("Close the Figure to continue.")
         plt.show(block=True)
         plt.close()
-        utils.pyplot_rcparams_default()
+        pyplot_rcparams_default()
 
     return line_spec
 
@@ -197,7 +197,7 @@ def transparency(wavelength, debug=False):
     transmission[transmission>1.] = 1.
 
     if debug:
-        utils.pyplot_rcparams()
+        pyplot_rcparams()
         log.info("Plot of the sky transmission template")
         plt.figure()
         plt.plot(wave_mod, tran_mod,
@@ -213,7 +213,7 @@ def transparency(wavelength, debug=False):
         log.info("Close the Figure to continue.")
         plt.show(block=True)
         plt.close()
-        utils.pyplot_rcparams_default()
+        pyplot_rcparams_default()
 
     # Returns
     return transmission
@@ -393,7 +393,7 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
         hdu.writeto(nirsky_outfile, overwrite = True)
 
     if debug:
-        utils.pyplot_rcparams()
+        pyplot_rcparams()
         log.info("Plot of the sky emission at R={}".format(resolution))
         plt.figure()
         plt.plot(wave, sky_model,
@@ -418,7 +418,7 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
         log.info("Close the Figure to continue.")
         plt.show(block=True)
         plt.close()
-        utils.pyplot_rcparams_default()
+        pyplot_rcparams_default()
 
     return np.array(wave*10000.), np.array(sky_model)
 
@@ -518,7 +518,7 @@ def optical_modelThAr(resolution, waveminmax=(3000.,10500.), dlam=40.0,
         hdu.writeto(thar_outfile, overwrite = True)
 
     if debug:
-        utils.pyplot_rcparams()
+        pyplot_rcparams()
         log.info("Plot of the Murphy et al. template at R={}".format(resolution))
         plt.figure()
         plt.plot(th_wv, th_fx,
@@ -537,7 +537,7 @@ def optical_modelThAr(resolution, waveminmax=(3000.,10500.), dlam=40.0,
         log.info("Close the Figure to continue.")
         plt.show(block=True)
         plt.close()
-        utils.pyplot_rcparams_default()
+        pyplot_rcparams_default()
 
     return np.array(wave), np.array(thar_spec)
 
@@ -588,7 +588,7 @@ def conv2res(wavelength, flux, resolution, central_wl='midpt',
     flux_convolved = convolve(flux, gauss_kernel)
 
     if debug:
-        utils.pyplot_rcparams()
+        pyplot_rcparams()
         log.info("Spectrum Convolved at R = {}".format(resolution))
         plt.figure()
         plt.plot(wavelength, flux,
@@ -604,7 +604,7 @@ def conv2res(wavelength, flux, resolution, central_wl='midpt',
         log.info("Close the Figure to continue.")
         plt.show(block=True)
         plt.close()
-        utils.pyplot_rcparams_default()
+        pyplot_rcparams_default()
 
     return flux_convolved, px_sigma, px_bin
 

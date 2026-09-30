@@ -37,5 +37,5 @@
       -b, --boxcar_radius BOXCAR_RADIUS
                             Radius of the circular boxcar (in arcseconds) to use for
                             the extraction. (default: None)
-      --debug               show debug plots? (default: False)
+      --debug               Run in debugging mode (default: False)
     

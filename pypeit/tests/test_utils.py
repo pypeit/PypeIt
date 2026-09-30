@@ -25,13 +25,13 @@ def _cleanup_file(path):
         pass
 
 
-def test_calc_ivar():
+def test_inverse():
     """ Run the parameter setup script
     """
     x = np.array([-1.0, -0.1, 0.0, 0.1, 1.0])
     res = utils.inverse(x)
     assert np.array_equal(res, np.array([0.0, 0.0, 0.0, 10.0, 1.0]))
-    assert np.array_equal(utils.calc_ivar(res), np.array([0.0, 0.0, 0.0, 0.1, 1.0]))
+    assert np.array_equal(utils.inverse(res), np.array([0.0, 0.0, 0.0, 0.1, 1.0]))
 
 
 def test_nearest_unmasked():

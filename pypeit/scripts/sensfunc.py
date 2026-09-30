@@ -212,7 +212,7 @@ class SensFunc(scriptbase.ScriptBase):
             _names = [Path(f).name for f in args.spec1dfiles]
             # if spec1d_ in the filename, remove it
             _names = [n.split('spec1d_')[-1] if n.startswith('spec1d') else n for n in _names]
-            spec1dname = _names[0] if len(_names) == 1 else f"{_names[0].split('.fits')[0]}-{_names[-1]}"
+            spec1dname = _names[0] if len(_names) == 1 else f"{Path(_names[0]).stem}-{_names[-1]}"
             outfile = 'sens_' + spec1dname
         # Instantiate the relevant class for the requested algorithm
         sensobj = sensfunc.SensFunc.get_instance(args.spec1dfiles, outfile, par['sensfunc'],

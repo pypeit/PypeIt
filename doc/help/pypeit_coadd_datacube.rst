@@ -27,5 +27,5 @@
       --det DET             Detector (default: 1)
       -o, --overwrite       Overwrite any existing files/directories (default:
                             False)
-      --debug               show debug plots? (default: False)
+      --debug               Run in debugging mode (default: False)
     

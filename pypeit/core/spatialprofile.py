@@ -16,9 +16,9 @@ from IPython import embed
 
 from pypeit import log
 from pypeit import utils
-from pypeit import bspline
+from pypeit.core.bspline import BSpline, Knots
+from pypeit.core.fitting import iterative_bspline_fit
 from pypeit.core import pydl
-from pypeit.core import fitting
 
 
 def findfwhm(model, sig_x):
@@ -391,12 +391,18 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
         profile_model = return_gaussian(sigma_x, None, thisfwhm, 0.0, obj_string, False)
         return profile_model, trace_in, fwhmfit, 0.0
 
-    b_answer, bmask   = fitting.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp],
-                                        kwargs_bspline={'everyn': 1.5}, kwargs_reject={'groupbadpix':True,'maxrej':1})
-    b_answer, bmask2  = fitting.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask,
-                                     kwargs_bspline={'everyn': 1.5}, kwargs_reject={'groupbadpix':True,'maxrej':1})
-    c_answer, cmask   = fitting.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask2,
-                                     kwargs_bspline={'everyn': 30}, kwargs_reject={'groupbadpix':True,'maxrej':1})
+    b_answer, bmask, *_ = iterative_bspline_fit(
+        wave[indsp], flux_sm[indsp], ivar=fluxivar_sm[indsp],
+        kwargs_knots={'stride': 1.5}, kwargs_reject={'groupbadpix': True, 'maxrej': 1}
+    )
+    b_answer, bmask2, *_ = iterative_bspline_fit(
+        wave[indsp], flux_sm[indsp], ivar=fluxivar_sm[indsp]*bmask,
+        kwargs_knots={'stride': 1.5}, kwargs_reject={'groupbadpix': True, 'maxrej': 1}
+    )
+    c_answer, cmask, *_ = iterative_bspline_fit(
+        wave[indsp], flux_sm[indsp], ivar=fluxivar_sm[indsp]*bmask2,
+        kwargs_knots={'stride': 30}, kwargs_reject={'groupbadpix': True, 'maxrej': 1}
+    )
     spline_flux, _ = b_answer.value(wave[indsp])
     try:
         cont_flux, _ = c_answer.value(wave[indsp])
@@ -548,8 +554,10 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
     si = inside[np.argsort(sigma_x.flat[inside], kind='stable')]
     sr = si[::-1]
 
-    bset, bmask = fitting.iterfit(sigma_x.flat[si],norm_obj.flat[si], invvar = norm_ivar.flat[si],
-                                      nord = 4, bkpt = bkpt, maxiter = 15, upper = 1, lower = 1)
+    bset, bmask, *_ = iterative_bspline_fit(
+        sigma_x.flat[si], norm_obj.flat[si], ivar=norm_ivar.flat[si],
+        nord=4, kwargs_knots={'interior': bkpt}, maxiter=15, upper=1, lower=1
+    )
     mode_fit, _ = bset.value(sigma_x.flat[si])
     median_fit = np.median(norm_obj[norm_ivar > 0.0])
 
@@ -623,9 +631,10 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
         xx = np.sum(xtemp, 1)/nspat
         profile_basis = np.column_stack((mode_zero,mode_shift))
 
-        mode_shift_out = fitting.bspline_profile(xtemp.flat[inside], norm_obj.flat[inside],
-                                               norm_ivar.flat[inside], profile_basis,
-                                               maxiter=1, kwargs_bspline={'nbkpts':nbkpts})
+        mode_shift_out = iterative_bspline_fit(
+            xtemp.flat[inside], norm_obj.flat[inside], ivar=norm_ivar.flat[inside],
+            basis=profile_basis, maxiter=1, kwargs_knots={'count': nbkpts}
+        )
         # Check to see if the mode fit failed, if so punt and return a Gaussian
         if not np.any(mode_shift_out[1]):
             log.info('B-spline fit to trace correction failed for fit to ninside = {:}'.format(ninside) + ' pixels')
@@ -636,20 +645,22 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
 
 
         mode_shift_set = mode_shift_out[0]
-        temp_set = bspline.bspline(None, fullbkpt=mode_shift_set.breakpoints,
-                                   nord=mode_shift_set.nord)
-        temp_set.coeff = mode_shift_set.coeff[0, :]
+        temp_set = BSpline(knots=Knots(full=mode_shift_set.breakpoints), nord=mode_shift_set.nord)
+        temp_set.bkpt_gpm = mode_shift_set.bkpt_gpm
+        temp_set.coeff = mode_shift_set.coeff[:, 0]
         h0, _ = temp_set.value(xx)
-        temp_set.coeff = mode_shift_set.coeff[1, :]
+        temp_set.coeff = mode_shift_set.coeff[:, 1]
         h1, _ = temp_set.value(xx)
         ratio_10 = (h1/(h0 + (h0 == 0.0)))
         delta_trace_corr = ratio_10/(1.0 + np.abs(ratio_10)/0.1)
         trace_corr = trace_corr + delta_trace_corr
 
         profile_basis = np.column_stack((mode_zero,mode_stretch))
-        mode_stretch_out = fitting.bspline_profile(xtemp.flat[inside], norm_obj.flat[inside],
-                                                 norm_ivar.flat[inside], profile_basis, maxiter=1,
-                                                 fullbkpt=mode_shift_set.breakpoints)
+        mode_stretch_out = iterative_bspline_fit(
+            xtemp.flat[inside], norm_obj.flat[inside], ivar=norm_ivar.flat[inside],
+            basis=profile_basis, maxiter=1,
+            kwargs_knots={'full': mode_shift_set.breakpoints}
+        )
         if not np.any(mode_stretch_out[1]):
             log.info('B-spline fit to width correction failed for fit to ninside = {:}'.format(ninside) + ' pixels')
             log.info("Returning Gaussian profile")
@@ -658,11 +669,11 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
             return (profile_model, trace_in, fwhmfit, med_sn2)
 
         mode_stretch_set = mode_stretch_out[0]
-        temp_set = bspline.bspline(None, fullbkpt=mode_stretch_set.breakpoints,
-                                   nord=mode_stretch_set.nord)
-        temp_set.coeff = mode_stretch_set.coeff[0, :]
+        temp_set = BSpline(knots=Knots(full=mode_stretch_set.breakpoints), nord=mode_stretch_set.nord)
+        temp_set.bkpt_gpm = mode_stretch_set.bkpt_gpm
+        temp_set.coeff = mode_stretch_set.coeff[:, 0]
         h0, _ = temp_set.value(xx)
-        temp_set.coeff = mode_stretch_set.coeff[1, :]
+        temp_set.coeff = mode_stretch_set.coeff[:, 1]
         h2, _ = temp_set.value(xx)
         h0 = np.fmax(h0 + h2*mode_stretch.sum()/mode_zero.sum(),0.1)
         ratio_20 = (h2 / (h0 + (h0 == 0.0)))
@@ -684,9 +695,11 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
             keep = (bkpt >= sigma_x.flat[inside].min()) & (bkpt <= sigma_x.flat[inside].max())
             if keep.sum() == 0:
                 keep = np.ones(bkpt.size, dtype=bool)
-            bset_out = fitting.bspline_profile(sigma_x.flat[inside[ss]], norm_obj.flat[inside[ss]],
-                                             norm_ivar.flat[inside[ss]],pb[ss], nord=4,
-                                             bkpt=bkpt[keep], maxiter=2)
+            bset_out = iterative_bspline_fit(
+                sigma_x.flat[inside[ss]], norm_obj.flat[inside[ss]],
+                ivar=norm_ivar.flat[inside[ss]], basis=pb[ss], nord=4,
+                kwargs_knots={'interior': bkpt[keep]}, maxiter=2
+            )
             if not np.any(bset_out[1]):
                 log.info('B-spline to profile in trace and width correction loop failed for fit to ninside = {:}'.format(ninside) + ' pixels')
                 log.info("Returning Gaussian profile")
@@ -694,7 +707,12 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
                                                                   show_profile, ind=good, l_limit=l_limit,r_limit=r_limit, xlim=7.0)
                 return (profile_model, trace_in, fwhmfit, med_sn2)
 
-            bset = bset_out[0] # This updated bset used for the next set of trace corrections
+            # bset is BSpline2D (npoly=1, funcname=None); extract 1D view for
+            # value() calls in the next iteration at arbitrary sigma_x points
+            _bset2d = bset_out[0]
+            bset = BSpline(knots=Knots(full=_bset2d.breakpoints), nord=_bset2d.nord)
+            bset.bkpt_gpm = _bset2d.bkpt_gpm.copy()
+            bset.coeff = _bset2d.coeff[:, 0]
 
     # Apply trace corrections only if they are small (added by JFH)
     if np.median(np.abs(trace_corr*sigma)) < max_trace_corr:
@@ -710,10 +728,17 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
                        np.isfinite(norm_obj.flat[ss]) &
                        np.isfinite(norm_ivar.flat[ss]))
     pb = (np.outer(area, np.ones(nspat,dtype=float)))
-    bset_out = fitting.bspline_profile(sigma_x.flat[ss[inside]], norm_obj.flat[ss[inside]],
-                                     norm_ivar.flat[ss[inside]], pb.flat[ss[inside]], nord=4,
-                                     bkpt=bkpt, upper=10, lower=10)
-    bset = bset_out[0]
+    bset_out = iterative_bspline_fit(
+        sigma_x.flat[ss[inside]], norm_obj.flat[ss[inside]],
+        ivar=norm_ivar.flat[ss[inside]], basis=pb.flat[ss[inside]], nord=4,
+        kwargs_knots={'interior': bkpt}, upper=10, lower=10
+    )
+    # Convert BSpline2D (npoly=1, funcname=None) to 1D BSpline so value() works
+    # at arbitrary evaluation points throughout the rest of this function
+    _bset2d = bset_out[0]
+    bset = BSpline(knots=Knots(full=_bset2d.breakpoints), nord=_bset2d.nord)
+    bset.bkpt_gpm = _bset2d.bkpt_gpm.copy()
+    bset.coeff = _bset2d.coeff[:, 0]
     outmask = bset_out[1]
 
     # igood = False for pixels within (min_sigma, max_sigma), True outside
