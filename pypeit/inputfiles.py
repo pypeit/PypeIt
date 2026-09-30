@@ -310,6 +310,39 @@ class InputFile:
         return self.path_and_files('filename', include_commented_out=self.preserve_comments)
 
     @staticmethod
+    def _strip_legacy_quotes(obj):
+        """
+        Remove the extra double quotes that older versions of PypeIt wrote
+        around setup values that include a colon (e.g., ``'"SINGLE:B"'``).
+
+        Before the fix for Issue #2099, :func:`~pypeit.utils.yamlify` wrapped
+        such strings in double quotes before they were written with
+        ``yaml.dump``, so the quotes became part of the value when the setup
+        block was read back in.  The quotes are removed here so that setup
+        blocks in older files still match the metadata read from the raw
+        files.
+
+        Args:
+            obj (:obj:`object`):
+                Object parsed from the setup block.  Dictionaries and lists are
+                processed recursively.
+
+        Returns:
+            :obj:`object`: The object with the quotes removed from all
+            affected strings.
+        """
+        if isinstance(obj, dict):
+            return {k: InputFile._strip_legacy_quotes(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [InputFile._strip_legacy_quotes(v) for v in obj]
+        if isinstance(obj, str) and len(obj) > 1 and obj[0] == obj[-1] == '"' and ':' in obj:
+            log.warning(f'Removing the extra quotes from the setup value {obj}, written by an '
+                        'older version of PypeIt.  Regenerate your PypeIt file (e.g., with '
+                        'pypeit_setup) to avoid this warning.')
+            return obj[1:-1]
+        return obj
+
+    @staticmethod
     def _parse_setup_lines(lines):
         """
         Return a list of the setup names and corresponding Setup dict
@@ -331,7 +364,7 @@ class InputFile:
 
         # Slurp
         ystr = '\n'.join(line_list)
-        sdict = yaml.safe_load(ystr)
+        sdict = InputFile._strip_legacy_quotes(yaml.safe_load(ystr))
         for key in sdict:
             if 'Setup' in key:
                 tsetup = key.split()[1].strip()
