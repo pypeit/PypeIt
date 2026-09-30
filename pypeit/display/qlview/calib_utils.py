@@ -9,11 +9,13 @@ which itself imports the spectrograph classes.
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 from typing import Dict, List
 
-from pypeit.inputfiles import PypeItFile
+import yaml
+
 from pypeit.pypeitsetup import PypeItSetup
 from pypeit.scripts.ql import match_to_calibs
 
@@ -21,6 +23,21 @@ from pypeit.scripts.ql import match_to_calibs
 def read_pypeit_setup_config(dirpath: str, spec_name: str, logger) -> Dict[str, str]:
     """Return the instrument configuration from the setup block of the
     ``.pypeit`` file in a calibration directory.
+
+    Only the setup block is parsed, so this is fast and tolerant of problems
+    elsewhere in the file.  The block looks like either::
+
+        Setup A:
+          --:
+            dispname: 600ZD
+            decker: 0.75arcsec
+          '01': {binning: 1,1, ...}
+
+    or, with the configuration keys directly under the setup name::
+
+        Setup A:
+          dispname: 600ZD
+          decker: 0.75arcsec
 
     Parameters
     ----------
@@ -39,12 +56,14 @@ def read_pypeit_setup_config(dirpath: str, spec_name: str, logger) -> Dict[str, 
     -------
     dict
         Mapping of configuration key (e.g. ``decker``) to its value as a
-        string.  Empty when no ``.pypeit`` file is found or parsing fails.
+        string (``"N/A"`` for empty values).  Empty when no ``.pypeit`` file
+        is found or parsing fails.
     """
     # Skipping unrelated directories (.., Calibrations/, Science/, ...) avoids
-    # unnecessary I/O while browsing.
-    _dirpath = Path(dirpath)
-    if not re.match(rf'^{re.escape(spec_name)}_[A-Za-z]$', _dirpath.resolve().name):
+    # unnecessary I/O while browsing.  Normalize without resolving symlinks,
+    # so that a symlinked setup directory keeps its name.
+    _dirpath = Path(os.path.normpath(dirpath))
+    if not re.match(rf'^{re.escape(spec_name)}_[A-Za-z]$', _dirpath.name):
         return {}
 
     pypeit_files = sorted(_dirpath.glob('*.pypeit')) or sorted(_dirpath.glob('*/*.pypeit'))
@@ -53,18 +72,34 @@ def read_pypeit_setup_config(dirpath: str, spec_name: str, logger) -> Dict[str, 
         return {}
 
     try:
-        setup = PypeItFile.from_file(str(pypeit_files[0]), vet=False).setup
+        match = re.search(r'setup read\n(.*?)setup end', pypeit_files[0].read_text(),
+                          re.DOTALL | re.IGNORECASE)
+        if not match:
+            logger.debug(f"No setup block found in {pypeit_files[0]}")
+            return {}
+        parsed = yaml.safe_load(match.group(1))
+        if not isinstance(parsed, dict):
+            logger.debug(f"Could not parse setup block in {pypeit_files[0]}")
+            return {}
+        # parsed: {'Setup A': {...}}
+        first_setup = next(iter(parsed.values()))
+        if not isinstance(first_setup, dict):
+            logger.debug(f"Unexpected setup type {type(first_setup)} in {dirpath}")
+            return {}
+
+        # Prefer the '--' sub-block (non-detector-specific config); otherwise
+        # use the top-level dict, without the detector-index keys ('01', ...).
+        config = first_setup.get("--") or first_setup.get("-")
+        if not isinstance(config, dict) or not config:
+            config = {k: v for k, v in first_setup.items()
+                      if not (isinstance(k, int) or (isinstance(k, str) and k.isdigit()))}
+
+        # Nested (e.g. per-detector) blocks are skipped
+        config = {k: "N/A" if v is None else str(v) for k, v in config.items()
+                  if not isinstance(v, dict)}
     except Exception as exc:
         logger.warning(f"Could not parse pypeit file in {dirpath}: {exc}")
         return {}
-    if not setup:
-        logger.debug(f"No setup block found in {pypeit_files[0]}")
-        return {}
-
-    # PypeItFile flattens the setup block; the setup name (``Setup A``) and
-    # any sub-block headings (e.g. ``--``) are left as keys with None values.
-    # Nested (e.g. per-detector) blocks are skipped.
-    config = {k: str(v) for k, v in setup.items() if v is not None and not isinstance(v, dict)}
     logger.debug(f"pypeit config for {dirpath}: {config}")
     return config
 

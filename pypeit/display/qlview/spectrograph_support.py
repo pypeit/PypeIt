@@ -11,6 +11,7 @@ identified by their PypeIt spectrograph name (e.g. ``keck_deimos``); the
 
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -27,16 +28,19 @@ DEFAULT_SPECTROGRAPH = 'keck_deimos'
 """Spectrograph selected when the viewer starts."""
 
 
-def supported_spectrographs() -> List[str]:
+@lru_cache(maxsize=None)
+def supported_spectrographs() -> Tuple[str, ...]:
     """Return the names of the spectrographs offered in the viewer, sorted by label.
+
+    The result is cached; the set of spectrograph classes is fixed at import.
 
     Returns
     -------
-    list of str
+    tuple of str
         PypeIt spectrograph names with ``qlview_supported = True``.
     """
     classes = [c for c in spectrograph_classes().values() if c.qlview_supported]
-    return [c.name for c in sorted(classes, key=lambda c: c.qlview_label or c.name)]
+    return tuple(c.name for c in sorted(classes, key=lambda c: c.qlview_label or c.name))
 
 
 def load_qlview_spectrograph(name: str) -> Spectrograph:

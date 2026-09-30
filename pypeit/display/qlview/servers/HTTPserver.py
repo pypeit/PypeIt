@@ -67,6 +67,7 @@ Usage
 from __future__ import annotations
 
 import argparse
+import functools
 import logging
 import os
 import threading
@@ -105,6 +106,17 @@ _JOB_TTL_SECONDS = 3600  # evict completed/failed jobs after 1 hour
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+@functools.lru_cache(maxsize=None)
+def _get_spectrograph(name: str):
+    """Return a cached spectrograph instance for a viewer-supported *name*.
+
+    Instances are shared between requests; this is safe because the
+    ``qlview_*`` hooks do not modify the spectrograph.  Raises
+    :class:`ValueError` (which is not cached) for unsupported names.
+    """
+    return spectrograph_support.load_qlview_spectrograph(name)
+
 
 def _validate_path(path: str) -> str:
     """Resolve *path* and verify it is under an allowed root.
@@ -211,7 +223,7 @@ def header_info():
     if not instrument_name:
         return jsonify({"error": "Missing required query parameter: instrument"}), 400
     try:
-        spectrograph = spectrograph_support.load_qlview_spectrograph(instrument_name)
+        spectrograph = _get_spectrograph(instrument_name)
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
 

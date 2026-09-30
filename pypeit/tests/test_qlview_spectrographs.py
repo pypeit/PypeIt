@@ -11,7 +11,7 @@ import sys
 from astropy.io import fits
 import pytest
 
-from pypeit.display.qlview import spectrograph_support
+from pypeit.display.qlview import calib_utils, spectrograph_support
 from pypeit.spectrographs.util import load_spectrograph, spectrograph_classes
 
 # ---------------------------------------------------------------------------
@@ -218,6 +218,32 @@ def test_reduced_info_calib_dir(name, tmp_path):
     assert _view(name, 'reduced', setup_dir) == EXPECTED[name]['red_dir']
 
 
+def test_reduced_info_symlinked_calib_dir(tmp_path):
+    target = _write_calib_dir(tmp_path, 'keck_deimos')
+    link = tmp_path / 'links' / 'keck_deimos_B'
+    link.parent.mkdir()
+    link.symlink_to(target)
+    assert _view('keck_deimos', 'reduced', link) == EXPECTED['keck_deimos']['red_dir']
+
+
+def test_setup_config_layouts(tmp_path):
+    # Configuration keys directly under the setup name, with a block-style
+    # per-detector sub-block that must not leak into the configuration.
+    setup_dir = tmp_path / 'keck_deimos_A'
+    setup_dir.mkdir()
+    (setup_dir / 'keck_deimos_A.pypeit').write_text(
+        'setup read\n'
+        'Setup A:\n'
+        '  decker: c_decker\n'
+        '  dispname: c_dispname\n'
+        "  '01':\n"
+        '    binning: 2,2\n'
+        'setup end\n'
+    )
+    config = calib_utils.read_pypeit_setup_config(str(setup_dir), 'keck_deimos', _LOGGER)
+    assert config == {'decker': 'c_decker', 'dispname': 'c_dispname'}
+
+
 def test_reduced_info_unrelated_dir(tmp_path):
     other = tmp_path / 'Calibrations'
     other.mkdir()
@@ -230,7 +256,7 @@ def test_reduced_info_unrelated_dir(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_supported_spectrographs():
-    assert spectrograph_support.supported_spectrographs() == ['keck_deimos', 'keck_mosfire']
+    assert spectrograph_support.supported_spectrographs() == ('keck_deimos', 'keck_mosfire')
     for name in spectrograph_support.supported_spectrographs():
         spec = load_spectrograph(name)
         assert spec.header_name is not None
