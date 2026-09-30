@@ -81,6 +81,16 @@ Functionality/Performance Improvements and Additions
 Instrument-specific Updates
 ---------------------------
 
+- Magellan/LDSS3: the two amplifier files of an exposure (``*c1.fits`` and
+  ``*c2.fits``) are now joined internally, and only one of the pair is ingested
+  during setup.  Previously both halves were typed and reduced as separate
+  frames.  Added VPH-Blue and VPH-Red archived wavelength solutions alongside
+  VPH-All, frame typing that combines ``EXPTYPE`` with the ``OBJECT`` card, and
+  an ``OH_LDSS3_vac`` sky line list for sky-based wavelength calibration.  Also
+  fixed the telescope (was MMT), the MJD (was read from a ``JD`` card without
+  conversion), the binning header lookup, ``dataext``, and the
+  ``default_pypeit_par``/``config_specific_par`` signatures.
+
 - P200/NGPS ``u`` channel: support He dome-lamp frames (``IMGTYPE=DOMEHE``) as a
   second arc lamp.  The internal ThAr lamp has no detectable lines below
   ~3490 A, leaving the wavelength solution extrapolated over 3050-3490 A.  Each
