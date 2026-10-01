@@ -2424,3 +2424,109 @@ class Spectrograph:
         txt += ' pypeline={:s},'.format(self.pypeline)
         txt += '>'
         return txt
+
+    # ------------------------------------------------------------------
+    # Quicklook viewer (pypeit_qlview) hooks
+    #
+    # These methods are only used by the quicklook viewer in
+    # pypeit/display/qlview; they are never called by the reduction pipeline.
+    # They must not modify the state of the instance.
+    # ------------------------------------------------------------------
+
+    qlview_supported = False
+    """
+    Flag that this spectrograph is offered in the quicklook viewer's
+    (``pypeit_qlview``) instrument selector.  Distinct from
+    :attr:`ql_supported`, which applies to ``pypeit_ql``.
+    """
+
+    qlview_label = None
+    """
+    Name shown for this spectrograph in the quicklook viewer's instrument
+    selector.  If None, the viewer uses :attr:`name`.
+    """
+
+    def qlview_raw_columns(self):
+        """
+        Instrument-specific columns shown for raw files in the quicklook viewer.
+
+        The viewer adds its own file-system columns (type icon, file name, and
+        modification time) around these; see
+        :func:`pypeit.display.qlview.spectrograph_support.build_columns`.
+
+        Returns:
+            :obj:`list`: List of ``(display_name, key)`` tuples, where ``key``
+            is a key in the dictionary returned by :func:`qlview_raw_info`.
+        """
+        return []
+
+    def qlview_raw_info(self, hdr):
+        """
+        Read the quicklook-viewer raw-file column values from a primary header.
+
+        Args:
+            hdr (`astropy.io.fits.Header`_):
+                Primary header of a raw file.
+
+        Returns:
+            :obj:`dict`: Mapping of each ``key`` in :func:`qlview_raw_columns`
+            to its display value.  Missing header keywords should give
+            ``'N/A'``, not raise an exception.
+        """
+        return {}
+
+    def qlview_reduced_columns(self):
+        """
+        Instrument-specific columns shown for calibration directories and
+        reduced files in the quicklook viewer.
+
+        Each ``key`` is a PypeIt configuration key (see
+        :func:`configuration_keys`), which lets the viewer fill the columns
+        for a calibration directory directly from the setup block of its
+        ``.pypeit`` file.
+
+        Returns:
+            :obj:`list`: List of ``(display_name, key)`` tuples.  By default,
+            one column per configuration key.
+        """
+        return [(key, key) for key in self.configuration_keys()]
+
+    def qlview_reduced_info(self, hdr):
+        """
+        Read the quicklook-viewer reduced-file column values from a primary
+        header.
+
+        Only used for individual reduced FITS files; calibration directories
+        are filled from their ``.pypeit`` file by the viewer.
+
+        Args:
+            hdr (`astropy.io.fits.Header`_):
+                Primary header of a reduced file.
+
+        Returns:
+            :obj:`dict`: Mapping of each ``key`` in
+            :func:`qlview_reduced_columns` to its display value.
+        """
+        return {}
+
+    def qlview_display_image(self, raw_path):
+        """
+        Construct the image of a raw file displayed by the quicklook viewer.
+
+        The image must be in the same coordinate frame as the
+        :class:`~pypeit.slittrace.SlitTraceSet` objects produced by the
+        reduction, so that slit overlays are registered correctly.  By default,
+        the first detector is processed with the ``biasframe`` parameters
+        (overscan subtraction, trimming, and re-orientation only).
+
+        Args:
+            raw_path (:obj:`str`, `Path`_):
+                Path to the raw file.
+
+        Returns:
+            `numpy.ndarray`_: 2D image with shape ``(nspec, nspat)``.
+        """
+        from pypeit.images import buildimage
+        par = self.default_pypeit_par()['calibrations']['biasframe']
+        img = buildimage.buildimage_fromlist(self, 1, par, [str(raw_path)], mosaic=False)
+        return img.image

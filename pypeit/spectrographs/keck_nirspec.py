@@ -20,6 +20,7 @@ from pypeit.core import framematch
 from pypeit.core import parse
 from pypeit.par import parset
 from pypeit.spectrographs import spectrograph
+from pypeit.spectrographs.keck_utils import koa_qlview_header_fields
 
 
 class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
@@ -552,6 +553,60 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             return fitstbl['lampstat06'] == 'On'
 
         raise ValueError('No implementation for status = {0}'.format(status))
+
+    # ------------------------------------------------------------------
+    # Quicklook viewer (pypeit_qlview) hooks
+    #
+    # Untested!  NIRSPEC is not offered in the quicklook viewer.
+    # ------------------------------------------------------------------
+
+    qlview_label = 'NIRSPEC'
+
+    def qlview_raw_columns(self):
+        """
+        Instrument-specific raw-file columns for the quicklook viewer; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_raw_columns`.
+        """
+        return [('Frame No', 'FRAMENO'), ('Object', 'OBJECT'), ('Img Type', 'IMTYPE'),
+                ('Filter 1', 'FILTER1'), ('Filter 2', 'FILTER2'), ('Slit', 'MASKNAME'),
+                ('Exp Time', 'EXPTIME')]
+
+    def qlview_raw_info(self, hdr):
+        """
+        Read the quicklook-viewer raw-file column values; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_raw_info`.
+
+        NIRSPEC uses ``FRAMENUM`` for the frame number, ``TARGNAME`` for the
+        object, ``IMTYPE`` for the image type, ``TRUITIME`` for the exposure
+        time, and ``SCIFILT1``/``SCIFILT2`` for the filters.
+        """
+        return {
+            'FRAMENO': hdr.get('FRAMENUM', 'N/A'),
+            'OBJECT': hdr.get('TARGNAME', 'N/A'),
+            'IMTYPE': hdr.get('IMTYPE', 'N/A'),
+            'EXPTIME': hdr.get('TRUITIME', 'N/A'),
+            'MASKNAME': hdr.get('SLITNAME', 'N/A'),
+            'FILTER1': hdr.get('SCIFILT1', 'N/A'),
+            'FILTER2': hdr.get('SCIFILT2', 'N/A'),
+        }
+
+    def qlview_reduced_columns(self):
+        """
+        Instrument-specific reduced-file columns for the quicklook viewer; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_reduced_columns`.
+        """
+        return [('Slit', 'decker'), ('Filter 1', 'filter1'), ('Filter 2', 'filter2')]
+
+    def qlview_reduced_info(self, hdr):
+        """
+        Read the quicklook-viewer reduced-file column values; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_reduced_info`.
+        """
+        return {
+            'decker': hdr.get('SLITNAME', 'N/A'),
+            'filter1': hdr.get('SCIFILT1', 'N/A'),
+            'filter2': hdr.get('SCIFILT2', 'N/A'),
+        }
 
 
 class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrographOld):

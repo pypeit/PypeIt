@@ -1592,12 +1592,10 @@ def yamlify(obj, debug=False):
     #    elif isinstance(obj, bytes):
     #        obj = obj.decode('utf-8')
     elif isinstance(obj, (np.str_, str)):
+        # NOTE: Strings with colons do not need to be quoted here; yaml.dump
+        # quotes them as needed.  Adding quotes here causes the quotes to be
+        # included in the value when the yaml is read back in (Issue #2099).
         obj = str(obj)
-        # Worry about colons!
-        if ':' in obj:
-            # Do not add quotes if they've already been added
-            if not obj.startswith('"'):
-                obj = '"' + str(obj) + '"'
     elif isinstance(obj, units.Quantity):
         try:
             obj = obj.value.tolist()

@@ -123,6 +123,16 @@ If this is a near-IR instrument, you may wish to turn off calibration steps.
 See :class:`~pypeit.spectrographs.gemini_gnirs.GeminiGNIRSSpectrograph` for
 an example.
 
+Quicklook viewer support
+++++++++++++++++++++++++
+
+To offer the spectrograph in the quicklook viewer (``pypeit_qlview``), set
+``qlview_supported = True`` and ``qlview_label`` in its class and override the
+``qlview_*`` methods of
+:class:`~pypeit.spectrographs.spectrograph.Spectrograph` as needed.  See
+:ref:`quicklook_viewer` for details, and
+:class:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph` for an example.
+
 Tests
 +++++
 
