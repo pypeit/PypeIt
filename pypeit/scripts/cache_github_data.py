@@ -140,5 +140,5 @@ class CacheGithubData(scriptbase.ScriptBase):
             for f in files:
                 # We need the POSIX path relative to the source path.
                 rel_path = str(pathlib.PurePosixPath(f.path).relative_to(root))
-                data_path.get_file_path(rel_path, force_update=args.force_update, quiet=True)
+                data_path.get_file_path(rel_path, force_update=args.force_update)
             
