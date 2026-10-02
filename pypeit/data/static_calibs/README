@@ -5,3 +5,5 @@ This directory contains instrument specific static calibrations.
 ./vlt_xshoooter/BP_MAP_RP_VIS_1x1.fits.gz # VLT XSHOOTER BPM for VIS arm 1x1 binning
 ./vlt_xshoooter/BP_MAP_RP_VIS_1x2.fits.gz # VLT XSHOOTER BPM for VIS arm 1x2 binning
 ./vlt_xshoooter/BP_MAP_RP_VIS_2x2.fits.gz # VLT XSHOOTER BPM for VIS arm 2x2 binning
+./subaru_moircs/bpm_moircs_det1.fits.gz # Subaru MOIRCS chip 1 BPM (raw orientation; from NAOJ mcsbadpix_oct2016, shadow removed)
+./subaru_moircs/bpm_moircs_det2.fits.gz # Subaru MOIRCS chip 2 BPM (raw orientation; from NAOJ mcsbadpix_oct2016, shadow removed)

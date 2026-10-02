@@ -3,24 +3,34 @@ Module for Subaru MOIRCS
 
 .. include:: ../include/links.rst
 """
+import re
+from pathlib import Path
+
 import numpy as np
-from astropy import units
-from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from IPython import embed
 
-from pypeit import msgs, telescopes
-from pypeit.core import framematch, meta, parse
+from pypeit import log, PypeItError
+from pypeit import dataPaths
+from pypeit import telescopes
+from pypeit.core import framematch, parse
 from pypeit.images import detector_container
 from pypeit.spectrographs import spectrograph
 
 
 class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
     """
-    Child of Spectrograph to handle Subaru/MOIRCS specific code
+    Child of Spectrograph to handle Subaru/MOIRCS specific code.
+
+    MOIRCS has two optically independent channels, each imaged onto its own
+    Hawaii-2RG detector and written to its own FITS file.  For each exposure,
+    the chip-1 file (odd frame number) is the file listed in the PypeIt file,
+    and the chip-2 file (the next frame number, same ``EXP-ID``) is located and
+    read automatically when ``det = 2`` is requested; see
+    :func:`companion_file`.
     """
 
-    ndet = 1  # Because each detector is written to a separate FITS file
+    ndet = 2
     telescope = telescopes.SubaruTelescopePar()
     url = "https://www.naoj.org/Instruments/MOIRCS/index.html"
 
@@ -41,53 +51,51 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
         """
         par = super().default_pypeit_par()
 
-        # NOTE: These parameters are copied from Keck/MOSFIRE
-        # TODO: review each of these parameters and update for MOIRCS
-
-        # Wavelengths
-        # 1D wavelength solution
-        # 0.20  # Might be grating dependent..
-        par["calibrations"]["wavelengths"][
-            "rms_thresh_frac_fwhm"
-        ] = 0.11  # might be grism dependent
+        # Wavelengths: OH sky lines in the science frames.  Grism-specific
+        # choices (e.g. templates) are set in config_specific_par.
+        par["calibrations"]["wavelengths"]["lamps"] = ["OH_NIRES"]
+        par["calibrations"]["wavelengths"]["method"] = "holy-grail"
+        par["calibrations"]["wavelengths"]["rms_thresh_frac_fwhm"] = 0.11
         par["calibrations"]["wavelengths"]["sigdetect"] = 5.0
         par["calibrations"]["wavelengths"]["fwhm"] = 5.0
         par["calibrations"]["wavelengths"]["n_final"] = 4
-        par["calibrations"]["wavelengths"]["lamps"] = ["OH_NIRES"]
-        par["calibrations"]["wavelengths"]["method"] = "holy-grail"
-        # Reidentification parameters
-        # par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.fits'
+
+        # Slit edges.  With these values, edge tracing recovers every slit
+        # in the HK500 dev-suite mask (17 + 3 boxes on chip 1, 15 + 4 on
+        # chip 2).  PCA is not used because the slits have very different
+        # spectral extents.
         par["calibrations"]["slitedges"]["edge_thresh"] = 50.0
         par["calibrations"]["slitedges"]["sync_predict"] = "nearest"
-
-        # Flats
-        turn_off = dict(use_biasimage=False, use_overscan=False, use_darkimage=False)
-        par.reset_all_processimages_par(**turn_off)
-
-        # Extraction
-        par["reduce"]["skysub"]["bspline_spacing"] = 0.8
-        par["reduce"]["extraction"]["sn_gauss"] = 4.0
-
-        # Flexure
-        par["flexure"]["spec_method"] = "boxcar"
-
-        # Adjustments to slit and tilts for NIR
-        par["calibrations"]["slitedges"]["edge_thresh"] = 50.0
         par["calibrations"]["slitedges"]["fit_order"] = 3
         par["calibrations"]["slitedges"]["max_shift_adj"] = 0.5
-
-        # lris alignment boxes are typically 4 arcsec
+        # Alignment-star boxes are ~4.4 arcsec; flag them as boxes so they
+        # are not reduced as science slits
         par['calibrations']['slitedges']['minimum_slit_length_sci'] = 5.
         # Remove slits that are too short
         par['calibrations']['slitedges']['minimum_slit_length'] = 3.
 
-        # Tilt parameters
+        # Tilts, from the OH lines
         par["calibrations"]["tilts"]["tracethresh"] = 25.0
         par["calibrations"]["tilts"]["spat_order"] = 3
         par["calibrations"]["tilts"]["spec_order"] = 4
 
+        # No bias, overscan, or dark frames
+        turn_off = dict(use_biasimage=False, use_overscan=False,
+                        use_darkimage=False)
+        par.reset_all_processimages_par(**turn_off)
+
+        # Science-frame processing
         par["scienceframe"]["process"]["sigclip"] = 20.0
         par["scienceframe"]["process"]["satpix"] = "nothing"
+
+        # Sky subtraction and extraction
+        par["reduce"]["skysub"]["bspline_spacing"] = 0.8
+        par["reduce"]["extraction"]["sn_gauss"] = 4.0
+
+        # The wavelength solution comes from the science frames themselves,
+        # so no spectral flexure correction is needed (as for other NIR
+        # spectrographs calibrated on OH lines)
+        par["flexure"]["spec_method"] = "skip"
 
         # Set the default exposure time ranges for the frame typing
         par["calibrations"]["standardframe"]["exprng"] = [None, 20]
@@ -95,17 +103,15 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
         par["calibrations"]["darkframe"]["exprng"] = [1, None]
         par["scienceframe"]["exprng"] = [20, None]
 
-        # Sensitivity function parameters
-        par["sensfunc"][
-            "extrap_blu"
-        ] = 0.0  # Y-band contaminated by higher order so don't extrap much
+        # Sensitivity function parameters (not yet tested on MOIRCS data)
+        par["sensfunc"]["extrap_blu"] = 0.0
         par["sensfunc"]["extrap_red"] = 0.0
         par["fluxcalib"]["extrap_sens"] = True
-        par["sensfunc"]["extrap_red"] = 0.0
         par["sensfunc"]["algorithm"] = "IR"
         par["sensfunc"]["polyorder"] = 13
         par["sensfunc"]["IR"]["maxiter"] = 2
-        par["sensfunc"]["IR"]["telgridfile"] = "TelFit_MaunaKea_3100_26100_R20000.fits"
+        par["sensfunc"]["IR"]["telgridfile"] \
+            = "TelFit_MaunaKea_3100_26100_R20000.fits"
 
         return par
 
@@ -125,7 +131,7 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
             ext=0, card="DEC", required_ftypes=["science", "standard"]
         )
         self.meta["target"] = dict(ext=0, card="OBJECT")
-        self.meta["binning"] = dict(ext=0, card=None, default="1,1")
+        self.meta["binning"] = dict(ext=0, card=None, compound=True)
 
         self.meta["mjd"] = dict(ext=0, card="MJD")
         self.meta["exptime"] = dict(ext=0, card="EXPTIME")
@@ -137,13 +143,18 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
         self.meta["dispname"] = dict(
             ext=0, card="DISPERSR", required_ftypes=["science", "standard"]
         )
-        # TODO - FIX THIS!!
-        self.meta["dispangle"] = dict(
-            ext=0, card="BZERO", rtol=2.0
-        )  # , required_ftypes=['science', 'standard'])
-        self.meta["idname"] = dict(ext=0, card="DATA-TYP")
+        # DATA-TYP, refined using OBJECT for the dome-flat variants
+        self.meta["idname"] = dict(ext=0, card=None, compound=True)
+        self.meta["lampstat01"] = dict(ext=0, card=None, compound=True)
+        # Chip ID; used only to keep chip-2 files out of the metadata table
         self.meta["detector"] = dict(ext=0, card="DET-ID")
         self.meta["instrument"] = dict(ext=0, card="INSTRUME")
+        self.meta["frameno"] = dict(ext=0, card="FRAMEID")
+
+        # Dithering
+        self.meta["dithpat"] = dict(ext=0, card=None, compound=True)
+        self.meta["dithpos"] = dict(ext=0, card=None, compound=True)
+        self.meta["dithoff"] = dict(ext=0, card=None, compound=True)
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -159,15 +170,81 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
         Returns:
             object: Metadata value read from the header(s).
         """
-        # if meta_key == "binning":
-        #     binspatial = headarr[0]["BIN-FCT1"]  # X
-        #     binspec = headarr[0]["BIN-FCT2"]  # Y
-        #     # TODO -- CHECK THE FOLLOWING
-        #     binning = parse.binning2string(binspec, binspatial)
-        #     return binning
-        # else:
-        #     msgs.error("Not ready for this compound meta")
-        return None
+        hdr = headarr[0]
+        if meta_key == "binning":
+            # BIN-FCT1 is along x, which is the dispersion axis
+            # (DISPAXIS = 1, specaxis = 1); BIN-FCT2 is along the slit.
+            binspec = hdr.get("BIN-FCT1", 1)
+            binspatial = hdr.get("BIN-FCT2", 1)
+            return parse.binning2string(binspec, binspatial)
+
+        if meta_key == "idname":
+            # Lamp-on flats, lamp-off flats and the mask image all have
+            # DATA-TYP = DOMEFLAT; only OBJECT distinguishes them.
+            datatyp = str(hdr.get("DATA-TYP", "")).strip()
+            obj = str(hdr.get("OBJECT", "")).strip().upper()
+            if datatyp == "DOMEFLAT" and obj in ["DOMEFLAT_OFF",
+                                                 "MASKIMAGE"]:
+                return obj
+            return datatyp
+
+        if meta_key == "lampstat01":
+            # Dome-flat lamp status; only lamp-on dome flats are 'on'
+            datatyp = str(hdr.get("DATA-TYP", "")).strip()
+            obj = str(hdr.get("OBJECT", "")).strip().upper()
+            return "on" if datatyp == "DOMEFLAT" and obj == "DOMEFLAT" \
+                else "off"
+
+        if meta_key in ["dithpat", "dithpos", "dithoff"]:
+            return self._parse_dither(hdr, meta_key)
+
+        raise PypeItError(f"Not ready for compound meta {meta_key}")
+
+    @staticmethod
+    def _parse_dither(hdr, meta_key):
+        """
+        Interpret the MOIRCS dither header cards.
+
+        The MOIRCS dither cards are ``K_DITPAT`` (pattern name), ``K_DITCNT``
+        (1-indexed position within the pattern) and ``K_DITWID`` (dither
+        length in arcsec).  Only the two-position ``LINE2`` pattern has been
+        seen so far: position 1 is taken to be A and position 2 to be B, with
+        offsets of +/- ``K_DITWID``/2 along the slit.  The sign convention of
+        the offset has not been verified.  For any other pattern, the
+        position is reported as ``P<N>`` (so it is not paired automatically
+        by :func:`get_comb_group`) and the offset is 0.
+
+        Generated by JXP and Claude.
+
+        Args:
+            hdr (`astropy.io.fits.Header`_):
+                Primary header of the chip-1 file.
+            meta_key (:obj:`str`):
+                One of ``dithpat``, ``dithpos``, or ``dithoff``.
+
+        Returns:
+            :obj:`str` or :obj:`float`: The dither pattern name, the dither
+            position (``A``, ``B``, ``P<N>``, or ``none``) or the dither
+            offset in arcsec.
+        """
+        pattern = str(hdr.get("K_DITPAT", "NONE")).strip()
+        count = hdr.get("K_DITCNT", 0)
+        width = hdr.get("K_DITWID", 0.0)
+        # Not dithered (e.g. calibrations)
+        no_dither = pattern.upper() in ["NONE", ""] or count in [None, 0]
+
+        if meta_key == "dithpat":
+            return "none" if no_dither else pattern
+        if meta_key == "dithpos":
+            if no_dither:
+                return "none"
+            if pattern == "LINE2" and int(count) in [1, 2]:
+                return "A" if int(count) == 1 else "B"
+            return f"P{int(count)}"
+        # dithoff
+        if no_dither or pattern != "LINE2" or width is None:
+            return 0.0
+        return 0.5 * float(width) * (1. if int(count) == 1 else -1.)
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -189,30 +266,141 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl["exptime"], exprng)
-        if ftype == "science":
+        if ftype in ["science", "standard"]:
+            # Science and standards are separated by exposure time only
             return good_exp & (fitstbl["idname"] == "OBJECT")
-        if ftype == "standard":
+        if ftype in ["arc", "tilt"]:
+            # Wavelengths and tilts come from the OH lines in the science
+            # frames
             return good_exp & (fitstbl["idname"] == "OBJECT")
         if ftype == "bias":
             return good_exp & (fitstbl["idname"] == "BIAS")
         if ftype in ["pixelflat", "trace", "illumflat"]:
-            # Flats and trace frames are typed together
-            # TODO -- Are there internal flats?
-            return good_exp & (fitstbl["idname"] == "DOMEFLAT")
-        if ftype in ["arc", "tilt"]:
-            return good_exp & (fitstbl["idname"] == "COMPARISON")
+            # Lamp-on dome flats
+            return good_exp & (fitstbl["idname"] == "DOMEFLAT") \
+                & (fitstbl["lampstat01"] == "on")
+        if ftype == "lampoffflats":
+            return good_exp & (fitstbl["idname"] == "DOMEFLAT_OFF")
+        # NOTE: Mask images (idname = MASKIMAGE) are deliberately not typed
 
-        msgs.warn("Cannot determine if frames are of type {0}.".format(ftype))
+        log.debug(f"Cannot determine if frames are of type {ftype}.")
         return np.zeros(len(fitstbl), dtype=bool)
+
+    def valid_configuration_values(self):
+        """
+        Return a fixed set of valid values for any/all of the configuration
+        keys.
+
+        For MOIRCS, this is used to remove the chip-2 files from the
+        metadata table built by ``pypeit_setup``.  Each chip-2 file is read
+        through its chip-1 companion; see :func:`get_rawimage`.
+
+        Returns:
+            :obj:`dict`: A dictionary with any/all of the configuration keys
+            and their associated discrete set of valid values.
+        """
+        return {"detector": ["1"]}
+
+    @staticmethod
+    def companion_file(raw_file):
+        """
+        Find and validate the chip-2 file associated with a chip-1 file.
+
+        The chip-2 file has the next frame number (e.g.,
+        ``MCSP00237323.fits`` -> ``MCSP00237324.fits``) in the same
+        directory, with the same ``EXP-ID`` and ``DET-ID = 2``.
+
+        Generated by JXP and Claude.
+
+        Args:
+            raw_file (:obj:`str`, `Path`_):
+                Path to the chip-1 file.
+
+        Returns:
+            `Path`_: Path to the chip-2 file.
+
+        Raises:
+            :class:`~pypeit.PypeItError`: Raised if ``raw_file`` is not a
+            chip-1 file, or if the chip-2 file is missing or does not match.
+        """
+        raw_file = Path(raw_file)
+        hdr1 = fits.getheader(raw_file, 0)
+        if int(hdr1.get("DET-ID", -1)) != 1:
+            raise PypeItError(
+                f"{raw_file.name} is not a MOIRCS chip-1 file "
+                f"(DET-ID = {hdr1.get('DET-ID')}).  List only the chip-1 "
+                "files in the PypeIt file; chip 2 is read automatically.")
+
+        # Split the name into prefix, frame number, and extension(s)
+        root, ext = raw_file.name.split(".", 1)
+        match = re.fullmatch(r"(\D*)(\d+)", root)
+        if match is None:
+            raise PypeItError(
+                f"Cannot parse a frame number from {raw_file.name}.")
+        prefix, number = match.groups()
+        name2 = f"{prefix}{int(number) + 1:0{len(number)}d}.{ext}"
+        file2 = raw_file.with_name(name2)
+        if not file2.exists():
+            raise PypeItError(
+                f"Missing the chip-2 file {name2} for {raw_file.name}; it "
+                f"must be in the same directory ({raw_file.parent}).")
+
+        # Validate the pairing
+        hdr2 = fits.getheader(file2, 0)
+        if int(hdr2.get("DET-ID", -1)) != 2 \
+                or hdr2.get("EXP-ID") != hdr1.get("EXP-ID"):
+            raise PypeItError(
+                f"{name2} is not the chip-2 companion of {raw_file.name}: "
+                f"DET-ID = {hdr2.get('DET-ID')}, EXP-ID = "
+                f"{hdr2.get('EXP-ID')} (expected 2 and "
+                f"{hdr1.get('EXP-ID')}).")
+        return file2
+
+    def get_rawimage(self, raw_file, det, **kwargs):
+        """
+        Read a raw MOIRCS image and return the data and relevant metadata.
+
+        ``raw_file`` is always the chip-1 file.  For ``det = 2`` the chip-2
+        file is located with :func:`companion_file` and read instead.
+        Everything else follows
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.get_rawimage`.
+
+        Generated by JXP and Claude.
+
+        Args:
+            raw_file (:obj:`str`, `Path`_):
+                The chip-1 file of the exposure.
+            det (:obj:`int`):
+                1-indexed detector to read (1 or 2).
+            **kwargs:
+                Passed to the base-class method.
+
+        Returns:
+            tuple: See
+            :func:`~pypeit.spectrographs.spectrograph.Spectrograph.get_rawimage`.
+            The returned ``hdu`` is the file actually read.
+        """
+        # Validates det, and the chip-1 file, then picks the file to read
+        _raw_file = self.companion_file(raw_file) if det == 2 else raw_file
+        if det == 1:
+            hdr = fits.getheader(raw_file, 0)
+            if int(hdr.get("DET-ID", -1)) != 1:
+                raise PypeItError(
+                    f"{Path(raw_file).name} is not a MOIRCS chip-1 file.  "
+                    "List only the chip-1 files in the PypeIt file; chip 2 "
+                    "is read automatically.")
+        return super().get_rawimage(_raw_file, det, **kwargs)
 
     def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
+        The parameters are selected by ``det`` alone, because ``hdu`` may be
+        the chip-1 file even when ``det = 2``.
+
         Args:
             det (:obj:`int`):
-                1-indexed detector number.  MORICS writes each of the two detectors
-                to separate files.  Only the primary HDU will be used.
+                1-indexed detector number.
             hdu (`astropy.io.fits.HDUList`_, optional):
                 The open fits file with the raw image of interest.  If not
                 provided, frame-dependent parameters are set to a default.
@@ -221,21 +409,17 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
+        # Binning
+        binning = "1,1" if hdu is None \
+            else self.get_meta_value(self.get_headarr(hdu), "binning")
 
-        if hdu is None:
-            chip = "1" if det == 1 else "2"
-        else:
-            # Binning
-            # TODO: Could this be detector dependent??
-            binning = self.get_meta_value(self.get_headarr(hdu), "binning")
-            chip = self.get_meta_value(self.get_headarr(hdu), "detector")
-
-        # TODO - UPDATE ALL OF THIS
+        # TODO - Confirm gain, read noise, dark current and saturation with
+        # the instrument scientist
 
         # CHIP1
         detector_dict1 = dict(
-            binning="1,1",
-            det=1,  # because each detector is written to a separate FITS file
+            binning=binning,
+            det=1,
             dataext=0,
             specaxis=1,
             specflip=True,
@@ -248,13 +432,14 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
             numamplifiers=1,
             gain=np.atleast_1d(2.07),  # e-/ADU for chip 1
             ronoise=np.atleast_1d(5.534),  # for NDR=10 (17.5/sqrt(10))
-            datasec=np.atleast_1d("[5:2044,5:2044]"),  # copied from the MOSFIRE config
+            # Effective area (EFP-MIN/EFP-RNG); excludes reference pixels
+            datasec=np.atleast_1d("[5:2044,5:2044]"),
         )
 
         # CHIP2
         detector_dict2 = dict(
-            binning="1,1",
-            det=1,  # because each detector is written to a separate FITS file
+            binning=binning,
+            det=2,
             dataext=0,
             specaxis=1,
             specflip=False,
@@ -267,25 +452,73 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
             numamplifiers=1,
             gain=np.atleast_1d(1.99),  # e-/ADU for chip 2
             ronoise=np.atleast_1d(5.534),  # for NDR=10 (17.5/sqrt(10))
-            datasec=np.atleast_1d("[5:2044,5:2044]"),  # copied from the MOSFIRE config
+            # Effective area (EFP-MIN/EFP-RNG); excludes reference pixels
+            datasec=np.atleast_1d("[5:2044,5:2044]"),
         )
         # Finish
-        if chip == "1":
+        if det == 1:
             return detector_container.DetectorContainer(**detector_dict1)
-        elif chip == "2":
+        if det == 2:
             return detector_container.DetectorContainer(**detector_dict2)
-        else:
-            msgs.error(f"Unknown detector chip: {chip=}!")
+        raise PypeItError(f"Unknown MOIRCS detector: {det=}!")
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def bpm(self, filename, det, shape=None, msbias=None):
+        """
+        Generate the default bad-pixel mask.
+
+        The static masks are derived from the NAOJ MOIRCS bad-pixel masks
+        (``mcsbadpix_oct2016``), with the imaging beam-splitter shadow
+        removed.  They are stored in the raw orientation and are trimmed and
+        re-oriented here exactly as the raw images are.
+
+        Generated by JXP and Claude.
+
+        Args:
+            filename (:obj:`str` or None):
+                An example file to use to get the image shape.
+            det (:obj:`int`):
+                1-indexed detector number.
+            shape (:obj:`tuple`, optional):
+                Processed image shape.  Required if ``filename`` is None;
+                ignored otherwise.
+            msbias (`numpy.ndarray`_, optional):
+                Processed bias frame used to identify bad pixels.
+
+        Returns:
+            `numpy.ndarray`_: An integer array with a masked value set to 1
+            and an unmasked value set to 0.
+        """
+        # Empty BPM with the processed shape (and bias-based pixels, if any)
+        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
+
+        # Static mask in the raw orientation
+        bpm_file = dataPaths.static_calibs.get_file_path(
+            f'subaru_moircs/bpm_moircs_det{det}.fits.gz')
+        static_raw = fits.getdata(bpm_file).astype(bool)
+
+        # Trim to the data section and re-orient, as for the raw images
+        detpar = self.get_detector_par(det)
+        datasec = parse.sec2slice(detpar['datasec'][0], one_indexed=True,
+                                  include_end=True, require_dim=2)
+        static = self.orient_image(detpar, static_raw[datasec])
+        if static.shape != bpm_img.shape:
+            # E.g. binned data; the static mask is for unbinned frames
+            log.warning(f'Static BPM shape {static.shape} does not match '
+                        f'the image shape {bpm_img.shape}; not applied.')
+            return bpm_img
+        bpm_img[static] = 1
+        return bpm_img
+
+    def config_specific_par(self, inp, inp_par=None):
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a
+                list of `astropy.io.fits.Header`_ objects.  Or a row from
+                the metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -295,29 +528,19 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
             adjusted for configuration specific parameter values.
         """
         # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        par = super().config_specific_par(inp, inp_par=inp_par)
+
+        # Grism-specific wavelength calibration.  Other grisms fall back to
+        # holy-grail on the OH lines until templates are built for them.
+        dispname = self.get_meta_value(inp, 'dispname')
+        if dispname == 'HK500':
+            # OH template covering the full HK500 range (~1.25-2.35 um);
+            # built from a holy-grail solution of the dev-suite data
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] \
+                = 'subaru_moircs_HK500.fits'
 
         return par
-
-    def config_independent_frames(self):
-        """
-        Define frame types that are independent of the fully defined
-        instrument configuration.
-
-        This method returns a dictionary where the keys of the dictionary are
-        the list of configuration-independent frame types. The value of each
-        dictionary element can be set to one or more metadata keys that can
-        be used to assign each frame type to a given configuration group. See
-        :func:`~pypeit.metadata.PypeItMetaData.set_configurations` and how it
-        interprets the dictionary values, which can be None.
-
-        Returns:
-            :obj:`dict`: Dictionary where the keys are the frame types that
-            are configuration-independent and the values are the metadata
-            keywords that can be used to assign the frames to a configuration
-            group.
-        """
-        return {"bias": "detector", "dark": "detector"}
 
     def configuration_keys(self):
         """
@@ -333,84 +556,72 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        # return ['dispname', 'dispangle', 'decker', 'detector']
-        # TODO -- Consider dispangle
-        return ["dispname", "decker", "detector"]
+        return ["dispname", "decker", "binning"]
 
-    # TODO -- Convert this into get_comb_group()
-    def parse_dither_pattern(self, file_list, ext=None):
+    def raw_header_cards(self):
         """
-        Parse headers from a file list to determine the dither pattern.
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
 
-        Parameters
-        ----------
-        file_list (list of strings):
-            List of files for which dither pattern is desired
-        ext (int, optional):
-            Extension containing the relevant header for these files. Default=None. If None, code uses
-            self.primary_hdrext
-
-        Returns
-        -------
-        dither_pattern, dither_id, offset_arcsec
-
-        dither_pattern (str `numpy.ndarray`_):
-            Array of dither pattern names
-        dither_id (str `numpy.ndarray`_):
-            Array of dither pattern IDs
-        offset_arc (float `numpy.ndarray`_):
-            Array of dither pattern offsets
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
         """
-        nfiles = len(file_list)
-        offset_arcsec = np.zeros(nfiles)
-        dither_pattern = None
-        dither_id = None
-        for ifile, file in enumerate(file_list):
-            hdr = fits.getheader(file, self.primary_hdrext if ext is None else ext)
-            try:
-                ra, dec = meta.convert_radec(
-                    self.get_meta_value(hdr, "ra", no_fussing=True),
-                    self.get_meta_value(hdr, "dec", no_fussing=True),
-                )
-            except:
-                msgs.warn(
-                    "Encounter invalid value of your coordinates. Give zeros for both RA and DEC. Check that this does not cause problems with the offsets"
-                )
-                ra, dec = 0.0, 0.0
-            if ifile == 0:
-                coord_ref = SkyCoord(ra * units.deg, dec * units.deg)
-                offset_arcsec[ifile] = 0.0
-                # ESOs position angle appears to be the negative of the canonical astronomical convention
-                posang_ref = -(hdr["HIERARCH ESO INS SLIT POSANG"] * units.deg)
-                posang_ref_rad = posang_ref.to("radian").value
-                # Unit vector pointing in direction of slit PA
-                u_hat_slit = np.array(
-                    [np.sin(posang_ref), np.cos(posang_ref)]
-                )  # [u_hat_ra, u_hat_dec]
-            else:
-                coord_this = SkyCoord(ra * units.deg, dec * units.deg)
-                posang_this = coord_ref.position_angle(coord_this).to("deg")
-                separation = coord_ref.separation(coord_this).to("arcsec").value
-                ra_off, dec_off = coord_ref.spherical_offsets_to(coord_this)
-                u_hat_this = np.array(
-                    [
-                        ra_off.to("arcsec").value / separation,
-                        dec_off.to("arcsec").value / separation,
-                    ]
-                )
-                dot_product = np.dot(u_hat_slit, u_hat_this)
-                if not np.isclose(np.abs(dot_product), 1.0, atol=1e-2):
-                    msgs.error(
-                        "The slit appears misaligned with the angle between the coordinates: dot_product={:7.5f}".format(
-                            dot_product
-                        )
-                        + msgs.newline()
-                        + "The position angle in the headers {:5.3f} differs from that computed from the coordinates {:5.3f}".format(
-                            posang_this, posang_ref
-                        )
-                    )
-                offset_arcsec[ifile] = separation * np.sign(dot_product)
+        return ["DISPERSR", "SLIT", "BIN-FCT1", "BIN-FCT2"]
 
-        #            dither_id.append(hdr['FRAMEID'])
-        #            offset_arcsec[ifile] = hdr['YOFFSET']
-        return dither_pattern, dither_id, offset_arcsec
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard PypeIt file.
+
+        Returns:
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+        return super().pypeit_file_keys() \
+            + ["lampstat01", "dithpat", "dithpos", "dithoff", "frameno"]
+
+    def get_comb_group(self, fitstbl):
+        """
+        Automatically assign combination groups and background images by
+        parsing the dither positions.
+
+        Within each setup, every science (or standard) frame at dither
+        position A is paired with the B frame closest in time, and vice
+        versa, following the fall-back logic in
+        :func:`~pypeit.spectrographs.keck_mosfire.KeckMOSFIRESpectrograph.get_comb_group`.
+        Each frame keeps its own ``comb_id``; only ``bkg_id`` is set.  This
+        covers AB, BA, ABBA and longer AB sequences.  Frames at other
+        positions are left untouched.
+
+        Generated by JXP and Claude.
+
+        Args:
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for all the frames.
+
+        Returns:
+            `astropy.table.Table`_: The modified table.
+        """
+        for ftype in ["science", "standard"]:
+            is_type = np.array([ftype in _ft for _ft in fitstbl["frametype"]])
+            for setup in np.unique(fitstbl["setup"][is_type]):
+                in_cfg = is_type & np.array(
+                    [setup in _s for _s in fitstbl["setup"]])
+                for dpat in np.unique(fitstbl["dithpat"][in_cfg]):
+                    if dpat == "none":
+                        continue
+                    in_pat = in_cfg & (fitstbl["dithpat"] == dpat)
+                    is_a = np.where(in_pat & (fitstbl["dithpos"] == "A"))[0]
+                    is_b = np.where(in_pat & (fitstbl["dithpos"] == "B"))[0]
+                    if is_a.size == 0 or is_b.size == 0:
+                        continue
+                    # Pair each frame with the closest (in time) frame at
+                    # the other position
+                    for this, other in [(is_a, is_b), (is_b, is_a)]:
+                        for i in this:
+                            dt = np.absolute(fitstbl["mjd"][other]
+                                             - fitstbl["mjd"][i])
+                            j = other[np.argmin(dt)]
+                            fitstbl["bkg_id"][i] = fitstbl["comb_id"][j]
+        return fitstbl
