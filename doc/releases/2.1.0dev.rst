@@ -18,6 +18,9 @@ Documentation Updates
   command-line entry point but was missing from the docs/script registry).
 - Added a :ref:`spectrograph page <soar_triplespec>` and a worked-example
   :ref:`tutorial <soar_triplespec_howto>` for SOAR/TripleSpec.
+- Rewrote the :ref:`spectrograph page <moircs>` and the
+  :ref:`tutorial <moircs_howto>` for Subaru/MOIRCS using the
+  development-suite ``HK500`` data.
 - Added new documentation that allows PypeIt to trace the echelle orders with
   a pinhole decker or standard star trace (and pad the trace to the full slit length).
 
@@ -170,6 +173,14 @@ Instrument-specific Updates
   different masks no longer share calibrations.
 - Added support for the old Keck/HIRES detector (``keck_hires_orig``) with the original Tektronix CCD.
   See :ref:`keck_hires` for details.
+- Updated Subaru/MOIRCS (``subaru_moircs``), tested with the ``HK500``
+  grism in MOS mode.  The two detectors, which MOIRCS writes to separate
+  files, are reduced together as DET01 and DET02; only the chip-1 file is
+  listed in the PypeIt file, and its chip-2 companion is found and checked
+  automatically.  Also added lamp-off flat typing, A-B pairing from the
+  MOIRCS dither cards, a static bad-pixel mask, and a new
+  ``subaru_moircs_HK500.fits`` reid archive (``reidentify`` method on the
+  OH lines).  Spectral flexure correction is now off.  See :ref:`moircs`.
 
 Script Changes
 --------------
@@ -192,6 +203,8 @@ Testing
 - Added tests for MMT/Binospec setup grouping and INCAN-based flat/trace frame
   typing.
 - Added new tests for :mod:`~pypeit.core.datacube`.
+- Added tests for Subaru/MOIRCS chip-2 file pairing, frame typing, dither
+  pairing and binning.
 
 Under-the-hood Improvements
 ---------------------------
