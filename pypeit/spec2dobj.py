@@ -18,7 +18,8 @@ from astropy.io import fits
 from astropy.stats import mad_std
 from astropy import table
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import io
 from pypeit import datamodel
 from pypeit import slittrace
@@ -132,7 +133,7 @@ class Spec2DObj(datamodel.DataContainer):
             # Check detname is valid
             detnames = np.unique([h.name.split('-')[0] for h in hdu[1:]])
             if detname not in detnames:
-                msgs.error(f'Your --det={detname} is not available. \n   Choose from: {detnames}')
+                raise PypeItError(f'Your --det={detname} is not available. \n   Choose from: {detnames}')
             return cls.from_hdu(hdu, detname, chk_version=chk_version)
 
     @classmethod
@@ -159,7 +160,7 @@ class Spec2DObj(datamodel.DataContainer):
 
         if len(ext) == 0:
             # No relevant extensions!
-            msgs.error(f'{detname} not available in any extension of the input HDUList.')
+            raise PypeItError(f'{detname} not available in any extension of the input HDUList.')
 
         mask_ext = f'{detname}-BPMMASK'
         has_mask = mask_ext in ext
@@ -203,7 +204,7 @@ class Spec2DObj(datamodel.DataContainer):
         # Check the detector/mosaic identifier has been provided (note this is a
         # property method)
         if self.detname is None:
-            msgs.error('Detector/Mosaic string identifier must be set at instantiation.')
+            raise PypeItError('Detector/Mosaic string identifier must be set at instantiation.')
 
     def _bundle(self):
         """
@@ -313,15 +314,15 @@ class Spec2DObj(datamodel.DataContainer):
         """
         # Quick checks
         if spec2DObj.detname != self.detname:
-            msgs.error("Objects are not even the same detector!!")
+            raise PypeItError("Objects are not even the same detector!!")
         if not np.array_equal(spec2DObj.slits.spat_id, spec2DObj.slits.spat_id):
-            msgs.error("SPAT_IDs are not in sync!")
+            raise PypeItError("SPAT_IDs are not in sync!")
 
         # Find the good ones on the input object
 #        bpm = spec2DObj.slits.mask.astype(bool)
-#        exc_reduce = np.invert(spec2DObj.slits.bitmask.flagged(
+#        exc_reduce = np.logical_not(spec2DObj.slits.bitmask.flagged(
 #            spec2DObj.slits.mask, flag=spec2DObj.slits.bitmask.exclude_for_reducing))
-#        gpm = np.invert(bpm & exc_reduce)
+#        gpm = np.logical_not(bpm & exc_reduce)
         bpm = spec2DObj.slits.bitmask.flagged(
                     spec2DObj.slits.mask,
                     and_not=spec2DObj.slits.bitmask.exclude_for_reducing)
@@ -524,7 +525,7 @@ class AllSpec2DObj:
             if not isinstance(value, Spec2DObj):
                 raise KeyError('Any item not assigned to the meta dictionary must be a Spec2DObj.')
             if value.detname is not None and value.detname != item:
-                msgs.warn(f'Mismatch between keyword used to define the Spec2DObj item ({item}) '
+                log.warning(f'Mismatch between keyword used to define the Spec2DObj item ({item}) '
                           f'and the name of the detector/mosaic ({value.detname}).')
         self.__dict__[item] = value
 
@@ -637,7 +638,7 @@ class AllSpec2DObj:
         if _outfile.exists():
             # Clobber?
             if not overwrite:
-                msgs.warn(f'File {_outfile} exits.  Use -o to overwrite.')
+                log.warning(f'File {_outfile} exits.  Use -o to overwrite.')
                 return
             # Load up the original
             _allspecobj = AllSpec2DObj.from_fits(_outfile)
@@ -658,7 +659,7 @@ class AllSpec2DObj:
                     if det in dets:
                         # Check version 
                         if self[det].version != _allspecobj[det].version:
-                            msgs.error("Original spec2D object has a different version.  Too risky to continue.  Rerun both")
+                            raise PypeItError("Original spec2D object has a different version.  Too risky to continue.  Rerun both")
                         # Generate the slit "mask"
                         slitmask = _allspecobj[det].slits.slit_img(
                             flexure=_allspecobj[det].sci_spat_flexure)
@@ -690,10 +691,10 @@ class AllSpec2DObj:
             try:
                 prihdu.header[self.hdr_prefix+key.upper()] = self['meta'][key]
             except:
-                msgs.warn(f'Cannot add meta entry {key} to primary header!')
+                log.warning(f'Cannot add meta entry {key} to primary header!')
                 continue
             if key.lower() != key:
-                msgs.warn('Keywords in the meta dictionary are always read back in as lower case. '
+                log.warning('Keywords in the meta dictionary are always read back in as lower case. '
                           f'Subsequent reads of {_outfile} will have converted {key} to '
                           f'{key.lower()}!')
 
@@ -717,7 +718,7 @@ class AllSpec2DObj:
         # Finish
         hdulist = fits.HDUList(hdus)
         hdulist.writeto(_outfile, overwrite=overwrite)
-        msgs.info(f'Wrote: {_outfile}')
+        log.info(f'Wrote: {_outfile}')
 
     def __repr__(self):
         # Generate sets string
@@ -744,7 +745,7 @@ class AllSpec2DObj:
 
         """
         if flexure_type not in ['spat', 'spec']:
-            msgs.error(f'flexure_type must be spat or spec, not {flexure_type}')
+            raise PypeItError(f'flexure_type must be spat or spec, not {flexure_type}')
         return_flex = {}
         # Loop on Detectors
         for det in self.detectors:

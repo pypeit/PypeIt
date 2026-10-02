@@ -6,7 +6,7 @@ from importlib import resources
 
 import numpy as np
 
-from pypeit.pypeitdata import PypeItDataPaths
+from pypeit.pkg.pypeitdata import PypeItDataPaths
 from pypeit.utils import string_table
 
 from IPython import embed

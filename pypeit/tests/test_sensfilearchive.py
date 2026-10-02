@@ -8,7 +8,7 @@ from pathlib import Path
 
 from pypeit.sensfilearchive import SensFileArchive
 from astropy.io import fits
-from pypeit.pypmsgs import PypeItError
+from pypeit import PypeItError
 
 def test_getinstance():
     # Test success
@@ -23,6 +23,7 @@ def test_getinstance():
 def test_supported_spectrgraphs():
     assert SensFileArchive.supported_spectrographs() == ['keck_deimos']
 
+@pytest.mark.remote_data
 def test_get_archived_sensfile(monkeypatch):
     sfa = SensFileArchive.get_instance("keck_deimos")
     

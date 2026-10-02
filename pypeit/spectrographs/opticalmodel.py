@@ -5,9 +5,13 @@ Module to generate an optical model for a spectrograph.
 
 """
 import warnings
-from pypeit import msgs
+
 import numpy
 import scipy
+
+from pypeit import log
+from pypeit import PypeItError
+
 # ----------------------------------------------------------------------
 # General class for a reflection grating
 class ReflectionGrating:
@@ -137,9 +141,9 @@ class ReflectionGrating:
 
         """
         if wave is None and self.central_wave is None:
-            msgs.error('Must define a wavelength for the calculation.')
+            raise PypeItError('Must define a wavelength for the calculation.')
         if wave is None:
-            msgs.info('Using central wavelength for calculation.')
+            log.info('Using central wavelength for calculation.')
         _wave = numpy.array([self.central_wave]) if wave is None else numpy.atleast_1d(wave)
         if _wave.ndim > 1:
             raise NotImplementedError('Input wavelength must be one number or a vector.')

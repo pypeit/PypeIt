@@ -16,9 +16,11 @@ from matplotlib import pyplot as plt
 import scipy
 from astropy import stats
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import utils
 from pypeit.core import fitting
+from pypeit.core.plot import pyplot_rcparams, pyplot_rcparams_default
 from IPython import embed
 
 
@@ -64,11 +66,23 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
     min_order = np.min(all_orders)
     max_order = np.max(all_orders)
 
+    # Guard against a degenerate fit: the order-direction normalization divides
+    # by (max_order - min_order), so a single unique order yields a divide-by-
+    # zero -> NaNs -> an opaque "SVD did not converge" failure downstream.  Fail
+    # early with a clear message instead.  (See Shane/Hamspec Report 08.)
+    n_unique_orders = np.unique(all_orders).size
+    if n_unique_orders < 2:
+        raise PypeItError(
+            f'2D wavelength fit needs >= 2 unique orders but only got '
+            f'{n_unique_orders}.  Almost no orders were wavelength-calibrated; '
+            f'check the per-order solutions / reidentification (e.g. the arc '
+            f'archive coverage or order identification).')
+
     if debug:
         # set some plotting parameters
-        utils.pyplot_rcparams()
+        pyplot_rcparams()
         plt.figure(figsize=(7,5))
-        msgs.info("Plot identified lines")
+        log.info("Plot identified lines")
         cm = plt.get_cmap('RdYlBu_r')
         sc = plt.scatter(all_orders, all_pix,c=all_wv/10000., cmap=cm)
         cbar = plt.colorbar(sc)
@@ -88,7 +102,7 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
 
     # Report the RMS
     fin_rms = pypeitFit.calc_fit_rms(x2=all_orders, apply_mask=True)
-    msgs.info("RMS: {0:.5f} Ang*Order#".format(fin_rms))
+    log.info("RMS: {0:.5f} Ang*Order#".format(fin_rms))
 
     if debug:
         fit2darc_global_qa(pypeitFit, nspec)
@@ -112,9 +126,9 @@ def fit2darc_global_qa(pypeitFit, nspec, outfile=None):
         Name of the outfile to write to disk.  If not provided, show to screen.
 
     """
-    msgs.info("Creating QA for 2D wavelength solution")
+    log.info("Creating QA for 2D wavelength solution")
 
-    utils.pyplot_rcparams()
+    pyplot_rcparams()
 
     # Extract info from pypeitFit
     xnspecmin1 = float(nspec - 1)
@@ -185,7 +199,7 @@ def fit2darc_global_qa(pypeitFit, nspec, outfile=None):
         plt.show()
 
     # restore default rcparams
-    utils.pyplot_rcparams_default()
+    pyplot_rcparams_default()
 
 
 def fit2darc_orders_qa(pypeitFit, nspec, outfile=None):
@@ -205,9 +219,9 @@ def fit2darc_orders_qa(pypeitFit, nspec, outfile=None):
 
     """
 
-    msgs.info("Creating QA for 2D wavelength solution")
+    log.info("Creating QA for 2D wavelength solution")
 
-    utils.pyplot_rcparams()
+    pyplot_rcparams()
 
     # Extract info from pypeitFit
     xnspecmin1 = float(nspec - 1)
@@ -343,9 +357,9 @@ def resize_mask2arc(shape_arc, slitmask_orig):
     (nspec_orig,nspat_orig) = slitmask_orig.shape
     if nspec_orig != nspec:
         if ((nspec_orig > nspec) & (nspec_orig % nspec != 0)) | ((nspec > nspec_orig) & (nspec % nspec_orig != 0)):
-            msgs.error('Problem with images sizes. arcimg size and calibration size need to be integer multiples of each other')
+            raise PypeItError('Problem with images sizes. arcimg size and calibration size need to be integer multiples of each other')
         else:
-            msgs.info('Calibration images have different binning than the arcimg. Resizing calibs for arc spectrum extraction.')
+            log.info('Calibration images have different binning than the arcimg. Resizing calibs for arc spectrum extraction.')
         slitmask = utils.rebin_slice(slitmask_orig, (nspec, nspat))
     else:
         slitmask = slitmask_orig
@@ -375,7 +389,7 @@ def resize_slits2arc(shape_arc, shape_orig, trace_orig):
     # be a different size
     (nspec_orig,nspat_orig) = shape_orig
     if nspec_orig != nspec:
-        msgs.info('Calibration images have different binning than the arcimg. Resizing calibs for arc spectrum extraction.')
+        log.info('Calibration images have different binning than the arcimg. Resizing calibs for arc spectrum extraction.')
         spec_vec_orig = np.arange(nspec_orig)/float(nspec_orig - 1)
         spec_vec = np.arange(nspec)/float(nspec - 1)
         spat_ratio = float(nspat)/float(nspat_orig)
@@ -465,7 +479,8 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
         Shape is (nslits,).
     """
     # Initialize the good pixel mask
-    _gpm = slitmask > -1 if gpm is None else gpm & (slitmask > -1)
+    # TODO :: This is a bug... In echelle spectrographs, slitmask can equal -1 for a valid slit that is just off the detector. We need a different mask value for being off the slitmask.
+    _gpm = (slitmask != -1) if gpm is None else gpm & (slitmask != -1)
     # Mask saturated parts of the arc image for the extraction
     _gpm = _gpm & (arcimg < nonlinear_counts)
 
@@ -482,13 +497,13 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
             continue
         # Check if this slit is masked
         if slit_bpm is not None and slit_bpm[islit]:
-            msgs.info('Ignoring masked slit {}'.format(islit+1))
+            log.info('Ignoring masked slit {}'.format(islit+1))
             # TODO -- Avoid using NaNs
             arc_spec[:,islit] = np.nan
             continue
         if verbose:
-            msgs.info(f'Extracting approximate arc spectrum of slit {islit+1}/{nslits}')
-        # Create a mask for the pixels that will contribue to the arc
+            log.info(f'Extracting approximate arc spectrum of slit {islit+1}/{nslits}')
+        # Create a mask for the pixels that will contribute to the arc
         arcmask = _gpm & (np.absolute(spat[None,:] - slit_cen[:,islit,None]) < box_rad)
         # Trimming the image makes this much faster
         indx = np.nonzero(np.any(arcmask, axis=0))[0]
@@ -499,7 +514,7 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
         
         # TODO JFH Add cenfunc and std_func here, using median and the use_mad fix.
         arc_spec[:,islit] = stats.sigma_clipped_stats(arcimg[:,left:right],
-                                                      mask=np.invert(arcmask[:,left:right]),
+                                                      mask=np.logical_not(arcmask[:,left:right]),
                                                       sigma=3.0, axis=1, 
                                                       cenfunc = np.nanmedian, stdfunc=np.nanstd)[1]
     # Get the mask, set the masked values to 0, and return
@@ -800,10 +815,10 @@ def iter_continuum(spec, gpm=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_
         peak_mask = (utils.smooth(cont_mask_fine,mask_odd) > 0.999)
         cont_mask = peak_mask & gpm
         # If more than max_mask_frac of the nspec_available are getting masked than short circuit this masking
-        #frac_mask = np.sum(np.invert(cont_mask))/float(nspec)
-        nmask = np.sum(np.invert(peak_mask[gpm]))
+        #frac_mask = np.sum(np.logical_not(cont_mask))/float(nspec)
+        nmask = np.sum(np.logical_not(peak_mask[gpm]))
         if nmask > max_nmask:
-            msgs.warn('Too many pixels {:d} masked in spectrum continuum definiton: frac_mask = {:5.3f} > {:5.3f} which is '
+            log.warning('Too many pixels {:d} masked in spectrum continuum definiton: frac_mask = {:5.3f} > {:5.3f} which is '
                       'max allowed. Only masking the {:d} largest values....'.format(nmask, nmask/nspec_available, max_mask_frac, max_nmask))
             # Old
             #cont_mask = np.ones_like(cont_mask) & gpm
@@ -818,7 +833,7 @@ def iter_continuum(spec, gpm=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_
 
         ngood = np.sum(cont_mask)
         if ngood == 0:
-            msgs.warn("All pixels rejected for continuum.  Returning a 0 array")
+            log.warning("All pixels rejected for continuum.  Returning a 0 array")
             return np.zeros_like(spec), cont_mask
         samp_width = np.ceil(ngood/cont_samp).astype(int)
 
@@ -841,7 +856,7 @@ def iter_continuum(spec, gpm=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_
             plt.plot(spec_vec[cont_mask], spec[cont_mask], color='cyan', markersize=3.0,
                      mfc='cyan', linestyle='None', fillstyle='full',
                      zorder=9, marker='o', label = 'Used for cont')
-            plt.plot(spec_vec[np.invert(cont_mask)], spec[np.invert(cont_mask)], color='red', markersize=5.0,
+            plt.plot(spec_vec[np.logical_not(cont_mask)], spec[np.logical_not(cont_mask)], color='red', markersize=5.0,
                      mfc='red', linestyle='None', fillstyle='full',
                      zorder=9, marker='o', label = 'masked for cont')
             plt.title(qa_title)
@@ -973,7 +988,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
 
     # Detect the location of the arc lines
     if verbose:
-        msgs.info("Detecting lines...isolating the strongest, nonsaturated lines")
+        log.info("Detecting lines...isolating the strongest, nonsaturated lines")
 
     # TODO: Why is this here? Can't the calling function be required to
     # pass a single spectrum?  This is not reflected in the docstring.
@@ -998,11 +1013,12 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
 
     arc = (censpec - cont_now)*np.logical_not(bpm_out)
     if input_thresh is None:
-        (mean, med, stddev) = stats.sigma_clipped_stats(arc[cont_mask & np.logical_not(bpm_out)], 
-                                                        sigma_lower=3.0, sigma_upper=3.0, cenfunc= np.nanmedian,
-                                                        stdfunc = np.nanstd)
+        (mean, med, stddev) = stats.sigma_clipped_stats(
+            arc[cont_mask & np.logical_not(bpm_out)], 
+            sigma_lower=3.0, sigma_upper=3.0, cenfunc= np.nanmedian,
+            stdfunc = np.nanstd)
         if stddev == 0.0:
-            msgs.warn('stddev = 0.0, so resetting to 0.1')
+            log.warning('stddev = 0.0, so resetting to 0.1')
             stddev = 0.1
         thresh = med + sigdetect * stddev
     else:
@@ -1013,7 +1029,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
             if input_thresh == 'None':
                 thresh = None
         else:
-            msgs.error('Unrecognized value for thresh')
+            raise PypeItError('Unrecognized value for thresh')
         stddev = 1.0
 
     # Find the peak locations
@@ -1036,7 +1052,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     #   - The Gaussian-fitted center and the center from `detect_lines`
     #     are not different by more than 0.75*FWHM
     #   - Width is finite, greater than 0, and less than FWHM_MAX/2.35
-    good = np.invert(np.isnan(twid)) & (twid > 0.0) & (twid < fwhm_max/2.35) & (tcent > 0.0) \
+    good = np.logical_not(np.isnan(twid)) & (twid > 0.0) & (twid < fwhm_max/2.35) & (tcent > 0.0) \
                 & (tcent < xrng[-1]) & (tampl_true < nonlinear_counts) \
                 & (np.abs(tcent-pixt) < fwhm*0.75)
     # Get the indices of the good measurements
@@ -1048,7 +1064,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     # requested, then grab and return only these lines
     if nfind is not None:
         if nfind > len(nsig):
-            msgs.warn('Requested {0} peaks but only found {1}.  '.format(nfind, len(tampl)) +
+            log.warning('Requested {0} peaks but only found {1}.  '.format(nfind, len(tampl)) +
                       ' Returning all the peaks found.')
         else:
             ikeep = (nsig.argsort()[::-1])[0:nfind]
@@ -1173,7 +1189,7 @@ def find_lines_qa(spec, cen, amp, good, bpm=None, thresh=None, nonlinear=None):
     pix = np.arange(_spec.size)
     plt.figure(figsize=(14, 6))
     plt.step(pix, _spec, color='k', where='mid', label='arc', lw=1.0)
-    plt.scatter(cen[np.invert(good)], amp[np.invert(good)], marker='+', color='C3', s=50,
+    plt.scatter(cen[np.logical_not(good)], amp[np.logical_not(good)], marker='+', color='C3', s=50,
                 label='bad for tilts')
     plt.scatter(cen[good], amp[good], color='C2', marker='+', s=50, label='good for tilts')
     if thresh is not None:

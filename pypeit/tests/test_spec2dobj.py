@@ -17,7 +17,7 @@ from pypeit import spec2dobj
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.tests import tstutils
 from pypeit import slittrace
-from pypeit import pypmsgs
+from pypeit import PypeItError
 from pypeit.images import imagebitmask
 
 
@@ -108,7 +108,7 @@ def test_spec2dobj_update_slit(init_dict):
     # code itself!
     
     # Checks
-    with pytest.raises(pypmsgs.PypeItError):
+    with pytest.raises(PypeItError):
         spec2DObj1.update_slits(spec2DObj2)
 
     # Update
@@ -127,6 +127,7 @@ def test_spec2dobj_update_slit(init_dict):
 ####################################################3
 # Testing of AllSpec2DObj
 
+@pytest.mark.remote_data
 def test_all2dobj_hdr(init_dict):
     # Build one
     init_dict['detector'] = tstutils.get_kastb_detector()

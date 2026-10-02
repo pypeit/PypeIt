@@ -8,7 +8,8 @@ from IPython import embed
 
 import numpy as np
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 
 
 def phys_to_pix(array, pixlocn, axis):
@@ -30,7 +31,7 @@ def phys_to_pix(array, pixlocn, axis):
       The pixel locations of the input array (as seen on a computer screen)
     """
     if len(array.shape) > 2:
-        msgs.error('Input array must have two dimensions or less!')
+        raise PypeItError('Input array must have two dimensions or less!')
     _array = np.atleast_2d(array)
     doravel = len(array.shape) != 2
 
@@ -102,11 +103,11 @@ def ximg_and_edgemask(lord_in, rord_in, slitpix, trim_edg=(3,3), xshift=0.):
         badp = xsize <= 0.
         if np.any(badp):
             meds = np.median(xsize)
-            msgs.warn('Something goofy in slit # {:d}'.format(islit))
-            msgs.warn('Probably a bad slit (e.g. a star box)')
-            msgs.warn('It is best to expunge this slit')
-            msgs.warn('Proceed at your own risk, with a slit width of {}'.format(meds))
-            msgs.warn('Or set meds to your liking')
+            log.warning('Something goofy in slit # {:d}'.format(islit))
+            log.warning('Probably a bad slit (e.g. a star box)')
+            log.warning('It is best to expunge this slit')
+            log.warning('Proceed at your own risk, with a slit width of {}'.format(meds))
+            log.warning('Or set meds to your liking')
             #rord[:, islit] = lord[:, islit] + meds
 
         # Loop down the slit

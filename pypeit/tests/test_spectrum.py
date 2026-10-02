@@ -6,7 +6,7 @@ from scipy import interpolate
 from scipy import special
 
 from pypeit.core import spectrum
-from pypeit.pypmsgs import PypeItError
+from pypeit import PypeItError
 
 
 def pixelated_gaussian(x, c=0.0, s=1.0):

@@ -3,15 +3,20 @@ Module for MMT/Blue Channel specific methods.
 
 .. include:: ../include/links.rst
 """
+from pathlib import Path
+
 import numpy as np
 from astropy.io import fits
+from astropy.table import Table
 from astropy.time import Time
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit import utils
+from pypeit import io
 from pypeit.core import framematch
-from pypeit.par import pypeitpar
+from pypeit.par import parset
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
@@ -176,7 +181,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
             else:
                 return 'off'
 
-        msgs.error(f"Not ready for compound meta, {meta_key}, for MMT Blue Channel.")
+        raise PypeItError(f"Not ready for compound meta, {meta_key}, for MMT Blue Channel.")
 
     def configuration_keys(self):
         """
@@ -192,7 +197,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['dispname', 'dispangle', 'filter1']
+        return ['dispname', 'cenwave', 'filter1']
 
     def raw_header_cards(self):
         """
@@ -277,15 +282,20 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -294,10 +304,12 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        grating = self.get_meta_value(scifile, 'dispname')
-        cenwave = self.get_meta_value(scifile, 'cenwave')
+        # Adjust parameters based on grating & cenwave used
+        grating = self.get_meta_value(inp, 'dispname')
+        cenwave = self.get_meta_value(inp, 'cenwave')
 
         if grating in ['300GPM', '500GPM', '800GPM', '1200GPM']:
             par['calibrations']['wavelengths']['method'] = 'full_template'
@@ -348,12 +360,12 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         if det == 1:
-            msgs.info("Using hard-coded BPM for  Blue Channel")
+            log.info("Using hard-coded BPM for  Blue Channel")
 
             bpm_img[-1, :] = 1
 
         else:
-            msgs.error(f"Invalid detector number, {det}, for MMT Blue Channel (only one detector).")
+            raise PypeItError(f"Invalid detector number, {det}, for MMT Blue Channel (only one detector).")
 
         return bpm_img
 
@@ -397,7 +409,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        return super().pypeit_file_keys() + ['cenwave','lampstat01']
+        return super().pypeit_file_keys() + ['dispangle', 'lampstat01']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -459,7 +471,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
             # i think the bright lamp, BC, is the only one ever used for this. imagetyp should always be set to flat.
             return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['target'] == 'skyflat')
 
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
     def get_rawimage(self, raw_file, det):
@@ -496,8 +508,8 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         fil = utils.find_single_file(f'{raw_file}*', required=True)
 
         # Read FITS image
-        msgs.info(f'Reading MMT Blue Channel file: {fil}')
-        hdu = fits.open(fil)
+        log.info(f'Reading MMT Blue Channel file: {fil}')
+        hdu = io.fits_open(fil)
         hdr = hdu[0].header
 
         # we're flipping FITS x/y to pypeit y/x here. pypeit wants blue on the

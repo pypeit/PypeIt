@@ -11,8 +11,8 @@ Here are notes on how to add a new spectrograph from scratch or to add a new
 mode. To do so, you should install PypeIt following the development path;
 see :doc:`../installing` and :doc:`development`.
 
-Entirely New
-============
+Adding an entirely new spectrograph
+===================================
 
 PypeIt defines instrument-specific behavior/parameters using a python
 class hierarchy; see :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
@@ -33,8 +33,8 @@ The class-hierarchy is used by PypeIt to specify certain instrument
 modes, like spectrograph arm, that inherit from a common base class. For
 example, :class:`~pypeit.spectrographs.keck_lris.KeckLRISSpectrograph`
 implements many of the methods that are common to both arms (red and blue) of
-the spectrograph. These include methods used to read raw files, used to
-define header cards with required :doc:`metadata`, and used to determine the type of
+the spectrograph. These include methods used to read raw files, to
+define header cards with required :doc:`metadata`, and to determine the type of
 frame (arc, dome, bias, etc) based on that :doc:`metadata`. The
 :class:`~pypeit.spectrographs.spectrograph.Spectrograph` instance for each
 LRIS arm inherits these methods common to them both by subclassing from
@@ -52,20 +52,29 @@ spectrograph has a similar set of modes, see
 Having said all of that, the basic steps one needs to follow to introduce a
 new spectrograph are as follows:
 
-#. Build a new file called ``telescope_spectrograph.py`` file and put it in the
-   ``pypeit/spectrographs/`` directory.
+#. Build a new file called ``{telescope}_{spectrograph}.py`` file and put it in
+   the ``pypeit/spectrographs/`` directory.
 
-#. Add the new module to the list imported by
-   ``pypeit/spectrographs/__init__.py``.
+#. Add the name of the new module to the ``__all__`` list defined in
+   ``pypeit/spectrographs/__init__.py``.  E.g.
 
-#. Generate a new Telescope object in (if new)
-   ``pypeit/telescopes.py``.
+   .. code-block:: python
 
-#. Add telescope name to valid_telescopes in
+        __all__ = [
+            ...
+            'keck_lris',
+            ...
+        ]
+
+   Please maintain the alphabetical ordering of the modules listed.
+
+#. Generate a new Telescope object in ``pypeit/telescopes.py``, as needed.
+
+#. Add the telescope name to the list of ``valid_telescopes`` in
    ``pypeit/par/pypeitpar.py``.
 
 #. Set the algorithmic path: the class attribute, ``pypeline``, must be
-   ``'MultiSlit'``, ``'Echelle'``, or ``'IFU'``.
+   ``'MultiSlit'``, ``'Echelle'``, or ``'SlicerIFU'``.
 
 #. Set the default parameters PypeIt uses during the reduction; see
    :ref:`parameters`, and, e.g.,
@@ -95,19 +104,17 @@ new spectrograph are as follows:
    compare to, e.g.,
    :func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.get_rawimage`.
 
-#. For echelle spectrographs, there are numerous methods required that provide
-   details for the (currently fixed) format of the orders.  See, e.g.,
+#. For fixed-format echelle spectrographs, there are numerous methods that
+   provide details for the expected format of the orders.  See, e.g.,
    :class:`~pypeit.spectrographs.vlt_xshooter.VLTXShooterNIRSpectrograph`.
 
-#. You may need to generate wavelength solutions for your setups. You can use the
-   :ref:`pypeit_identify` utility, and add this to the PypeIt archive by
+#. You may need to generate wavelength solutions for your setups. You can use
+   the :ref:`pypeit_identify` utility, and add this to the PypeIt archive by
    following the steps outlined in the :doc:`../calibrations/construct_template`
    documentation.  See :ref:`wave_calib`.
 
-
 See this `example PR <https://github.com/pypeit/PypeIt/pull/1179>`_ for the
 SOAR/Goodman spectrograph.
-
 
 Near-IR
 +++++++
@@ -119,14 +126,14 @@ an example.
 Tests
 +++++
 
-For a spectrograph to be supported going forth, we require a minimum set
-of tests.  These are:
+For a spectrograph to be designated as being "supported" by PypeIt, we require a
+minimum set of tests.  These are:
 
     - A full run of the pipeline for each grating/mode of the spectrograph in
       the `PypeIt Development Suite`_.
 
-    - A simple unit test that check an image can be loaded.  This needs to be
-      added to the `PypeIt Development Suite`_; see `here
+    - A simple unit test that checks that an image can be loaded.  This needs to
+      be added to the `PypeIt Development Suite`_; see `here
       <https://github.com/pypeit/PypeIt-development-suite/blob/main/unit_tests/test_load_images.py>`__.
 
 Docs
@@ -135,9 +142,18 @@ Docs
 We request that the following docs be updated to advertise the new
 spectrograph:
 
-- Update the top-level ``CHANGES.rst``
+- Include a comment noting the addition of the relevant spectrograph module in
+  the most recent release doc in ``doc/releases``.  There is typically a section
+  for "Instrument-specific" changes.
 
 - If specific advice is important/useful, add an instrument specific doc to the
   ``doc/spectrographs`` directory and link the doc in the
   ``doc/specrographs/spectrographs.rst`` doc.
+
+- It will be helpful to users to have a tutorial to follow when using PypeIt to
+  reduce data from the newly supported spectrograph.  Please either add a new
+  tutorial (see, e.g., ``doc/tutorials/lris_howto.rst``) or add a comment in
+  ``doc/tutorials/tutorials.rst`` pointing users to a spectrograph tutorial that
+  is very similar (or identical) to the procedures that should be used for the
+  new spectrograph.
 

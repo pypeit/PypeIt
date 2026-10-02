@@ -81,8 +81,8 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
 
         return parser
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
 
         from pathlib import Path
 
@@ -92,12 +92,16 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
 
         from astropy.table import Table
 
-        from pypeit import msgs
+        from pypeit import log
+        from pypeit import PypeItError
         from pypeit import io
         from pypeit import utils
         from pypeit import inputfiles
         from pypeit.spectrographs.util import load_spectrograph
         from pypeit.coadd2d import CoAdd2D
+
+        # Initialize the log
+        cls.init_log(args)
 
         if args.pypeit_file is None:
             pypeitFile = None
@@ -124,16 +128,16 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
 
         sci_dirs_exist = [sc.exists() for sc in sci_dirs]
         if not np.all(sci_dirs_exist):
-            msgs_string = 'The following science directories do not exist:' + msgs.newline()
+            log_string = 'The following science directories do not exist:\n'
             for s in np.array(sci_dirs)[np.logical_not(sci_dirs_exist)]:
-                msgs_string += f'{s}' + msgs.newline()
-            msgs.error(msgs_string)
+                log_string += f'{s}\n'
+            raise PypeItError(log_string)
 
         # Find all the spec2d files:
         spec2d_files = np.concatenate([sorted(sci_dir.glob('spec2d*')) for sci_dir in sci_dirs]).tolist()
 
         if len(spec2d_files) == 0:
-            msgs.error(f'No spec2d files.')
+            raise PypeItError(f'No spec2d files.')
 
         if spec_name is None:
             with io.fits_open(spec2d_files[0]) as hdu:
@@ -142,29 +146,32 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
         # Get the set of objects
         # TODO: Direct parsing of the filenames will be wrong if any of the
         # reduced files have dashes in them or if the objects have underscores.
-        objects = np.unique(pypeitFile.data['target'].data 
-                                if pypeitFile is not None and 'target' in pypeitFile.data.keys()
-                                else [f.name.split('-')[1].split('_')[0] for f in spec2d_files])
+        if pypeitFile is not None and 'target' in pypeitFile.data.keys():
+            objects = np.unique([row['target'] for row in pypeitFile.data 
+                                 if any(ft in row['frametype'] for ft in ['science','standard'])])
+        else:
+            objects = np.unique([f.name.split('-')[1].split('_')[0] for f in spec2d_files])
+
         if args.obj is not None:
             # Limit to the selected objects
             _objects = [o for o in objects if o in args.obj]
             # Check some were found
             if len(_objects) == 0:
-                msgs.error('Unable to find relevant objects.  Unique objects are '
+                raise PypeItError('Unable to find relevant objects.  Unique objects are '
                            f'{objects.tolist()}; you requested {args.obj}.')
             objects = _objects
 
-        # Match spec2d files to objects
+        # Match spec2d files to objects; remove any spaces in the object names
         object_spec2d_files = {}
-        for obj in objects:
+        for obj in (o.replace(" ","") for o in objects):
             object_spec2d_files[obj] = [f for f in spec2d_files if obj.strip() in f.name]
             if len(object_spec2d_files[obj]) == 0:
-                msgs.warn(f'No spec2d files found for target={obj}.')
+                log.warning(f'No spec2d files found for target={obj}.')
                 del object_spec2d_files[obj]
 
         # Check spec2d files exist for the selected objects
         if len(object_spec2d_files.keys()) == 0:
-            msgs.error('Unable to match any spec2d files to objects.')
+            raise PypeItError('Unable to match any spec2d files to objects.')
 
         # Add the paths to make sure they match the pypeit file.
         # NOTE: cfg does *not* need to include the spectrograph parameter in

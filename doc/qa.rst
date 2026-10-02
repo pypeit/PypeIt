@@ -148,6 +148,157 @@ Here is an example:
 .. figure:: figures/qa/flex_sky_armlsd.jpg
    :align: center
 
+.. _qa-obj-find:
+
+Object Finding QA
+-----------------
+
+The object-finding step can be evaluated using the ``*_obj_prof.png`` QA files
+produced during the main PypeIt run.  Following the algorithm outlined in
+:ref:`object_finding`, the plot provides a visual confirmation of the steps
+taken to identify the objects in each ``spec2d`` frame.  The heart of the QA
+plot is the FWHM-convolved plot of the spectrally-squashed spectral image.
+Identified objects are marked with green or yellow circles to indicate objects
+that exceed the minimum detection signal-to-noise ratio (SNR; red dashed line).
+Objects in excess of the maximum allowed per slit are in yellow, sorted by SNR.
+
+Examples of object-finding QA files for different types of frames are shown
+below.
+
+Keck/LRIS Standard Star Frame
++++++++++++++++++++++++++++++
+
+.. figure:: figures/lris_objfind_qa_example.png
+   :alt: Object tracing for Keck/LRIS
+   :width: 60%
+   :class: with-shadow
+
+   Example object finding QA plot for Keck/LRIS, using the ``long_400_8500_d560``
+   dataset from the :ref:`dev-suite`.  A total of 6 objects were found whose
+   collapsed SNR exceeded the threshold (:math:`10\sigma`), but for only the
+   brightest 5 were marked as "good", since this is a ``standard`` frame and
+   ``maxnumber_std = 5``.
 
 
+Subaru/FOCAS Faint Object Frame
++++++++++++++++++++++++++++++++
 
+.. figure:: figures/focas_objfind.png
+   :alt: Object tracing for Subaru/FOCAS
+   :width: 60%
+   :class: with-shadow
+
+   This shows the spatial profile of the object's S/N collapsed along the spectral direction.
+   The dashed red line is the S/N threshold set by the :ref:`findobjpar`, and the green circle
+   marks the spatial position of the detected object. This plot is useful to assess if the object
+   was correctly detected and if the S/N threshold (``snr_thresh``) set is appropriate for the
+   observation.  You will note that there were 3 objects rejected because we restricted 
+   the code to find only 2 objects in the science frame.
+   See :ref:`object_finding` for further details. 
+
+
+Gemini/GMOS Science Frame
++++++++++++++++++++++++++
+
+   .. grid:: 2
+
+      .. grid-item::
+         :columns: 4
+
+         .. image:: figures/gmos_objfind_qa_example1.png
+            :alt: Object finding on slit #NNNN
+            :class: with-shadow
+
+      .. grid-item::
+         :columns: 4
+
+         .. image:: figures/gmos_objfind_qa_example2.png
+            :alt: Object finding on slit #NNNN
+            :class: with-shadow
+
+      .. grid-item::
+         :columns: 4
+
+         .. image:: figures/gmos_objfind_qa_example3.png
+            :alt: Object finding on slit #NNNN
+            :class: with-shadow
+
+      .. grid-item::
+         :columns: 12
+
+         Examples of object finding on three separate slits from a single
+         Gemini/GMOS frame from the ``GS_HAM_B480_550`` dataset in the
+         :ref:`dev-suite`.  Note that only one of the slits had an object meet
+         the detection threshold specified by instrument parameters.
+
+
+.. _qa-obj-trace:
+
+Object Tracing QA
+-----------------
+
+The object-tracing step can be evaluated using the ``*_obj_trace.png`` QA files
+produced during the main PypeIt run.  These plots indicate the extracted
+spatial peak of the object trace (ordinate) as a function of spectral pixel
+(abscissa).  The value of these plots lies in identifying when the tracing
+algorithm has gone off the rails and is following something other than the
+desired spectral object.
+
+Examples of object-tracing QA files for different types of frames are shown
+below.
+
+
+Keck/LRIS Standard Star Frame
++++++++++++++++++++++++++++++
+
+.. figure:: figures/lris_objtrace_qa_example.png
+   :alt: Object tracing for Keck/LRIS
+   :width: 60%
+   :class: with-shadow
+
+   Example object tracing QA plot for Keck/LRIS, using the ``long_400_8500_d560``
+   dataset from the :ref:`dev-suite`.  A total of 6 objects were found whose
+   collapsed SNR exceeded the threshold (:math:`10\sigma`), but for only the
+   brightest 5 were marked as "good", since this is a ``standard`` frame and
+   ``maxnumber_std = 5``.
+
+Gemini/GMOS Science Frame
++++++++++++++++++++++++++
+
+.. figure:: figures/gmos_objtrace_qa_example.png
+   :alt: Object tracing for Gemini/GMOS
+   :width: 60%
+   :class: with-shadow
+
+   Example object tracing QA plot for Gemini/GMOS, using the ``GS_HAM_B480_550``
+   dataset from the :ref:`dev-suite`.  Of the three slits shown above in the
+   Object Fining QA plot, only one had an object found using the criteria
+   specified in the PypeIt Reduction File.
+
+
+Using the Object Tracing QA Plot for Troubleshooting
+++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+The value in these plots lies in troubleshooting when object tracing goes wrong.
+In the example below, an object was observed using a 150 l/mm grating on the
+LDT/DeVeny spectrograph at an elevation of 11\ :math:`^\circ` above the horizon
+(airmass 5).  As a result of significant atmospheric dispersion, the point-like
+object was smeared out into a rainbow and the spectrum appears curved with
+respect to the slit edges.  Using standard PypeIt tracing parameters for this
+spectrograph, the resulting object trace is shown below.
+
+.. figure:: figures/objtrace_qa_highX_bad.png
+   :alt: Bad tracing of object at high airmass
+   :width: 60%
+   :class: with-shadow
+
+   Attempt at object tracing using standard PypeIt parameters.
+
+Note that the fitted object trace is not monotonic, and jumps at low spectral
+pixel number (short wavelength) away from the solid trend of the trace toward
+noise in the image closer to the input trace value.  Comparison of this trace
+with the ``spec2d`` image indicates that the tracing did not follow the actual
+peak in the spectral image.  While occasional grey dots indicating "Centroid
+masked, fit" (as in the Keck/LRIS plots above) are acceptable, contiguous
+sections (as seen here) are problematic.  See :ref:`object_tracing` for details
+about parameter changes that can be applied to fix these traces.

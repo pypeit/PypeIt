@@ -4,107 +4,101 @@ Core module for methods related to flat fielding.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import inspect
-import copy
-import os
-
+from IPython import embed
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy.interpolate
 import scipy.ndimage
-import matplotlib.pyplot as plt
 
-from IPython import embed
-
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit.core import coadd
 from pypeit import utils
 
 
-# TODO: Make this function more general and put it in utils.
 def sorted_flat_data(data, coo, gpm=None):
     """
     Sort a set of data by the provided coordinates.
 
-    Args:
-        data (`numpy.ndarray`_):
-            Data array with arbirary shape and data type.
-        coo (`numpy.ndarray`_):
-            Relevant coordinate array. Shape must match ``data``.
-        gpm (`numpy.ndarray`_, optional):
-            Good-pixel mask for array. Used to select data (where
-            ``gpm`` is True) to sort and return. Shape must match
-            ``data``.  If None, all data is used.
+    Parameters
+    ----------
+    data : :class:`numpy.ndarray`
+        Data array with arbitrary shape
+    coo : :class:`numpy.ndarray`
+        Coordinate array. Shape must match ``data``.
+    gpm : :class:`numpy.ndarray`, optional
+        Good-pixel mask for array. Used to select data to sort and return. Shape
+        must match ``data``.  If None, all data is used.
 
-    Returns:
-        tuple: Four `numpy.ndarray`_ objects are returned:
+    Returns
+    -------
+    srt : :class:`numpy.ndarray`
+        A vector with the length of ``numpy.sum(gpm)`` with the indices that
+        sorts the flattened list of good coordinate values.
+    srt_coo : :class:`numpy.ndarray`
+        A vector with the sorted coordinate data.
+    srt_data : :class:`numpy.ndarray`
+        A vector with the data sorted by their associated coordinate.
 
-            - A boolean array with the pixels used in the sorting.
-              Shape is identical to ``data``. If ``gpm`` is provided,
-              this is identicall (i.e., not a copy) of the input
-              array; otherwise, it is ``np.ones(data.shape,
-              dtype=bool)``.
-            - A vector with the length of ``numpy.sum(gpm)`` with the
-              indices that sorts the flattened list of good
-              coordinate values.
-            - A vector with the sorted coordinate data.
-            - A vector with the data sorted by the respective
-              coordinates.
+    Notes
+    -----
+    To reconstruct the input data array for the good pixels:
 
-        To reconstruct the input data array for the good pixels::
+    .. code-block:: python
 
-            _data = np.zeros(data.shape, dtype=data.dtype)
-            _data[gpm] = srt_data[np.argsort(srt)]
+        if gpm is None:
+            _data = srt_data[np.argsort(srt)].reshape(data.shape)
+        else:
+            _data = np.where(gpm, srt_data[np.argsort(srt)], 0.0)
 
-        where ``data`` is the input array, ``gpm`` is the first
-        returned object, ``srt`` is the second returned object, and
-        ``srt_data`` is the last returned object of this method.
-
+    where ``data`` and ``gpm`` are input and ``srt`` and ``srt_data`` are
+    outputs.
     """
-    if gpm is None:
-        gpm = np.ones(data.shape, dtype=bool)
-
     # Sort the pixels by their spatial coordinate. NOTE: By default
     # np.argsort sorts the data over the last axis. To avoid coo[gpm]
     # returning an array (which will happen if the gpm is not provided
     # as an argument), all the arrays are explicitly flattened.
-    srt = np.argsort(coo[gpm].ravel(), kind='stable')
-    coo_data = coo[gpm].ravel()[srt]
-    flat_data = data[gpm].ravel()[srt]
-    return gpm, srt, coo_data, flat_data
+    _data = data.ravel() if gpm is None else data[gpm].ravel()
+    _coo = coo.ravel() if gpm is None else coo[gpm].ravel()
+    srt = np.argsort(_coo, kind='stable')
+    return srt, _coo[srt], _data[srt]
 
 
 def illum_filter(spat_flat_data_raw, med_width):
     """
-    Filter the flat data to produce the empirical illumination
-    profile.
+    Filter the flat data to produce the empirical illumination profile.
 
-    This is primarily a convenience method for
-    :func:`construct_illum_profile`. The method first median filters
-    with a window set by ``med_width`` and then Gaussian-filters the
-    result with a kernel sigma set to be the maximum of 0.5 or
-    ``med_width``/20.
+    This is primarily a convenience method for :func:`construct_illum_profile`.
+    The method first median filters with a window set by ``med_width`` and then
+    Gaussian-filters the result with a kernel sigma set to be the maximum of 0.5
+    or ``med_width``/20.
 
-    Args:
-        spat_flat_data_raw (`numpy.ndarray`_);
-            Raw flat data collapsed along the spectral direction.
-        med_width (:obj:`int`):
-            Width of the median filter window.
+    Parameters
+    ----------
+    spat_flat_data_raw : :class:`numpy.ndarray`
+        Raw flat data collapsed along the spectral direction.
+    med_width : :obj:`int`
+        Width of the median filter window.
 
-    Returns:
-        `numpy.ndarray`_: Returns the filtered spatial profile of the
-        flat data.
+    Returns
+    -------
+    :class:`numpy.ndarray`
+        The filtered spatial profile of the flat data.
     """
     # Median filter the data
     spat_flat_data = utils.fast_running_median(spat_flat_data_raw, med_width)
     # Gaussian filter the data with a kernel that is 1/20th of the
     # median-filter width (or at least 0.5 pixels where here a "pixel"
     # is just the index of the data to fit)
-    return scipy.ndimage.gaussian_filter1d(spat_flat_data, np.fmax(med_width/20.0, 0.5),
-                                             mode='nearest')
+    return scipy.ndimage.gaussian_filter1d(
+        spat_flat_data, np.fmax(med_width/20.0, 0.5), mode='nearest'
+    )
 
 
-def construct_illum_profile(norm_spec, spat_coo, slitwidth, spat_gpm=None, spat_samp=5,
-                            illum_iter=0, illum_rej=None, debug=False):
+def construct_illum_profile(
+    norm_spec, spat_coo, slitwidth, spat_gpm=None, spat_samp=5, illum_iter=0, illum_rej=None,
+    debug=False
+):
     """
     Construct the slit illumination profile.
 
@@ -122,76 +116,79 @@ def construct_illum_profile(norm_spec, spat_coo, slitwidth, spat_gpm=None, spat_
     are not kept between iterations). Rejection iterations are only
     performed if ``illum_iter > 0 and illum_rej is not None``.
 
-    Args:
-        norm_spec (`numpy.ndarray`_):
-            Flat-field image (2D array) with the spectral response
-            normalized out.
-        spat_coo (`numpy.ndarray`_):
-            An image with the slit spatial coordinates, expected to
-            be with respect to a single slit and span the full image
-            region selected by the good-pixel mask (``spat_gpm``).
-            Shape must match ``norm_spec``.
-        slitwidth (:obj:`float`):
-            Fiducial slit width used to set the median-filter window
-            size.
-        spat_gpm (`numpy.ndarray`_, optional):
-            The good-pixel mask that selects the pixels to include in
-            the slit illumination profile calculation. If None, **all
-            pixels in the provided images are used**. For virtually
-            all practical purposes, this array should be provided.
-        spat_samp (:obj:`int`, :obj:`float`, optional):
-            Spatial sampling for slit illumination function. This is
-            the width of the median filter in detector pixels used to
-            determine the slit illumination function, and thus sets
-            the minimum scale on which the illumination function will
-            have features.
-        illum_iter (:obj:`int`, optional):
-            Iteratively construct the slit illumination profile and
-            reject outliers. To include rejection iterations, this
-            must be larger than 0, and you have to provide the sigma
-            threshold (``illum_rej``); otherwise, no iterations are
-            performed.
-        illum_rej (:obj:`float`, optional):
-            Sigma rejection threshold for iterations. If None, no
-            rejection iterations will be performed, regardless of the
-            value of ``illum_iter``.
-        debug (:obj:`bool`, optional):
-            Construct plots output to the screen that show the result
-            of each iteration. Regardless of this flag, no plots are
-            shown if there are no iterations.
+    Parameters
+    ----------
+    norm_spec : :class:`numpy.ndarray`
+        Flat-field image (2D array) with the spectral response normalized out.
+    spat_coo : :class:`numpy.ndarray`
+        An image with the slit spatial coordinates, expected to be with respect
+        to a single slit and span the full image region selected by the
+        good-pixel mask (``spat_gpm``).  Shape must match ``norm_spec``.
+    slitwidth : :obj:`float`
+        Fiducial slit width used to set the median-filter window size.
+    spat_gpm : :class:`numpy.ndarray`, optional
+        The good-pixel mask that selects the pixels to include in the slit
+        illumination profile calculation. If None, **all pixels in the provided
+        images are used**.  Although optional, virtually all practical
+        applications of this function will require this array; i.e., slits are
+        not perfectly rectilinear with the pixel grid.
+    spat_samp : :obj:`int`, :obj:`float`, optional
+        Spatial sampling for slit illumination function. This is the width of
+        the median filter in detector pixels used to determine the slit
+        illumination function, and thus sets the minimum scale on which the
+        illumination function will have features.
+    illum_iter : :obj:`int`, optional
+        Iteratively construct the slit illumination profile and reject outliers.
+        To include rejection iterations, this must be larger than 0, and you
+        have to provide the sigma threshold (``illum_rej``); otherwise, no
+        iterations are performed.
+    illum_rej : :obj:`float`, optional
+        Sigma rejection threshold for iterations. If None, no rejection
+        iterations will be performed, regardless of the value of ``illum_iter``.
+    debug : :obj:`bool`, optional
+        Construct plots output to the screen that show the result
+        of each iteration.
 
-    Returns:
-        tuple: Five `numpy.ndarray`_ objects are returned:
+    Returns
+    -------
+    gpm : :class:`numpy.ndarray`
+        A boolean array with the pixels used in the construction of the
+        illumination profile. Shape is identical to ``norm_spec``.
+    spat_srt : :class:`numpy.ndarray`
+        A vector with the length of the number of good pixels (sum of ``gpm``)
+        with the indices that sorts the flattened list of good coordinate
+        values.
+    spat_coo_data : :class:`numpy.ndarray`
+        A vector with the sorted coordinate data.
+    spat_flat_data_raw : :class:`numpy.ndarray`
+        A vector with the data sorted by the respective coordinates.
+    illum_profile : :class:`numpy.ndarray`
+        A vector with the slit illumination profile.
 
-            - A boolean array with the pixels used in the
-              construction of the illumination profile. Shape is
-              identical to ``norm_spec``.
-            - A vector with the length of the number of good pixels
-              (sum of the first returned object) with the indices
-              that sorts the flattened list of good coordinate
-              values.
-            - A vector with the sorted coordinate data.
-            - A vector with the data sorted by the respective
-              coordinates.
-            - A vector with the slit illumination profile.
+    Notes
+    -----
+    To reconstruct the input data array for the good pixels:
 
-        To construct the empirical 2D illumination profile::
+    .. code-block:: python
 
-            illum = np.zeros(norm_spec.shape, dtype=float)
-            illum[_spat_gpm] = profile[np.argsort(srt)]
+        if gpm is None:
+            illum = illum_profile[np.argsort(spat_srt)].reshape(norm_spec.shape)
+        else:
+            illum = np.where(gpm, illum_profile[np.argsort(spat_srt)], 0.0)
 
-        where ``norm_spec`` is the input array, ``_spat_gpm`` is the
-        first returned object, ``srt`` is the second returned object,
-        and ``profile`` is the last returned object.
-
+    where ``norm_spec`` are input and ``gpm``, ``spat_srt``, and
+    ``illum_profile`` are outputs.
     """
     if illum_rej is None and illum_iter > 0:
-        msgs.warn('Cannot use iterative rejection to construct the illumination function if the '
-                  'rejection is not provided.  Continuing without iteration.')
+        log.warning(
+            'Cannot use iterative rejection to construct the illumination function if the '
+            'rejection is not provided.  Continuing without iteration.'
+        )
 
-    _spat_gpm = np.ones(norm_spec.shape, dtype=bool) if spat_gpm is None else np.copy(spat_gpm)
-    _spat_gpm, spat_srt, spat_coo_data, spat_flat_data_raw \
-            = sorted_flat_data(norm_spec, spat_coo, gpm=_spat_gpm)
+    _spat_gpm = np.ones(norm_spec.shape, dtype=bool) if spat_gpm is None else spat_gpm.copy()
+    spat_srt, spat_coo_data, spat_flat_data_raw = sorted_flat_data(
+        norm_spec, spat_coo, gpm=_spat_gpm
+    )
     spat_gpm_data_raw = np.ones(spat_flat_data_raw.size, dtype=bool)
 
     # Assume the density of samples in any given spatial coordinate is
@@ -204,36 +201,44 @@ def construct_illum_profile(norm_spec, spat_coo, slitwidth, spat_gpm=None, spat_
     for i in range(illum_iter+1):
         spat_flat_data = illum_filter(spat_flat_data_raw[spat_gpm_data_raw], med_width)
 
-        if illum_iter == 0 or illum_rej is None:
-            # No iterations so we're done (skips debug plot)
-            return spat_gpm, spat_srt, spat_coo_data, spat_flat_data_raw, spat_flat_data
-
-        if i == illum_iter:
-            # Don't perform the rejection on the last iteration
+        if illum_iter in [0, None, i]:
+            # No rejection iterations were requested or we've reached the requested limit
             break
 
         # Iteration does not keep previous rejections. NOTE: Rejections
         # at either end of the data array would cause the interpolation
         # below to fault, which is why I set bound_error to False. This
         # may be a problem though because I set the fill value to 0...
-        interp = scipy.interpolate.interp1d(spat_coo_data[spat_gpm_data_raw], spat_flat_data,
-                                      bounds_error=False, fill_value=0.0, assume_sorted=True)
+        interp = scipy.interpolate.interp1d(
+            spat_coo_data[spat_gpm_data_raw], spat_flat_data, bounds_error=False, fill_value=0.0,
+            assume_sorted=True
+        )
         resid = spat_flat_data_raw - interp(spat_coo_data)
         sigma = np.std(resid)
         spat_gpm_data_raw = np.absolute(resid) < illum_rej*sigma
 
-    # TODO: Provide a report?
+    log.info(
+        'Construction of illumination profile rejected '
+        f'{np.sum(np.logical_not(spat_gpm_data_raw))} outlying pixels.'
+    )
 
     if debug:
+        bpm = np.logical_not(spat_gpm_data_raw)
         plt.clf()
         ax = plt.gca()
-        ax.scatter(spat_coo_data[spat_gpm_data_raw], spat_flat_data_raw[spat_gpm_data_raw],
-                   marker='.', lw=0, s=10, color='k', zorder=1, label='used data')
-        ax.scatter(spat_coo_data[np.invert(spat_gpm_data_raw)],
-                   spat_flat_data_raw[np.invert(spat_gpm_data_raw)],
-                   marker='.', lw=0, s=10, color='C3', zorder=2, label='rejected data')
-        ax.plot(spat_coo_data[spat_gpm_data_raw], spat_flat_data, color='C2', zorder=3,
-                label='filtered profile')
+        ax.scatter(
+            spat_coo_data[spat_gpm_data_raw], spat_flat_data_raw[spat_gpm_data_raw],
+            marker='.', lw=0, s=10, color='k', zorder=1, label='used data'
+        )
+        if np.any(bpm):
+            ax.scatter(
+                spat_coo_data[bpm], spat_flat_data_raw[bpm], marker='.', lw=0, s=10, color='C3',
+                zorder=2, label='rejected data'
+            )
+        ax.plot(
+            spat_coo_data[spat_gpm_data_raw], spat_flat_data, color='C2', zorder=3,
+            label='filtered profile'
+        )
         ax.legend()
         ax.set_title('Optimized slit illumination profile')
         ax.set_xlabel('Spatial coordinate')
@@ -243,10 +248,13 @@ def construct_illum_profile(norm_spec, spat_coo, slitwidth, spat_gpm=None, spat_
     # Include the rejected data in the full image good-pixel mask
     _spat_gpm[_spat_gpm] = spat_gpm_data_raw[np.argsort(spat_srt, kind='stable')]
     # Recreate the illumination profile data
-    _spat_gpm, spat_srt, spat_coo_data, spat_flat_data_raw \
-            = sorted_flat_data(norm_spec, spat_coo, gpm=_spat_gpm)
-    return _spat_gpm, spat_srt, spat_coo_data, spat_flat_data_raw, \
-                illum_filter(spat_flat_data_raw, med_width)
+    spat_srt, spat_coo_data, spat_flat_data_raw = sorted_flat_data(
+        norm_spec, spat_coo, gpm=_spat_gpm
+    )
+    return (
+        _spat_gpm, spat_srt, spat_coo_data, spat_flat_data_raw,
+        illum_filter(spat_flat_data_raw, med_width)
+    )
 
 
 def illum_profile_spectral_poly(rawimg, waveimg, slitmask, slitmask_trim, model, slit_illum_ref_idx=0,
@@ -286,9 +294,9 @@ def illum_profile_spectral_poly(rawimg, waveimg, slitmask, slitmask_trim, model,
     scale_model: `numpy.ndarray`_
         An image containing the appropriate scaling
     """
-    msgs.info(f"Performing relative spectral sensitivity correction (reference slit = {slit_illum_ref_idx})")
+    log.info(f"Performing relative spectral sensitivity correction (reference slit = {slit_illum_ref_idx})")
     # Generate the mask
-    _thismask = thismask if (thismask is not None) else (slitmask > 0)
+    _thismask = thismask if (thismask is not None) else (slitmask != -1)
     gpm = gpmask if (gpmask is not None) else np.ones_like(rawimg, dtype=bool)
     # Extract the list of  spatial IDs from the slitmask
     slitmask_spatid = np.unique(slitmask)
@@ -302,6 +310,8 @@ def illum_profile_spectral_poly(rawimg, waveimg, slitmask, slitmask_trim, model,
         this_slit_trim = (slitmask_trim == spatid)
         this_slit_mask = gpm & this_slit_trim
         this_wave = waveimg[this_slit_mask]
+        if this_wave.size == 0:
+            continue
         wavedg = np.linspace(np.min(this_wave), np.max(this_wave), nbins + 1)
         wavcen = 0.5 * (wavedg[1:] + wavedg[:-1])
         scale_all = rawimg[this_slit_mask] * utils.inverse(model[this_slit_mask])
@@ -322,7 +332,7 @@ def illum_profile_spectral_poly(rawimg, waveimg, slitmask, slitmask_trim, model,
         if sl == slit_illum_ref_idx:
             scaleImg[_thismask] *= utils.inverse(np.polyval(coeff, waveimg[_thismask]))
     minv, maxv = np.min(scaleImg[_thismask]), np.max(scaleImg[_thismask])
-    msgs.info("Minimum/Maximum scales = {0:.5f}, {1:.5f}".format(minv, maxv))
+    log.info("Minimum/Maximum scales = {0:.5f}, {1:.5f}".format(minv, maxv))
     return scaleImg
 
 
@@ -348,9 +358,9 @@ def smooth_scale(arr, wave_ref=None, polydeg=None, sn_smooth_npix=None):
     """
     # Do some checks on the input
     if polydeg is not None and wave_ref is None:
-        msgs.error("Must provide a wavelength array if polydeg is not None")
+        raise PypeItError("Must provide a wavelength array if polydeg is not None")
     if polydeg is None and sn_smooth_npix is None:
-        msgs.error("Must provide either polydeg or sn_smooth_npix")
+        raise PypeItError("Must provide either polydeg or sn_smooth_npix")
     # Smooth the relative sensitivity array
     if polydeg is not None:
         gd = (arr != 0)
@@ -427,7 +437,7 @@ def poly_map(rawimg, rawivar, waveimg, slitmask, slitmask_trim, modelimg, deg=3,
     _fit_wghts = modelimg * np.sqrt(rawivar)
 
     # Generate the mask
-    _thismask = thismask if (thismask is not None) else (slitmask > 0)
+    _thismask = thismask if (thismask is not None) else (slitmask != -1)
     gpm = gpmask if (gpmask is not None) else np.ones_like(rawimg, dtype=bool)
     # Extract the list of  spatial IDs from the slitmask
     slitmask_spatid = np.unique(slitmask)
@@ -439,7 +449,7 @@ def poly_map(rawimg, rawivar, waveimg, slitmask, slitmask_trim, modelimg, deg=3,
                                      bounds_error=False, fill_value=0.0, assume_sorted=True)
     modelmap = np.ones_like(rawimg)
     relscale = np.ones_like(rawimg)
-    msgs.info("Generating a polynomial map between the model and the raw data")
+    log.info("Generating a polynomial map between the model and the raw data")
     for sl, spatid in enumerate(slitmask_spatid):
         # Prepare the masks, edges, and fitting variables
         this_slit = (slitmask == spatid)
@@ -514,7 +524,7 @@ def tweak_slit_edges_gradient(left, right, spat_coo, norm_flat, maxfrac=0.1, deb
     # Check input
     nspec = len(left)
     if len(right) != nspec:
-        msgs.error('Input left and right traces must have the same length!')
+        raise PypeItError('Input left and right traces must have the same length!')
 
     # Median slit width
     slitwidth = np.median(right - left)
@@ -534,20 +544,22 @@ def tweak_slit_edges_gradient(left, right, spat_coo, norm_flat, maxfrac=0.1, deb
 
     # Check if the shift is within the allowed range
     if np.abs(left_shift) > maxfrac:
-        msgs.warn('Left slit edge shift of {0:.1f}% exceeds the maximum allowed of {1:.1f}%'.format(
-                  100*left_shift, 100*maxfrac) + msgs.newline() +
-                  'The left edge will not be tweaked.')
+        log.warning(
+            f'Left slit edge shift of {100*left_shift:.1f}% exceeds the maximum allowed of '
+            f'{100*maxfrac:.1f}%\nThe left edge will not be tweaked.'
+        )
         left_shift = 0.0
     else:
-        msgs.info('Tweaking left slit boundary by {0:.1f}%'.format(100 * left_shift) +
+        log.info('Tweaking left slit boundary by {0:.1f}%'.format(100 * left_shift) +
                   ' ({0:.2f} pixels)'.format(left_shift * slitwidth))
     if np.abs(right_shift) > maxfrac:
-        msgs.warn('Right slit edge shift of {0:.1f}% exceeds the maximum allowed of {1:.1f}%'.format(
-                  100*right_shift, 100*maxfrac) + msgs.newline() +
-                  'The right edge will not be tweaked.')
+        log.warning(
+            f'Right slit edge shift of {100*right_shift:.1f}% exceeds the maximum allowed of '
+            f'{100*maxfrac:.1f}%\nThe right edge will not be tweaked.'
+        )
         right_shift = 0.0
     else:
-        msgs.info('Tweaking right slit boundary by {0:.1f}%'.format(100 * right_shift) +
+        log.info('Tweaking right slit boundary by {0:.1f}%'.format(100 * right_shift) +
                   ' ({0:.2f} pixels)'.format(right_shift * slitwidth))
 
     # Calculate the tweak for the left edge
@@ -632,7 +644,7 @@ def tweak_slit_edges_threshold(left, right, spat_coo, norm_flat, thresh=0.93, ma
     # Check input
     nspec = len(left)
     if len(right) != nspec:
-        msgs.error('Input left and right traces must have the same length!')
+        raise PypeItError('Input left and right traces must have the same length!')
 
     # Median slit width
     slitwidth = np.median(right - left)
@@ -648,7 +660,7 @@ def tweak_slit_edges_threshold(left, right, spat_coo, norm_flat, thresh=0.93, ma
     # TODO: Set a parameter for this
     ileft = (spat_coo > 0.1) & (spat_coo < 0.4)
     if not np.any(ileft):
-        msgs.error('No coordinates toward the left of the slit center.  Slit boundaries are '
+        raise PypeItError('No coordinates toward the left of the slit center.  Slit boundaries are '
                    'likely in error, and you probably have a bad (very short) slit.  Slit center '
                    'at center row is {0:.1f}.'.format((left[nspec//2] + right[nspec//2])/2))
     left_thresh = thresh * np.amax(norm_flat[ileft])
@@ -668,29 +680,29 @@ def tweak_slit_edges_threshold(left, right, spat_coo, norm_flat, thresh=0.93, ma
             if debug:
                 plt.scatter(spat_coo[masked_flat.mask], norm_flat[masked_flat.mask], marker='.',
                             s=10, color='C3', lw=0)
-                plt.scatter(spat_coo[np.invert(masked_flat.mask)],
-                            norm_flat[np.invert(masked_flat.mask)], marker='.', s=10, color='k',
+                plt.scatter(spat_coo[np.logical_not(masked_flat.mask)],
+                            norm_flat[np.logical_not(masked_flat.mask)], marker='.', s=10, color='k',
                             lw=0)
                 plt.show()
-            msgs.error('Tweak left edge has failed!  Bad continuous region.')
+            raise PypeItError('Tweak left edge has failed!  Bad continuous region.')
         i = contiguous_region.stop-1
         if i >= 0 and norm_flat[i-1] > norm_flat[i]:
-            msgs.warn('When adjusting left edge, found noisy illumination profile structure.')
+            log.warning('When adjusting left edge, found noisy illumination profile structure.')
         if debug:
             plt.scatter(spat_coo[masked_flat.mask], norm_flat[masked_flat.mask], marker='.', s=10,
                         color='C3', lw=0)
-            plt.scatter(spat_coo[np.invert(masked_flat.mask)],
-                        norm_flat[np.invert(masked_flat.mask)], marker='.', s=10, color='k', lw=0)
+            plt.scatter(spat_coo[np.logical_not(masked_flat.mask)],
+                        norm_flat[np.logical_not(masked_flat.mask)], marker='.', s=10, color='k', lw=0)
             plt.scatter(spat_coo[i], norm_flat[i], marker='o', facecolor='none', s=50, color='C1')
             plt.show()
         if norm_flat[i+1] < left_thresh:
-            msgs.warn('Left slit boundary tweak limited by maximum allowed shift: {:.1f}%'.format(
+            log.warning('Left slit boundary tweak limited by maximum allowed shift: {:.1f}%'.format(
                         100*maxfrac))
             left_shift = maxfrac
         else:
             left_shift = utils.linear_interpolate(norm_flat[i], spat_coo[i], norm_flat[i+1],
                                                   spat_coo[i+1], left_thresh)
-        msgs.info('Tweaking left slit boundary by {0:.1f}%'.format(100*left_shift) +
+        log.info('Tweaking left slit boundary by {0:.1f}%'.format(100*left_shift) +
                   ' ({0:.2f} pixels)'.format(left_shift*slitwidth))
         new_left += left_shift * slitwidth
 
@@ -701,7 +713,7 @@ def tweak_slit_edges_threshold(left, right, spat_coo, norm_flat, thresh=0.93, ma
     # TODO: Set a parameter for this
     iright = (spat_coo > 0.6) & (spat_coo < 0.9)
     if not np.any(iright):
-        msgs.error('No coordinates toward the right of the slit center.  Slit boundaries are '
+        raise PypeItError('No coordinates toward the right of the slit center.  Slit boundaries are '
                    'likely in error, and you probably have a bad (very short) slit.  Slit center '
                    'at center row is {0:.1f}.'.format((left[nspec//2] + right[nspec//2])/2))
     right_thresh = thresh * np.amax(norm_flat[iright])
@@ -722,29 +734,29 @@ def tweak_slit_edges_threshold(left, right, spat_coo, norm_flat, thresh=0.93, ma
             if debug:
                 plt.scatter(spat_coo[masked_flat.mask], norm_flat[masked_flat.mask], marker='.',
                             s=10, color='C3', lw=0)
-                plt.scatter(spat_coo[np.invert(masked_flat.mask)],
-                            norm_flat[np.invert(masked_flat.mask)], marker='.', s=10, color='k',
+                plt.scatter(spat_coo[np.logical_not(masked_flat.mask)],
+                            norm_flat[np.logical_not(masked_flat.mask)], marker='.', s=10, color='k',
                             lw=0)
                 plt.show()
-            msgs.error('Tweak right edge has failed!  Bad continuous region.')
+            raise PypeItError('Tweak right edge has failed!  Bad continuous region.')
         i = contiguous_region.start
         if i < norm_flat.size-1 and norm_flat[i+1] > norm_flat[i]:
-            msgs.warn('When adjusting right edge, found noisy illumination profile structure.')
+            log.warning('When adjusting right edge, found noisy illumination profile structure.')
         if debug:
             plt.scatter(spat_coo[masked_flat.mask], norm_flat[masked_flat.mask], marker='.', s=10,
                         color='C3', lw=0)
-            plt.scatter(spat_coo[np.invert(masked_flat.mask)],
-                        norm_flat[np.invert(masked_flat.mask)], marker='.', s=10, color='k', lw=0)
+            plt.scatter(spat_coo[np.logical_not(masked_flat.mask)],
+                        norm_flat[np.logical_not(masked_flat.mask)], marker='.', s=10, color='k', lw=0)
             plt.scatter(spat_coo[i], norm_flat[i], marker='o', facecolor='none', s=50, color='C1')
             plt.show()
         if norm_flat[i-1] < right_thresh:
-            msgs.warn('Right slit boundary tweak limited by maximum allowed shift: {:.1f}%'.format(
+            log.warning('Right slit boundary tweak limited by maximum allowed shift: {:.1f}%'.format(
                         100*maxfrac))
             right_shift = maxfrac
         else:
             right_shift = 1-utils.linear_interpolate(norm_flat[i-1], spat_coo[i-1], norm_flat[i],
                                                      spat_coo[i], right_thresh)
-        msgs.info('Tweaking right slit boundary by {0:.1f}%'.format(100*right_shift) +
+        log.info('Tweaking right slit boundary by {0:.1f}%'.format(100*right_shift) +
                   ' ({0:.2f} pixels)'.format(right_shift*slitwidth))
         new_right -= right_shift * slitwidth
 
@@ -777,9 +789,9 @@ def flatfield(sciframe, flatframe, varframe=None):
         science frame.
     """
     if flatframe.shape != sciframe.shape:
-        msgs.error('Shape of flat frame does not match science frame.')
+        raise PypeItError('Shape of flat frame does not match science frame.')
     if varframe is not None and varframe.shape != sciframe.shape:
-        msgs.error('Shape of variance frame does not match science frame.')
+        raise PypeItError('Shape of variance frame does not match science frame.')
 
     # New image
     retframe = np.zeros_like(sciframe)

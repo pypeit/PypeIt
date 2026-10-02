@@ -320,12 +320,7 @@ class :class:`~pypeit.onespec.OneSpec`, such that its file extensions are:
 
 .. include:: include/datamodel_onespec.rst
 
-You view the spectrum using the ``lt_xspec`` script, which loads the data
-and launches a GUI from the `linetools`_ package. e.g.:
-
-.. code-block:: console
-
-    lt_xspec J1342_GNIRS_tellcorr.fits
+You view the spectrum using the :ref:`pypeit_show_1dspec`.
 
 The best-fitting telluric model is a two extension fits file, where the 2nd
 extension is identical to one of the extensions from the

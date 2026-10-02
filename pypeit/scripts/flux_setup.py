@@ -12,7 +12,7 @@ import numpy as np
 
 from astropy.table import Table
 
-from pypeit import msgs
+from pypeit import log
 from pypeit import io
 from pypeit.scripts import scriptbase
 from pypeit import inputfiles
@@ -23,7 +23,7 @@ def match_spec1ds_to_sensfuncs(spectrograph_name, spec1dfiles, sensfiles):
     This needs a docstring
     """
     result_map = {}
-    spectrograph = load_spectrograph(spectrograph_name)
+    spectrograph = load_spectrograph(spectrograph_name, pypeit_fits=True)
 
     # Read configurations of each sensfile
     sens_configs = []
@@ -68,8 +68,8 @@ class FluxSetup(scriptbase.ScriptBase):
                                  '\n')
         return parser
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
         """
         This setups PypeIt input files for fluxing, coadding, and telluric
         corrections.  It will produce three files named as
@@ -77,6 +77,9 @@ class FluxSetup(scriptbase.ScriptBase):
         spectrograph name but can be overriden on the command line.
 
         """
+        # Initialize the log
+        cls.init_log(args)
+
         allfiles = []
         for path in args.paths:
             allfiles += Path(path).iterdir()
@@ -97,12 +100,12 @@ class FluxSetup(scriptbase.ScriptBase):
                 sensfiles.append(ifile)
                 unique_paths.add(str(ifile.parent))
             else:
-                msgs.info('{:} is not a standard PypeIt output, skipping.'.format(ifile))
+                log.info('{:} is not a standard PypeIt output, skipping.'.format(ifile))
         if len(spec2dfiles) > len(spec1dfiles):
-            msgs.warn('The following exposures do not have 1D extractions:')
+            log.warning('The following exposures do not have 1D extractions:')
             for ii in range(len(spec2dfiles)):
                 if (spec2dfiles[ii].parent / spec2dfiles[ii].name.replace("spec2d", "spec1d")).exists():
-                    msgs.info('\t {:}'.format(spec2dfiles[ii]))
+                    log.info('\t {:}'.format(spec2dfiles[ii]))
 
         if len(spec1dfiles) > 0:
             with io.fits_open(spec1dfiles[0]) as hdul:

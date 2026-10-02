@@ -11,7 +11,7 @@ import numpy as np
 
 from astropy.io import fits
 
-from pypeit.pypmsgs import PypeItError
+from pypeit import PypeItError
 from pypeit.images import pypeitimage
 from pypeit.images import imagebitmask
 from pypeit.tests.tstutils import data_output_path

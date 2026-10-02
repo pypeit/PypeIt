@@ -13,8 +13,8 @@ import numpy as np
 
 from astropy.io import fits
 
-from pypeit import msgs
-from pypeit.pypmsgs import PypeItError
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import datamodel
 from pypeit import io
 
@@ -76,12 +76,12 @@ class CalibFrame(datamodel.DataContainer):
 
         """
         if self.calib_type is None:
-            msgs.error(f'CODING ERROR: Must define calib_type for {self.__class__.__name__}.')
+            raise PypeItError(f'CODING ERROR: Must define calib_type for {self.__class__.__name__}.')
         if self.datamodel is None:
-            msgs.error(f'CODING ERROR: datamodel cannot be None for {self.__class__.__name__}.')
+            raise PypeItError(f'CODING ERROR: datamodel cannot be None for {self.__class__.__name__}.')
         for key in CalibFrame.datamodel.keys():
             if key not in self.keys():
-                msgs.error(f'CODING ERROR: datamodel for {self.__class__.__name__} must inherit '
+                raise PypeItError(f'CODING ERROR: datamodel for {self.__class__.__name__} must inherit '
                            'all datamodel components from CalibFrame.datamodel.')
 
     def set_paths(self, odir, setup, calib_id, detname):
@@ -93,7 +93,7 @@ class CalibFrame(datamodel.DataContainer):
         :attr:`calib_id`, and :attr:`calib_key`.
 
         Args:
-            odir (:obj:`str`, `Path`_):
+            odir (:obj:`str`, :class:`~pathlib.Path`):
                 Output directory for the processed calibration frames
             setup (:obj:`str`):
                 The string identifier for the instrument setup/configuration;
@@ -197,11 +197,11 @@ class CalibFrame(datamodel.DataContainer):
         try:
             self.calib_key, self.calib_dir = CalibFrame.parse_key_dir(hdr)
         except PypeItError as e:
-            msgs.warn(f'{e}')
+            log.warning(f'{e}')
         if 'CALIBID' in hdr:
             self.calib_id = self.ingest_calib_id(hdr['CALIBID'])
         else:
-            msgs.warn('Header does not have CALIBID card; cannot parse calibration IDs.')
+            log.warning('Header does not have CALIBID card; cannot parse calibration IDs.')
 
     @staticmethod
     def parse_key_dir(inp, from_filename=False):
@@ -233,16 +233,16 @@ class CalibFrame(datamodel.DataContainer):
                         ext = h.name
                         break
                 if ext is None:
-                    msgs.error(f'None of the headers in {inp} have both CALIBKEY and CALIBDIR '
+                    raise PypeItError(f'None of the headers in {inp} have both CALIBKEY and CALIBDIR '
                                'keywords!')
                 return hdu[ext].header['CALIBKEY'], hdu[ext].header['CALIBDIR']
 
         if isinstance(inp, fits.Header):
             if 'CALIBKEY' not in inp or 'CALIBDIR' not in inp:
-                msgs.error('Header does not include CALIBKEY and/or CALIBDIR.')
+                raise PypeItError('Header does not include CALIBKEY and/or CALIBDIR.')
             return inp['CALIBKEY'], inp['CALIBDIR']
 
-        msgs.error(f'Input object must have type str or astropy.io.fits.Header, not {type(inp)}.')
+        raise PypeItError(f'Input object must have type str or astropy.io.fits.Header, not {type(inp)}.')
 
     @staticmethod
     def ingest_calib_id(calib_id):
@@ -284,7 +284,7 @@ class CalibFrame(datamodel.DataContainer):
             _calib_id = [calib_id]
         _calib_id = np.unique(np.concatenate([str(c).split(',') for c in _calib_id]))
         if 'all' in _calib_id and len(_calib_id) != 1:
-            msgs.warn(f'Calibration groups set to {_calib_id}, resetting to simply "all".')
+            log.warning(f'Calibration groups set to {_calib_id}, resetting to simply "all".')
             _calib_id = np.array(['all'])
         for c in _calib_id:
             if c == 'all':
@@ -293,7 +293,7 @@ class CalibFrame(datamodel.DataContainer):
                 _c = int(c)
             except ValueError:
                 # TODO: Not sure this is strictly necessary
-                msgs.error(f'Invalid calibration group {c}; must be convertible to an integer.')
+                raise PypeItError(f'Invalid calibration group {c}; must be convertible to an integer.')
         return _calib_id.tolist()
 
     @staticmethod
@@ -429,10 +429,10 @@ class CalibFrame(datamodel.DataContainer):
             otherwise the file name
         """
         if None in [cls.calib_type, cls.calib_file_format]:
-            msgs.error(f'CODING ERROR: {cls.__name__} does not have all '
+            raise PypeItError(f'CODING ERROR: {cls.__name__} does not have all '
                        'the attributes needed to construct its filename.')
         if calib_key is None:
-            msgs.error('CODING ERROR: calib_key cannot be None when constructing the '
+            raise PypeItError('CODING ERROR: calib_key cannot be None when constructing the '
                        f'{cls.__name__} file name.')
         filename = f'{cls.calib_type}_{calib_key}.{cls.calib_file_format}'
         return filename if calib_dir is None else Path(calib_dir).absolute() / filename

@@ -1,6 +1,6 @@
 """ Module for arcline definitions
 """
-from pypeit.bitmask import BitMask
+from pypeit.core.bitmask import BitMask
 
 # TODO: This doesn't belong here.
 def instruments():
@@ -60,6 +60,8 @@ class LinesBitMask(BitMask):
             ('ArII', 'Comment'),
             ('ThI', 'Comment'),
             ('ThII', 'Comment'),
+            ('ThIII', 'Used the in the Murphy ThAr_lines.dat list'),
+            ('NiI', 'Used the in the Murphy ThAr_lines.dat list'),
             #('OH_XSHOOTER', 'Comment'),
             #('OH_GNIRS', 'Comment'),
             #('OH_NIRES', 'Comment'),

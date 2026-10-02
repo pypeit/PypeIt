@@ -5,7 +5,8 @@ Module for MDM/OSMOS specific methods.
 """
 import numpy as np
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
@@ -147,7 +148,7 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
             binspec = headarr[0]['CCDYBIN']
             return parse.binning2string(binspec, binspatial)
         else:
-            msgs.error("Not ready for this compound meta")
+            raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -231,7 +232,7 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc','tilt']:
             return good_exp & np.array([ilamp in ['Ar','Xe'] for ilamp in fitstbl['lampstat01']]) & (fitstbl['idname'] == 'COMP')
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
 
@@ -324,7 +325,7 @@ class MDMOSMOSR4KSpectrograph(MDMOSMOSMDM4KSpectrograph):
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc','tilt']:
             return good_exp & (fitstbl['idname'] == 'COMP') 
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
     @classmethod

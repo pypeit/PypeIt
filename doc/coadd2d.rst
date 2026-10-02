@@ -178,6 +178,102 @@ location by modifying `--basename`_.
 
 **For worked examples,** see :doc:`tutorials/coadd2d_howto`.
 
+.. _known_issues_coadd2d:
+
+Known Issues and Workarounds
+============================
+
+Input frames with variable object spatial position and signal-to-noise
+----------------------------------------------------------------------
+
+In the case where an object drifts spatially along the slit between exposures
+(or purposfully moves through dither patterns), ``pypeit_coadd_2dspec``
+computes the offset between the object trace in each of the input images with
+respect to the first image.  This is controlled through the parameters:
+
+.. code-block:: ini
+
+    [coadd2d]
+        offsets = auto
+        spat_toler = 5
+
+Because ``pypeit_coadd_2dspec`` rebins the input input images onto a common
+grid for the coaddition, the default execution is to refind all objects in each
+of the input frames and target the brightest one as the object of interest.
+
+There are two primary failure modes for (typically longslit) data sets in this
+category when ``offsets = auto``:
+
+#. The presence of intermittent clouds during the observation sequence causes
+   one or more of the input frames to have no object over the ``snr_thresh``
+   detection threshold.  Even if the user perfomed a :ref:`manual`, the code
+   will attempt to refind objects on the slit `de nouveau`.  If none can be
+   found, the code will crash with an error.
+
+#. The object of interest is not the brightest object along the slit in every
+   (or any) frame.  This may occur when tracking solar system objects and
+   various field stars cross the slit, or if the target of interest is in a
+   crowded field and multiple objects appear on the slit.  This failure mode,
+   more common with longslit than multislit observations, will not cause the
+   script to crash, but will not result in the desired coaddition of the
+   desired object.
+
+It should be noted that if offsets are computed by hand and included in the
+``.coadd2d`` file parameter block or are zero (`e.g.`, because of stable
+guiding), then these failure modes are not present.
+
+The workaround for automatic offset computation is to include the ``SPAT``
+identifiction code of the desired object for each of the input frames in the
+``.coadd2d`` file parameter block.  For instance, if you were to query the
+input frame ``spec1d_*.txt`` files like this:
+
+.. code-block::
+
+    $ cat Science/spec1d_20251027.0{210..212}*txt                                                                                            10:57:07
+
+    | slit |                    name | obj_id | spat_pixpos | spat_fracpos | box_width | opt_fwhm |  s2n | manual_extract | wv_rms |
+    |  241 | SPAT0105-SLIT0241-DET01 |    105 |       105.3 |        0.214 |      3.80 |    1.863 | 2.64 |          False |  0.120 |
+    |  241 | SPAT0171-SLIT0241-DET01 |    171 |       171.2 |        0.353 |      3.80 |    1.555 | 3.90 |          False |  0.120 |
+    |  241 | SPAT0244-SLIT0241-DET01 |    244 |       244.0 |        0.506 |      3.80 |    1.081 | 2.20 |           True |  0.120 |
+    |  241 | SPAT0276-SLIT0241-DET01 |    276 |       276.4 |        0.576 |      3.80 |    2.010 | 8.85 |          False |  0.120 |
+    |  241 | SPAT0307-SLIT0241-DET01 |    307 |       306.9 |        0.641 |      3.80 |    1.465 | 4.51 |          False |  0.120 |
+    |  241 | SPAT0375-SLIT0241-DET01 |    375 |       375.4 |        0.785 |      3.80 |    1.777 | 6.19 |          False |  0.120 |
+    | slit |                    name | obj_id | spat_pixpos | spat_fracpos | box_width | opt_fwhm |   s2n | wv_rms |
+    |  241 | SPAT0243-SLIT0241-DET01 |    243 |       243.2 |        0.506 |      3.80 |    1.196 |  3.66 |  0.120 |
+    |  241 | SPAT0316-SLIT0241-DET01 |    316 |       315.5 |        0.658 |      3.80 |    1.568 |  2.18 |  0.120 |
+    |  241 | SPAT0404-SLIT0241-DET01 |    404 |       404.3 |        0.846 |      3.80 |    1.653 | 13.00 |  0.120 |
+    | slit |                    name | obj_id | spat_pixpos | spat_fracpos | box_width | opt_fwhm |   s2n | wv_rms |
+    |  241 | SPAT0008-SLIT0241-DET01 |      8 |         8.1 |        0.009 |      3.80 |    1.660 |  1.98 |  0.120 |
+    |  241 | SPAT0100-SLIT0241-DET01 |    100 |       100.4 |        0.203 |      3.80 |    1.307 |  1.81 |  0.120 |
+    |  241 | SPAT0170-SLIT0241-DET01 |    170 |       169.9 |        0.351 |      3.80 |    1.636 | 49.83 |  0.120 |
+    |  241 | SPAT0241-SLIT0241-DET01 |    241 |       241.0 |        0.501 |      3.80 |    1.883 | 12.04 |  0.120 |
+    |  241 | SPAT0385-SLIT0241-DET01 |    385 |       384.7 |        0.805 |      3.80 |    1.559 |  2.32 |  0.120 |
+
+and you knew you were looking for an object near the center of the slit
+(``SLIT0241``), you would specify the ``user_obj_ids`` for this object in this
+fashion:
+
+.. code-block:: ini
+
+    [coadd2d]
+        offsets = auto
+        spat_toler = 5
+        user_obj_ids = 244, 243, 241
+
+The offset-computation routine will now compute the transformed location of
+each trace in the rebinned output image, and will perform a manual extraction
+in order to determine the proper offsets for the coaddition.  Please note that
+the object finding and extraction of the object in the coadded frame is
+unaffected by this workaround -- it is entirely for the benefit of computing
+spatial offsets between the individual input frames for the purpose of
+alignment.
+
+You will notice in the example ``spec1d*.txt`` files above, the object of
+interest was the not the brightest object in any of the input frames.
+Furthermore, one of the frames was affected by clouds and the object was
+manually extracted prior to the coaddition attempt.
+
+
 .. _coadd2d_datamodel:
 
 Current Coadd2D Data Model

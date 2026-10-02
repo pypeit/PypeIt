@@ -8,6 +8,8 @@ Submodules
    :maxdepth: 4
 
    pypeit.scripts.arxiv_solution
+   pypeit.scripts.binospec_ifu_cube
+   pypeit.scripts.binospec_ifu_extract
    pypeit.scripts.cache_github_data
    pypeit.scripts.chk_alignments
    pypeit.scripts.chk_edges
@@ -27,6 +29,7 @@ Submodules
    pypeit.scripts.collate_1d
    pypeit.scripts.compare_sky
    pypeit.scripts.compile_wvarxiv
+   pypeit.scripts.dashboard
    pypeit.scripts.edge_inspector
    pypeit.scripts.extract_datacube
    pypeit.scripts.flux_calib
@@ -44,6 +47,7 @@ Submodules
    pypeit.scripts.print_bpm
    pypeit.scripts.qa_html
    pypeit.scripts.ql
+   pypeit.scripts.rectify_2dspec
    pypeit.scripts.reduce_by_step
    pypeit.scripts.run_pypeit
    pypeit.scripts.run_to_calibstep
@@ -51,14 +55,17 @@ Submodules
    pypeit.scripts.sensfunc
    pypeit.scripts.setup
    pypeit.scripts.setup_coadd2d
+   pypeit.scripts.setup_datacube
    pypeit.scripts.show_1dspec
    pypeit.scripts.show_2dspec
    pypeit.scripts.show_arxiv
    pypeit.scripts.show_pixflat
    pypeit.scripts.show_wvcalib
    pypeit.scripts.skysub_regions
+   pypeit.scripts.status
    pypeit.scripts.tellfit
    pypeit.scripts.trace_edges
+   pypeit.scripts.util
    pypeit.scripts.version
    pypeit.scripts.view_fits
 
@@ -68,5 +75,5 @@ Module contents
 .. automodule:: pypeit.scripts
    :members:
    :private-members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:

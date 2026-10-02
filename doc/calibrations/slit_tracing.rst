@@ -86,11 +86,10 @@ The script usage can be displayed by calling the script with the
 
 .. include:: ../help/pypeit_trace_edges.rst
 
-Specifically note that the ``--show`` option will show you the result of the
-tracing after each main step in the process.  The ``--debug`` option provides
-additional output that can be used to diagnose the parameterized fits to the
-edge traces and the PCA decomposition.  Fair warning that, for images with many
-slits, these plots can be laborious to wade through...
+Specifically note that the ``--debug`` option generates different levels
+of debugging output at each step of the tracing process. This helps diagnose
+issues with the parameterized fits to the edge traces and the PCA decomposition.
+Fair warning that, for images with many slits, these plots can be laborious to wade through...
 
 pypeit_edge_inspector
 ---------------------

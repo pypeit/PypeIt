@@ -14,9 +14,9 @@ from astropy.io import ascii
 from IPython import embed
 import numpy as np
 
-from pypeit import msgs
+from pypeit import log
 from pypeit import dataPaths
-from pypeit.pypmsgs import PypeItError
+from pypeit import PypeItError
 from pypeit.core import spectrum
 from pypeit.core.meta import convert_radec
 from pypeit.core.wave import airtovac
@@ -25,8 +25,7 @@ from pypeit.utils import all_subclasses
 
 def mAB_to_cgs(wave, mAB):
     r"""
-    Convert AB magnitudes to :math:`F_\lambda` in the cgs units :math:`{\rm
-    erg/cm}^2{\rm/s}/\AA`.
+    Convert AB magnitudes to :math:`F_\lambda` in the cgs units :math:`{\rm erg/cm}^2{\rm/s}/\AA`.
 
     Parameters
     ----------
@@ -70,12 +69,12 @@ def archive_entry(archive, name):
     # Get the file
     star_file = stds_path.get_file_path(f'{archive}_info.txt')
     if not star_file.is_file():
-        msgs.error(f'File does not exist!: {star_file}')
+        raise PypeItError(f'File does not exist!: {star_file}')
 
     star_tbl = table.Table.read(star_file, comment='#', format='ascii')
     idx = np.where(star_tbl['Name'] == name)[0]
     if len(idx) != 1:
-        msgs.error(f'{name} is not a named source in {star_file}.')
+        raise PypeItError(f'{name} is not a named source in {star_file}.')
     return star_tbl[idx[0]]
 
 
@@ -112,14 +111,14 @@ def nearest_archive_entry(archive, ra, dec, unit=None):
         _unit = unit
     obj_coord = coordinates.SkyCoord([ra], [dec], unit=_unit)
     if obj_coord.size > 1:
-        msgs.error('Matching to archive can only be done one object at a time.')
+        raise PypeItError('Matching to archive can only be done one object at a time.')
 
     # Set the path (creates a new PypeItDataPath object)
     stds_path = dataPaths.standards / archive
     # Get the file
     star_file = stds_path.get_file_path(f"{archive}_info.txt")
     if not star_file.is_file():
-        msgs.error(f"File does not exist!: {star_file}")
+        raise PypeItError(f"File does not exist!: {star_file}")
 
     star_tbl = table.Table.read(star_file, comment='#', format='ascii')
     star_coords = coordinates.SkyCoord(star_tbl['RA_2000'], star_tbl['DEC_2000'],
@@ -218,8 +217,16 @@ class ArchivedFluxStandard(spectrum.Spectrum):
         """
         sep, row = nearest_archive_entry(cls.archive, ra, dec, unit=unit)
         if sep > tol * units.arcmin:
-            msgs.error(f'Closest object ({row["Name"]}) is separated by {sep.to("arcmin").value} '
-                       f'arcmin, which is beyond the required tolerance ({tol} arcmin).')
+            raise PypeItError(
+                f'Closest object ({row["Name"]}) in archive "{cls.archive}" is separated by '
+                f'{sep.to("arcmin").value:.2f} arcmin, which is beyond the required tolerance '
+                f'({tol} arcmin).'
+            )
+        else:
+            log.info(
+                f'Using object {row["Name"]} in archive "{cls.archive}" (sep = '
+                f'{sep.to("arcmin").value:.2f} arcmin).'
+            )
         return cls(row['File'], meta=cls._init_meta(row=row))
     
     @classmethod
@@ -268,6 +275,26 @@ class CalSpecFluxStandard(ArchivedFluxStandard):
             flux = hdu[1].data['FLUX'] * 1e17
         super().__init__(wave, flux, meta=meta)
 
+class LBTMODSFluxStandard(ArchivedFluxStandard):
+    """
+    Container class for an "lbtmods" standard star spectrum.
+    These are tabulated standard star fluxes in >=10-A bins. 
+
+    For MODS, use calspec, except for Feige66, Feige67, BD+33 2642 and HZ44, 
+    where the calspec spectrum does not cover the full spectral range 3200-10000 angstroms.
+
+    The lbtmods archive also contains tables for standards that used to be observed
+    with MODS and which do not have spectra in calspec.
+    """
+    archive = 'lbtmods'
+    path = dataPaths.standards / archive
+
+    def __init__(self, file, meta=None):
+        self.file = self.path.get_file_path(file)
+        std_spec = table.Table.read(self.file, format='ascii')
+        wave = std_spec['col1']
+        flux = mAB_to_cgs(std_spec['col1'], std_spec['col2']) * 1e17
+        super().__init__(wave, flux, meta=meta)
 
 class ESOFilFluxStandard(ArchivedFluxStandard):
     """
@@ -512,7 +539,7 @@ class BlackbodyStandard(ModelFluxStandard):
         """
         sep, row = nearest_archive_entry(cls.model_type, ra, dec, unit=unit)
         if sep > tol * units.arcmin:
-            msgs.error(f'Closest object ({row["Name"]}) is separated by {sep.to("arcmin").value} '
+            raise PypeItError(f'Closest object ({row["Name"]}) is separated by {sep.to("arcmin").value} '
                        f'arcmin, which is beyond the required tolerance ({tol} arcmin).')
         return cls(row['a_x10m23'], row['T_K'], wave=wave, meta=cls._init_meta(row=row))
 
@@ -578,7 +605,7 @@ class KuruczModelStandard(ModelFluxStandard):
         # interpolate across types.
         indx = np.where(spectral_type == sk82_tab['Sp'])[0]
         if len(indx) != 1:
-            msgs.error(
+            raise PypeItError(
                 f'Provided spectral type {spectral_type} not available in Schmidt-Kaler (1982) '
                 'table.  See the KuruczModelStandard API.'
             )
@@ -701,7 +728,7 @@ class PseudoStandard(ModelFluxStandard):
         return super().__init__(_wave, np.ones(_wave.shape, dtype=float), meta=self._init_meta())
 
 
-def get_archive_sets(archives=['xshooter', 'calspec', 'esofil', 'noao', 'ing']):
+def get_archive_sets(archives=['xshooter', 'calspec', 'esofil', 'noao', 'ing', 'lbtmods']):
     """
     Helper function to setup the prioritized list of archive sets to search
     through when matching a set of coordinates to a file containing the flux
@@ -729,10 +756,10 @@ def get_archive_sets(archives=['xshooter', 'calspec', 'esofil', 'noao', 'ing']):
     good = np.ones(len(_archives), dtype=bool)
     for i, s in enumerate(_archives):
         if s not in archive_classes.keys():
-            msgs.warn(f'{s} is not a recognized archive of standard spectra.  Ignoring.')
+            log.warning(f'{s} is not a recognized archive of standard spectra.  Ignoring.')
             good[i] = False
     if not any(good):
-        msgs.error('None of the provided standard spectra archives are valid.  Try using '
+        raise PypeItError('None of the provided standard spectra archives are valid.  Try using '
                    'the default list.')
     return _archives[good]
 
@@ -825,7 +852,7 @@ def get_archive_standard(ra, dec, tol=20., unit=None, archives='default', check=
     res = np.asarray(list([nearest_archive_entry(key, ra, dec, unit=unit) for key in _archives]))
     indx = np.argmin(res[:,0])
     sep, row = res[indx]
-    msgs.error(f'Unable to find a standard star within {tol:.1f} arcmin of RA={ra}, DEC={dec} in '
+    raise PypeItError(f'Unable to find a standard star within {tol:.1f} arcmin of RA={ra}, DEC={dec} in '
                f'the following archives: {_archives}.  The nearest object is {row["Name"]} in '
                f'{_archives[indx]} at RA={row["RA_2000"]}, DEC={row["DEC_2000"]}, separated by '
                f'{sep.to("arcmin").value:.1f} arcmin.')
@@ -875,8 +902,10 @@ def get_model_standard(spectral_type, V_mag):
             return KuruczModelStandard(V_mag, spectral_type)
 
 
-def get_standard_spectrum(spectral_type=None, V_mag=None, ra=None, dec=None, tol=20., unit=None,
-                          archives='default'):
+
+def get_standard_spectrum(
+    archives='default', spectral_type=None, V_mag=None, ra=None, dec=None, tol=20., unit=None
+):
     """
     Return a standard spectrum.
 
@@ -888,6 +917,11 @@ def get_standard_spectrum(spectral_type=None, V_mag=None, ra=None, dec=None, tol
 
     Parameters
     ----------
+    archives : str, optional
+        The specific archive to search for the spectrum.  If ``'default'``, the
+        search will proceed through the priortized list provided by
+        :func:`~pypeit.core.standard.get_archive_sets`.  Otherwise, it will only
+        search the single archive provided.
     spectral_type : str, optional
         The spectral type of the star or the signifier of the spectrum to use.
         See :func:`~pypeit.core.standard.get_model_standard`.
@@ -914,7 +948,7 @@ def get_standard_spectrum(spectral_type=None, V_mag=None, ra=None, dec=None, tol
     if spectral_type is not None and V_mag is not None:
         return get_model_standard(spectral_type, V_mag)
     if ra is None or dec is None:
-        msgs.error('Insufficient data provided to determine the appropriate standard spectrum.  '
+        raise PypeItError('Insufficient data provided to determine the appropriate standard spectrum.  '
                    'Provide either the coordinates of the standard or a stellar type and '
                    'magnitude.')
     return get_archive_standard(ra, dec, tol=tol, unit=unit, archives=archives)

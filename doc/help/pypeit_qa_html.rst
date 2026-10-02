@@ -1,15 +1,29 @@
 .. code-block:: console
 
     $ pypeit_qa_html -h
-    usage: pypeit_qa_html [-h] [--qapath QAPATH] pypeit_file type
+    usage: pypeit_qa_html [-h] [-v VERBOSITY] [--log_file LOG_FILE]
+                          [--log_level LOG_LEVEL] [--qapath QAPATH]
+                          pypeit_file type
     
     Script to build HTML files for PYPIT QA.
     
     positional arguments:
-      pypeit_file      PYPIT file
-      type             QA Type (MF, exp, all)
+      pypeit_file           PYPIT file
+      type                  QA Type (MF, exp, all)
     
     options:
-      -h, --help       show this help message and exit
-      --qapath QAPATH  Path the QA folder including QA/) (default: QA/)
+      -h, --help            show this help message and exit
+      -v, --verbosity VERBOSITY
+                            Verbosity level, which must be 0, 1, or 2. Level 0
+                            includes warning and error messages, level 1 adds
+                            informational messages, and level 2 adds debugging
+                            messages and the calling sequence. (default: 2)
+      --log_file LOG_FILE   Name for the log file. If set to "default", a default
+                            name is used. If None, a log file is not produced.
+                            (default: None)
+      --log_level LOG_LEVEL
+                            Verbosity level for the log file. If a log file is
+                            produce and this is None, the file log will match the
+                            console stream log. (default: None)
+      --qapath QAPATH       Path the QA folder including QA/) (default: QA/)
     

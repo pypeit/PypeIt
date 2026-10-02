@@ -12,7 +12,6 @@ Submodules
    pypeit.core.wavecal.echelle
    pypeit.core.wavecal.kdtree_generator
    pypeit.core.wavecal.patterns
-   pypeit.core.wavecal.templates
    pypeit.core.wavecal.waveio
    pypeit.core.wavecal.wv_fitting
    pypeit.core.wavecal.wvutils
@@ -23,5 +22,5 @@ Module contents
 .. automodule:: pypeit.core.wavecal
    :members:
    :private-members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:

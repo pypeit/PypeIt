@@ -14,13 +14,14 @@ from IPython import embed
 from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import slittrace
 from pypeit import specobjs
 from pypeit import io
 from pypeit import utils
 from pypeit import __version__
-from pypeit.pypmsgs import PypeItDataModelError, PypeItBitMaskError
+from pypeit import PypeItDataModelError, PypeItBitMaskError
 
 from pypeit.display import display
 from pypeit.images.imagebitmask import ImageBitMask
@@ -73,7 +74,7 @@ def show_trace(sobjs, det, viewer, ch):
         display.show_trace(viewer, ch, np.swapaxes(trace_list, 1,0), np.array(trc_name_list),
                            maskdef_extr=np.array(maskdef_extr_list), manual_extr=np.array(manual_extr_list))
     else:
-        msgs.warn('spec1d file found, but no objects were extracted for this detector.')
+        log.warning('spec1d file found, but no objects were extracted for this detector.')
 
 
 class Show2DSpec(scriptbase.ScriptBase):
@@ -82,7 +83,7 @@ class Show2DSpec(scriptbase.ScriptBase):
     def get_parser(cls, width=None):
         parser = super().get_parser(description='Display sky subtracted, spec2d image in a '
                                                 'ginga viewer.',
-                                    width=width)
+                                    width=width, default_log_file=True)
 
         parser.add_argument('file', type=str, default=None, help='Path to a PypeIt spec2d file')
         parser.add_argument('--list', default=False, action='store_true',
@@ -123,24 +124,23 @@ class Show2DSpec(scriptbase.ScriptBase):
         parser.add_argument('--no_clear', dest='clear', default=True, 
                             action='store_false',
                             help='Do *not* clear all existing tabs')
-        parser.add_argument('-v', '--verbosity', type=int, default=1,
-                            help='Verbosity level between 0 [none] and 2 [all]')
         parser.add_argument('--try_old', default=False, action='store_true',
                             help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
 
-    @staticmethod
-    def main(args):
-
-        chk_version = not args.try_old
+    @classmethod
+    def main(cls, args):
 
         # List only?
         if args.list:
             io.fits_open(args.file).info()
             return
 
-        # Set the verbosity, and create a logfile if verbosity == 2
-        msgs.set_logfile_and_verbosity('show_2dspec', args.verbosity)
+        # Initialize the log
+        cls.init_log(args)
+
+        # Set whether or not to check datamodel versions
+        chk_version = not args.try_old
 
         # Parse the detector name
         if args.det is None: 
@@ -158,6 +158,20 @@ class Show2DSpec(scriptbase.ScriptBase):
         show_channels = [0,1,2,3] if args.channels is None \
                             else [int(item) for item in args.channels.split(',')]
 
+        # Detect spectrographs for which the object-trace and slit-edge
+        # overlays should be suppressed.  The MMT Binospec IFU produces >700
+        # fiber traces per exposure; overplotting them all makes the ginga
+        # display unusably slow (and uninformative), so they are skipped
+        # automatically.
+        try:
+            pyp_spec = fits.getval(args.file, 'PYP_SPEC', 0)
+        except (KeyError, OSError):
+            pyp_spec = None
+        show_overlays = pyp_spec != 'mmt_binospec_ifu'
+        if not show_overlays:
+            log.info('Detected MMT Binospec IFU spec2d; skipping object-trace '
+                     'and slit-edge overlays for performance (>700 fibers).')
+
         # Need to update clear throughout in case only some channels are being displayed
         _clear = args.clear
 
@@ -172,7 +186,6 @@ class Show2DSpec(scriptbase.ScriptBase):
             except KeyError:
                 file_pypeit_version = '*unknown*'
             if chk_version:
-                msgs_func = msgs.error
                 addendum = 'To allow the script to attempt to read the data anyway, use the ' \
                            '--try_old command-line option.  This will first try to simply ' \
                            'ignore the version number.  If the datamodels are incompatible ' \
@@ -182,14 +195,19 @@ class Show2DSpec(scriptbase.ScriptBase):
                            'script. In either case, BEWARE that the displayed data may be in ' \
                            'error!'
             else:
-                msgs_func = msgs.warn
                 addendum = 'The datamodels are sufficiently different that the script will now ' \
                            'try to parse only the components necessary for use by this ' \
                            'script.  BEWARE that the displayed data may be in error!'
-            msgs_func(f'Your installed version of PypeIt ({__version__}) cannot be used to parse '
-                      f'{args.file}, which was reduced using version {file_pypeit_version}.  You '
-                      'are strongly encouraged to re-reduce your data using this (or, better yet, '
-                      'the most recent) version of PypeIt.  ' + addendum)
+            message = (
+                f'Your installed version of PypeIt ({__version__}) cannot be used to parse '
+                f'{args.file}, which was reduced using version {file_pypeit_version}.  You '
+                'are strongly encouraged to re-reduce your data using this (or, better yet, '
+                'the most recent) version of PypeIt.  ' + addendum
+            )
+            if chk_version:
+                raise PypeItError(message)
+            else:
+                log.warning(message)
             spec2DObj = None
 
         if spec2DObj is None:
@@ -198,11 +216,11 @@ class Show2DSpec(scriptbase.ScriptBase):
                 names = [h.name for h in hdu]
                 has_det = any([detname in n for n in names])
                 if not has_det:
-                    msgs.error(f'Provided file has no extensions including {detname}.')
+                    raise PypeItError(f'Provided file has no extensions including {detname}.')
                 for ext in ['SCIIMG', 'SKYMODEL', 'OBJMODEL', 'IVARMODEL']:
                     _ext = f'{detname}-{ext}'
                     if _ext not in names:
-                        msgs.error(f'{args.file} missing extension {_ext}.')
+                        raise PypeItError(f'{args.file} missing extension {_ext}.')
 
                 sciimg = hdu[f'{detname}-SCIIMG'].data
                 skymodel = hdu[f'{detname}-SKYMODEL'].data
@@ -218,7 +236,7 @@ class Show2DSpec(scriptbase.ScriptBase):
 
                 _ext = f'{detname}-SLITS'
                 if _ext not in names:
-                    msgs.warn(f'{args.file} missing extension {_ext}; cannot show slit edges.')
+                    log.warning(f'{args.file} missing extension {_ext}; cannot show slit edges.')
                 else:
                     slit_columns = hdu[_ext].columns.names
                     slit_spat_id = hdu[_ext].data['spat_id'] if 'spat_id' in slit_columns else None
@@ -237,10 +255,10 @@ class Show2DSpec(scriptbase.ScriptBase):
                                 = float(hdu[f'{detname}-SCIIMG'].header['SCI_SPAT_FLEXURE'])
                         slit_left += sci_spat_flexure
                         slit_right += sci_spat_flexure
-                        msgs.info(f'Offseting slits by {sci_spat_flexure} pixels.')
+                        log.info(f'Offseting slits by {sci_spat_flexure} pixels.')
                     pypeline = hdu[f'{detname}-SCIIMG'].header['PYPELINE'] \
                                     if 'PYPELINE' in hdu[f'{detname}-SCIIMG'].header else None
-                    if pypeline in ['MultiSlit', 'SlicerIFU']:
+                    if pypeline in ['MultiSlit', 'SlicerIFU', 'Fiber']:
                         slit_slid_IDs = slit_spat_id
                     elif pypeline == 'Echelle':
                         slit_slid_IDs = hdu[_ext].data['ech_order'] \
@@ -262,14 +280,14 @@ class Show2DSpec(scriptbase.ScriptBase):
 
             img_gpm = spec2DObj.select_flag(invert=True)
             if not np.any(img_gpm):
-                msgs.warn('The full science image is masked!')
+                log.warning('The full science image is masked!')
 
             model_gpm = img_gpm.copy()
             if args.ignore_extract_mask:
                 model_gpm |= spec2DObj.select_flag(flag='EXTRACT')
 
             if spec2DObj.sci_spat_flexure is not None:
-                msgs.info(f'Offseting slits by {spec2DObj.sci_spat_flexure}')
+                log.info(f'Offseting slits by {spec2DObj.sci_spat_flexure}')
             slit_left, slit_right, slit_mask \
                     = spec2DObj.slits.select_edges(flexure=spec2DObj.sci_spat_flexure)
             slit_spat_id = spec2DObj.slits.spat_id
@@ -284,8 +302,8 @@ class Show2DSpec(scriptbase.ScriptBase):
                 sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file, chk_version=False)
             else:
                 sobjs = None
-                msgs.warn('Could not find spec1d file: {:s}'.format(spec1d_file) + msgs.newline() +
-                          '                          No objects were extracted.')
+                log.warning(f'Could not find spec1d file: {spec1d_file}\n'
+                             'No objects were extracted.')
                 
         # TODO: This may be too restrictive, i.e. ignore BADFLTCALIB??
         slit_gpm = slit_mask == 0
@@ -322,15 +340,16 @@ class Show2DSpec(scriptbase.ScriptBase):
             cut_min = mean - 1.0 * sigma
             cut_max = mean + 4.0 * sigma
             chname_sci = args.prefix+f'sciimg-{detname}'
-                
+
             # Clear all channels at the beginning
             viewer, ch_sci = display.show_image(sciimg, chname=chname_sci, waveimg=waveimg, 
                                                 clear=_clear, cuts=(cut_min, cut_max))
             _clear=False
-            if sobjs is not None:
-                show_trace(sobjs, detname, viewer, ch_sci)
-            display.show_slits(viewer, ch_sci, left, right, slit_ids=slid_IDs,
-                               maskdef_ids=maskdef_id)
+            if show_overlays:
+                if sobjs is not None:
+                    show_trace(sobjs, detname, viewer, ch_sci)
+                display.show_slits(viewer, ch_sci, left, right, slit_ids=slid_IDs,
+                                   maskdef_ids=maskdef_id)
             channel_names.append(chname_sci)
 
         # SKYSUB
@@ -345,10 +364,11 @@ class Show2DSpec(scriptbase.ScriptBase):
                                                    waveimg=waveimg, clear=_clear, cuts=(cut_min, cut_max),
                                                    wcs_match=True)
             _clear = False
-            if not args.removetrace and sobjs is not None:
-                show_trace(sobjs, detname, viewer, ch_skysub)
-            display.show_slits(viewer, ch_skysub, left, right, slit_ids=slid_IDs,
-                               maskdef_ids=maskdef_id)
+            if show_overlays:
+                if not args.removetrace and sobjs is not None:
+                    show_trace(sobjs, detname, viewer, ch_skysub)
+                display.show_slits(viewer, ch_skysub, left, right, slit_ids=slid_IDs,
+                                   maskdef_ids=maskdef_id)
             channel_names.append(chname_skysub)
 
         # TODO Place holder for putting in sensfunc
@@ -379,10 +399,11 @@ class Show2DSpec(scriptbase.ScriptBase):
             viewer, ch_sky_resids = display.show_image(image, chname_skyresids, waveimg=waveimg,
                                                        clear=_clear, cuts=(-5.0, 5.0))
             _clear = False
-            if not args.removetrace and sobjs is not None:
-                show_trace(sobjs, detname, viewer, ch_sky_resids)
-            display.show_slits(viewer, ch_sky_resids, left, right, slit_ids=slid_IDs,
-                               maskdef_ids=maskdef_id)
+            if show_overlays:
+                if not args.removetrace and sobjs is not None:
+                    show_trace(sobjs, detname, viewer, ch_sky_resids)
+                display.show_slits(viewer, ch_sky_resids, left, right, slit_ids=slid_IDs,
+                                   maskdef_ids=maskdef_id)
             channel_names.append(chname_skyresids)
 
         # RESIDS
@@ -393,10 +414,11 @@ class Show2DSpec(scriptbase.ScriptBase):
             viewer, ch_resids = display.show_image(image, chname=chname_resids, waveimg=waveimg,
                                                    clear=_clear, cuts=(-5.0, 5.0), wcs_match=True)
             _clear = False
-            if not args.removetrace and sobjs is not None:
-                show_trace(sobjs, detname, viewer, ch_resids)
-            display.show_slits(viewer, ch_resids, left, right, slit_ids=slid_IDs,
-                               maskdef_ids=maskdef_id)
+            if show_overlays:
+                if not args.removetrace and sobjs is not None:
+                    show_trace(sobjs, detname, viewer, ch_resids)
+                display.show_slits(viewer, ch_resids, left, right, slit_ids=slid_IDs,
+                                   maskdef_ids=maskdef_id)
             channel_names.append(chname_resids)
 
 

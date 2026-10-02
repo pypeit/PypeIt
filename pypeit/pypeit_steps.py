@@ -9,8 +9,11 @@ import numpy as np
 import copy
 
 from astropy.table import Table
+from astropy.coordinates import SkyCoord
+from astropy import units
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit.calibframe import CalibFrame
 from pypeit.images import buildimage
 from pypeit import specobjs
@@ -20,12 +23,56 @@ from pypeit.manual_extract import ManualExtractionObj
 from pypeit import spec2dobj
 from pypeit.core import wave
 
+# local_skyregions
+from pypeit.core import skysub
+from pypeit import outputfiles
+
 from pypeit import slittrace
 from pypeit import calibrations
 
-from linetools import utils as ltu
-
 from IPython import embed
+
+def get_manual_flexure(fitstbl, frame:int):
+    """
+    Return the user-supplied manual spatial flexure for a frame, if any.
+
+    The manual value is taken from the ``shift`` column of the pypeit
+    file.  A blank entry (or ``None``) means no manual value; any
+    numeric entry -- including ``0.`` -- is a user request to override
+    the automatically computed spatial flexure.  See Issue #2180.
+
+    Parameters
+    ----------
+    fitstbl : :class:`~pypeit.metadata.PypeItMetaData`
+        The class holding the metadata for all the frames in this
+        PypeIt run.  Any object supporting ``fitstbl[frame]['shift']``
+        row access (e.g., an `astropy.table.Table`_) may be used.
+    frame : :obj:`int`
+        The index of the frame in ``fitstbl``.
+
+    Returns
+    -------
+    :obj:`float` or None
+        The manual spatial flexure shift in pixels, or None if the
+        user did not provide one.
+    """
+    # The 'shift' column may be absent entirely, e.g. for metadata
+    # built without the user-added columns.
+    if 'shift' not in fitstbl.keys():
+        return None
+    # Blank (or 'None') is the "not set" sentinel; see
+    # PypeItMetaData.set_user_added_columns()
+    manual_flexure = str(fitstbl[frame]['shift']).strip()
+    if manual_flexure.lower() in ['', 'none']:
+        return None
+    try:
+        return float(manual_flexure)
+    except ValueError:
+        raise PypeItError(
+            'Invalid value in the pypeit-file shift column: '
+            f'{manual_flexure}.  Must be a number or blank.'
+        )
+
 
 def get_sci_metadata(spectrograph, fitstbl, frame:int, det):
     """
@@ -53,6 +100,9 @@ def get_sci_metadata(spectrograph, fitstbl, frame:int, det):
 
     # Set binning, obstime, basename, and objtype
     binning = fitstbl['binning'][frame]
+    # NOTE: This determination of obstime is exactly what is done inside of
+    # construct_basename when obstime is not provided.  The only reason this is
+    # done here is because obstime is also returned by this function.
     obstime  = fitstbl.construct_obstime(frame)
     basename = fitstbl.construct_basename(frame, obstime=obstime)
     types  = fitstbl['frametype'][frame].split(',')
@@ -61,8 +111,10 @@ def get_sci_metadata(spectrograph, fitstbl, frame:int, det):
     elif 'standard' in types:
         objtype_out = 'standard'
     else:
-        msgs.error('get_sci_metadata() should only be run on standard or science frames.  '
-                    f'Types of this frame are: {types}')
+        raise PypeItError(
+            'get_sci_metadata() should only be run on standard or science frames.  Types of this '
+            f'frame are: {types}'
+        )
     calib_key = CalibFrame.construct_calib_key(fitstbl['setup'][frame],
                                                 fitstbl['calib'][frame],
                                                 spectrograph.get_det_name(det))
@@ -75,7 +127,7 @@ def set_bkg_negative(fitstbl, par, bg_frames:list):
     Args:
         fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
             The class holding the metadata for all the frames in this PypeIt run.
-        par (:class:`~pypeit.par.pypeitpar.CalibrationsPar`):
+        par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
             The parameter set for the reduction process, 
             including slitmask and object finding parameters.
         bg_frames : list
@@ -114,10 +166,11 @@ def set_bkg_negative(fitstbl, par, bg_frames:list):
     # Return
     return has_bg, bkg_redux, find_negative
 
-def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str, 
+def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
               reuse_calibs:bool=True,
-              qa_path:str=None, show:bool=False, run_state:dict=None,
-              stop_at_step:str=None):
+              qa_path:str=None, show:bool=False, run_state=None,
+              stop_at_step:str=None, status_only:bool=False,
+              reload_only:bool=False):
     """
     Run Calibration for a single detector, calib_ID pair
 
@@ -142,11 +195,18 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
             defined by the parameters.
         show (:obj:`bool`, optional):
             Show the QA during processing
-        run_state (:obj:`dict`, optional):
-            A dictionary containing the current state of the reduction.
-            If None, a new empty dictionary is created.
+        run_state (:class:`~pypeit.state.run_state.RunPypeItState`, optional):
+            The current state of the reduction.
+            If None, no state tracking is performed.
         stop_at_step (:obj:`str`, optional):
             Run only up to this calibration step.
+        status_only (:obj:`bool`, optional):
+            If True, only check whether calibration output files exist
+            and update the state accordingly, without running any
+            calibrations.
+        reload_only (:obj:`bool`, optional):
+            If True, only reload the calibrations, without running any
+            calibrations.
 
     Returns:
         caliBrate (:class:`~pypeit.calibrations.Calibrations`)
@@ -163,27 +223,32 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
     # Instantiate Calibrations class
     user_slits = slittrace.merge_user_slit(par['rdx']['slitspatnum'],
                                             par['rdx']['maskIDs'])
-    msgs.info(f'Building/loading calibrations for detector {det}')
+    log.info(f'Building/loading calibrations for detector {det}')
     caliBrate = calibrations.Calibrations.get_instance(
-        fitstbl, par['calibrations'], spectrograph, calibrations_path, 
+        fitstbl, par['calibrations'], spectrograph, calibrations_path,
         calib_ID, grp_frames[0], det,
         qadir=qa_path,
         reuse_calibs=reuse_calibs, show=show, user_slits=user_slits,
-        chk_version=par['rdx']['chk_version'])
-        #, state=run_state)
+        chk_version=par['rdx']['chk_version'],
+        state=run_state)
 
     # Check
     if stop_at_step is not None and stop_at_step not in caliBrate.steps:
-        msgs.error(f"Requested stop_at_step={stop_at_step} is not a valid calibration step.\n Allowed steps are: {caliBrate.steps}")
-        
+        raise PypeItError(
+            f"Requested stop_at_step={stop_at_step} is not a valid calibration step.\n Allowed "
+            f"steps are: {caliBrate.steps}"
+        )
+
     # Run
-    caliBrate.run_the_steps(stop_at_step=stop_at_step)
+    caliBrate.run_the_steps(stop_at_step=stop_at_step,
+        reload_only=reload_only, status_only=status_only)
 
     # Success?
     if not caliBrate.success:
-        msgs.warn(f'Calibrations for detector {det} were unsuccessful!  The step '
-                              f'that failed was {caliBrate.failed_step}.  Continuing to next '
-                              f'detector.')
+        log.warning(
+            f'Calibrations for detector {det} were unsuccessful!  The step that failed was '
+            f'{caliBrate.failed_step}.  Continuing to next detector.'
+        )
 
     return caliBrate
 
@@ -246,7 +311,7 @@ def process_one_det(spectrograph, fitstbl, par, frames:list,
     caliBrate = load_calibrations_for_frame(
         spectrograph, fitstbl, par, frames[0], det, calib_ID, calibrations_path)
 
-    msgs.info("Image processing begins for {} on det={}".format(basename, det))
+    log.info(f"Image processing begins for {basename} on det={det}")
 
     # Is this a standard star?
     std_redux = objtype == 'standard'
@@ -291,18 +356,27 @@ def process_one_det(spectrograph, fitstbl, par, frames:list,
         # spatial flexure determined for the background image.
         sciImg = bkg_redux_sciimg.sub(bgimg)
 
+    # Manual (user-supplied) spatial flexure, restored per Issue #2180.
+    # A finite value in the pypeit-file "shift" column overrides the
+    # automatically computed spatial flexure.
+    manual_flexure = get_manual_flexure(fitstbl, frames[0])
+    if manual_flexure is not None:
+        log.info(f'Implementing manual flexure of {manual_flexure}')
+        sciImg.spat_flexure = manual_flexure
+    log.info(f'Spatial flexure being used is: {sciImg.spat_flexure}')
+
     # Write out the science image?
     if sci_outfile is not None:
         # Generate the folder?
         if not sci_outfile.parent.is_dir():
             sci_outfile.parent.mkdir()
         sciImg.to_file(sci_outfile, overwrite=True)
-        msgs.info(f'Wrote intermediate science image to {sci_outfile}')
+        log.info(f'Wrote intermediate science image to {sci_outfile}')
 
     # Write out the background image?
     if bkg_outfile is not None and bkg_redux_sciimg is not None:
         bkg_redux_sciimg.to_file(bkg_outfile, overwrite=True)
-        msgs.info(f'Wrote intermediate background image to {bkg_outfile}')
+        log.info(f'Wrote intermediate background image to {bkg_outfile}')
 
     # Return
     return sciImg, bkg_redux_sciimg
@@ -367,13 +441,13 @@ def findobj_on_det(sciImg, spectrograph, fitstbl, par, frames:list, calib_ID:str
                                         std_outfile)
     else:
         std_trace = None
-    msgs.info("Object finding begins for {} on det={}".format(basename, det))
+    log.info("Object finding begins for {} on det={}".format(basename, det))
 
     # Grab the calibrations
     caliBrate = load_calibrations_for_frame(
         spectrograph, fitstbl, par, frames[0], det, calib_ID, calibrations_path)
 
-    msgs.info(f'Reducing detector {det}')
+    log.info(f'Reducing detector {det}')
 
     # Instantiate Reduce object
     # Required for pypeline specific object
@@ -387,6 +461,85 @@ def findobj_on_det(sciImg, spectrograph, fitstbl, par, frames:list, calib_ID:str
                                          show_peaks=show)
 
     return initial_sky, sobjs_obj, objFind
+
+def finalize_sky_det(spectrograph, fitstbl, par, frame,
+                     det, objFind, initial_sky, all_specobjs_objfind,
+                     bkg_redux_sciimg=None, bkg_redux=False, show=False):
+    """
+    Finalize sky subtraction for a specific detector.
+
+    This function performs the final global sky subtraction for a given detector.
+    It also updates the slit mask based on bad sky subtraction flags.
+
+    Args:
+        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+            The spectrograph instance.
+        fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
+            The class holding the metadata for all the frames in this PypeIt run.
+        par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
+            The parameter set for the reduction process.
+        frame (:obj:`int`):
+            The index of the frame in the fitstbl.
+        det (:obj:`int`):
+            Detector number (1-indexed).
+        objFind (:class:`~pypeit.find_objects.FindObjects`):
+            The object finding instance for this detector.
+        initial_sky (`numpy.ndarray`_):
+            The initial sky model for this detector.
+        all_specobjs_objfind (:class:`~pypeit.specobjs.SpecObjs`):
+            All spectral objects found during object finding.
+        bkg_redux_sciimg (:class:`~pypeit.images.pypeitimage.PypeItImage`, optional):
+            Background-reduced science image, or None if background reduction is
+            not being performed.
+        bkg_redux (:obj:`bool`, optional):
+            Indicates whether background reduction is being performed. Default is False.
+        show (:obj:`bool`, optional):
+            Show the QA during processing. Default is False.
+
+    Returns:
+        tuple: A tuple containing:
+            - final_global_sky (`numpy.ndarray`_): The final global sky model for this detector.
+            - bkg_redux_global_sky (`numpy.ndarray`_ or None): The background-reduced global sky
+              model, or None if bkg_redux is False.
+            - objFind (:class:`~pypeit.find_objects.FindObjects`): The updated object finding
+                class for this detector.
+    """
+
+    objtype, setup, obstime, basename, binning \
+            = get_sci_metadata(spectrograph, fitstbl, frame, det)
+    detname = spectrograph.get_det_name(det)
+
+    # Get objects on this detector
+    if all_specobjs_objfind.nobj > 0:
+        all_specobjs_on_det = all_specobjs_objfind[all_specobjs_objfind.DET == detname]
+    else:
+        all_specobjs_on_det = all_specobjs_objfind
+
+    # Determine if final global sky subtraction should be performed
+    skymask = None
+    if 'standard' in objtype or \
+            par['reduce']['findobj']['skip_skysub'] or \
+            par['reduce']['findobj']['skip_final_global'] or \
+            par['reduce']['skysub']['user_regions'] is not None:
+        final_global_sky = initial_sky
+    else:
+        # Update the skymask
+        skymask = objFind.create_skymask(all_specobjs_on_det)
+        final_global_sky = objFind.global_skysub(previous_sky=initial_sky,
+                                                 skymask=skymask, show=show,
+                                                 reinit_bpm=False)
+
+    # Get the bkg_redux_global_sky
+    bkg_redux_global_sky = None
+    if bkg_redux and bkg_redux_sciimg is not None:
+        skymask = objFind.create_skymask(all_specobjs_on_det) if skymask is None else skymask
+        # DO NOT reinit_bpm, nor update_crmask
+        bkg_redux_global_sky = objFind.global_skysub(skymask=skymask,
+                                                     bkg_redux_sciimg=bkg_redux_sciimg,
+                                                     reinit_bpm=False, update_crmask=False, show=show)
+
+    return final_global_sky, bkg_redux_global_sky, objFind
+
 
 
 def load_calibrations_for_frame(spectrograph, fitstbl, par, frame, det, 
@@ -436,13 +589,17 @@ def load_calibrations_for_frame(spectrograph, fitstbl, par, frame, det,
     caliBrate.run_the_steps(reload_only=True)
 
     if not caliBrate.success:
-        msgs.error(f'Calibrations for detector {det} were unsuccessful!  The step '
-                    f'that failed was {caliBrate.failed_step}.')  
+        raise PypeItError(
+            f'Calibrations for detector {det} were unsuccessful!  The step that failed was '
+            f'{caliBrate.failed_step}.'
+        )
 
     return caliBrate
 
 
-def load_skyregions(initial_slits=False, scifile=None, frame=None):
+def load_skyregions(spectrograph, fitstbl, user_regions, frame, det,
+                    caliBrate, calibrations_path:str, scifile:str=None,
+                    initial_slits=False, spat_flexure=None):
     """
     Generate or load sky regions, if defined by the user.
 
@@ -469,100 +626,115 @@ def load_skyregions(initial_slits=False, scifile=None, frame=None):
 
     Parameters
     ----------
+    spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+        The spectrograph instance.
+    fitstbl : :class:`~pypeit.metadata.PypeItMetaData`
+        The class holding the metadata for all the frames in this PypeIt
+        run.
+    user_regions : :obj:`str` or :obj:`list`
+        The ``user_regions`` value from
+        :class:`~pypeit.par.pypeitpar.SkySubPar`: ``'user'`` to load a
+        SkyRegions file, a percentage-format definition (e.g.
+        ``:25,75:``), or None/empty for no sky regions.
+    frame : :obj:`int`
+        The index of the frame in ``fitstbl``, used to construct the
+        calibration key.  Only used if ``user_regions = user``.
+    det : :obj:`int`
+        Detector number (1-indexed).
+    caliBrate : :class:`~pypeit.calibrations.Calibrations`
+        The calibration data for the current frame and detector;
+        provides the slits.
+    calibrations_path : :obj:`str`
+        Path to the calibration files.
+    scifile : :obj:`str`, optional
+        The file name used to define the user-based sky regions.  Only
+        used if ``user_regions = user``.
     initial_slits : :obj:`bool`, optional
         Flag to use the initial slits before any tweaking based on the
         slit-illumination profile; see
         :func:`~pypeit.slittrace.SlitTraceSet.select_edges`.
-    scifile : :obj:`str`, optional
-        The file name used to define the user-based sky regions.  Only used
-        if ``user_regions = user``.
-    frame : :obj:`int`, optional
-        The index of the frame used to construct the calibration key.  Only
-        used if ``user_regions = user``.
-    spat_flexure : :obj:`float`, None, optional
-        The spatial flexure (measured in pixels) of the science frame relative to the trace frame.
+    spat_flexure : :obj:`float`, optional
+        Spatial flexure shift (in pixels) of the science frame.  If
+        None, no shift is applied.  See Notes.
 
     Returns
     -------
     skymask : `numpy.ndarray`_
         A boolean array used to select sky pixels; i.e., True is a pixel
-        that corresponds to a sky region.  If the ``user_regions`` parameter
-        is not set (or an empty string), the returned value is None.
+        that corresponds to a sky region.  If ``user_regions`` is not set
+        (or an empty string), the returned value is None.
+
+    Notes
+    -----
+    ``spat_flexure`` is only applied to percentage-format
+    ``user_regions``.  A SkyRegions *file* (``user_regions = user``) is
+    loaded as-is: it is created per science frame by
+    ``pypeit_skysub_regions`` in that frame's own pixel coordinates
+    (the GUI applies the frame's flexure at creation time via its
+    ``--flexure`` option), so shifting it here would double-apply the
+    correction.  This matches the pre-2.0.0 (v1.18.1) behavior.
     """
-    if par['reduce']['skysub']['user_regions'] in [None, '']:
+    if user_regions in [None, '']:
         return None
 
-    # Flexure
-    spat_flexure = None
-    # use the flexure correction in the "shift" column
-    manual_flexure = self.fitstbl[frames[0]]['shift']
-    if (self.objtype == 'science' and self.par['scienceframe']['process']['spat_flexure_correct']) or \
-            (self.objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_correct']) or \
-                manual_flexure:
-        if (manual_flexure or manual_flexure == 0) and not (np.issubdtype(self.fitstbl[frames[0]]["shift"], np.integer)):
-            msgs.info(f'Implementing manual flexure of {manual_flexure}')
-            spat_flexure = np.float64(manual_flexure)
-            sciImg.spat_flexure = spat_flexure
-        else:
-            msgs.info(f'Using auto-computed flexure')
-            spat_flexure = sciImg.spat_flexure
-    msgs.info(f'Flexure being used is: {spat_flexure}')
-    # Build the initial sky mask
-    initial_skymask = self.load_skyregions(initial_slits=self.spectrograph.pypeline != 'SlicerIFU',
-                                            scifile=sciImg.files[0], frame=frames[0], spat_flexure=spat_flexure)
-
-    # Deal with manual extraction
-    row = self.fitstbl[frames[0]]
-    manual_obj = ManualExtractionObj.by_fitstbl_input(
-        row['filename'], row['manual'], self.spectrograph) if len(row['manual'].strip()) > 0 else None
-
-
     # First priority given to user_regions first
-    if self.par['reduce']['skysub']['user_regions'] == 'user':
+    if user_regions == 'user':
         # Build the file name
         calib_key = CalibFrame.construct_calib_key(
-                            self.fitstbl['setup'][frame],
-                            CalibFrame.ingest_calib_id(self.fitstbl['calib'][frame]),
-                            self.spectrograph.get_det_name(self.det))
-        regfile = buildimage.SkyRegions.construct_file_name(calib_key,
-                                                            calib_dir=self.calibrations_path,
-                                                            basename=io.remove_suffix(scifile))
+                            fitstbl['setup'][frame],
+                            CalibFrame.ingest_calib_id(fitstbl['calib'][frame]),
+                            spectrograph.get_det_name(det))
+        regfile = buildimage.SkyRegions.construct_file_name(
+            calib_key, calib_dir=calibrations_path,
+            basename=outputfiles.strip_raw_extension(scifile, spectrograph.allowed_extensions))
         regfile = Path(regfile).absolute()
         if not regfile.exists():
-            msgs.error(f'Unable to find SkyRegions file: {regfile} . Create a SkyRegions '
-                        'frame using pypeit_skysub_regions, or change the user_regions to '
-                        'the percentage format.  See documentation.')
-        msgs.info(f'Loading SkyRegions file: {regfile}')
+            raise PypeItError(
+                f'Unable to find SkyRegions file: {regfile} . Create a SkyRegions frame using '
+                'pypeit_skysub_regions, or change the user_regions to the percentage format.  '
+                'See documentation.'
+            )
+        log.info(f'Loading SkyRegions file: {regfile}')
+        # NOTE: Deliberately do NOT apply spat_flexure here.  The
+        # SkyRegions file is created per science frame by
+        # pypeit_skysub_regions on that frame itself, so the saved mask
+        # is already in the frame's pixel coordinates (the GUI applies
+        # the frame's flexure at creation time via its --flexure
+        # option).  Shifting again here would double-apply it.  This
+        # matches the pre-2.0.0 (v1.18.1) behavior.
         return buildimage.SkyRegions.from_file(regfile).image.astype(bool)
 
-    skyregtxt = self.par['reduce']['skysub']['user_regions']
+    skyregtxt = user_regions
     if isinstance(skyregtxt, list):
         skyregtxt = ",".join(skyregtxt)
-    msgs.info(f'Generating skysub mask based on the user defined regions: {skyregtxt}')
+    log.info(f'Generating skysub mask based on the user defined regions: {skyregtxt}')
     # NOTE : Do not include spatial flexure here!
     #        It is included when generating the mask in the return statement below
     slits_left, slits_right, _ \
-        = self.caliBrate.slits.select_edges(initial=initial_slits, flexure=None)
+        = caliBrate.slits.select_edges(initial=initial_slits, flexure=None)
 
     maxslitlength = np.max(slits_right-slits_left)
     # Get the regions
-    status, regions = skysub.read_userregions(skyregtxt, self.caliBrate.slits.nslits, maxslitlength)
+    status, regions = skysub.read_userregions(skyregtxt, caliBrate.slits.nslits, maxslitlength)
     if status == 1:
-        msgs.error("Unknown error in sky regions definition. Please check the value:" + msgs.newline() + skyregtxt)
+        raise PypeItError(
+            "Unknown error in sky regions definition. Please check the value:\n" + skyregtxt
+        )
     elif status == 2:
-        msgs.error("Sky regions definition must contain a percentage range, and therefore must contain a ':'")
+        raise PypeItError(
+            "Sky regions definition must contain a percentage range, and therefore must "
+            "contain a ':'"
+        )
     # Generate and return image
-    return skysub.generate_mask(self.spectrograph.pypeline, regions, self.caliBrate.slits,
+    return skysub.generate_mask(spectrograph.pypeline, regions, caliBrate.slits,
                                 slits_left, slits_right, spat_flexure=spat_flexure)
 
 
-def extract_det(spectrograph, fitstbl, par, 
+def extract_det(spectrograph, fitstbl, par,
                 frames, det, calib_ID:str, calibrations_path:str,
-                sciImg, bkg_redux_sciimg, 
-                initial_sky, sobjs_obj, 
-                bkg_redux:bool=False,
+                sciImg, final_sky, sobjs_obj, calib_slits,
+                bkg_redux_final_sky=None, bkg_redux:bool=False,
                 find_negative:bool=False,
-                calib_slits=None,
                 show:bool=False):
     """
     Extract Objects in a single exposure/detector pair
@@ -589,25 +761,22 @@ def extract_det(spectrograph, fitstbl, par,
         sciImg (:class:`~pypeit.images.pypeitimage.PypeItImage`):
             Data container that holds a single image from a
             single detector and its related images (e.g. ivar, mask)
-        bkg_redux_sciimg (:class:`~pypeit.images.pypeitimage.PypeItImage`, optional):
-            Data container that holds a single image from a
-            single detector and its related images (e.g. ivar, mask)
-            before background subtraction if self.bkg_redux is True,
-            otherwise None. It's used to generate a global sky
-            model without bkg subtraction.
-        initial_sky (`numpy.ndarray`_):
-            Initial global sky model
+        final_sky (`numpy.ndarray`_):
+            Final global sky model
         sobjs_obj (:class:`~pypeit.specobjs.SpecObjs`):
             List of objects found during `run_objfind`
+        calib_slits (:class:`~pypeit.slittrace.SlitTraceSet`):
+            If provided, use these slits instead of those from the
+            calibrations.
+        bkg_redux_final_sky (`numpy.ndarray`_, optional):
+            Final global sky model for the background-reduced science image.
+            Default is None.
         bkg_redux (:obj:`bool`, optional):
             Indicates whether the reduction involves background subtraction.
             Default is False.
         find_negative (:obj:`bool`, optional):
             Indicates whether to find negative objects during the reduction.
             Default is False.
-        calib_slits (:class:`~pypeit.slittrace.SlitTraceSet`, optional):
-            If provided, use these slits instead of those from the
-            calibrations. Default is None.
         show (:obj:`bool`, optional):
             Show the QA during processing. Default is False.0
 
@@ -628,47 +797,11 @@ def extract_det(spectrograph, fitstbl, par,
     # Grab the calibrations
     caliBrate = load_calibrations_for_frame(
         spectrograph, fitstbl, par, frames[0], det, calib_ID, calibrations_path)
-    if calib_slits is not None:
-        caliBrate.slits = calib_slits
+    # update slits
+    caliBrate.slits = calib_slits
 
     # Is this a standard star?
     std_redux = 'standard' in objtype
-
-    # Instantiate a new objFind object
-    objFind = instantiate_objfind(sciImg, spectrograph, fitstbl,
-                                  par, frames, det, caliBrate,
-                                  bkg_redux, 
-                                  find_negative)
-
-    ## TODO JFH I think all of this about determining the final global sky should be moved out of this method
-    ## and preferably into the FindObjects class. I see why we are doing it like this since for multislit we need
-    # to find all of the objects first using slitmask meta data,  but this comes at the expense of a much more complicated
-    # control structure.
-    # TODO -- Can we do this now?  Probably not..
-
-    # Update the global sky
-    skymask = None
-    if 'standard' in objtype or \
-            par['reduce']['findobj']['skip_skysub'] or \
-            par['reduce']['findobj']['skip_final_global'] or \
-            par['reduce']['skysub']['user_regions'] is not None:
-        final_global_sky = initial_sky
-    else:
-        # Update the skymask
-        skymask = objFind.create_skymask(sobjs_obj)
-        final_global_sky = objFind.global_skysub(previous_sky=initial_sky,
-                                                    skymask=skymask, show=show,
-                                                    reinit_bpm=False)
-    # get the bkg_redux_global_sky
-    bkg_redux_global_sky = None
-    if bkg_redux:
-        skymask = objFind.create_skymask(sobjs_obj) if skymask is None else skymask
-        # DO NOT reinit_bpm, nor update_crmask
-        bkg_redux_global_sky = objFind.global_skysub(skymask=skymask, bkg_redux_sciimg=bkg_redux_sciimg,
-                                                    reinit_bpm=False, update_crmask=False, show=show)
-
-    # TODO -- worry about this
-    scaleImg = objFind.scaleimg
 
     # Each spec2d file includes the slits object with unique flagging
     #  for extraction failures.  So we make a copy here before those flags
@@ -676,23 +809,19 @@ def extract_det(spectrograph, fitstbl, par,
     maskdef_designtab = caliBrate.slits.maskdef_designtab
     slits = copy.deepcopy(caliBrate.slits)
     slits.maskdef_designtab = None
-
-    # update here slits.mask since global_skysub modify reduce_bpm and we need to propagate it into extraction
-    flagged_slits = np.where(objFind.reduce_bpm)[0]
-    if len(flagged_slits) > 0:
-        slits.mask[flagged_slits] = \
-            slits.bitmask.turn_on(slits.mask[flagged_slits], 'BADSKYSUB')
+    # this is only used for IFU reductions currently
+    scaleImg = sciImg.rel_scaleImg
 
     if not par['reduce']['extraction']['skip_extraction']:
-        msgs.info(f"Extraction begins for {basename} on det={det}")
+        log.info(f"Extraction begins for {basename} on det={det}")
         # Instantiate Reduce object
         # Required for pipeline specific object
         # At instantiation, the fullmask in self.sciImg is modified
         # TODO Are we repeating steps in the init for FindObjects and Extract??
         exTract = extraction.Extract.get_instance(
             sciImg, slits, sobjs_obj, spectrograph,
-            par, objtype, global_sky=final_global_sky, 
-            bkg_redux_global_sky=bkg_redux_global_sky,
+            par, objtype, global_sky=final_sky,
+            bkg_redux_global_sky=bkg_redux_final_sky,
             waveTilts=caliBrate.wavetilts, wv_calib=caliBrate.wv_calib, 
             flatimages=caliBrate.flatimages,
             bkg_redux=bkg_redux, 
@@ -703,29 +832,25 @@ def extract_det(spectrograph, fitstbl, par,
             tilts, slits = exTract.run()
         slitgpm = np.logical_not(exTract.extract_bpm)
         slitshift = exTract.slitshift
-        #embed(header='675 of pypeit_steps.py')
     else:
-        msgs.info(f"Extraction skipped for {basename} on det={det}")
-        # TODO
-        # If IFU, need to redo global sky sub for waveimg (this is a HACK)
-        # TODO
-        # Deal with slitshift too, for IFU
-
+        log.info(f"Extraction skipped for {basename} on det={det}")
         # Since the extraction was not performed, fill the arrays with the best available information
-        skymodel, bkg_redux_skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, tilts = \
-            final_global_sky, \
-            bkg_redux_global_sky, \
-            np.zeros_like(objFind.sciImg.image), \
-            np.copy(objFind.sciImg.ivar), \
-            objFind.sciImg.fullmask, \
-            sobjs_obj, \
-            objFind.waveimg, \
-            objFind.tilts
+        skymodel, bkg_redux_skymodel, objmodel, ivarmodel, outmask, sobjs = \
+            final_sky, \
+            bkg_redux_final_sky, \
+            np.zeros_like(sciImg.image), \
+            np.copy(sciImg.ivar), \
+            sciImg.fullmask, \
+            sobjs_obj
         slitgpm = (slits.mask == 0)
-        slitshift = objFind.slitshift
-        # If waveImg has not yet been created, make it now
-        if waveImg is None:
-            waveImg = caliBrate.wv_calib.build_waveimg(tilts, slits, spat_flexure=objFind.spat_flexure_shift)
+        slitshift = sciImg.flex_shift
+        # get slitmask (same as in extract)
+        slitmask = slits.slit_img(flexure=sciImg.spat_flexure, exclude_flag=slits.bitmask.exclude_for_reducing)
+        # get spat_flexure and tilts (same as in extract)
+        _spat_flexure = 0. if sciImg.spat_flexure is None else sciImg.spat_flexure
+        _tilts_spat_flexure = 0. if caliBrate.wavetilts.spat_flexure is None else caliBrate.wavetilts.spat_flexure
+        tilts = caliBrate.wavetilts.fit2tiltimg(slitmask, flexure=_tilts_spat_flexure)
+        waveImg = caliBrate.wv_calib.build_waveimg(tilts, slits, spat_flexure=sciImg.spat_flexure, spec_flexure=slitshift)
 
     # Apply a reference frame correction to each object and the waveimg
     vel_corr, waveImg = refframe_correct(spectrograph, par, slits, 
@@ -833,8 +958,12 @@ def instantiate_objfind(sciImg, spectrograph, fitstbl, par, frames, det,
     else:
         # Build the initial sky mask
         initial_skymask = load_skyregions(
-            initial_slits=spectrograph.pypeline != 'SlicerIFU',
-            scifile=sciImg.files[0], frame=frames[0])
+            spectrograph, fitstbl,
+            par['reduce']['skysub']['user_regions'], frames[0], det,
+            caliBrate, str(caliBrate.calib_dir), initial_slits=spectrograph.pypeline not in ['SlicerIFU', 'Fiber'],
+            scifile=fitstbl.frame_paths(frames[0]),
+            spat_flexure=sciImg.spat_flexure)
+            
 
     objFind = find_objects.FindObjects.get_instance(
         sciImg, caliBrate.slits,
@@ -880,16 +1009,16 @@ def refframe_correct(spectrograph, par, slits, ra, dec, obstime, slitgpm=None,
     vel_corr = 0.0
     if refframe in ['heliocentric', 'barycentric'] \
             and par['calibrations']['wavelengths']['reference'] != 'pixel':
-        msgs.info("Performing a {0} correction".format(par['calibrations']['wavelengths']['refframe']))
+        log.info(f"Performing a {par['calibrations']['wavelengths']['refframe']} correction")
         # Calculate correction
-        radec = ltu.radec_to_coord((ra, dec))
+        radec = SkyCoord(ra=ra, dec=dec, unit=(units.deg, units.deg))
         vel, vel_corr = wave.geomotion_correct(radec, obstime,
                                                 spectrograph.telescope['longitude'],
                                                 spectrograph.telescope['latitude'],
                                                 spectrograph.telescope['elevation'],
                                                 refframe)
         # Apply correction to objects
-        msgs.info('Applying {0} correction = {1:0.5f} km/s'.format(refframe, vel))
+        log.info(f'Applying {refframe} correction = {vel:0.5f} km/s')
         if (sobjs is not None) and (sobjs.nobj != 0):
             # Loop on slits to apply
             gd_slitord = slits.slitord_id[slitgpm]
@@ -906,7 +1035,7 @@ def refframe_correct(spectrograph, par, slits, ra, dec, obstime, slitgpm=None,
         if waveimg is not None:
             waveimg *= vel_corr
     else:
-        msgs.info('A wavelength reference frame correction will not be performed.')
+        log.info('A wavelength reference frame correction will not be performed.')
 
     # Return the value of the correction and the corrected wavelength image
     return vel_corr, waveimg

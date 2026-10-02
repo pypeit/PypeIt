@@ -7,7 +7,7 @@ from importlib import resources
 import numpy
 
 from pypeit.utils import to_string, string_table
-from pypeit.spectrographs import spectrograph_classes
+from pypeit.spectrographs.util import spectrograph_classes
 
 from IPython import embed
 

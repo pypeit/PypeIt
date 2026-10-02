@@ -243,7 +243,7 @@ def flatfield_datamodel(output_root):
                        FlatImages.datamodel['pixelflat_model']['descr']]
     data_table[5,:] = ['``PIXELFLAT_SPAT_ID-?-BSPLINE``', '`astropy.io.fits.BinTableHDU`_', '...',
                        'bspline model of the pixelflat for ``spat_id=?``; see '
-                       ':class:`~pypeit.bspline.bspline.bspline`']
+                       ':class:`~pypeit.containers.bspline.BSplineContainer`']
     data_table[6,:] = ['...', '...', '...', '...']
     data_table[7,:] = ['``PIXELFLAT_SPAT_ID-?-FINECORR``', '`astropy.io.fits.BinTableHDU`_', '...',
                        '2D polynomial fits to the fine correction of the spatial illumination '
@@ -260,7 +260,7 @@ def flatfield_datamodel(output_root):
                         FlatImages.datamodel['illumflat_raw']['descr']]
     data_table[13,:] = ['``ILLUMFLAT_SPAT_ID-?-BSPLINE``', '`astropy.io.fits.BinTableHDU`_', '...',
                         'bspline model of the illumflat for ``spat_id=?``; see '
-                        ':class:`~pypeit.bspline.bspline.bspline`']
+                        ':class:`~pypeit.containers.bspline.BSplineContainer`']
     data_table[14,:] = ['...', '...', '...', '...']
     data_table[15,:] = ['``ILLUMFLAT_SPAT_ID-?-FINECORR``', '`astropy.io.fits.BinTableHDU`_', '...',
                         '2D polynomial fits to the fine correction of the spatial illumination '

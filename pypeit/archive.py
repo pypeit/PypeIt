@@ -58,7 +58,8 @@ import shutil
 from astropy.io import ascii
 from astropy.table import Table
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 
 
 class ArchiveMetadata():
@@ -224,15 +225,15 @@ class ArchiveDir():
             return orig_file
 
         if not os.path.exists(orig_file):
-            msgs.error(f'File {orig_file} does not exist')
+            raise PypeItError(f'File {orig_file} does not exist')
 
         full_dest_path = os.path.join(self.archive_root, dest_file)
         os.makedirs(os.path.dirname(full_dest_path), exist_ok=True)
 
-        msgs.info(f'Copying {orig_file} to archive root {self.archive_root}')
+        log.info(f'Copying {orig_file} to archive root {self.archive_root}')
         try:
             shutil.copy2(orig_file, full_dest_path)
         except:
-            msgs.error(f'Failed to copy {orig_file} to {full_dest_path}')
+            raise PypeItError(f'Failed to copy {orig_file} to {full_dest_path}')
 
         return full_dest_path

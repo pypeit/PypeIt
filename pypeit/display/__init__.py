@@ -22,7 +22,7 @@ def plugins_available(return_report=False):
     result = (numpy.all(indx),)
     if return_report:
         result += ('' if result[0] else \
-                    'Missing plugins: {0}'.format(required_plugins[numpy.logical_not(indx)]),)
+                   f'Missing plugins: {numpy.asarray(required_plugins)[numpy.logical_not(indx)]}',)
     return result
 
 def setup_SlitWavelength():

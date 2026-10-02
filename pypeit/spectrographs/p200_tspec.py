@@ -7,7 +7,8 @@ import numpy as np
 
 from astropy.time import Time
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
@@ -71,7 +72,7 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
             ttime = Time(time, format='isot')
             return ttime.mjd
         else:
-            msgs.error("Not ready for this compound meta")
+            raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -304,7 +305,7 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
             0.
         """
         # Call the base-class method to generate the empty bpm
-        msgs.info("Custom bad pixel mask for TSPEC")
+        log.info("Custom bad pixel mask for TSPEC")
         return super().bpm(filename, det, shape=shape, msbias=None)
 
     @property

@@ -435,12 +435,12 @@ To inspect the 1D spectrum, we can use the script :ref:`pypeit_show_1dspec`, wit
 
 .. code-block:: bash
 
-    pypeit_show_1dspec Science/spec1d_FCSA00216334-SN2019muj_FOCAS_20201121T083826.517.fits --ginga
+    pypeit_show_1dspec Science/spec1d_FCSA00216334-SN2019muj_FOCAS_20201121T083826.517.fits
 
 which plots the spectrum in a tab of the `ginga`_ viewer and allows to select the different extracted spectra using a
 drop down menu, in addition to selecting other properties of the spectrum. Here is one exemple:
 
-.. figure:: ../figures/focas_spec1d_ginga.png
+.. figure:: ../figures/focas_spec1d.png
    :scale: 60%
    :align: center
 

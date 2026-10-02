@@ -75,6 +75,7 @@
 .. _astropy.io.fits.ImageHDU: https://docs.astropy.org/en/stable/io/fits/api/images.html#imagehdu
 .. _astropy.io.fits.BinTableHDU: https://docs.astropy.org/en/stable/io/fits/api/tables.html#bintablehdu
 .. _astropy.io.fits.Column: https://docs.astropy.org/en/stable/io/fits/api/tables.html#column
+.. _astropy.io.fits.FITS_rec: https://docs.astropy.org/en/stable/io/fits/api/tables.html#astropy.io.fits.FITS_rec
 .. _astropy.table.Table: https://docs.astropy.org/en/stable/table/
 .. _astropy.table.table.Table: https://docs.astropy.org/en/stable/table/
 .. _astropy.table.Table.read: https://docs.astropy.org/en/stable/api/astropy.table.Table.html#astropy.table.Table.read
@@ -106,12 +107,6 @@
 .. _pydl.goddard.astro.airtovac: http://pydl.readthedocs.io/en/stable/api/pydl.goddard.astro.airtovac.html#pydl.goddard.astro.airtovac
 .. _pydl.pydlutils.yanny: http://pydl.readthedocs.io/en/stable/api/pydl.pydlutils.yanny.yanny.html
 
-.. linetools
-.. _linetools: https://linetools.readthedocs.io/en/latest/
-.. _linetools.spectra.xspectrum1d.XSpectrum1D: https://linetools.readthedocs.io/en/latest/xspectrum1d.html
-.. _XSpecGUI: https://linetools.readthedocs.io/en/latest/xspecgui.html
-.. _XSpecGUI keystrokes: https://linetools.readthedocs.io/en/latest/xspecgui.html#navigating-these-key-strokes-help-you-explore-the-spectrum-be-sure-to-click-in-the-spectrum-panel-first
-
 .. sphinx
 .. _Sphinx: https://www.sphinx-doc.org/en/master/index.html
 .. _reStructuredText: http://docutils.sourceforge.net/rst.html
@@ -141,6 +136,7 @@
 .. _jdaviz: https://jdaviz.readthedocs.io/en/latest/
 .. _jupyter notebook: https://jupyter.org/
 .. _ppxf: https://pypi.org/project/ppxf/
+.. _ds9: https://sites.google.com/cfa.harvard.edu/saoimageds9
 
 .. ginga
 .. _ginga: https://ginga.readthedocs.io/en/stable/

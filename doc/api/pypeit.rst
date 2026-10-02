@@ -7,16 +7,18 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   pypeit.bspline
+   pypeit.containers
    pypeit.core
+   pypeit.dashboard
    pypeit.display
+   pypeit.gui
    pypeit.images
-   pypeit.move_median
    pypeit.par
+   pypeit.pkg
    pypeit.scripts
-   pypeit.setup_gui
    pypeit.spectrographs
    pypeit.specutils
+   pypeit.state
 
 Submodules
 ----------
@@ -26,13 +28,12 @@ Submodules
 
    pypeit.alignframe
    pypeit.archive
-   pypeit.bitmask
-   pypeit.cache
    pypeit.calibframe
    pypeit.calibrations
    pypeit.coadd1d
    pypeit.coadd2d
    pypeit.coadd3d
+   pypeit.collate
    pypeit.datamodel
    pypeit.edgetrace
    pypeit.exposure
@@ -45,15 +46,14 @@ Submodules
    pypeit.io
    pypeit.manual_extract
    pypeit.metadata
+   pypeit.multislit_flexure
    pypeit.onespec
    pypeit.orderstack
    pypeit.outputfiles
    pypeit.pypeit
    pypeit.pypeit_steps
-   pypeit.pypeitdata
    pypeit.pypeitsetup
-   pypeit.pypmsgs
-   pypeit.sampling
+   pypeit.qa
    pypeit.scattlight
    pypeit.sensfilearchive
    pypeit.sensfunc
@@ -74,5 +74,5 @@ Module contents
 .. automodule:: pypeit
    :members:
    :private-members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:

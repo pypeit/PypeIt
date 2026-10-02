@@ -7,8 +7,7 @@ import textwrap
 
 from pypeit.par import pypeitpar
 from pypeit.par.parset import ParSet
-from pypeit.spectrographs.util import load_spectrograph
-from pypeit.spectrographs import available_spectrographs
+from pypeit.spectrographs.util import load_spectrograph, available_spectrographs
 
 from IPython import embed
 

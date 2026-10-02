@@ -10,7 +10,8 @@ import numpy as np
 
 from astropy.time import Time
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit import io
 from pypeit.core import framematch
@@ -192,7 +193,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
             ttime = Time(time, format='isot')
             return ttime.mjd
         else:
-            msgs.error("Not ready for this compound meta")
+            raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -273,7 +274,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         # Get the binning
-        msgs.info("Custom bad pixel mask for MAGE")
+        log.info("Custom bad pixel mask for MAGE")
         hdu = io.fits_open(filename)
         binspatial, binspec = parse.parse_binning(hdu[0].header['BINNING'])
         hdu.close()

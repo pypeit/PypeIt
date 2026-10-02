@@ -316,22 +316,24 @@ indicates whether the extraction was 'forced', i.e. the source was not
 detected by PypeIt so extraction was performed based on the mask design.
 
 One can generate a similar, smaller set of output using the --list option
-with :ref:`pypeit_show_1dspec`::
+with :ref:`pypeit_show_1dspec`:
 
-    pypeit_show_1dspec spec1d_DE.20170425.50487-dra11_DEIMOS_20170425T140121.014.fits --list    
+.. code-block:: console
 
-Last, here is a screen shot from the GUI showing the
-1D spectrum after using
-:ref:`pypeit_show_1dspec`, with this explicit call::
+    pypeit_show_1dspec Science/spec1d_DE.20170425.50487-dra11_DEIMOS_20170425T140121.014.fits --list    
 
-   pypeit_show_1dspec spec1d_DE.20170425.50487-dra11_DEIMOS_20170425T140121.014.fits --exten 23
+Last, here is a screen shot from the GUI showing the 1D spectrum after using
+:ref:`pypeit_show_1dspec`, with this explicit call:
+
+.. code-block:: console
+
+    pypeit_show_1dspec Science/spec1d_DE.20170425.50487-dra11_DEIMOS_20170425T140121.014.fits --exten 23
 
 .. image:: ../figures/deimos_spec1d.png
 
-This uses the
-`XSpecGUI <https://linetools.readthedocs.io/en/latest/xspecgui.html>`__
-from the `linetools`_ package.  The black line is the flux and the
-red line is the estimated error.
+**THIS IMAGE IS CURRENTLY OUT OF DATE.**
+
+The black line is the flux and the red line is the estimated error.
 
 See :doc:`../out_spec1D` for further details.
 

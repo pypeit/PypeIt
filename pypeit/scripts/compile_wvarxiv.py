@@ -6,7 +6,8 @@ into a PypeIt arxiv solution that can be used with the full_template method.
 .. include:: ../include/links.rst
 """
 import time
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import par
 from pypeit import inputfiles
 from pypeit import utils
@@ -40,11 +41,15 @@ class CompileWVarxiv(scriptbase.ScriptBase):
 
         return parser
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
+
         from astropy.table import Table, join
         from importlib_resources import files as imres_files
         import glob, os
+
+        # Initialize the log
+        cls.init_log(args)
 
         # Read in the wvarxiv files
         assert os.path.isdir(args.wvarxiv_folder), 'The wvarxiv_folder does not exist'
@@ -71,19 +76,19 @@ class CompileWVarxiv(scriptbase.ScriptBase):
 
         # Does a file already exist?
         if out_path.exists() and not args.append:
-            msgs.error(f'File {out_path} already exists. Use --append to overwrite the file and add your new solutions to the existing ones.')
+            raise PypeItError(f'File {out_path} already exists. Use --append to overwrite the file and add your new solutions to the existing ones.')
         # What if user asks to append solutions?
         elif out_path.exists() and args.append:
             old_table = Table.read(out_path)
             old_array_len = len(old_table['wave'][0].data)
             if old_array_len != array_len:
-                msgs.error(f'The old file has an array length of {old_array_len} while the new files have an array length of {array_len}. Cannot merge these files.')
+                raise PypeItError(f'The old file has an array length of {old_array_len} while the new files have an array length of {array_len}. Cannot merge these files.')
             else:
                 reid_table = join(old_table, reid_table)
                 reid_table.write(out_path, format='fits', overwrite=args.append)
-                msgs.info(f'Wrote the compiled wvarxiv file to {out_path}.')
+                log.info(f'Wrote the compiled wvarxiv file to {out_path}.')
         
         # If the file does not exist, just write it out
         else:
             reid_table.write(out_path, format='fits')
-            msgs.info(f'Wrote the compiled wvarxiv file to {out_path}.')
+            log.info(f'Wrote the compiled wvarxiv file to {out_path}.')
