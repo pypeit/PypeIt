@@ -535,7 +535,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                          debug_bkpts=False, force_gauss=False, sn_gauss=4.0, model_full_slit=False,
                          model_noise=True, show_profile=False, show_resids=False,
                          use_2dmodel_mask=True, no_local_sky=False, base_var=None,
-                         count_scale=None):
+                         count_scale=None, refine_trace=True):
     r"""
     Perform local sky subtraction and  extraction
 
@@ -688,6 +688,12 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
     no_local_sky : bool, optional
         If True, do not fit local sky model, only object profile and extract optimally
         The objimage will be all zeros.
+    refine_trace : bool, optional
+        If True (default), replace each object's ``TRACE_SPAT`` at every
+        iteration by the trace returned by
+        :func:`~pypeit.core.spatialprofile.fit_profile`. If False, the
+        profile is still refit at every iteration but the input trace (from
+        object finding) is kept.
     base_var : `numpy.ndarray`_, shape is (nspec, nspat), optional
         The "base-level" variance in the data set by the detector properties and
         the image processing steps.  See
@@ -886,7 +892,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                         show_profile=show_profile)
                     # Update the object profile and the fwhm and mask parameters
                     obj_profiles[ipix[0], ipix[1], ii] = profile_model
-                    sobjs[iobj].TRACE_SPAT = trace_new
+                    if refine_trace:
+                        sobjs[iobj].TRACE_SPAT = trace_new
                     sobjs[iobj].FWHMFIT = fwhmfit
                     sobjs[iobj].FWHM = np.median(fwhmfit)
                     # TODO JFH In the xidl code the maskwidth was being updated which impacted the sub-image used for the

@@ -109,6 +109,15 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['extraction']['sn_gauss'] = 4.0
+        # Keep the object-finding trace during local sky subtraction and
+        # extraction.  With the trace refinement on, the nodded J2 frame
+        # m220409_0037 (dev-suite J2_long) walks 1.3 px (up to 2.6 px) off the
+        # star -- next to the negative trace of its background frame --, the
+        # outlier rejection then masks ~4000 on-trace pixels, and the extracted
+        # flux is 16-28% low; which way it goes depends on 1e-6-level input
+        # differences.  With the object-finding trace the extraction is stable
+        # and agrees with the other nod frames.
+        par['reduce']['extraction']['refine_trace'] = False
 
         # Flexure
         par['flexure']['spec_method'] = 'skip'

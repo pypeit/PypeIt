@@ -28,6 +28,13 @@ Dependency Changes
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
+- Added the ``refine_trace`` extraction parameter (default ``True``).  When
+  ``False``, the iterative local sky subtraction and optimal extraction of
+  multislit reductions still refit the object profile at every iteration but
+  keep the object-finding trace, instead of replacing it with the trace
+  correction returned by the profile fit.  That refinement has no
+  convergence test or bound on the cumulative shift, and together with the
+  sticky outlier masking it can walk off a bright object.
 - Added the ``lamps_wvrng`` wavelength-calibration parameter, which restricts
   the lines used from each entry in ``lamps`` to a wavelength range.  This
   allows a subset of a shipped line list to be used without copying the file.
@@ -80,6 +87,14 @@ Functionality/Performance Improvements and Additions
 
 Instrument-specific Updates
 ---------------------------
+
+- Keck/MOSFIRE: ``refine_trace`` now defaults to ``False``.  In the
+  dev-suite ``J2_long`` data, the trace of the nodded frame ``m220409_0037``
+  walked 1.3 px (up to 2.6 px) off the star during extraction, the outlier
+  rejection then masked ~4000 on-trace pixels, and the extracted flux was
+  16-28% low.  Which way it went depended on 1e-6-level input differences.
+  With the object-finding trace the extraction is stable and agrees with the
+  other nod frames; the standard star changes by <1%.
 
 - P200/NGPS ``u`` channel: support He dome-lamp frames (``IMGTYPE=DOMEHE``) as a
   second arc lamp.  The internal ThAr lamp has no detectable lines below
@@ -221,6 +236,9 @@ Under-the-hood Improvements
 Bug Fixes
 ---------
 
+- Fixed ``pypeit_cache_github_data``, which failed with a ``TypeError``
+  because it passed an unsupported ``quiet`` argument to
+  ``PypeItDataPath.get_file_path``.
 - Restore the manual spatial flexure correction (Issue #2180): a value in the
   pypeit-file ``shift`` column again overrides the automatically computed
   spatial flexure for that science/standard frame.  The feature was lost in

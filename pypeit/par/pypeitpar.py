@@ -4998,7 +4998,8 @@ class ExtractionPar(ParSet):
 
     def __init__(self, boxcar_radius=None, std_prof_nsigma=None, min_frac_prof=None, sn_gauss=None,
                  model_full_slit=None, skip_extraction=None, skip_optimal=None,
-                 use_2dmodel_mask=None, use_user_fwhm=None, return_negative=None):
+                 use_2dmodel_mask=None, use_user_fwhm=None, return_negative=None,
+                 refine_trace=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -5066,6 +5067,18 @@ class ExtractionPar(ParSet):
         dtypes['return_negative'] = bool
         descr['return_negative'] = 'If ``True`` the negative traces will be extracted and saved to disk'
 
+        defaults['refine_trace'] = True
+        dtypes['refine_trace'] = bool
+        descr['refine_trace'] = 'If ``True`` (default), the object trace is refined during the ' \
+                                'iterative local sky subtraction and profile fitting of multislit ' \
+                                'reductions, by the trace correction returned by the profile fit. ' \
+                                'If ``False``, the object profile is still fit at every iteration, ' \
+                                'but the trace from object finding is kept. The refinement has no ' \
+                                'convergence test or bound, and together with the sticky outlier ' \
+                                'masking it can walk off a bright object (e.g. a nodded IR frame ' \
+                                'next to the negative trace of its background frame), biasing the ' \
+                                'extraction low.'
+
         # Instantiate the parameter set
         super(ExtractionPar, self).__init__(list(pars.keys()),
                                         values=list(pars.values()),
@@ -5081,7 +5094,8 @@ class ExtractionPar(ParSet):
 
         # Basic keywords
         parkeys = ['boxcar_radius', 'std_prof_nsigma', 'min_frac_prof', 'sn_gauss', 'model_full_slit',
-                   'skip_extraction', 'skip_optimal', 'use_2dmodel_mask', 'use_user_fwhm', 'return_negative']
+                   'skip_extraction', 'skip_optimal', 'use_2dmodel_mask', 'use_user_fwhm', 'return_negative',
+                   'refine_trace']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

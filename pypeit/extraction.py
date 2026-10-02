@@ -778,6 +778,7 @@ class MultiSlitExtract(Extract):
             use_2dmodel_mask = self.par['reduce']['extraction']['use_2dmodel_mask']
             no_local_sky = self.par['reduce']['skysub']['no_local_sky']
             min_frac_prof = self.par['reduce']['extraction']['min_frac_prof']
+            refine_trace = self.par['reduce']['extraction']['refine_trace']
 
             # TODO: skysub.local_skysub_extract() accepts a `prof_nsigma` parameter, but none
             #       is provided here.  Additionally, the ExtractionPar keyword std_prof_nsigma
@@ -802,6 +803,7 @@ class MultiSlitExtract(Extract):
                                               # prof_nsigma=prof_nsigma,
                                               use_2dmodel_mask=use_2dmodel_mask,
                                               no_local_sky=no_local_sky,
+                                              refine_trace=refine_trace,
                                               base_var=self.sciImg.base_var,
                                               count_scale=self.sciImg.img_scale,
                                               adderr=self.sciImg.noise_floor)
