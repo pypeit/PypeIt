@@ -593,6 +593,15 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['method'] = 'reidentify'
             par['calibrations']['wavelengths']['reid_arxiv'] \
                 = 'subaru_moircs_HK500.fits'
+        elif dispname == 'VB_K':
+            # Holy-grail on the OH lines solves every science slit of the
+            # VB_K test mask.  OH_MOSFIRE_K gives the same solutions as
+            # OH_NIRES (median |dlambda| < 0.15 A) with a lower rms.  The
+            # measured line FWHM is ~6 px, set by the slit width (~0.7
+            # arcsec, R ~ 1900); R ~ 2600 (4.3 px) is for narrower slits.
+            # See the dev suite pypeitdev/subaru_moircs_vbk logs.
+            par['calibrations']['wavelengths']['lamps'] = ['OH_MOSFIRE_K']
+            par['calibrations']['wavelengths']['fwhm'] = 6.0
 
         return par
 
