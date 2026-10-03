@@ -131,6 +131,7 @@ from ginga.AstroImage import AstroImage
 from ginga.canvas.types.layer import DrawingCanvas
 from ginga.qtw.QtHelp import QtCore, QtGui
 
+from pypeit import PypeItDataModelError, __version__ as pypeit_version
 from pypeit.slittrace import SlitTraceSet
 
 from .backends import (
@@ -142,7 +143,7 @@ from .backends import (
     RemoteReductionBackend,
 )
 from . import spectrograph_support
-from .calib_utils import read_pypeit_setup_config, recommend_calibrations
+from .calib_utils import check_calib_versions, read_pypeit_setup_config, recommend_calibrations
 from .file_browser import FileBrowserController
 from .slit_overlay import SlitOverlay
 from .state import QLViewState
@@ -1931,7 +1932,18 @@ class QLView(GingaPlugin.LocalPlugin):
         cal_path = os.path.join(cal_path, "Calibrations")
         self.logger.info(f"Searching for slit files in: {cal_path}")
 
-        slitsets = self.open_slits_files(cal_path)
+        # Slit files written by a different version of PypeIt cannot be
+        # loaded; warn the user instead of failing with only a log message.
+        mismatches = check_calib_versions(cal_path, prefixes=["Slits"])
+        if mismatches:
+            self._warn_outdated_calibrations(cal_path, mismatches=mismatches)
+            return
+        try:
+            slitsets = self.open_slits_files(cal_path)
+        except PypeItDataModelError as exc:
+            self.logger.error(f"Could not load slit files from {cal_path}: {exc}", exc_info=True)
+            self._warn_outdated_calibrations(cal_path, error=exc)
+            return
         if not slitsets:
             self.logger.error(f"No Slits_*.fits* files found in {cal_path}")
             return
@@ -1997,16 +2009,71 @@ class QLView(GingaPlugin.LocalPlugin):
             f"Found {len(matched_triplets)} wavelength calibration triplet(s) in {cal_path}"
         )
 
+        # Calibration files written by a different version of PypeIt cannot
+        # be loaded; warn the user instead of failing with only a log message.
+        mismatches = check_calib_versions(cal_path)
+        if mismatches:
+            self._warn_outdated_calibrations(cal_path, mismatches=mismatches)
+            return
+
         def _build_and_show():
             try:
                 waveimg, rms_data = build_waveimg_mosaic(
                     cal_path, matched_triplets, log=self.logger
                 )
                 self.fv.gui_do(self._display_waveimg, waveimg, rms_data)
+            except PypeItDataModelError as exc:
+                self.logger.error(f"Failed to build wavelength image: {exc}", exc_info=True)
+                # Dialogs must be opened on the GUI thread
+                self.fv.gui_do(self._warn_outdated_calibrations, cal_path, None, exc)
             except Exception as exc:
                 self.logger.error(f"Failed to build wavelength image: {exc}", exc_info=True)
 
         threading.Thread(target=_build_and_show, daemon=True).start()
+
+    def _warn_outdated_calibrations(
+        self,
+        cal_path: str,
+        mismatches: Optional[list] = None,
+        error: Optional[Exception] = None,
+    ) -> None:
+        """Show a warning that calibrations cannot be loaded because they were
+        written by a different version of PypeIt.
+
+        Must be called on the GUI thread.
+
+        Parameters
+        ----------
+        cal_path : str
+            ``Calibrations/`` directory that could not be loaded.
+        mismatches : list of dict, optional
+            Mismatched files, as returned by
+            :func:`~pypeit.display.qlview.calib_utils.check_calib_versions`.
+        error : Exception, optional
+            Datamodel error raised while loading, when the mismatch was not
+            caught by the header check.
+        """
+        max_listed = 8
+        lines = []
+        if mismatches:
+            for m in mismatches[:max_listed]:
+                lines.append(
+                    f"  - {m['file']}: written by PypeIt {m['pypeit_version']} "
+                    f"({m['cls']} {m['file_version']}; this PypeIt expects {m['code_version']})"
+                )
+            if len(mismatches) > max_listed:
+                lines.append(f"  - ... and {len(mismatches) - max_listed} more")
+        elif error is not None:
+            lines.append(f"  {error}")
+        msg = (
+            f"The calibrations in\n\n{cal_path}\n\nwere written by a different "
+            f"version of PypeIt than the one running this viewer ({pypeit_version}), "
+            "and cannot be loaded:\n\n" + "\n".join(lines) + "\n\n"
+            "Re-reduce the calibrations with this version of PypeIt, or run the "
+            "viewer with the version of PypeIt that created them."
+        )
+        self.logger.warning(msg)
+        QtGui.QMessageBox.warning(None, "Calibrations Out of Date", msg)
 
     def _display_waveimg(self, waveimg: np.ndarray, rms_data=None) -> None:
         """Attach a wavelength map to the currently displayed raw image.

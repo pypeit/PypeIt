@@ -14,10 +14,20 @@ import re
 from pathlib import Path
 from typing import Dict, List
 
+from astropy.io import fits
 import yaml
 
 from pypeit.pypeitsetup import PypeItSetup
 from pypeit.scripts.ql import match_to_calibs
+from pypeit.slittrace import SlitTraceSet
+from pypeit.wavecalib import WaveCalib
+from pypeit.wavetilts import WaveTilts
+
+CALIB_FILE_CLASSES = {'Slits': SlitTraceSet, 'WaveCalib': WaveCalib, 'Tilts': WaveTilts}
+"""
+Datamodel class of each calibration file type the viewer loads, keyed by the
+file-name prefix (e.g. ``Slits_A_0_MSC01.fits.gz``).
+"""
 
 
 def read_pypeit_setup_config(dirpath: str, spec_name: str, logger) -> Dict[str, str]:
@@ -149,3 +159,49 @@ def recommend_calibrations(spec_name: str, raw_path: str, cal_root: str, logger)
     # or a dict holding the matching ``calib_dir``.
     return [str(m['calib_dir']) for m in matched.values()
             if m is not None and m.get('calib_dir') is not None]
+
+
+def check_calib_versions(cal_path: str, prefixes: List[str] = None) -> List[Dict[str, str]]:
+    """Find calibration files written with a different datamodel version
+    than the one used by the running version of PypeIt.
+
+    Only the FITS headers are read.  Files whose versions differ cannot be
+    loaded; PypeIt raises a ``PypeItDataModelError`` when it tries.
+
+    Parameters
+    ----------
+    cal_path : str
+        ``Calibrations/`` directory to check.
+    prefixes : list of str, optional
+        File-name prefixes to check; must be keys of
+        :data:`CALIB_FILE_CLASSES`.  Defaults to all of them.
+
+    Returns
+    -------
+    list of dict
+        One dict per mismatched file, with keys ``file`` (file name),
+        ``cls`` (datamodel class name), ``file_version`` and
+        ``code_version`` (datamodel versions in the file and in the running
+        code), and ``pypeit_version`` (version of PypeIt that wrote the file,
+        or ``"unknown"``).  Empty if all files match or none are found.
+        Unreadable files are skipped; the subsequent load reports them.
+    """
+    mismatches = []
+    for prefix in (prefixes or list(CALIB_FILE_CLASSES.keys())):
+        cls = CALIB_FILE_CLASSES[prefix]
+        for path in sorted(Path(cal_path).glob(f'{prefix}_*.fits*')):
+            try:
+                with fits.open(path) as hdul:
+                    pypeit_version = hdul[0].header.get('VERSPYP', 'unknown')
+                    file_versions = {hdu.header['DMODVER'] for hdu in hdul
+                                     if hdu.header.get('DMODCLS') == cls.__name__
+                                        and 'DMODVER' in hdu.header}
+            except Exception:
+                continue
+            for file_version in sorted(file_versions):
+                if file_version != cls.version:
+                    mismatches += [dict(file=path.name, cls=cls.__name__,
+                                        file_version=str(file_version),
+                                        code_version=cls.version,
+                                        pypeit_version=str(pypeit_version))]
+    return mismatches

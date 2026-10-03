@@ -329,3 +329,61 @@ def test_http_header_info_bad_instrument(http_client, fits_files, instrument):
     resp = http_client.get('/api/header_info',
                            query_string={'path': str(full), 'instrument': instrument})
     assert resp.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# Calibration version checks
+# ---------------------------------------------------------------------------
+
+def _write_calib_header(path, cls_name, dmodver, verspyp='9.9.9'):
+    """Write a header-only stand-in for a calibration file."""
+    ext = fits.ImageHDU(name='SLITS')
+    ext.header['DMODCLS'] = cls_name
+    ext.header['DMODVER'] = dmodver
+    fits.HDUList([fits.PrimaryHDU(header=fits.Header({'VERSPYP': verspyp})), ext]).writeto(path)
+
+
+def test_check_calib_versions(tmp_path):
+    from pypeit.slittrace import SlitTraceSet
+    from pypeit.wavecalib import WaveCalib
+    _write_calib_header(tmp_path / 'Slits_A_0_DET01.fits', 'SlitTraceSet', '0.0.1', '1.0.0')
+    _write_calib_header(tmp_path / 'WaveCalib_A_0_DET01.fits', 'WaveCalib', WaveCalib.version)
+    (tmp_path / 'Tilts_A_0_DET01.fits').write_text('not a fits file')
+
+    mismatches = calib_utils.check_calib_versions(str(tmp_path))
+    assert mismatches == [dict(file='Slits_A_0_DET01.fits', cls='SlitTraceSet',
+                               file_version='0.0.1', code_version=SlitTraceSet.version,
+                               pypeit_version='1.0.0')]
+    # Only the requested file types are checked
+    assert calib_utils.check_calib_versions(str(tmp_path), prefixes=['WaveCalib']) == []
+
+
+def test_check_calib_versions_current(tmp_path):
+    from pypeit.slittrace import SlitTraceSet
+    _write_calib_header(tmp_path / 'Slits_A_0_DET01.fits', 'SlitTraceSet', SlitTraceSet.version)
+    assert calib_utils.check_calib_versions(str(tmp_path)) == []
+    assert calib_utils.check_calib_versions(str(tmp_path / 'missing')) == []
+
+
+def test_warn_outdated_calibrations(monkeypatch):
+    qlview = pytest.importorskip('pypeit.display.qlview.qlview')
+    shown = []
+    monkeypatch.setattr(qlview.QtGui.QMessageBox, 'warning',
+                        lambda parent, title, msg: shown.append((title, msg)))
+
+    class _Plugin:
+        logger = _LOGGER
+
+    mismatches = [dict(file=f'Slits_A_0_MSC0{i}.fits.gz', cls='SlitTraceSet',
+                       file_version='1.1.5', code_version='1.1.6', pypeit_version='1.18.2')
+                  for i in range(1, 11)]
+    qlview.QLView._warn_outdated_calibrations(_Plugin(), '/cals', mismatches=mismatches)
+    title, msg = shown[-1]
+    assert title == 'Calibrations Out of Date'
+    assert 'Slits_A_0_MSC01.fits.gz: written by PypeIt 1.18.2' in msg
+    assert 'SlitTraceSet 1.1.5; this PypeIt expects 1.1.6' in msg
+    assert '... and 2 more' in msg
+
+    qlview.QLView._warn_outdated_calibrations(_Plugin(), '/cals',
+                                              error=ValueError('version mismatch'))
+    assert 'version mismatch' in shown[-1][1]
