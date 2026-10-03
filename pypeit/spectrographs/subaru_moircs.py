@@ -190,6 +190,10 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
             if datatyp == "DOMEFLAT" and obj in ["DOMEFLAT_OFF",
                                                  "MASKIMAGE"]:
                 return obj
+            # Internal-lamp frames have DATA-TYP = INSTFLAT; OBJECT gives
+            # the lamp (e.g. TH-AR for the ThAr arcs)
+            if datatyp == "INSTFLAT" and obj != "":
+                return obj
             return datatyp
 
         if meta_key == "lampstat01":
@@ -272,7 +276,10 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
         good_exp = framematch.check_frame_exptime(fitstbl["exptime"], exprng)
         if ftype in ["science", "standard"]:
             # Science and standards are separated by exposure time only
-            return good_exp & (fitstbl["idname"] == "OBJECT")
+            # (see default_pypeit_par).  Standards may have DATA-TYP =
+            # STANDARD_STAR (e.g. VB_K data) or OBJECT.
+            return good_exp & ((fitstbl["idname"] == "OBJECT")
+                               | (fitstbl["idname"] == "STANDARD_STAR"))
         if ftype in ["arc", "tilt"]:
             # Wavelengths and tilts come from the OH lines in the science
             # frames
@@ -285,7 +292,16 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
                 & (fitstbl["lampstat01"] == "on")
         if ftype == "lampoffflats":
             return good_exp & (fitstbl["idname"] == "DOMEFLAT_OFF")
-        # NOTE: Mask images (idname = MASKIMAGE) are deliberately not typed
+        # NOTE: Mask images (idname = MASKIMAGE) are deliberately not typed.
+        # NOTE: ThAr arcs (idname = TH-AR) are deliberately not typed as
+        # 'arc' either: the OH lines in the science frames are the default
+        # wavelength calibration, and PypeIt would combine all 'arc' frames
+        # in a calibration group.  The arcs share the science setup, and
+        # pypeit_setup writes their (untyped) rows commented out.  To use
+        # them, uncomment the rows, set their frametype to 'arc', remove
+        # 'arc' from the science frames (keep 'tilt' there: the OH lines
+        # trace the tilts better than the sparse K-band ThAr lines), and
+        # set the wavelength-calibration lamps accordingly.
 
         log.debug(f"Cannot determine if frames are of type {ftype}.")
         return np.zeros(len(fitstbl), dtype=bool)
@@ -417,8 +433,15 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
         """
         Return metadata for the selected detector.
 
-        The parameters are selected by ``det`` alone, because ``hdu`` may be
-        the chip-1 file even when ``det = 2``.
+        The chip is selected by ``det``.  When called from
+        :func:`get_rawimage`, ``hdu`` is the file actually read, i.e. the
+        chip-2 companion file for ``det = 2``, so frame-dependent values
+        (binning, read noise) come from the right chip.
+
+        The read noise depends on the number of Fowler samples
+        (``DET-NSMP``; e.g. 10 for science frames, 1 for flats and
+        standards): ``17.5/sqrt(DET-NSMP)`` e-.  ``DET-NSMP = 10`` is
+        assumed when ``hdu`` is None or the card is missing.
 
         Args:
             det (:obj:`int`):
@@ -434,6 +457,12 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
         # Binning
         binning = "1,1" if hdu is None \
             else self.get_meta_value(self.get_headarr(hdu), "binning")
+
+        # Read noise for the number of Fowler samples of this frame.
+        # TODO - The single-read noise (17.5 e-) is to be confirmed by the
+        # instrument scientist.
+        nsmp = 10 if hdu is None else hdu[0].header.get("DET-NSMP", 10)
+        ronoise = 17.5 / np.sqrt(max(int(nsmp), 1))
 
         # TODO - Confirm gain, read noise, dark current and saturation with
         # the instrument scientist
@@ -453,7 +482,7 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
             mincounts=-1e10,
             numamplifiers=1,
             gain=np.atleast_1d(2.07),  # e-/ADU for chip 1
-            ronoise=np.atleast_1d(5.534),  # for NDR=10 (17.5/sqrt(10))
+            ronoise=np.atleast_1d(ronoise),  # 17.5/sqrt(DET-NSMP)
             # Effective area (EFP-MIN/EFP-RNG); excludes reference pixels
             datasec=np.atleast_1d("[5:2044,5:2044]"),
         )
@@ -473,7 +502,7 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
             mincounts=-1e10,
             numamplifiers=1,
             gain=np.atleast_1d(1.99),  # e-/ADU for chip 2
-            ronoise=np.atleast_1d(5.534),  # for NDR=10 (17.5/sqrt(10))
+            ronoise=np.atleast_1d(ronoise),  # 17.5/sqrt(DET-NSMP)
             # Effective area (EFP-MIN/EFP-RNG); excludes reference pixels
             datasec=np.atleast_1d("[5:2044,5:2044]"),
         )
