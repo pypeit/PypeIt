@@ -602,6 +602,12 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
             # See the dev suite pypeitdev/subaru_moircs_vbk logs.
             par['calibrations']['wavelengths']['lamps'] = ['OH_MOSFIRE_K']
             par['calibrations']['wavelengths']['fwhm'] = 6.0
+            # Standards are taken through one slit of the science mask, so
+            # keep one object per slit.  Otherwise a sky-subtraction
+            # artefact at a slit edge next to the bright star can be
+            # extracted with a higher S/N than the star and be chosen as
+            # the standard.
+            par['reduce']['findobj']['maxnumber_std'] = 1
 
         return par
 
