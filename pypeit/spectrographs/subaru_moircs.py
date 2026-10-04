@@ -108,8 +108,9 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
         par["scienceframe"]["exprng"] = [20, None]
 
         # Sensitivity function parameters (tested on VB_K standards only).
-        # The PCA telluric model (teltype = 'pca', the default) is used as
-        # for the other near-IR spectrographs.  It fit the VB_K standards
+        # The PCA telluric model (teltype = 'pca', set explicitly although
+        # it is the default) is used as for the other near-IR
+        # spectrographs.  It fit the VB_K standards
         # better than the TelFit_MaunaKea grid, which would also need
         # teltype = 'grid'.
         par["sensfunc"]["extrap_blu"] = 0.0
@@ -118,6 +119,7 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
         par["sensfunc"]["algorithm"] = "IR"
         par["sensfunc"]["polyorder"] = 13
         par["sensfunc"]["IR"]["maxiter"] = 2
+        par["sensfunc"]["IR"]["teltype"] = "pca"
         par["sensfunc"]["IR"]["telgridfile"] \
             = "TellPCA_3000_26000_R10000.fits"
 
@@ -253,8 +255,9 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
             if pattern == "LINE2" and int(count) in [1, 2]:
                 return "A" if int(count) == 1 else "B"
             return f"P{int(count)}"
-        # dithoff
-        if no_dither or pattern != "LINE2" or width is None:
+        # dithoff; 0 for positions other than A and B (see dithpos)
+        if no_dither or pattern != "LINE2" or width is None \
+                or int(count) not in [1, 2]:
             return 0.0
         return 0.5 * float(width) * (1. if int(count) == 1 else -1.)
 
@@ -466,7 +469,8 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
         # TODO - The single-read noise (17.5 e-) is to be confirmed by the
         # instrument scientist.
         nsmp = 10 if hdu is None else hdu[0].header.get("DET-NSMP", 10)
-        ronoise = 17.5 / np.sqrt(max(int(nsmp), 1))
+        # (rounded, so that e.g. the generated detector table shows 5.534)
+        ronoise = round(17.5 / np.sqrt(max(int(nsmp), 1)), 3)
 
         # TODO - Confirm gain, read noise, dark current and saturation with
         # the instrument scientist
