@@ -107,7 +107,11 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
         par["calibrations"]["darkframe"]["exprng"] = [1, None]
         par["scienceframe"]["exprng"] = [20, None]
 
-        # Sensitivity function parameters (not yet tested on MOIRCS data)
+        # Sensitivity function parameters (tested on VB_K standards only).
+        # The PCA telluric model (teltype = 'pca', the default) is used as
+        # for the other near-IR spectrographs.  It fit the VB_K standards
+        # better than the TelFit_MaunaKea grid, which would also need
+        # teltype = 'grid'.
         par["sensfunc"]["extrap_blu"] = 0.0
         par["sensfunc"]["extrap_red"] = 0.0
         par["fluxcalib"]["extrap_sens"] = True
@@ -115,7 +119,7 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
         par["sensfunc"]["polyorder"] = 13
         par["sensfunc"]["IR"]["maxiter"] = 2
         par["sensfunc"]["IR"]["telgridfile"] \
-            = "TelFit_MaunaKea_3100_26100_R20000.fits"
+            = "TellPCA_3000_26000_R10000.fits"
 
         return par
 
