@@ -64,9 +64,9 @@ class RunPypeIt(scriptbase.ScriptBase):
         parser.add_argument('--ncpu', type=int, default=None,
                             help='Number of CPUs to use.  Overrides the [rdx] ncpu '
                                  'parameter.  The default (None) uses the parameter value, '
-                                 'which itself defaults to 1 (fully serial).  Values >1 '
-                                 'reduce detectors/mosaics concurrently and increase peak '
-                                 'memory usage roughly in proportion.')
+                                 'which itself defaults to 1 (fully serial).  Currently, '
+                                 'this only sets the number of threads used to write the '
+                                 'QA figures; the reduction itself is still serial.')
 
         return parser
 
@@ -80,6 +80,7 @@ class RunPypeIt(scriptbase.ScriptBase):
 
         from pypeit import pypeit
         from pypeit import log
+        from pypeit import qaWriter
         from pypeit import PypeItError
 
         # Set a default log file based on the name of the pypeit file, not the
@@ -109,7 +110,6 @@ class RunPypeIt(scriptbase.ScriptBase):
         log.info('Generating QA HTML')
         # Ensure all deferred QA figures are on disk before the HTML wrappers
         # are built
-        from pypeit import qaWriter
         qaWriter.flush()
         pypeIt.build_qa()
 

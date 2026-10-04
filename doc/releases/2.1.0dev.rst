@@ -25,6 +25,8 @@ Dependency Changes
 ------------------
 
 - Adds support for python 3.14
+- ``pillow`` (already required by ``matplotlib``) is now an explicit
+  dependency; it is used to write the QA PNGs.
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------

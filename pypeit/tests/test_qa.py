@@ -26,7 +26,7 @@ def _draw(seed=2718):
 
 def test_package_writer_is_serial():
     """The package-level writer must default to the serial path."""
-    assert isinstance(pypeit.qaWriter, QAWriter)
+    assert isinstance(pypeit.qaWriter, QAWriter), 'pypeit.qaWriter must be a QAWriter instance'
     assert not pypeit.qaWriter.parallel, \
         'the default QA writer must write figures serially'
 
@@ -49,7 +49,7 @@ def test_save_figure_threaded_matches_serial(tmp_path):
     serial.flush()
 
     threaded = QAWriter(ncpu=4)
-    assert threaded.parallel
+    assert threaded.parallel, 'ncpu=4 must create an encoding thread pool'
     outs = []
     for i in range(8):
         o = tmp_path / f'par{i}.png'
@@ -100,18 +100,39 @@ def test_init_is_repeatable(tmp_path):
     pool inherited from its parent.
     """
     writer = QAWriter(ncpu=4)
-    assert writer.parallel
+    assert writer.parallel, 'ncpu=4 must create an encoding thread pool'
     writer.save_figure(_draw(), tmp_path / 'queued.png', dpi=80)
     # Re-initializing drops the inherited pool and any queued encodes
     writer.init(ncpu=1)
-    assert not writer.parallel
-    assert len(writer.pending) == 0
+    assert not writer.parallel, 'init(ncpu=1) must remove the thread pool'
+    assert len(writer.pending) == 0, 'init() must drop any queued encodes'
     writer.init(ncpu=2)
-    assert writer.parallel
+    assert writer.parallel, 'init(ncpu=2) must create a new thread pool'
     out = tmp_path / 'after.png'
     writer.save_figure(_draw(), out, dpi=80)
     writer.flush()
-    assert out.exists()
+    assert out.exists(), 'a re-initialized pool must write the figure'
+
+
+def test_flush_empties_queue_after_failure(tmp_path):
+    """A failed encode must not be re-raised by a subsequent flush."""
+    writer = QAWriter(ncpu=2)
+    fig, _ = plt.subplots()
+    writer.save_figure(fig, tmp_path / 'nonexistent_dir' / 'x.png', dpi=50)
+    with pytest.raises(Exception):
+        writer.flush()
+    assert len(writer.pending) == 0, 'flush must empty the queue even if an encode fails'
+    writer.flush()
+
+
+def test_save_figure_without_outfile():
+    """With no output file, the figure is closed and nothing is queued."""
+    writer = QAWriter(ncpu=2)
+    fig, ax = plt.subplots()
+    ax.plot([0, 1], [0, 1])
+    writer.save_figure(fig)
+    assert len(writer.pending) == 0, 'no encode must be queued without an output file'
+    assert len(plt.get_fignums()) == 0, 'figure must be closed'
 
 
 def test_get_dimen():

@@ -2470,10 +2470,9 @@ def spatillum_finecorr_qa(normed, finecorr, left, right, ypos, cut, outfile=None
     fighght = 8.5
     cutrat = fighght*norm_cut.shape[1]/norm_cut.shape[0]
     fig = plt.figure(figsize=(5 + 3.25*cutrat, fighght))
-    plt.clf()
     # Single panel plot
     gs = gridspec.GridSpec(1, 5, height_ratios=[1], width_ratios=[4.0, cutrat, cutrat, cutrat, cutrat*0.25])
-    ax_spec = plt.subplot(gs[0])
+    ax_spec = fig.add_subplot(gs[0])
     # Setup the bin edges, and some plotting variables
     bins = np.linspace(0, 1, nseg + 1)
     minmod, maxmod, sep = 1.0, 1.0, 0.01
@@ -2507,26 +2506,26 @@ def spatillum_finecorr_qa(normed, finecorr, left, right, ypos, cut, outfile=None
         ax_spec.text(0.04, 1.01, title, transform=ax_spec.transAxes,
                      ha='left', va='bottom', fontsize='medium')
     # Plot the image, model, and residual
-    ax_normed = plt.subplot(gs[1])
+    ax_normed = fig.add_subplot(gs[1])
     ax_normed.imshow(np.flipud(norm_cut), vmin=vmin, vmax=vmax)
     ax_normed.set_title("data", fontsize='small')
     ax_normed.axis('off')
-    ax_fincor = plt.subplot(gs[2])
+    ax_fincor = fig.add_subplot(gs[2])
     ax_fincor.imshow(np.flipud(fcor_cut), vmin=vmin, vmax=vmax)
     ax_fincor.set_title("model", fontsize='small')
     ax_fincor.axis('off')
-    ax_resid = plt.subplot(gs[3])
+    ax_resid = fig.add_subplot(gs[3])
     # Express the deviations as a percentage
     im = ax_resid.imshow(np.flipud(norm_cut-fcor_cut)*100, vmin=(vmin-1)*100, vmax=(vmax-1)*100)
     ax_resid.set_title("diff", fontsize='small')
     ax_resid.axis('off')
     # Add a colorbar
-    cax = plt.subplot(gs[4])
-    cbar = plt.colorbar(im, cax=cax)#, fraction=0.046, pad=0.04)
+    cax = fig.add_subplot(gs[4])
+    cbar = fig.colorbar(im, cax=cax)#, fraction=0.046, pad=0.04)
     cbar.set_label('Percentage deviation', rotation=270, labelpad=10)
     # Finish
-    plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-    plt.subplots_adjust(wspace=0.03, hspace=0, left=0.12, right=0.9, bottom=0.05, top=0.94)
+    fig.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
+    fig.subplots_adjust(wspace=0.03, hspace=0, left=0.12, right=0.9, bottom=0.05, top=0.94)
     if outfile is not None:
         log.info("Saving QA:\n"+outfile)
     qaWriter.save_figure(fig, outfile, show=outfile is None, dpi=400)
@@ -2562,35 +2561,34 @@ def detector_structure_qa(det_resp, det_resp_model, outfile=None, title="Detecto
     # Plot
     fig_height = 3.0
     fig = plt.figure(figsize=(3*fig_height, fig_height))
-    plt.clf()
     # Prepare axes
     gs = gridspec.GridSpec(1, 4, height_ratios=[1], width_ratios=[1.0, 1.0, 1.0, 0.05])
     # Axes showing the observed detector response
-    ax_data = plt.subplot(gs[0])
+    ax_data = fig.add_subplot(gs[0])
     ax_data.imshow(det_resp, origin='lower', vmin=vmin, vmax=vmax)
     ax_data.set_xlabel("data", fontsize='medium')
     ax_data.axes.xaxis.set_ticks([])
     ax_data.axes.yaxis.set_ticks([])
     # Axes showing the model fit to the detector response
-    ax_modl = plt.subplot(gs[1])
+    ax_modl = fig.add_subplot(gs[1])
     im = ax_modl.imshow(det_resp_model, origin='lower', vmin=vmin, vmax=vmax)
     ax_modl.set_title(title, fontsize='medium')
     ax_modl.set_xlabel("model", fontsize='medium')
     ax_modl.axes.xaxis.set_ticks([])
     ax_modl.axes.yaxis.set_ticks([])
     # Axes showing the residual of the detector response fit
-    ax_resd = plt.subplot(gs[2])
+    ax_resd = fig.add_subplot(gs[2])
     ax_resd.imshow(det_resp-det_resp_model, origin='lower', vmin=vmin-1, vmax=vmax-1)
     ax_resd.set_xlabel("1+data-model", fontsize='medium')
     ax_resd.axes.xaxis.set_ticks([])
     ax_resd.axes.yaxis.set_ticks([])
     # Add a colorbar
-    cax = plt.subplot(gs[3])
-    cbar = plt.colorbar(im, cax=cax)  # , fraction=0.046, pad=0.04)
+    cax = fig.add_subplot(gs[3])
+    cbar = fig.colorbar(im, cax=cax)  # , fraction=0.046, pad=0.04)
     cbar.set_label('Deviation', rotation=270, labelpad=10)
     # Finish
-    plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-    plt.subplots_adjust(wspace=0.03, hspace=0, left=0.05, right=0.9, bottom=0.1, top=0.9)
+    fig.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
+    fig.subplots_adjust(wspace=0.03, hspace=0, left=0.05, right=0.9, bottom=0.1, top=0.9)
     if outfile is not None:
         log.info("Saving QA:\n" + outfile)
     qaWriter.save_figure(fig, outfile, show=outfile is None, dpi=400)

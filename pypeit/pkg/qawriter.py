@@ -7,6 +7,9 @@ from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
+import matplotlib
+from matplotlib import pyplot as plt
+from PIL import Image
 
 
 class QAWriter:
@@ -43,18 +46,33 @@ class QAWriter:
     The default-constructed instance is fully serial, meaning the QA output of
     a default reduction is written exactly as it was before this class existed.
 
+    **When to call** :func:`flush`: once :func:`save_figure` returns, a figure
+    may not be on disk yet.  Call :func:`flush` wherever subsequent code
+    expects the files to exist, or wherever the process (or a worker process)
+    may end.  In the reduction, that is at the end of each unit of work: the
+    end of :func:`~pypeit.pypeit_steps.calib_one` (one detector's
+    calibrations), :func:`~pypeit.exposure.reduce_exposure` (one exposure),
+    :meth:`~pypeit.pypeit.PypeIt.calib_all` and
+    :meth:`~pypeit.pypeit.PypeIt.reduce_all`, and immediately before the QA
+    HTML pages that link to the PNGs are built.  Independently of these,
+    :func:`save_figure` flushes automatically once :attr:`max_pending` encodes
+    are queued, which bounds the memory held by the queue.
+
     Parameters
     ----------
     ncpu : :obj:`int`, optional
-        Number of figure-encoding threads.  Values less than 2 write the
-        figures in-line, with no thread pool.
+        Number of figure-encoding threads, capped at :attr:`max_threads`.
+        Values less than 2 write the figures in-line, with no thread pool.
 
     Attributes
     ----------
-    pool : `concurrent.futures.ThreadPoolExecutor`_
+    pool : :class:`concurrent.futures.ThreadPoolExecutor`
         Pool used to encode the figures, or None when writing serially.
     pending : :obj:`list`
-        Futures for the encodes that have not yet been reaped.
+        The :class:`concurrent.futures.Future` objects for the figures handed
+        to :attr:`pool`, one per figure.  A future is added by
+        :func:`save_figure`, and the list is emptied by :func:`flush`, which
+        waits for each future to finish.  Always empty when writing serially.
     max_pending : :obj:`int`
         Number of queued encodes that triggers an automatic :func:`flush`.
         This bounds the memory held by the queued rasters; a large QA figure
@@ -87,14 +105,13 @@ class QAWriter:
         Parameters
         ----------
         ncpu : :obj:`int`, optional
-            Number of figure-encoding threads.  Values less than 2 disable the
-            pool.
+            Number of figure-encoding threads, capped at :attr:`max_threads`.
+            Values less than 2 disable the pool.
         """
-        old = self.pool
+        if self.pool is not None:
+            self.pool.shutdown(wait=False)
         self.pool = None
         self.pending = []
-        if old is not None:
-            old.shutdown(wait=False)
         if ncpu is not None and ncpu > 1:
             self.pool = ThreadPoolExecutor(max_workers=min(int(ncpu), self.max_threads),
                                            thread_name_prefix='pypeit-qa')
@@ -104,56 +121,43 @@ class QAWriter:
         """Flag that figures are being encoded by a thread pool."""
         return self.pool is not None
 
-    def save_figure(self, fig, outfile, show:bool=False, close:bool=True, **kwargs):
+    def save_figure(self, fig, outfile=None, dpi=None, show:bool=False):
         """
-        Write a matplotlib figure to disk.
+        Write a matplotlib figure to disk and close it.
 
         When the pool is active (see :func:`init`), the figure is rasterized
         here and only its PNG encoding is deferred to a background thread; the
-        file written is identical to the one written by
-        `matplotlib.figure.Figure.savefig`_.  Use :func:`flush` to ensure the
-        deferred writes have completed.
+        file written is pixel-identical to the one written by
+        :meth:`matplotlib.figure.Figure.savefig`.  Use :func:`flush` to ensure
+        the deferred writes have completed.
 
         Parameters
         ----------
-        fig : `matplotlib.figure.Figure`_
-            Figure to write.  It must not be modified after this call.
+        fig : :class:`matplotlib.figure.Figure`
+            Figure to write.  It is closed by this call and must not be used
+            afterwards.
         outfile : :obj:`str`, `Path`_, optional
             Output file.  If None, the figure is not written.
+        dpi : :obj:`float`, optional
+            Resolution of the written figure.  If None, use the matplotlib
+            default (``rcParams['savefig.dpi']``).
         show : :obj:`bool`, optional
             Show the figure interactively.  This forces the synchronous path.
-        close : :obj:`bool`, optional
-            Close the figure once it has been written.
-        **kwargs
-            Passed to `matplotlib.figure.Figure.savefig`_ (e.g., ``dpi``).
-            Only a plain ``dpi`` is compatible with the deferred path; any
-            other keyword, or an ``outfile`` that is not a PNG, is written
-            synchronously.
         """
-        from matplotlib import pyplot as plt
-
-        if show or self.pool is None:
+        if outfile is None or not self._can_defer(outfile, show):
+            # Write (and/or show) the figure synchronously
             if outfile is not None:
-                fig.savefig(outfile, **kwargs)
+                fig.savefig(outfile, **({} if dpi is None else {'dpi': dpi}))
             if show:
                 plt.show()
-            if close:
-                plt.close(fig)
-            return
-        if outfile is None:
-            if close:
-                plt.close(fig)
-            return
-        if Path(outfile).suffix.lower() != '.png' or not close \
-                or any(k != 'dpi' for k in kwargs):
-            # Only the plain PNG + close case is handled by the deferred path
-            fig.savefig(outfile, **kwargs)
-            if close:
-                plt.close(fig)
+            plt.close(fig)
             return
 
         # Rasterize here (see the class warning), then queue only the encode.
-        fig.set_dpi(kwargs.get('dpi', fig.dpi))
+        if dpi is None:
+            dpi = matplotlib.rcParams['savefig.dpi']
+        if dpi != 'figure':
+            fig.set_dpi(dpi)
         fig.canvas.draw()
         rgba = np.asarray(fig.canvas.buffer_rgba()).copy()
         # Deregister the figure from pyplot now, so that pyplot-state plotting
@@ -164,6 +168,38 @@ class QAWriter:
         if len(self.pending) >= self.max_pending:
             self.flush()
 
+    def _can_defer(self, outfile, show):
+        """
+        Check if a figure can be written by the deferred path.
+
+        The deferred path writes the raster that ``fig.canvas.draw()`` produces
+        directly to a PNG.  That is the same image
+        :meth:`~matplotlib.figure.Figure.savefig` writes under matplotlib's
+        default ``savefig`` settings, but not if the output format is not PNG,
+        or if the ``savefig.*`` rcParams request a change to the image (e.g., a
+        ``'tight'`` bounding box, a transparent background, or a face color
+        that differs from the figure's).  Those cases, and interactive display,
+        are written synchronously instead.  This only affects how quickly the
+        file is written, not its contents, so it is not relevant to users.
+
+        Parameters
+        ----------
+        outfile : :obj:`str`, `Path`_
+            Output file.
+        show : :obj:`bool`
+            Whether the figure is also to be shown interactively.
+
+        Returns
+        -------
+        :obj:`bool`
+            True if the figure can be written by the deferred path.
+        """
+        rc = matplotlib.rcParams
+        return self.pool is not None and not show \
+                and Path(outfile).suffix.lower() == '.png' \
+                and rc['savefig.bbox'] is None and not rc['savefig.transparent'] \
+                and rc['savefig.facecolor'] == 'auto' and rc['savefig.edgecolor'] == 'auto'
+
     def flush(self):
         """
         Block until every deferred figure has been written.
@@ -171,9 +207,13 @@ class QAWriter:
         Exceptions raised while encoding are re-raised here, on the calling
         thread.  This is a no-op when writing serially.
         """
-        pending, self.pending = self.pending, []
-        for future in pending:
-            future.result()
+        try:
+            for future in self.pending:
+                future.result()
+        finally:
+            # Empty the queue even if an encode failed, so that a subsequent
+            # flush does not wait on (and re-raise from) the same futures.
+            self.pending = []
 
     @staticmethod
     def _encode_png(rgba, outfile, dpi):
@@ -192,7 +232,6 @@ class QAWriter:
         dpi : :obj:`float`
             Resolution recorded in the PNG metadata.
         """
-        from PIL import Image
         Image.fromarray(rgba).save(outfile, dpi=(dpi, dpi))
 
     def __repr__(self):

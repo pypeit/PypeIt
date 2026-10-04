@@ -7,7 +7,7 @@
                       pypeit_file
     
     PypeIt: The Python Spectroscopic Data Reduction Pipeline
-    Version 2.0.2.dev584+gde3919738
+    Version 2.0.2.dev1216+gf3a1f1d27
     
     Available spectrographs include:
         aat_uhrf, apf_levy, arc_arces, arc_kosmos, arc_tspec, bok_bc,
@@ -63,7 +63,7 @@
       -c, --calib_only      Only run on calibrations
       --ncpu NCPU           Number of CPUs to use. Overrides the [rdx] ncpu
                             parameter. The default (None) uses the parameter value,
-                            which itself defaults to 1 (fully serial). Values >1
-                            reduce detectors/mosaics concurrently and increase peak
-                            memory usage roughly in proportion.
+                            which itself defaults to 1 (fully serial). Currently,
+                            this only sets the number of threads used to write the
+                            QA figures; the reduction itself is still serial.
     

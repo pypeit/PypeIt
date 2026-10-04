@@ -617,9 +617,7 @@ def arc_tilts_spec_qa(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rm
         outfile = set_qa_filename(setup, method, slit=slitord_id, out_dir=out_dir)
 
     # Setup
-    fig = plt.figure(figsize=(14, 6))
-    plt.clf()
-    ax = plt.gca()
+    fig, ax = plt.subplots(figsize=(14, 6))
 
     # Scatter plot
     res = (tilts - tilts_model)
@@ -671,7 +669,7 @@ def arc_tilts_spec_qa(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rm
     ax.legend(handles=legend_elements)
 
     # Finish
-    plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
+    fig.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
 
     qaWriter.save_figure(fig, outfile, show=show_QA, dpi=400)
     plt.rcdefaults()
@@ -731,7 +729,7 @@ def arc_tilts_spat_qa(tilts_dspat, tilts, tilts_model, tilts_spec_fit, tot_mask,
     cb.set_label('Spectral Pixel')
 
     # Finish
-    plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
+    fig.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
 
     qaWriter.save_figure(fig, outfile, show=show_QA, dpi=400)
     plt.rcdefaults()
@@ -805,22 +803,21 @@ def spec_flexure_qa(slitords:np.ndarray, bpm:np.ndarray, basename:str,
             basename, method + '_corr', slit=slitord, det=det, mode=mode, out_dir=out_dir
         )
         fig = plt.figure(figsize=(8, 5.0))
-        plt.clf()
         gs = gridspec.GridSpec(nrow, ncol)
         # Correlation QA
         if slit_cen:
-            ax = plt.subplot(gs[0, 0])
+            ax = fig.add_subplot(gs[0, 0])
             spec_flexure_corrQA(ax, this_flex_dict, 0, 'Slit Center')
         else:
             iplt = 0
             for ss, specobj in enumerate(this_specobjs):
                 if specobj is None or (specobj.BOX_WAVE is None and specobj.OPT_WAVE is None):
                     continue
-                ax = plt.subplot(gs[iplt//ncol, iplt % ncol])
+                ax = fig.add_subplot(gs[iplt//ncol, iplt % ncol])
                 spec_flexure_corrQA(ax, this_flex_dict, ss, '{:s}'.format(specobj.NAME))
                 iplt += 1
         # Finish
-        plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
+        fig.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
         qaWriter.save_figure(fig, outfile)
 
         # Sky line QA (just one object)
@@ -858,17 +855,16 @@ def spec_flexure_qa(slitords:np.ndarray, bpm:np.ndarray, basename:str,
         )
         # Figure
         fig = plt.figure(figsize=(8, 5.0))
-        plt.clf()
         nrow, ncol = 2, 3
         gs = gridspec.GridSpec(nrow, ncol)
         if slit_cen:
-            plt.suptitle('Sky Comparison for Slit Center', y=0.99)
+            fig.suptitle('Sky Comparison for Slit Center', y=0.99)
         else:
-            plt.suptitle('Sky Comparison for {:s}'.format(specobj.NAME), y=0.99)
+            fig.suptitle('Sky Comparison for {:s}'.format(specobj.NAME), y=0.99)
 
         for ii, igdsky in enumerate(gdsky):
             skyline = sky_lines[igdsky]
-            ax = plt.subplot(gs[ii//ncol, ii % ncol])
+            ax = fig.add_subplot(gs[ii//ncol, ii % ncol])
             # Norm
             pix1 = np.where(np.abs(sky_spec.wave-skyline) < dwv)[0]
             pix2 = np.where(np.abs(arx_spec.wave-skyline) < dwv)[0]
@@ -886,11 +882,11 @@ def spec_flexure_qa(slitords:np.ndarray, bpm:np.ndarray, basename:str,
             ax.set_ylabel('Counts')
 
         # Legend
-        plt.legend(loc='upper left', scatterpoints=1, borderpad=0.3,
-                   handletextpad=0.3, fontsize='small', numpoints=1)
+        ax.legend(loc='upper left', scatterpoints=1, borderpad=0.3,
+                  handletextpad=0.3, fontsize='small', numpoints=1)
 
         # Finish
-        plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
+        fig.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
         qaWriter.save_figure(fig, outfile)
         #log.info("Wrote spectral flexure QA: {}".format(outfile))
 
@@ -1058,19 +1054,19 @@ def spat_flexure_qa(img, slits, shift, gpm=None, vrange=None, outfile=None):
 
             # plot the slits
             for i in range(slits.nslits):
-                plt.plot(left_slits[::thin, i], spec[::thin, i], color='C3', lw=1, ls='--', zorder=5)
-                plt.plot(right_slits[::thin, i], spec[::thin, i], color='C1', lw=1, ls='--', zorder=5)
-                plt.plot(left_flex[::thin, i], spec[::thin, i], color='C3', lw=1, zorder=6)
-                plt.plot(right_flex[::thin, i], spec[::thin, i], color='C1', lw=1, zorder=6)
+                ax.plot(left_slits[::thin, i], spec[::thin, i], color='C3', lw=1, ls='--', zorder=5)
+                ax.plot(right_slits[::thin, i], spec[::thin, i], color='C1', lw=1, ls='--', zorder=5)
+                ax.plot(left_flex[::thin, i], spec[::thin, i], color='C3', lw=1, zorder=6)
+                ax.plot(right_flex[::thin, i], spec[::thin, i], color='C1', lw=1, zorder=6)
             ax.tick_params(axis='both', labelsize=6)
             if r == 0 and s == 0:
-                plt.suptitle(f'Shift={shift:.1f} pixels', fontsize=18)
+                fig.suptitle(f'Shift={shift:.1f} pixels', fontsize=18)
                 ax.legend(handles=legend_elements, fontsize=7)
                 if not debug:
                     ax.set_ylabel('Upper snippets', fontsize=18)
             elif r == 1 and s == 0:
                 ax.set_ylabel('Lower snippets', fontsize=18)
-    plt.tight_layout()
+    fig.tight_layout()
     if debug:
         plt.show()
     else:

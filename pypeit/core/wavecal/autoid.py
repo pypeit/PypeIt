@@ -87,7 +87,7 @@ def arc_fit_qa(waveFit,
 
 
     # Simple spectrum plot
-    ax_spec = plt.subplot(gs[:,0])
+    ax_spec = fig.add_subplot(gs[:,0])
     ax_spec.minorticks_on()
     ax_spec.plot(np.arange(len(arc_spec)), arc_spec)
     ymin, ymax = np.min(arc_spec), np.max(arc_spec)
@@ -145,12 +145,12 @@ def arc_fit_qa(waveFit,
 
     # If we're only plotting the ID panel, save the figure and return
     if ids_only:
-        plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
+        fig.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
         qaWriter.save_figure(fig, outfile, show=outfile is None, dpi=800)
         return
 
     # Arc Fit
-    ax_fit = plt.subplot(gs[0, 1])
+    ax_fit = fig.add_subplot(gs[0, 1])
     # Points
     ax_fit.scatter(waveFit.pixel_fit,waveFit.wave_fit, marker='x')
     # Rejections?
@@ -177,7 +177,7 @@ def arc_fit_qa(waveFit,
     ax_fit.text(0.1, 0.9, r'$\Delta\lambda$={:.3f}$\AA$ (per pix)'.format(waveFit.cen_disp), size='small', transform=ax_fit.transAxes)
     ax_fit.text(0.1, 0.8, 'RMS={:.3f} (pixels)'.format(waveFit.rms), size='small', transform=ax_fit.transAxes)
     # Arc Residuals
-    ax_res = plt.subplot(gs[1,1])
+    ax_res = fig.add_subplot(gs[1,1])
     res = waveFit.wave_fit-wave_soln_fit
     ax_res.scatter(waveFit.pixel_fit[gpm], res[gpm]/waveFit.cen_disp, marker='x')
     ax_res.plot([xmin,xmax], [0.,0], 'k--')
@@ -188,7 +188,7 @@ def arc_fit_qa(waveFit,
     ax_res.tick_params(axis="y", which='both', right=True)
 
     # Finish
-    plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
+    fig.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
     qaWriter.save_figure(fig, outfile, show=outfile is None, dpi=400)
 
     plt.rcdefaults()
@@ -274,7 +274,7 @@ def arc_fwhm_qa(fwhmFit, spat_id, slit_txt="slit", outfile=None, show_QA=False):
         cbar.solids.set_edgecolor('black')
         cbar.set_label(label='Fraction along the slit in the spatial direction', weight='bold', fontsize=12)
 
-    plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
+    fig.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
     qaWriter.save_figure(fig, outfile, show=show_QA, dpi=400)
     plt.rcdefaults()
 

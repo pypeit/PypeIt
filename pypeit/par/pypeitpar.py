@@ -3068,15 +3068,13 @@ class ReduxPar(ParSet):
 
         defaults['ncpu'] = 1
         dtypes['ncpu'] = int
-        descr['ncpu'] = 'Number of CPUs (worker processes) PypeIt may use to reduce ' \
-                        'detectors/mosaics concurrently, and the number of threads used ' \
-                        'to write QA figures.  The default, 1, runs the code fully ' \
-                        'serially, exactly as in previous versions.  Values greater than ' \
-                        '1 are capped at the number of detectors being reduced and at ' \
-                        '``os.cpu_count()-1``.  Beware that peak memory usage scales ' \
-                        'roughly linearly with the number of detectors reduced at the ' \
-                        'same time.  Can be overridden on the command line with ' \
-                        '``run_pypeit --ncpu``.'
+        descr['ncpu'] = 'Number of CPUs PypeIt may use.  The default, 1, runs the code ' \
+                        'fully serially, exactly as in previous versions.  Currently, ' \
+                        'this only sets the number of threads used to write the QA ' \
+                        'figures (capped at 8); the reduction itself is still serial.  ' \
+                        'Values less than 1 are reset to 1.  This is used by any script ' \
+                        'that runs the main reduction (e.g., ``run_pypeit``, ' \
+                        '``pypeit_ql``), and ``run_pypeit --ncpu`` overrides it.'
 
         dtypes['detnum'] = [int, list]
         descr['detnum'] = 'Restrict reduction to a list of detector indices. ' \
@@ -3167,7 +3165,8 @@ class ReduxPar(ParSet):
 
     def validate(self):
         if self.data['ncpu'] is not None and self.data['ncpu'] < 1:
-            raise ValueError('ncpu must be a positive integer.')
+            log.warning(f"ncpu must be a positive integer; changing {self.data['ncpu']} to 1.")
+            self.data['ncpu'] = 1
         if self.data['slitspatnum'] is not None:
             if self.data['maskIDs'] is not None:
                 raise ValueError("You cannot assign both splitspatnum and maskIDs")

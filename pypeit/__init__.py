@@ -26,8 +26,7 @@ dataPaths = PypeItDataPaths()
 
 # Import and instantiate the QA figure writer.  The default instance writes
 # figures serially; it is (re)configured by PypeIt.__init__ once the reduction
-# parameters are known.  NOTE: qawriter deliberately defers its matplotlib
-# imports so that importing pypeit does not select a matplotlib backend.
+# parameters are known.
 from .pkg.qawriter import QAWriter
 qaWriter = QAWriter()
 

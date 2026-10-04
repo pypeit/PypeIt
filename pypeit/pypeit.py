@@ -94,7 +94,7 @@ class PypeIt:
             self.par['rdx']['redux_path'] = redux_path
         # The command-line --ncpu overrides the parameter file.  Item assignment
         # bypasses the ParSet validation applied at instantiation, so re-run it
-        # to catch, e.g., --ncpu 0.
+        # to reset, e.g., --ncpu 0 to 1.
         if ncpu is not None:
             self.par['rdx']['ncpu'] = ncpu
             self.par['rdx'].validate()
