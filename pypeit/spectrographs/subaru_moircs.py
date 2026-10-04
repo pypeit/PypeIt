@@ -594,12 +594,27 @@ class SubaruMOIRCSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] \
                 = 'subaru_moircs_HK500.fits'
         elif dispname == 'VB_K':
-            # Holy-grail on the OH lines solves every science slit of the
-            # VB_K test mask.  OH_MOSFIRE_K gives the same solutions as
-            # OH_NIRES (median |dlambda| < 0.15 A) with a lower rms.  The
-            # measured line FWHM is ~6 px, set by the slit width (~0.7
-            # arcsec, R ~ 1900); R ~ 2600 (4.3 px) is for narrower slits.
-            # See the dev suite pypeitdev/subaru_moircs_vbk logs.
+            # Archive of 28 holy-grail OH solutions (both detectors) from
+            # the VB_K test mask, covering 1.90-2.54 um.  VB_K disperses
+            # past the detector edges, so each slit sees a sub-range set
+            # by its position in the mask; reidentifying against many
+            # slits covers them all.  OH_MOSFIRE_K gives the same
+            # solutions as OH_NIRES (median |dlambda| < 0.15 A) with a
+            # lower rms.  The measured line FWHM is ~6 px, set by the slit
+            # width (~0.7 arcsec, R ~ 1900); R ~ 2600 (4.3 px) is for
+            # narrower slits.  See the dev suite pypeitdev/subaru_moircs_vbk
+            # logs.
+            par['calibrations']['wavelengths']['method'] = 'reidentify'
+            par['calibrations']['wavelengths']['reid_arxiv'] \
+                = 'subaru_moircs_VB_K.fits'
+            # The archive spectra overlap each slit only in part (shifts
+            # up to ~1100 px), and their fitted stretches can be off by a
+            # few percent.  With the default match_toler (2 px), lines
+            # misidentified at a slit end are then kept by the iterative
+            # fit (a leave-one-out test gave a solution off by up to 35 A
+            # at the red end, with rms 0.36 px).  0.75 px rejects them;
+            # 0.5 px drops too many lines in the reddest slits.
+            par['calibrations']['wavelengths']['match_toler'] = 0.75
             par['calibrations']['wavelengths']['lamps'] = ['OH_MOSFIRE_K']
             par['calibrations']['wavelengths']['fwhm'] = 6.0
             # Standards are taken through one slit of the science mask, so
