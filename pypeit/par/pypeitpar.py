@@ -3209,7 +3209,7 @@ class WavelengthSolutionPar(ParSet):
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
                  ech_2dfit=None, ech_separate_2d=None, redo_slits=None, reference_slit=None, qa_log=None,
                  cc_percent_ceil=None, cc_synth_arc=None, echelle_pad=None, ech_angle_fits_file=None,
-                 ech_composite_arc_file=None, ech_direct_cc=None, cc_offset_minmax=None, stretch_func=None):
+                 ech_composite_arc_file=None, cc_offset_minmax=None, stretch_func=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3560,15 +3560,6 @@ class WavelengthSolutionPar(ParSet):
                                           '(``get_echelle_angle_files``).  Must be set together with '  \
                                           '``ech_angle_fits_file``.'
 
-        defaults['ech_direct_cc'] = False
-        dtypes['ech_direct_cc'] = bool
-        descr['ech_direct_cc'] = 'For the echelle method order identification, cross-correlate the '  \
-                                 'stacked arc spectra directly instead of first building synthetic '  \
-                                 'line-only arcs and continuum-subtracting the correlation function. '  \
-                                 'Much faster for large spectral formats (e.g., 4k detectors with '  \
-                                 '~100 orders, such as Shane/Hamspec); the default (False) preserves '  \
-                                 'the original behavior.'
-
         defaults['cc_offset_minmax'] = 1.0
         dtypes['cc_offset_minmax'] = float
         descr['cc_offset_minmax'] = 'Fraction of the total spectral pixels used to determine the range of '  \
@@ -3609,7 +3600,7 @@ class WavelengthSolutionPar(ParSet):
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix', 'boxcar_radius',
                    'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 'reference_slit',
                    'redo_slits', 'qa_log', 'cc_percent_ceil', 'cc_synth_arc', 'echelle_pad', 'ech_angle_fits_file',
-                   'ech_composite_arc_file', 'ech_direct_cc', 'cc_offset_minmax', 'stretch_func']
+                   'ech_composite_arc_file', 'cc_offset_minmax', 'stretch_func']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

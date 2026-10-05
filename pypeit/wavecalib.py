@@ -771,7 +771,6 @@ class BuildWaveCalib:
                     pad=self.par['echelle_pad'],
                     cc_percent_ceil = self.par['cc_percent_ceil'],
                     cc_synth_arc=self.par['cc_synth_arc'],
-                    direct_cc=self.par['ech_direct_cc'],
                     debug=False)
             # Put the order numbers in the slit object
             self.slits.ech_order = order_vec

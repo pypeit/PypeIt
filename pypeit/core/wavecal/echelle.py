@@ -198,7 +198,7 @@ def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle,
 def identify_ech_orders(arcspec, echangle, xdangle, dispname,
                         angle_fits_file,
                         composite_arc_file, debug=False,
-                        cc_percent_ceil=50.0, cc_synth_arc=True, pad=3, direct_cc=False):
+                        cc_percent_ceil=50.0, cc_synth_arc=True, pad=3):
     """
     Identify the orders in the echelle spectrum via cross correlation with the best guess predicted arc based
     on echangle, xdangle, and cross-disperser
@@ -223,16 +223,6 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
         Passed to xcorr_shift
     cc_percent_ceil: float, optional
         The percent_ceil value to be used by xcorr_shift to set the percentile to which to normalize the CCF
-    direct_cc : bool, optional
-        If True, cross-correlate the stacked arc spectra directly: skip the
-        synthetic line-arc construction and the continuum subtraction of the
-        correlation function in :func:`~pypeit.core.wavecal.wvutils.xcorr_shift`.
-        This is significantly faster for large spectral formats (e.g., 4k
-        detectors with ~100 orders, such as Shane/Hamspec), but it is less
-        robust: without the synthetic (clipped, line-only) arcs, a few very
-        strong lines, detector artifacts, or continuum/scattered-light
-        structure can dominate the correlation and skew the order
-        registration.  The default (False) preserves the original behavior.
     cc_synth_arc: bool, optional
         If this parameter is True, peak finding will be performed and a
         synthetic arc will be created to be used for the cross-correlations.  If
