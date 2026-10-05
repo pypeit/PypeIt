@@ -850,16 +850,16 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
                 Number of wavelength steps.  Given by::
                     int(round((wavemax-wavemin)/delta_wave))
 
-        Args:
+        Returns:
             :obj:`tuple`: Three 1D `numpy.ndarray`_ providing the bins to use
             when constructing a histogram of the spec2d files. The elements
-            are :math:`(x,y,\lambda)`.
+            are :math:`(\lambda,y,x)`.
         """
         # TODO :: The HRIFU might have 25 slits with 13 being the reference
         xbins = np.arange(1 + 21) - 11.0 - 0.5  # 21 is for 21 slices, and 11 is the reference slit
         ybins = np.linspace(np.min(minmax[:, 0]), np.max(minmax[:, 1]), 1+slitlength) - 0.5
         spec_bins = np.arange(1+num_wave) - 0.5
-        return xbins, ybins, spec_bins
+        return spec_bins, ybins, xbins
 
     def pypeit_file_keys(self):
         """

@@ -52,8 +52,7 @@ from pypeit import PypeItError
 from pypeit import log
 from pypeit import pypeitsetup
 from pypeit import metadata
-from pypeit import io
-from pypeit import inputfiles 
+from pypeit import inputfiles
 from pypeit import outputfiles
 from pypeit import pypeit
 from pypeit import coadd2d
@@ -101,24 +100,30 @@ def get_files(raw_files, raw_path):
     return files
 
 
-def folder_name_from_scifiles(sci_files:list):
+def folder_name_from_scifiles(sci_files:list, allowed_extensions:list):
     """
     Construct the directory name for QL output.
 
     If one file, use the filename without its suffix (see
-    :func:`~pypeit.io.remove_suffix`).  If multiple files, use a dash-separated
-    string of the first and last filenames (also without their suffixes).
+    :func:`~pypeit.outputfiles.strip_raw_extension`).  If multiple files, use
+    a dash-separated string of the first and last filenames (also without
+    their suffixes).
 
     Args:
         sci_files (:obj:`list`):
             List of :obj:`str` or `Path`_ objects with the science files.
+        allowed_extensions (:obj:`list`):
+            List of recognized raw-file extensions for the relevant
+            spectrograph; see
+            :attr:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_extensions`.
 
     Returns:
         :obj:`str`: Directory name
     """
     if len(sci_files) == 1:
-        return io.remove_suffix(sci_files[0])
-    return '-'.join([io.remove_suffix(f) for f in [sci_files[0], sci_files[-1]]])
+        return outputfiles.strip_raw_extension(sci_files[0], allowed_extensions)
+    return '-'.join([outputfiles.strip_raw_extension(f, allowed_extensions)
+                     for f in [sci_files[0], sci_files[-1]]])
 
 
 def quicklook_regroup(fitstbl):
@@ -271,7 +276,8 @@ def generate_sci_pypeitfile(redux_path:str,
 
     # Set the I/O directories
     _redux_path = Path(redux_path).absolute()
-    sci_dir = _redux_path / folder_name_from_scifiles(ps_sci.fitstbl['filename'].data)
+    sci_dir = _redux_path / folder_name_from_scifiles(ps_sci.fitstbl['filename'].data,
+                                                      ps_sci.fitstbl.spectrograph.allowed_extensions)
     calib_dir = sci_dir / ps_sci.par['calibrations']['calib_dir']
 
     # Science reduction folder

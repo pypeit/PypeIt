@@ -66,6 +66,18 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
     min_order = np.min(all_orders)
     max_order = np.max(all_orders)
 
+    # Guard against a degenerate fit: the order-direction normalization divides
+    # by (max_order - min_order), so a single unique order yields a divide-by-
+    # zero -> NaNs -> an opaque "SVD did not converge" failure downstream.  Fail
+    # early with a clear message instead.  (See Shane/Hamspec Report 08.)
+    n_unique_orders = np.unique(all_orders).size
+    if n_unique_orders < 2:
+        raise PypeItError(
+            f'2D wavelength fit needs >= 2 unique orders but only got '
+            f'{n_unique_orders}.  Almost no orders were wavelength-calibrated; '
+            f'check the per-order solutions / reidentification (e.g. the arc '
+            f'archive coverage or order identification).')
+
     if debug:
         # set some plotting parameters
         pyplot_rcparams()
@@ -1001,9 +1013,10 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
 
     arc = (censpec - cont_now)*np.logical_not(bpm_out)
     if input_thresh is None:
-        (mean, med, stddev) = stats.sigma_clipped_stats(arc[cont_mask & np.logical_not(bpm_out)], 
-                                                        sigma_lower=3.0, sigma_upper=3.0, cenfunc= np.nanmedian,
-                                                        stdfunc = np.nanstd)
+        (mean, med, stddev) = stats.sigma_clipped_stats(
+            arc[cont_mask & np.logical_not(bpm_out)], 
+            sigma_lower=3.0, sigma_upper=3.0, cenfunc= np.nanmedian,
+            stdfunc = np.nanstd)
         if stddev == 0.0:
             log.warning('stddev = 0.0, so resetting to 0.1')
             stddev = 0.1

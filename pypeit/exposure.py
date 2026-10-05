@@ -14,6 +14,7 @@ from pypeit import spec2dobj
 from pypeit import calibrations
 
 from pypeit import pypeit_steps
+from pypeit.state import science_status
 
 from IPython import embed
 
@@ -436,8 +437,17 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
     # Process or load processed frames
     sciImg_dict, bkg_redux_sciimg_dict = process_exposure(
             spectrograph, fitstbl, par, frames, calib_ID,
-                detectors, calibrations_path, 
-                bg_frames=bg_frames) 
+                detectors, calibrations_path,
+                bg_frames=bg_frames)
+
+    # Record the science 'process' state (never let it crash the run)
+    if run_state is not None:
+        try:
+            science_status.record_process(run_state, spectrograph, fitstbl,
+                                          frames, detectors, calib_ID)
+            run_state.safe_write()
+        except Exception as e:
+            log.warning(f"Failed to record science process state: {e}")
 
     # #####################################
     # Find objects +  sky
@@ -452,6 +462,17 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
                             find_negative=find_negative,
                             show=show)
 
+    # Record the science 'findobj' + 'skysub' state (recorded together, as
+    # findobj_on_exposure runs object finding and final sky modeling)
+    if run_state is not None:
+        try:
+            science_status.record_findobj(run_state, spectrograph, fitstbl,
+                                          frames, detectors, calib_ID,
+                                          all_specobjs_find, calib_slits)
+            run_state.safe_write()
+        except Exception as e:
+            log.warning(f"Failed to record science findobj state: {e}")
+
     # #####################################
     # Extract
     all_spec2d, all_specobjs_extract = extract_exposure(
@@ -461,6 +482,21 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
         final_sky_dict, bkg_redux_final_sky_dict,
         calib_slits, bkg_redux=bkg_redux,
         find_negative=find_negative)
+
+    # Record the science 'extract' state + product paths
+    if run_state is not None:
+        try:
+            spec1d_file = outputfiles.spec_output_file(fitstbl, par, frames[0])
+            spec2d_file = outputfiles.spec_output_file(fitstbl, par, frames[0],
+                                                       twod=True)
+            science_status.record_extract(run_state, spectrograph, fitstbl,
+                                           frames, detectors, all_spec2d,
+                                           all_specobjs_extract,
+                                           spec1d_file=spec1d_file,
+                                           spec2d_file=spec2d_file)
+            run_state.safe_write()
+        except Exception as e:
+            log.warning(f"Failed to record science extract state: {e}")
 
     # Return
     return all_spec2d, all_specobjs_extract

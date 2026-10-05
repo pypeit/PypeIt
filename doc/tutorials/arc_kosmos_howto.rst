@@ -83,9 +83,10 @@ all of these lamps are used, add a section to the .pypeit file
 to specify which lamps were used, e.g.:
 
 .. code-block:: ini
-  [calibrations]
-   [[wavelengths]]
-     lamps = NeI, ArI
+
+    [calibrations]
+        [[wavelengths]]
+            lamps = NeI, ArI
 
 Wavelength calibration works by cross-correlating a combined
 arc frame with a reference frame. The reference frames have been
@@ -97,20 +98,20 @@ you would add :
 
 .. code-block:: ini
 
-  [calibrations]
-   [[wavelengths]]
-     lamps = NeI
-     reid_arxiv = 'arc_kosmos_red_ctr_ne.fits'
+[calibrations]
+    [[wavelengths]]
+        lamps = NeI
+        reid_arxiv = 'arc_kosmos_red_ctr_ne.fits'
 
 If you used the internal lamps in the blue, you can
 use a reference frame made with Kr, Ne, and Ar:
 
 .. code-block:: ini
 
-  [calibrations]
-   [[wavelengths]]
-     lamps = KrI,NeI,ArI
-     reid_arxiv = 'arc_kosmos_red_int_ctr.fits'
+    [calibrations]
+        [[wavelengths]]
+            lamps = KrI,NeI,ArI
+            reid_arxiv = 'arc_kosmos_red_int_ctr.fits'
 
 Since lines in the red are largely from Ne and Ar, the standard
 red reference frame should work with either the internal or the
@@ -121,9 +122,10 @@ center position, the wavelength identification may fail. In some cases,
 we have found that this can be improved using:
 
 .. code-block:: ini
-  [calibrations]
-   [[wavelengths]]
-     nsnippet = 5
+
+    [calibrations]
+        [[wavelengths]]
+            nsnippet = 5
 
 PypeIt has MANY other parameters that can be used to adjust the reduction; see
 :ref:`parameters` for details if you want/need to modify the default

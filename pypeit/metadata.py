@@ -9,7 +9,6 @@ from pathlib import Path
 import io
 import string
 from copy import deepcopy
-import datetime
 
 from IPython import embed
 
@@ -20,6 +19,7 @@ from astropy import table, time
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import inputfiles
+from pypeit import outputfiles
 from pypeit.core import framematch
 from pypeit.core import parse
 from pypeit.core import meta
@@ -122,7 +122,7 @@ class PypeItMetaData:
             self.merge(usrdata)
 
         # Impose types on specific columns
-        self._impose_types(['comb_id', 'bkg_id', 'manual', 'shift'], [int, int, str, float])
+        self._impose_types(['comb_id', 'bkg_id', 'manual', 'shift'], [int, int, str, str])
 
         # Initialize internal attributes
         self.configs = None
@@ -496,14 +496,11 @@ class PypeItMetaData:
             str: The root name for file output.
         """
         _obstime = self.construct_obstime(row) if obstime is None else obstime
-        tiso = time.Time(_obstime, format='isot')
-        dtime = datetime.datetime.strptime(tiso.value, '%Y-%m-%dT%H:%M:%S.%f')
         this_target = "TargetName" if np.ma.is_masked(self['target'][row]) else self['target'][row].replace(" ", "")
-        return '{0}-{1}_{2}_{3}{4}'.format(self['filename'][row].split('.fits')[0],
-                                           this_target,
-                                           self.spectrograph.camera,
-                                           datetime.datetime.strftime(dtime, '%Y%m%dT'),
-                                           tiso.value.split("T")[1].replace(':',''))
+        return outputfiles.construct_basename(
+            self['filename'][row], this_target, self.spectrograph.camera,
+            _obstime.mjd, self.spectrograph.allowed_extensions
+        )
 
     def get_configuration_names(self, ignore=None, return_index=False, configs=None):
         """

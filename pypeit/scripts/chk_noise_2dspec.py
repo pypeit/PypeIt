@@ -9,7 +9,7 @@ for one of the outputs of PypeIt
 
 import numpy as np
 
-import os
+from pathlib import Path
 from matplotlib import pyplot as plt
 from astropy.stats import sigma_clip, mad_std
 from astropy.modeling.models import Gaussian1D
@@ -224,8 +224,8 @@ class ChkNoise2D(scriptbase.ScriptBase):
             # Save?
             folder = None
             if args.mode == 'save':
-                folder = '{}_noisecheck'.format(file.split('.fits')[0])
-                if not os.path.exists(folder): os.makedirs(folder)
+                folder = Path(f'{Path(file).with_suffix("")}_noisecheck')
+                folder.mkdir(parents=True, exist_ok=True)
             elif args.mode == 'print':
                 # Generate a Table for pretty printing
                 tbl = Table()

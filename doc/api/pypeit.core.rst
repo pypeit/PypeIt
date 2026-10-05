@@ -7,8 +7,6 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   pypeit.core.bspline
-   pypeit.core.gui
    pypeit.core.move_median
    pypeit.core.wavecal
 
@@ -22,6 +20,7 @@ Submodules
    pypeit.core.atmextinction
    pypeit.core.basis
    pypeit.core.bitmask
+   pypeit.core.bspline
    pypeit.core.coadd
    pypeit.core.combine
    pypeit.core.datacube
@@ -41,7 +40,6 @@ Submodules
    pypeit.core.plot
    pypeit.core.procimg
    pypeit.core.pydl
-   pypeit.core.qa
    pypeit.core.sampling
    pypeit.core.scattlight
    pypeit.core.skyspec

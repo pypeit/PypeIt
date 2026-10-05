@@ -24,6 +24,7 @@ from pypeit import calibframe
 from pypeit import slittrace, wavecalib
 from pypeit.display import display
 from pypeit.core import arc
+from pypeit.core import fitting
 from pypeit.core import tracewave
 from pypeit.core.wavecal import autoid
 from pypeit.images import buildimage
@@ -167,13 +168,16 @@ class WaveTilts(calibframe.CalibFrame):
             log.error(f'Slits file {str(cal_file)} not found.  Cannot generate tilts image.')
 
         # Check the spatial flexure input
-        _spat_flexure = np.zeros((self.nslit, 2)) if spat_flexure is None else spat_flexure
+        _spat_flexure = np.zeros((self.nslit, 2), dtype=float) if spat_flexure is None else spat_flexure
         if _spat_flexure.shape != (self.nslit, 2):
             log.error(f'Input spat_flexure has shape {_spat_flexure.shape}, but should be '
                       f'({self.nslit}, 2).  Cannot generate tilts image.')
 
         # Set up the output image
-        final_tilts = np.zeros_like(slitmask).astype(float)
+        final_tilts = np.zeros_like(slitmask, dtype=float)
+        # NOTE: -1 is the only off-slit sentinel used by SlitTraceSet.slit_img;
+        # valid slit IDs can be negative (e.g. Echelle edge orders whose spat_id
+        # extrapolates below zero), so this must test against -1 and NOT `>= 0`.
         gdslit_spat = np.unique(slitmask[slitmask != -1]).astype(int)
         # Loop through all good slits
         for slit_spat in gdslit_spat:
@@ -182,7 +186,7 @@ class WaveTilts(calibframe.CalibFrame):
             # Prepare the coefficients
             coeff_out = self.coeffs[:self.spec_order[slit_idx]+1, :self.spat_order[slit_idx]+1, slit_idx]
             # Extract the spectral and spatial coordinates for this slit
-            thismask_science = (slitmask == slit_spat)
+            thismask_science = slitmask == slit_spat
             # NOTE : The coeff_out coefficients are evaluated at the self.spat_flexure location, and
             # self.spat_flexure is the spatial flexure of the tilts relative to the initial slits.
             # Furthermore, _spat_flexure is the spatial flexure of the current frame relative to the

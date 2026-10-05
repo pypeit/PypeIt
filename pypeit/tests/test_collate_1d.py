@@ -503,6 +503,7 @@ def test_get_report_metadata(monkeypatch):
                                                 ['MASKDEF_OBJNAME', 'NAME'],
                                                 "afilename")
 
+@pytest.mark.remote_data
 def test_flux(monkeypatch):
     
     def mock_get_header(file):
