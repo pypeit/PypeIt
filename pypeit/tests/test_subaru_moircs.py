@@ -233,8 +233,11 @@ def test_dither_parsing():
     assert SPEC.compound_meta([hdr_a], 'dithpat') == 'LINE2'
     assert SPEC.compound_meta([hdr_a], 'dithpos') == 'A'
     assert SPEC.compound_meta([hdr_b], 'dithpos') == 'B'
-    assert SPEC.compound_meta([hdr_a], 'dithoff') == 1.5
-    assert SPEC.compound_meta([hdr_b], 'dithoff') == -1.5
+    # PypeIt convention (2D coadd offsets = header): the slit offset, so
+    # the object, which sits higher on the spatial axis in A than in B,
+    # has dithoff(A) < dithoff(B)
+    assert SPEC.compound_meta([hdr_a], 'dithoff') == -1.5
+    assert SPEC.compound_meta([hdr_b], 'dithoff') == 1.5
     assert SPEC.compound_meta([hdr_n], 'dithpat') == 'none'
     assert SPEC.compound_meta([hdr_n], 'dithpos') == 'none'
     assert SPEC.compound_meta([hdr_n], 'dithoff') == 0.
