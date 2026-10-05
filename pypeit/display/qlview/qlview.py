@@ -118,11 +118,10 @@ import configparser
 import datetime
 import glob
 import os
-import re
 import threading
 import time
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 import numpy as np
 from astropy.io import fits
@@ -143,7 +142,12 @@ from .backends import (
     RemoteReductionBackend,
 )
 from . import spectrograph_support
-from .calib_utils import check_calib_versions, read_pypeit_setup_config, recommend_calibrations
+from .calib_utils import (
+    check_calib_versions,
+    read_pypeit_setup_config,
+    recommend_calibrations,
+    resolve_calib_dirs,
+)
 from .file_browser import FileBrowserController
 from .slit_overlay import SlitOverlay
 from .state import QLViewState
@@ -238,6 +242,10 @@ class QLView(GingaPlugin.LocalPlugin):
         # values are strings.  Used to detect setup changes when a new raw
         # image is selected.
         self._rendered_cal_config: Dict[str, str] = {}
+
+        # True while cal_status_label shows the "select a setup folder" hint,
+        # so the hint can be cleared without overwriting other status messages.
+        self._showing_calib_hint: bool = False
 
         # Suppress tree activation events briefly after settings dialog closes
         self._suppress_activate: bool = False
@@ -355,9 +363,11 @@ class QLView(GingaPlugin.LocalPlugin):
         if os.path.isfile(raw_path):
             raw_path = str(Path(raw_path).parent)
 
+        # Save the directory holding the calibration sets, not a selected set
         reduced_path = self.reduced_text_entry.get_text()
-        if re.match(r'^[a-z][a-z0-9_]+_[A-Z]$', Path(reduced_path).name):
-            reduced_path = str(Path(reduced_path).parent)
+        calib_dirs = resolve_calib_dirs(reduced_path)
+        if calib_dirs is not None:
+            reduced_path = str(calib_dirs[0].parent)
 
         config["DEFAULT"] = {
             "redux_path": self.state.redux_path,
@@ -838,7 +848,7 @@ class QLView(GingaPlugin.LocalPlugin):
 
         # Get the file paths:
         raw_path = self.state.raw_filepath or self.raw_text_entry.get_text()
-        reduced_path = self.state.reduced_filepath or self.reduced_text_entry.get_text()
+        calib_dirs = self._current_calib_dirs()
         redux_path = self.state.redux_path
 
         # Check the paths:
@@ -846,8 +856,10 @@ class QLView(GingaPlugin.LocalPlugin):
         if not raw_path or not os.path.isfile(raw_path):
             self.logger.error("Raw file path is invalid or not selected.")
             return
-        if not reduced_path or not os.path.isdir(reduced_path):
-            self.logger.error("Reduced path is invalid or not selected.")
+        if calib_dirs is None:
+            self.logger.error(
+                "No calibration set selected; select a setup folder or its Calibrations folder."
+            )
             return
         if not redux_path or not os.path.isdir(redux_path):
             dialog = QtGui.QMessageBox()
@@ -919,7 +931,7 @@ class QLView(GingaPlugin.LocalPlugin):
             "--raw_path",
             str(Path(raw_path).parent.absolute()),
             "--setup_calib_dir",
-            f"{Path(reduced_path).absolute()}/Calibrations",
+            str(calib_dirs[1].absolute()),
             "--slitspatnum",
             f"{det_label}:{slit_id}",
             "--redux_path",
@@ -1516,10 +1528,8 @@ class QLView(GingaPlugin.LocalPlugin):
 
         Registered on the ``"selected"`` event of :attr:`reduced_treeview`.
         Writes the selected path to :attr:`reduced_text_entry` and
-        :attr:`state.reduced_filepath`, then enables :attr:`reduced_btn` and
-        :attr:`show_wavelengths_btn` only when the selected entry is a valid
-        calibration directory (i.e., it is a directory with a ``Calibrations/``
-        subdirectory directly inside it).
+        :attr:`state.reduced_filepath`, then updates the calibration buttons;
+        see :meth:`_update_calib_buttons`.
 
         Parameters
         ----------
@@ -1534,18 +1544,63 @@ class QLView(GingaPlugin.LocalPlugin):
         path = paths[0]
         self.reduced_text_entry.set_text(path)
         self.state.reduced_filepath = path
+        self._update_calib_buttons()
 
-        # Enable render/wavelength buttons only when the selected path is a
-        # calibration directory (i.e., has a Calibrations/ subdirectory directly
-        # inside it).  Use a direct exists check rather than iterating all entries
-        # so that permissions errors or non-directory selections are handled safely.
-        try:
-            enabled = Path(path).is_dir() and Path(path, "Calibrations").is_dir()
-        except OSError as exc:
-            self.logger.debug(f"Could not check for Calibrations/ in {path}: {exc}")
-            enabled = False
+    def _current_calib_dirs(self) -> Optional[Tuple[Path, Path]]:
+        """Return the setup and ``Calibrations/`` directories for the current
+        reduced-calibrations selection.
+
+        Uses :attr:`state.reduced_filepath`, or the text typed into
+        :attr:`reduced_text_entry` if nothing has been selected.  See
+        :func:`~pypeit.display.qlview.calib_utils.resolve_calib_dirs` for the
+        accepted selections.
+
+        Returns
+        -------
+        tuple of Path or None
+            ``(setup_dir, calib_dir)``, or None if the selection is not a
+            calibration set.
+        """
+        path = self.state.reduced_filepath or self.reduced_text_entry.get_text().strip()
+        return resolve_calib_dirs(path)
+
+    def _update_calib_buttons(self) -> None:
+        """Enable "Render Slits" and "Show Wavelengths" only for a valid
+        calibration selection, and otherwise explain what to select.
+
+        A setup directory (e.g. ``keck_deimos_A``), its ``Calibrations/``
+        directory, or a file in either is a valid selection.
+        """
+        enabled = self._current_calib_dirs() is not None
         self.reduced_btn.set_enabled(enabled)
         self.show_wavelengths_btn.set_enabled(enabled)
+        if not enabled:
+            self._set_cal_status(
+                f"Select a setup folder (e.g. {self.spectrograph.name}_A) "
+                "or its Calibrations folder",
+                hint=True,
+            )
+        elif self._showing_calib_hint:
+            # Only clear our own hint; keep e.g. "Calibrations matched"
+            self._set_cal_status("")
+
+    def _set_cal_status(self, text: str, hint: bool = False) -> None:
+        """Set the calibration status line below the reduced-calibrations tree.
+
+        All writes to :attr:`cal_status_label` go through here so that
+        :attr:`_showing_calib_hint` stays accurate.
+
+        Parameters
+        ----------
+        text : str
+            Status text; empty to clear it.
+        hint : bool, optional
+            True if *text* is the "select a setup folder" hint from
+            :meth:`_update_calib_buttons`.
+        """
+        if hasattr(self, "cal_status_label"):
+            self.cal_status_label.set_text(text)
+        self._showing_calib_hint = hint
 
     def raw_table_double_click_cb(self, w, res_dict):
         """Tree-view callback: navigate or open a raw file on double-click.
@@ -1771,16 +1826,22 @@ class QLView(GingaPlugin.LocalPlugin):
         search on a background thread and updates the status label and reduced
         tree when finished.
         """
-        cal_root = self._get_tree_base_dir(self.state.reduced_filepath)
+        # PypeIt searches for setup directories (e.g. keck_mosfire_A) *inside*
+        # cal_root.  If a setup directory (or its Calibrations/) is selected,
+        # e.g. by the user or by a previous match, search the directory that
+        # holds it; otherwise nothing can match.
+        calib_dirs = self._current_calib_dirs()
+        if calib_dirs is not None:
+            cal_root = str(calib_dirs[0].parent)
+        else:
+            cal_root = self._get_tree_base_dir(self.state.reduced_filepath)
         if not cal_root:
             cal_root = self.reduced_text_entry.get_text().strip()
         if not cal_root or not os.path.isdir(cal_root):
-            if hasattr(self, "cal_status_label"):
-                self.cal_status_label.set_text("")
+            self._set_cal_status("")
             return
 
-        if hasattr(self, "cal_status_label"):
-            self.cal_status_label.set_text("Searching for matching calibrations...")
+        self._set_cal_status("Searching for matching calibrations...")
 
         # Capture only the name for the thread; the spectrograph may be
         # swapped while the search runs.
@@ -1804,9 +1865,6 @@ class QLView(GingaPlugin.LocalPlugin):
         threading.Thread(target=_search, daemon=True).start()
 
     def _on_cal_found(self, best: str) -> None:
-        if hasattr(self, "cal_status_label"):
-            self.cal_status_label.set_text("Calibrations matched")
-
         # ``best`` is the Calibrations/ subdirectory (e.g. keck_mosfire_A/Calibrations).
         # We want to highlight the setup directory (keck_mosfire_A) in its parent listing.
         cal_set_path = Path(best).parent   # keck_mosfire_A/
@@ -1822,16 +1880,15 @@ class QLView(GingaPlugin.LocalPlugin):
         self._select_reduced_tree_item(dir_name)
         self.reduced_text_entry.set_text(str(cal_set_path))
         self.state.reduced_filepath = str(cal_set_path)
-        self.reduced_btn.set_enabled(True)
-        self.show_wavelengths_btn.set_enabled(True)
+        self._update_calib_buttons()
+        # Set after the update, which may clear the status label
+        self._set_cal_status("Calibrations matched")
 
     def _on_cal_not_found(self) -> None:
-        if hasattr(self, "cal_status_label"):
-            self.cal_status_label.set_text("No calibrations found")
+        self._set_cal_status("No calibrations found")
 
     def _on_cal_error(self, msg: str) -> None:
-        if hasattr(self, "cal_status_label"):
-            self.cal_status_label.set_text(f"Error: {msg[:60]}")
+        self._set_cal_status(f"Error: {msg[:60]}")
         self.logger.error(f"Calibration suggestion error: {msg}")
 
     def _select_reduced_tree_item(self, name: str) -> None:
@@ -1921,15 +1978,12 @@ class QLView(GingaPlugin.LocalPlugin):
         w : ginga widget
             The ``Button`` widget that fired the callback.
         """
-        if not self.state.reduced_filepath:
-            self.logger.error("No reduced filepath set.")
+        calib_dirs = self._current_calib_dirs()
+        if calib_dirs is None:
+            self.logger.error("No calibration set selected.")
             return
-
-        cal_path = self.state.reduced_filepath
-        # Strip trailing glob wildcard left by _browse_and_update
-        if cal_path.endswith("*"):
-            cal_path = os.path.dirname(cal_path)
-        cal_path = os.path.join(cal_path, "Calibrations")
+        setup_dir, cal_path = calib_dirs
+        cal_path = str(cal_path)
         self.logger.info(f"Searching for slit files in: {cal_path}")
 
         # Slit files written by a different version of PypeIt cannot be
@@ -1971,11 +2025,8 @@ class QLView(GingaPlugin.LocalPlugin):
 
         # Snapshot the calibration configuration so we can detect setup changes
         # when the user selects a different raw file.
-        cal_dir = self.state.reduced_filepath or ""
-        if cal_dir.endswith("*"):
-            cal_dir = os.path.dirname(cal_dir)
         self._rendered_cal_config = read_pypeit_setup_config(
-            cal_dir, self.spectrograph.name, self.logger
+            str(setup_dir), self.spectrograph.name, self.logger
         )
 
     def show_wavelengths_cb(self, w):
@@ -1988,14 +2039,11 @@ class QLView(GingaPlugin.LocalPlugin):
         """
         from .wavelength_image import find_triplets, build_waveimg_mosaic
 
-        if not self.state.reduced_filepath:
-            self.logger.error("No reduced filepath set.")
+        calib_dirs = self._current_calib_dirs()
+        if calib_dirs is None:
+            self.logger.error("No calibration set selected.")
             return
-
-        cal_path = self.state.reduced_filepath
-        if cal_path.endswith("*"):
-            cal_path = os.path.dirname(cal_path)
-        cal_path = os.path.join(cal_path, "Calibrations")
+        cal_path = str(calib_dirs[1])
         self.logger.info(f"Searching for wavelength calibration files in: {cal_path}")
 
         matched_triplets = find_triplets(cal_path)
@@ -2279,18 +2327,9 @@ class QLView(GingaPlugin.LocalPlugin):
                 self.reduced_filter_dirs,
                 name_col_idx=self._reduced_name_col_idx,
             )
-            # Update render/wavelength button state based on the directory we
-            # just navigated into.  fullpath ends with "/*"; dirname is the dir.
-            cal_dir = os.path.dirname(fullpath)
-            try:
-                enabled = bool(cal_dir) and os.path.isdir(
-                    os.path.join(cal_dir, "Calibrations")
-                )
-            except OSError as exc:
-                self.logger.debug(f"Could not check for Calibrations/ in {cal_dir}: {exc}")
-                enabled = False
-            self.reduced_btn.set_enabled(enabled)
-            self.show_wavelengths_btn.set_enabled(enabled)
+            # Update the render/wavelength buttons for the directory we just
+            # navigated into (fullpath ends with "/*").
+            self._update_calib_buttons()
         else:
             self.state.raw_filepath = fullpath
             self.raw_treeview.set_tree(listing)

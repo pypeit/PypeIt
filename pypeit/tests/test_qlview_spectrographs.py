@@ -387,3 +387,133 @@ def test_warn_outdated_calibrations(monkeypatch):
     qlview.QLView._warn_outdated_calibrations(_Plugin(), '/cals',
                                               error=ValueError('version mismatch'))
     assert 'version mismatch' in shown[-1][1]
+
+
+# ---------------------------------------------------------------------------
+# Calibration-directory selection
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def calib_tree(tmp_path):
+    """reduced/keck_deimos_A/{keck_deimos_A.pypeit, Calibrations/Slits_A_0_MSC01.fits}"""
+    setup_dir = tmp_path / 'reduced' / 'keck_deimos_A'
+    calib_dir = setup_dir / 'Calibrations'
+    calib_dir.mkdir(parents=True)
+    (setup_dir / 'keck_deimos_A.pypeit').write_text('')
+    (calib_dir / 'Slits_A_0_MSC01.fits').write_text('')
+    (tmp_path / 'reduced' / 'Calibrations_old').mkdir()
+    return setup_dir, calib_dir
+
+
+def test_resolve_calib_dirs(calib_tree):
+    setup_dir, calib_dir = calib_tree
+    expected = (setup_dir, calib_dir)
+    for path in [setup_dir, f'{setup_dir}/', f'{setup_dir}/*', calib_dir, f'{calib_dir}/*',
+                 calib_dir / 'Slits_A_0_MSC01.fits', setup_dir / 'keck_deimos_A.pypeit']:
+        assert calib_utils.resolve_calib_dirs(str(path)) == expected, path
+
+
+def test_resolve_calib_dirs_invalid(calib_tree):
+    setup_dir, _ = calib_tree
+    # The directory holding the calibration sets is not itself a set
+    for path in [None, '', str(setup_dir.parent), f'{setup_dir.parent}/*',
+                 str(setup_dir.parent / 'Calibrations_old'), str(setup_dir / 'missing')]:
+        assert calib_utils.resolve_calib_dirs(path) is None, path
+
+
+def test_update_calib_buttons(calib_tree):
+    qlview = pytest.importorskip('pypeit.display.qlview.qlview')
+    from pypeit.display.qlview.state import QLViewState
+    setup_dir, calib_dir = calib_tree
+
+    class _Widget:
+        def __init__(self): self.enabled, self.text = None, ''
+        def set_enabled(self, val): self.enabled = val
+        def set_text(self, val): self.text = val
+        def get_text(self): return self.text
+
+    class _Plugin:
+        _current_calib_dirs = qlview.QLView._current_calib_dirs
+        _update_calib_buttons = qlview.QLView._update_calib_buttons
+        _set_cal_status = qlview.QLView._set_cal_status
+        def __init__(self):
+            self.state = QLViewState()
+            self.spectrograph = load_spectrograph('keck_deimos')
+            self.reduced_btn, self.show_wavelengths_btn = _Widget(), _Widget()
+            self.cal_status_label, self.reduced_text_entry = _Widget(), _Widget()
+            self._showing_calib_hint = False
+
+    plugin = _Plugin()
+    # The parent of the calibration sets: disabled, with a hint
+    plugin.state.reduced_filepath = f'{setup_dir.parent}/*'
+    plugin._update_calib_buttons()
+    assert not plugin.reduced_btn.enabled and not plugin.show_wavelengths_btn.enabled
+    assert 'keck_deimos_A' in plugin.cal_status_label.text
+
+    # Calibrations/ itself: enabled, and the hint is cleared
+    plugin.state.reduced_filepath = str(calib_dir)
+    plugin._update_calib_buttons()
+    assert plugin.reduced_btn.enabled and plugin.show_wavelengths_btn.enabled
+    assert plugin.cal_status_label.text == ''
+    assert plugin._current_calib_dirs() == (setup_dir, calib_dir)
+
+    # Other status messages are not cleared
+    plugin.cal_status_label.text = 'Calibrations matched'
+    plugin.state.reduced_filepath = str(setup_dir)
+    plugin._update_calib_buttons()
+    assert plugin.cal_status_label.text == 'Calibrations matched'
+
+    # A status message that replaces the hint is not cleared by a later
+    # valid selection
+    plugin.state.reduced_filepath = f'{setup_dir.parent}/*'
+    plugin._update_calib_buttons()
+    plugin._set_cal_status('No calibrations found')
+    plugin.state.reduced_filepath = str(setup_dir)
+    plugin._update_calib_buttons()
+    assert plugin.cal_status_label.text == 'No calibrations found'
+
+    # A typed path is used when nothing has been selected
+    plugin.state.reduced_filepath = None
+    plugin.reduced_text_entry.text = str(setup_dir)
+    assert plugin._current_calib_dirs() == (setup_dir, calib_dir)
+
+
+def test_suggest_calibrations_search_root(calib_tree, monkeypatch):
+    # Matching searches for setup directories *inside* the search root, so
+    # selecting a setup directory must not make it the root
+    qlview = pytest.importorskip('pypeit.display.qlview.qlview')
+    from pypeit.display.qlview.state import QLViewState
+    setup_dir, calib_dir = calib_tree
+    roots = []
+    monkeypatch.setattr(qlview, 'recommend_calibrations',
+                        lambda name, raw, root, log: roots.append(root) or [])
+
+    class _Thread:
+        def __init__(self, target, **kwargs): self.target = target
+        def start(self): self.target()
+    monkeypatch.setattr(qlview.threading, 'Thread', _Thread)
+
+    class _Widget:
+        def __init__(self): self.text = ''
+        def set_text(self, val): self.text = val
+        def get_text(self): return self.text
+
+    class _Plugin:
+        _current_calib_dirs = qlview.QLView._current_calib_dirs
+        _get_tree_base_dir = qlview.QLView._get_tree_base_dir
+        _set_cal_status = qlview.QLView._set_cal_status
+        _on_cal_not_found = qlview.QLView._on_cal_not_found
+        logger = _LOGGER
+        def __init__(self, selection):
+            self.state = QLViewState()
+            self.state.reduced_filepath = selection
+            self.spectrograph = load_spectrograph('keck_mosfire')
+            self.reduced_text_entry, self.cal_status_label = _Widget(), _Widget()
+            self._showing_calib_hint = False
+            self.fv = type('FV', (), {'gui_do': staticmethod(lambda fn, *a: fn(*a))})()
+
+    for selection in [f'{setup_dir.parent}/*', str(setup_dir), f'{setup_dir}/*', str(calib_dir),
+                      str(calib_dir / 'Slits_A_0_MSC01.fits')]:
+        roots.clear()
+        qlview.QLView._suggest_calibrations(_Plugin(selection), 'raw.fits')
+        assert roots == [str(setup_dir.parent)], selection

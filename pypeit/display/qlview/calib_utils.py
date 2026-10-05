@@ -12,7 +12,7 @@ from __future__ import annotations
 import os
 import re
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional, Tuple
 
 from astropy.io import fits
 import yaml
@@ -28,6 +28,47 @@ CALIB_FILE_CLASSES = {'Slits': SlitTraceSet, 'WaveCalib': WaveCalib, 'Tilts': Wa
 Datamodel class of each calibration file type the viewer loads, keyed by the
 file-name prefix (e.g. ``Slits_A_0_MSC01.fits.gz``).
 """
+
+
+def resolve_calib_dirs(path: Optional[str]) -> Optional[Tuple[Path, Path]]:
+    """Find the setup directory and its ``Calibrations/`` directory for a
+    path selected in the reduced-calibrations browser.
+
+    The following selections are accepted:
+
+    - a setup directory containing ``Calibrations/`` (e.g. ``keck_deimos_A``),
+    - a ``Calibrations`` directory itself,
+    - a file inside either of those directories (e.g. a ``Slits`` file).
+
+    A trailing ``*`` (added by the file browser to the directory it is
+    showing) is ignored.
+
+    Parameters
+    ----------
+    path : str or None
+        Selected path.
+
+    Returns
+    -------
+    tuple of `Path`_ or None
+        ``(setup_dir, calib_dir)``, or None if *path* does not match any of
+        the accepted selections.  Symlinks are not resolved.
+    """
+    if not path:
+        return None
+    if path.endswith('*'):
+        path = os.path.dirname(path)
+    _path = Path(os.path.normpath(path))
+    try:
+        if _path.is_file():
+            _path = _path.parent
+        if (_path / 'Calibrations').is_dir():
+            return _path, _path / 'Calibrations'
+        if _path.name == 'Calibrations' and _path.is_dir():
+            return _path.parent, _path
+    except OSError:
+        pass
+    return None
 
 
 def read_pypeit_setup_config(dirpath: str, spec_name: str, logger) -> Dict[str, str]:

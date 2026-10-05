@@ -65,7 +65,11 @@ The following describes a typical workflow for using the GUI.
    manually enter the path to the frame into the text entry.
 #. Pick your calibrations. If PypeIt was able to detect a matching configuration
    amongst the calibrations in the directory you selected, it will pre-select it for
-   you. Then, press "Render Slits" to draw the slits on top of the raw image. Press
+   you. Otherwise, select the setup folder for your configuration (e.g.,
+   ``keck_deimos_A``) or the ``Calibrations`` folder inside it; "Render Slits" and
+   "Show Wavelengths" are only enabled once one of these is selected, and the
+   status line below the table says what to select until then. Then, press
+   "Render Slits" to draw the slits on top of the raw image. Press
    "Show Wavelengths" to display wavelength information on top of the raw image (as
    you hover over the image, the wavelength will be shown in the lower left of the
    screen).
