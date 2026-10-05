@@ -94,6 +94,20 @@ The following describes a typical workflow for using the GUI.
    the QUICKLOOK tab and press "Show Traces," the locations of each object will be
    drawn onto the raw image. You can then iterate through the Spec1D viewer until
    you find the object you wish to inspect.
+
+   Each extracted object's trace is drawn on the raw image as an orange line,
+   labeled with the object's name (written vertically, at the middle of the
+   trace). The object currently selected in the Spec1D viewer is drawn in cyan
+   instead, and the highlight follows your selection as you change the
+   "Extension" drop down. For example, if only one object was extracted, you
+   will see a single trace that turns from orange to cyan, because that object
+   is selected in the Spec1D viewer by default.
+
+   .. note::
+      The highlighting only works while that slit's Spec1D viewer is open; if
+      it is closed, all traces stay orange. Traces are also not drawn if the raw
+      image currently displayed has a different instrument configuration from
+      the frame that was reduced; open the matching raw frame first.
 #. When ready for the next file or slit to reduce, repeat these steps (using the
    same window).
 
