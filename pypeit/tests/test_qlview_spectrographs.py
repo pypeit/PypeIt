@@ -4,6 +4,12 @@ Characterization tests for the quicklook-viewer hooks on the spectrograph classe
 Results are compared by column *display name* so that the internal attribute
 names used to key each column are free to change.
 """
+import os
+# Some tests build Qt widgets; let Qt initialize without a display.  This must
+# be set before any Qt import.
+os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+
+import importlib
 import logging
 from pathlib import Path
 import subprocess
@@ -546,3 +552,104 @@ def test_set_redux_path_cb(tmp_path, monkeypatch):
     qlview.QLView.set_redux_path_cb(plugin, None)
     assert calls[-1] == str(tmp_path)
     assert plugin.state.redux_path == str(tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# Reductions list
+# ---------------------------------------------------------------------------
+
+class _FileBackend:
+    """Stand-in for the file backend: spec1d files exist only in *done_dirs*."""
+    def __init__(self): self.done_dirs = set()
+    def check_log_for_failure(self, log_path, text): return False
+    def glob(self, run_dir, pattern):
+        return [f'{run_dir}/raw/Science/spec1d_x.fits'] if run_dir in self.done_dirs else []
+
+
+def _reductions_plugin(qtbot):
+    """A stand-in plugin with just the reductions-list machinery."""
+    # The Ginga app selects its GUI toolkit at startup, before importing
+    # ginga.gw.Widgets.  In Ginga >= 7 that module is empty if it is imported
+    # before a toolkit is chosen, which can happen earlier in a test session,
+    # so choose the toolkit and reload the module if needed.
+    ginga_toolkit = pytest.importorskip('ginga.toolkit')
+    ginga_toolkit.use('qt')
+    from ginga.gw import Widgets as gw_widgets
+    if not hasattr(gw_widgets, 'VBox'):
+        importlib.reload(gw_widgets)
+    qlview = pytest.importorskip('pypeit.display.qlview.qlview')
+    from ginga.qtw import Widgets as GWidgets
+    Q = qlview.QLView
+
+    class _Plugin:
+        _make_reduction_row = Q._make_reduction_row
+        _set_reduction_status = Q._set_reduction_status
+        _update_reduction_summary = Q._update_reduction_summary
+        _check_reduction_complete = Q._check_reduction_complete
+        clear_finished_reductions_cb = Q.clear_finished_reductions_cb
+        logger = _LOGGER
+        reduction_timeout, reduction_cadence = 300.0, 5.0
+        def __init__(self):
+            self.vbox_reductions = GWidgets.VBox()
+            # Initial text as set in ui.py
+            self.reduction_summary_label = GWidgets.Label('No reductions yet')
+            qtbot.addWidget(self.vbox_reductions.get_widget())
+            self.reduction_control_elements = {}
+            self.reduction_timers, self.reduction_start_times = {}, {}
+            self._trace_canvases, self._trace_timers = {}, {}
+            self._trace_paths, self._trace_last_exten = {}, {}
+            self.file_backend = _FileBackend()
+    return _Plugin()
+
+
+def test_reductions_tracked_separately(qtbot):
+    plugin = _reductions_plugin(qtbot)
+    assert plugin.reduction_summary_label.get_text() == 'No reductions yet'
+
+    # The same slit reduced on two frames
+    plugin._make_reduction_row('DET01_1653_113046', 'S1653', '/raw/a.fits', '11:30:46')
+    plugin._make_reduction_row('DET01_1653_113512', 'S1653', '/raw/b.fits', '11:35:12')
+    rows = plugin.reduction_control_elements
+    assert len(rows) == 2 and plugin.vbox_reductions.num_children() == 2
+    # Newest first, in the displayed (Qt layout) order; Ginga's own child
+    # list keeps insertion order
+    layout = plugin.vbox_reductions.get_widget().layout()
+    assert layout.itemAt(0).widget() is rows['DET01_1653_113512']['vbox'].get_widget()
+    assert plugin.reduction_summary_label.get_text() == '2 running'
+
+    # The first reduction finishing updates only its own row
+    plugin.file_backend.done_dirs.add('/redux/DET01_1653_113046')
+    plugin._check_reduction_complete('DET01_1653_113046', '/redux/DET01_1653_113046',
+                                     'S1653', '/redux/x.log')
+    first, second = rows['DET01_1653_113046'], rows['DET01_1653_113512']
+    assert first['status'] == 'done' and first['spec1d_path'].startswith('/redux/DET01_1653_113046')
+    assert second['status'] == 'running' and second['spec1d_path'] is None
+    assert plugin.reduction_summary_label.get_text() == '1 running \u00b7 1 done'
+
+
+def test_clear_finished_reductions(qtbot):
+    plugin = _reductions_plugin(qtbot)
+    for i, status in enumerate(['done', 'running', 'failed']):
+        plugin._make_reduction_row(f'DET01_100{i}_120000', f'S100{i}', '/raw/a.fits', '12:00:00')
+        plugin._set_reduction_status(f'DET01_100{i}_120000', status, status)
+    assert plugin.reduction_summary_label.get_text() == '1 running \u00b7 1 done \u00b7 1 failed'
+
+    plugin.clear_finished_reductions_cb(None)
+    assert list(plugin.reduction_control_elements) == ['DET01_1001_120000']
+    assert plugin.vbox_reductions.num_children() == 1
+    assert plugin.reduction_summary_label.get_text() == '1 running'
+
+    # Removing the last row resets the summary; statuses of removed rows are ignored
+    plugin.reduction_control_elements['DET01_1001_120000']['remove'](None)
+    plugin._set_reduction_status('DET01_1001_120000', 'done', 'done')
+    assert plugin.reduction_summary_label.get_text() == 'No reductions yet'
+
+
+def test_unique_run_dir(tmp_path):
+    qlview = pytest.importorskip('pypeit.display.qlview.qlview')
+    unique = qlview.QLView._unique_run_dir
+    assert unique(str(tmp_path), 'DET01_1653_113046') == str(tmp_path / 'DET01_1653_113046')
+    (tmp_path / 'DET01_1653_113046').mkdir()
+    assert unique(str(tmp_path), 'DET01_1653_113046') == str(tmp_path / 'DET01_1653_113046_2')
+    (tmp_path / 'DET01_1653_113046_2').mkdir()
+    assert unique(str(tmp_path), 'DET01_1653_113046') == str(tmp_path / 'DET01_1653_113046_3')

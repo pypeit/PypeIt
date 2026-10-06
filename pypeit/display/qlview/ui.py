@@ -325,13 +325,36 @@ class QLViewUI:
         self.plugin.show_labels_box.add_callback("activated", self.plugin.show_labels_box_cb)
         self.plugin.vbox_redux.add_widget(self.plugin.show_labels_box, stretch=0)
 
-        fr.set_widget(self.plugin.vbox_redux)
-        vbox.add_widget(fr, stretch=0)
+        # --- Reductions list ---
+        # Summary of the reductions (counts by status) and a button to remove
+        # the finished ones, above a scrolling list of one entry per reduction
+        # (newest first).  The list fills the panel's leftover height and
+        # scrolls, so the panel does not keep growing.
+        hbox_summary = Widgets.HBox()
+        self.plugin.reduction_summary_label = Widgets.Label("No reductions yet")
+        hbox_summary.add_widget(self.plugin.reduction_summary_label, stretch=1)
+        btn_clear = Widgets.Button("Clear Finished")
+        btn_clear.set_tooltip("Remove the entries for reductions that are done or failed")
+        btn_clear.add_callback("activated", self.plugin.clear_finished_reductions_cb)
+        hbox_summary.add_widget(btn_clear, stretch=0)
+        self.plugin.vbox_redux.add_widget(hbox_summary, stretch=0)
 
-        # The empty stretch=1 label absorbs extra vertical space so the frames
-        # stay packed at the top and the button bar at the bottom.
-        top.add_widget(vbox, stretch=0)
-        top.add_widget(Widgets.Label(""), stretch=1)
+        self.plugin.vbox_reductions = Widgets.VBox()
+        scroll = Widgets.ScrollArea()
+        scroll.set_widget(self.plugin.vbox_reductions)
+        # Keep the minimum small so the list never forces the panel (and so
+        # the whole Ginga window) to be taller.  Ginga has no minimum-height
+        # option; set it on the Qt widget directly.
+        scroll.get_widget().setMinimumHeight(self.plugin.REDUCTION_LIST_MIN_HEIGHT)
+        self.plugin.vbox_redux.add_widget(scroll, stretch=1)
+
+        fr.set_widget(self.plugin.vbox_redux)
+        # Only the Reduction Control frame stretches, so the extra vertical
+        # space goes to the reductions list and the button bar stays at the
+        # bottom.
+        vbox.add_widget(fr, stretch=1)
+
+        top.add_widget(vbox, stretch=1)
 
         # --- Button bar ---
         btns = Widgets.HBox()
@@ -353,4 +376,9 @@ class QLViewUI:
         btns.add_widget(Widgets.Label(""), stretch=1)
         top.add_widget(btns, stretch=0)
 
-        container.add_widget(top, stretch=1)
+        # Put the whole panel in a scroll area so that its minimum height does
+        # not become the minimum height of the Ginga window.  Otherwise, on a
+        # short screen the window is taller than the screen.
+        sw = Widgets.ScrollArea()
+        sw.set_widget(top)
+        container.add_widget(sw, stretch=1)

@@ -155,6 +155,10 @@ from .ui import QLViewUI
 
 
 class QLView(GingaPlugin.LocalPlugin):
+    REDUCTION_LIST_MIN_HEIGHT = 90
+    """Minimum height in pixels of the scrolling list of reductions (about two
+    entries); it grows to fill the panel's leftover height."""
+
     def __init__(self, fv, fitsimage):
         """Initialise the QLView plugin and set up all internal state.
 
@@ -223,6 +227,8 @@ class QLView(GingaPlugin.LocalPlugin):
         self.reduction_start_times: Dict[str, float] = {}
         self.reduction_timeout: float = 300.0  # 5 minutes
         self.reduction_cadence: float = 5.0
+        # Per-reduction state, keyed by the reduction ID (the name of its
+        # output directory; see reduce_slit_cb).
         self.reduction_control_elements: Dict[str, dict] = {}
         # Monotonically increasing per-timer-key generation counter.  Each new
         # timer created by _register_reduction_timer bumps the counter; the
@@ -928,10 +934,18 @@ class QLView(GingaPlugin.LocalPlugin):
             self.logger.error(f"Could not resolve detector index for slit {slit_key}.")
             return
 
-        # Generate a unique directory for each reduction, to keep everything clean
+        # Generate a unique directory for each reduction, to keep everything
+        # clean.  Two reductions of the same slit started within the same
+        # second would share a name, so add a suffix in that case.
         now = datetime.datetime.now()
-        run_dir = os.path.join(redux_path, f"{det_label}_{slit_id}_{now.strftime('%H%M%S')}")
-        os.makedirs(run_dir, exist_ok=True)
+        run_dir = self._unique_run_dir(
+            redux_path, f"{det_label}_{slit_id}_{now.strftime('%H%M%S')}"
+        )
+        os.makedirs(run_dir)
+        # The directory name identifies this reduction everywhere in the
+        # viewer (status row, timers, trace overlay, and Spec1D channel), so
+        # repeated reductions of the same slit are tracked separately.
+        redux_id = Path(run_dir).name
 
         # Create the logpath. The log is used to monitor the reduction status.
         log_path = os.path.abspath(os.path.join(run_dir, f"{det_label}_{slit_id}.log"))
@@ -989,12 +1003,11 @@ class QLView(GingaPlugin.LocalPlugin):
             except Exception as exc:
                 self.logger.error(f"Reduction backend raised an exception for {slit_key}: {exc}", exc_info=True)
                 def _report_failure():
-                    timer = self.reduction_timers.pop(slit_key, None)
+                    timer = self.reduction_timers.pop(redux_id, None)
                     if timer is not None:
                         timer.cancel()
-                    control = self.reduction_control_elements.get(slit_key)
-                    if control is not None:
-                        control["label"].set_text(f"Backend error {slit_key}")
+                    self.reduction_start_times.pop(redux_id, None)
+                    self._set_reduction_status(redux_id, "failed", f"Backend error {slit_key}")
                 self.fv.gui_do(_report_failure)
 
         # Launch the reduction in a thread
@@ -1003,23 +1016,53 @@ class QLView(GingaPlugin.LocalPlugin):
         # Create the buttons to view this reduction, and register them with the 
         # timer.
         coadd2d = self.coadd2d_box.get_state()
-        self._make_reduction_row(slit_key, raw_path, now.strftime("%H:%M:%S"), coadd2d=coadd2d)
-        self._register_reduction_timer(raw_path, run_dir, slit_key, log_path, coadd2d=coadd2d)
+        self._make_reduction_row(
+            redux_id, slit_key, raw_path, now.strftime("%H:%M:%S"), coadd2d=coadd2d
+        )
+        self._register_reduction_timer(
+            redux_id, raw_path, run_dir, slit_key, log_path, coadd2d=coadd2d
+        )
+
+    @staticmethod
+    def _unique_run_dir(redux_path: str, run_name: str) -> str:
+        """Return a path for a new reduction directory that does not exist yet.
+
+        Parameters
+        ----------
+        redux_path : str
+            Directory holding the reduction directories.
+        run_name : str
+            Preferred directory name.  If it is taken (e.g. the same slit was
+            reduced twice within one second), ``_2``, ``_3``, ... is appended.
+
+        Returns
+        -------
+        str
+            ``redux_path/run_name``, possibly with a suffix.
+        """
+        run_dir = os.path.join(redux_path, run_name)
+        suffix = 1
+        while os.path.exists(run_dir):
+            suffix += 1
+            run_dir = os.path.join(redux_path, f"{run_name}_{suffix}")
+        return run_dir
 
     def _register_reduction_timer(
-        self, raw_path: str, run_dir: str, slit_key: str, log_path: str,
+        self, redux_id: str, raw_path: str, run_dir: str, slit_key: str, log_path: str,
         coadd2d: bool = False,
     ) -> None:
         """Register a Ginga timer that polls *run_dir* for reduction output.
 
         Creates (or replaces) a timer entry in ``self.reduction_timers`` keyed
-        by ``{raw_stem}_{slit_key}``.  On each expiry the timer fires
+        by *redux_id*.  On each expiry the timer fires
         :meth:`_check_reduction_complete`.  The start time is recorded in
         ``self.reduction_start_times`` so that :meth:`_check_reduction_complete`
         can enforce ``self.reduction_timeout``.
 
         Parameters
         ----------
+        redux_id : str
+            Reduction ID (the name of *run_dir*).
         raw_path : str
             Absolute path to the raw FITS file used for the reduction.
             Passed through to :meth:`_check_reduction_complete` so that
@@ -1036,8 +1079,7 @@ class QLView(GingaPlugin.LocalPlugin):
             ``*/Science/spec1d*``, phase 2 waits for
             ``*/science_coadd/spec1d*``.
         """
-        raw_stem = Path(raw_path).name.split(".fits")[0]
-        timer_key = f"{raw_stem}_{slit_key}"
+        timer_key = redux_id
 
         existing = self.reduction_timers.get(timer_key)
         if existing is not None:
@@ -1090,12 +1132,12 @@ class QLView(GingaPlugin.LocalPlugin):
         Parameters
         ----------
         timer_key : str
-            Key used to look up the timer and start-time entries.
+            Reduction ID, used to look up the status row, timer, and
+            start-time entries.
         run_dir : str
             Reduction output directory to search for output files.
         slit_key : str
-            Slit identifier (e.g. ``"S1234"``); used to locate the status
-            row in ``self.reduction_control_elements``.
+            Slit identifier (e.g. ``"S1234"``), used in status messages.
         log_path : str
             Absolute path to the reduction log file.
         raw_path : str, optional
@@ -1106,7 +1148,7 @@ class QLView(GingaPlugin.LocalPlugin):
             Whether to perform two-phase polling for CoAdd2D output.
         """
         timer = self.reduction_timers.get(timer_key)
-        control = self.reduction_control_elements.get(slit_key)
+        control = self.reduction_control_elements.get(timer_key)
 
         def _stop_timer() -> None:
             if timer is not None:
@@ -1116,8 +1158,7 @@ class QLView(GingaPlugin.LocalPlugin):
 
         def _fail(msg: str) -> None:
             self.logger.warning(msg)
-            if control is not None:
-                control["label"].set_text(f"Error {slit_key}")
+            self._set_reduction_status(timer_key, "failed", f"Error {slit_key}")
             _stop_timer()
 
         # Timeout check
@@ -1135,8 +1176,9 @@ class QLView(GingaPlugin.LocalPlugin):
             log_path, "No science frames found among the files provided."
         ):
             self.logger.warning(f"Reduction failed for {timer_key}: no science frames found.")
-            if control is not None:
-                control["label"].set_text(f"Failed {slit_key}: not a science frame")
+            self._set_reduction_status(
+                timer_key, "failed", f"Failed {slit_key}: not a science frame"
+            )
             _stop_timer()
             return
 
@@ -1147,7 +1189,7 @@ class QLView(GingaPlugin.LocalPlugin):
             if coadd_files:
                 coadd_path = coadd_files[0]
                 self.logger.info(f"CoAdd2D complete for {timer_key}: {coadd_path}")
-                control["label"].set_text(f"Reduced {slit_key}")
+                self._set_reduction_status(timer_key, "done", f"Reduced {slit_key}")
                 control["coadd_path"] = coadd_path
                 control["btn_coadd2d"].set_enabled(True)
                 _stop_timer()
@@ -1173,11 +1215,11 @@ class QLView(GingaPlugin.LocalPlugin):
                 control["button"].set_enabled(True)
                 control["btn_traces"].set_enabled(True)
                 if coadd2d:
-                    control["label"].set_text(f"Coadd2D {slit_key}...")
+                    self._set_reduction_status(timer_key, "running", f"Coadd2D {slit_key}...")
                     if timer is not None:
                         timer.set(self.reduction_cadence)
                     return
-                control["label"].set_text(f"Reduced {slit_key}")
+                self._set_reduction_status(timer_key, "done", f"Reduced {slit_key}")
             _stop_timer()
             return
 
@@ -1186,8 +1228,7 @@ class QLView(GingaPlugin.LocalPlugin):
             self.logger.warning(
                 f"Reduction finished for {timer_key} but no spec1d written — extraction failed."
             )
-            if control is not None:
-                control["label"].set_text(f"Extraction failed {slit_key}")
+            self._set_reduction_status(timer_key, "failed", f"Extraction failed {slit_key}")
             _stop_timer()
             return
 
@@ -1199,13 +1240,27 @@ class QLView(GingaPlugin.LocalPlugin):
             timer.set(self.reduction_cadence)
 
     def _make_reduction_row(
-        self, slit_key: str, raw_path: str, start_time: str, coadd2d: bool = False
+        self, redux_id: str, slit_key: str, raw_path: str, start_time: str,
+        coadd2d: bool = False,
     ) -> None:
-        """Add a per-slit status row to vbox_redux.
+        """Add a status row for one reduction to the top of the reductions list.
 
         Displays the source filename, start time, a status label, a Show
         button (initially disabled), an optional Show CoAdd2D button (when
         coadd2d=True), and a Remove button.
+
+        Parameters
+        ----------
+        redux_id : str
+            Reduction ID; keys the row in :attr:`reduction_control_elements`.
+        slit_key : str
+            Slit identifier (e.g. ``"S1234"``), shown in the status label.
+        raw_path : str
+            Raw FITS file that was reduced.
+        start_time : str
+            Start time to display.
+        coadd2d : bool, optional
+            Whether to add a Show CoAdd2D button.
         """
         from ginga.gw import Widgets as GWidgets
 
@@ -1240,34 +1295,37 @@ class QLView(GingaPlugin.LocalPlugin):
         hbox_controls.add_widget(btn_remove, stretch=0)
         vbox.add_widget(hbox_controls, stretch=0)
 
-        self.vbox_redux.add_widget(vbox, stretch=0)
+        # Newest first
+        self.vbox_reductions.insert_widget(0, vbox, stretch=0)
 
         def _remove(w):
             """Button callback: remove this status row and clean up its resources.
 
-            Removes the VBox row from :attr:`vbox_redux`, deletes the slit key
-            from :attr:`reduction_control_elements`, detaches any trace canvas
-            from the main Ginga canvas, and cancels any active trace-polling
-            timer.
+            Removes the row from :attr:`vbox_reductions`, deletes it from
+            :attr:`reduction_control_elements`, detaches any trace canvas
+            from the main Ginga canvas, cancels any active trace-polling
+            timer, and updates the summary line.  Does not stop a running
+            reduction.
 
             Parameters
             ----------
-            w : ginga widget
+            w : ginga widget or None
                 The ``Remove`` button widget that fired the callback.
             """
-            self.vbox_redux.remove(vbox)
-            self.reduction_control_elements.pop(slit_key, None)
-            canvas = self._trace_canvases.pop(slit_key, None)
+            self.vbox_reductions.remove(vbox)
+            self.reduction_control_elements.pop(redux_id, None)
+            canvas = self._trace_canvases.pop(redux_id, None)
             if canvas is not None:
                 try:
                     self.fitsimage.get_canvas().delete_object(canvas)
                 except Exception as exc:
-                    self.logger.debug(f"Could not remove trace canvas for {slit_key}: {exc}")
-            timer = self._trace_timers.pop(slit_key, None)
+                    self.logger.debug(f"Could not remove trace canvas for {redux_id}: {exc}")
+            timer = self._trace_timers.pop(redux_id, None)
             if timer is not None:
                 timer.cancel()
-            self._trace_paths.pop(slit_key, None)
-            self._trace_last_exten.pop(slit_key, None)
+            self._trace_paths.pop(redux_id, None)
+            self._trace_last_exten.pop(redux_id, None)
+            self._update_reduction_summary()
 
         btn_remove.add_callback("activated", _remove)
 
@@ -1285,14 +1343,17 @@ class QLView(GingaPlugin.LocalPlugin):
             "spec1d_path": None,
             "coadd_path": None,
             "vbox": vbox,
+            "status": "running",
+            "remove": _remove,
         }
 
         def _show_spec1d(w):
-            self.show_spec1d_cb(w, path=control["spec1d_path"], slit_key=slit_key)
+            self.show_spec1d_cb(w, path=control["spec1d_path"], name=redux_id)
 
         def _show_traces(w):
             self.show_traces_cb(
                 w,
+                redux_id=redux_id,
                 slit_key=slit_key,
                 spec1d_path=control["spec1d_path"],
                 reduction_raw_path=raw_path,
@@ -1304,22 +1365,69 @@ class QLView(GingaPlugin.LocalPlugin):
         if btn_coadd2d is not None:
             def _show_coadd2d(w):
                 self.show_spec1d_cb(
-                    w, path=control["coadd_path"], slit_key=f"{slit_key}_coadd2d"
+                    w, path=control["coadd_path"], name=f"{redux_id}_coadd2d"
                 )
             btn_coadd2d.add_callback("activated", _show_coadd2d)
 
-        self.reduction_control_elements[slit_key] = control
+        self.reduction_control_elements[redux_id] = control
+        self._update_reduction_summary()
 
-    def show_spec1d_cb(self, w, path: Optional[str] = None, slit_key: Optional[str] = None):
+    def _set_reduction_status(self, redux_id: str, status: str, text: str) -> None:
+        """Update the status of one reduction and the summary line.
+
+        Parameters
+        ----------
+        redux_id : str
+            Reduction ID.  Ignored if the row has been removed.
+        status : str
+            ``"running"``, ``"done"``, or ``"failed"``.
+        text : str
+            Text for the row's status label.
+        """
+        control = self.reduction_control_elements.get(redux_id)
+        if control is None:
+            return
+        control["status"] = status
+        control["label"].set_text(text)
+        self._update_reduction_summary()
+
+    def _update_reduction_summary(self) -> None:
+        """Show the number of reductions by status above the reductions list."""
+        if not hasattr(self, "reduction_summary_label"):
+            return
+        counts = {"running": 0, "done": 0, "failed": 0}
+        for control in self.reduction_control_elements.values():
+            counts[control["status"]] += 1
+        parts = [f"{n} {status}" for status, n in counts.items() if n > 0]
+        self.reduction_summary_label.set_text(
+            " \u00b7 ".join(parts) if parts else "No reductions yet"
+        )
+
+    def clear_finished_reductions_cb(self, w) -> None:
+        """Button callback: remove the rows of reductions that are done or failed.
+
+        Running reductions are kept.
+
+        Parameters
+        ----------
+        w : ginga widget
+            The ``Clear Finished`` button widget that fired the callback.
+        """
+        finished = [control for control in self.reduction_control_elements.values()
+                    if control["status"] != "running"]
+        for control in finished:
+            control["remove"](None)
+
+    def show_spec1d_cb(self, w, path: Optional[str] = None, name: Optional[str] = None):
         """Button callback: open a spec1d FITS file in a dedicated Ginga channel.
 
-        Loads *path* into a new channel named ``"Spec1D{slit_key}"`` and
+        Loads *path* into a new channel named ``"Spec1D_{name}"`` and
         immediately starts the ``Spec1dView`` Ginga plugin on that channel so
         the user can inspect extracted spectra interactively.
 
         Called both by the "Show" button in a reduction status row (regular
         spec1d) and by the "Show CoAdd2D" button (coadded spec1d), with the
-        *slit_key* suffixed with ``"_coadd2d"`` in the latter case.
+        *name* suffixed with ``"_coadd2d"`` in the latter case.
 
         Parameters
         ----------
@@ -1328,21 +1436,22 @@ class QLView(GingaPlugin.LocalPlugin):
         path : str, optional
             Absolute path to the spec1d FITS file to display.  If *None* or
             the file does not exist the method logs an error and returns.
-        slit_key : str, optional
-            Slit identifier (e.g. ``"S1234"`` or ``"S1234_coadd2d"``); used
-            to construct a unique Ginga channel name so multiple slits can be
-            viewed simultaneously.
+        name : str, optional
+            Reduction ID (e.g. ``"DET01_1234_113046"``, or with
+            ``"_coadd2d"`` appended); used to construct a unique Ginga channel
+            name so multiple reductions can be viewed simultaneously.
         """
         if not path or not os.path.isfile(path):
             self.logger.error("No spec1d file available to show.")
             return
         self.logger.info(f"Showing reduced spectrum: {path}")
-        ch_name = f"Spec1D{slit_key}" if slit_key else "Spec1D"
+        ch_name = f"Spec1D_{name}" if name else "Spec1D"
         self.fv.load_file(path, chname=ch_name)
         self.fv.start_local_plugin(ch_name, "Spec1dView")
 
     def show_traces_cb(
-        self, w, *, slit_key: str, spec1d_path: str, reduction_raw_path: str = ""
+        self, w, *, redux_id: str, slit_key: str, spec1d_path: str,
+        reduction_raw_path: str = "",
     ) -> None:
         """Load object traces from a spec1d file and overlay them on the raw image.
 
@@ -1383,25 +1492,27 @@ class QLView(GingaPlugin.LocalPlugin):
             try:
                 from pypeit.specobjs import SpecObjs
                 sobjs = SpecObjs.from_fitsfile(spec1d_path, chk_version=False)
-                self.fv.gui_do(self._draw_trace_objects, slit_key, sobjs)
+                self.fv.gui_do(self._draw_trace_objects, redux_id, sobjs)
             except Exception as exc:
                 self.logger.error(
                     f"Failed to load traces from {spec1d_path}: {exc}", exc_info=True
                 )
         threading.Thread(target=_load, daemon=True).start()
 
-    def _draw_trace_objects(self, slit_key: str, sobjs) -> None:
+    def _draw_trace_objects(self, redux_id: str, sobjs) -> None:
         """Draw per-object extraction traces on the raw image canvas.
-        
-        Largely looks like parts of show_spec2D"""
-        canvas = self._trace_canvases.get(slit_key)
+
+        Largely looks like parts of show_spec2D.  Traces are stored per
+        reduction ID, so each reduction has its own overlay.
+        """
+        canvas = self._trace_canvases.get(redux_id)
         if canvas is None:
             canvas = DrawingCanvas()
             canvas.enable_draw(False)
             canvas.enable_edit(False)
             canvas.set_surface(self.fitsimage)
             self.fitsimage.get_canvas().add(canvas)
-            self._trace_canvases[slit_key] = canvas
+            self._trace_canvases[redux_id] = canvas
         else:
             canvas.delete_all_objects()
 
@@ -1441,25 +1552,25 @@ class QLView(GingaPlugin.LocalPlugin):
             paths[i] = {"path": path, "label": lbl}
 
         canvas.update_canvas(whence=3)
-        self._trace_paths[slit_key] = paths
-        self._trace_last_exten[slit_key] = None
+        self._trace_paths[redux_id] = paths
+        self._trace_last_exten[redux_id] = None
 
         # Start polling the paired Spec1dView channel for selection changes.
-        existing = self._trace_timers.get(slit_key)
+        existing = self._trace_timers.get(redux_id)
         if existing is not None:
             existing.cancel()
         timer = self.fitsimage.make_timer()
         timer.add_callback(
             "expired",
-            lambda t: self._poll_trace_highlight(slit_key),
+            lambda t: self._poll_trace_highlight(redux_id),
         )
-        self._trace_timers[slit_key] = timer
+        self._trace_timers[redux_id] = timer
         # This is pretty frequent, but doesn't appear to have adverse resource issues
         timer.set(0.5)
 
-    def _poll_trace_highlight(self, slit_key: str) -> None:
+    def _poll_trace_highlight(self, redux_id: str) -> None:
         """Poll the paired Spec1dView for its current selection and recolor traces."""
-        ch_name = f"Spec1D{slit_key}"
+        ch_name = f"Spec1D_{redux_id}"
         current: Optional[int] = None
         try:
             plugin = self.fv.get_channel(ch_name).opmon.get_plugin("Spec1dView")
@@ -1467,10 +1578,10 @@ class QLView(GingaPlugin.LocalPlugin):
         except Exception as exc:
             self.logger.debug(f"Spec1dView plugin not available for channel {ch_name!r}: {exc}")
 
-        last = self._trace_last_exten.get(slit_key)
+        last = self._trace_last_exten.get(redux_id)
         if current != last:
-            canvas = self._trace_canvases.get(slit_key)
-            paths = self._trace_paths.get(slit_key, {})
+            canvas = self._trace_canvases.get(redux_id)
+            paths = self._trace_paths.get(redux_id, {})
             if canvas is not None:
                 if last is not None and last in paths:
                     paths[last]["path"].color = "orange"
@@ -1479,9 +1590,9 @@ class QLView(GingaPlugin.LocalPlugin):
                     paths[current]["path"].color = "cyan"
                     paths[current]["label"].color = "cyan"
                 canvas.update_canvas(whence=3)
-            self._trace_last_exten[slit_key] = current
+            self._trace_last_exten[redux_id] = current
 
-        timer = self._trace_timers.get(slit_key)
+        timer = self._trace_timers.get(redux_id)
         if timer is not None:
             timer.set(0.5)
 
