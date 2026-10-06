@@ -9,14 +9,20 @@ import os
 # be set before any Qt import.
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 
-import importlib
 import logging
 from pathlib import Path
 import subprocess
 import sys
 
 from astropy.io import fits
+import ginga.toolkit
 import pytest
+
+# The Ginga app selects its GUI toolkit at startup, before any Ginga widgets
+# are imported.  Do the same here: importing pypeit.display.qlview imports the
+# viewer's widgets, and in Ginga >= 7 ginga.gw.Widgets stays empty if it is
+# imported before a toolkit is chosen.
+ginga.toolkit.use('qt')
 
 from pypeit.display.qlview import calib_utils, spectrograph_support
 from pypeit.spectrographs.util import load_spectrograph, spectrograph_classes
@@ -568,15 +574,6 @@ class _FileBackend:
 
 def _reductions_plugin(qtbot):
     """A stand-in plugin with just the reductions-list machinery."""
-    # The Ginga app selects its GUI toolkit at startup, before importing
-    # ginga.gw.Widgets.  In Ginga >= 7 that module is empty if it is imported
-    # before a toolkit is chosen, which can happen earlier in a test session,
-    # so choose the toolkit and reload the module if needed.
-    ginga_toolkit = pytest.importorskip('ginga.toolkit')
-    ginga_toolkit.use('qt')
-    from ginga.gw import Widgets as gw_widgets
-    if not hasattr(gw_widgets, 'VBox'):
-        importlib.reload(gw_widgets)
     qlview = pytest.importorskip('pypeit.display.qlview.qlview')
     from ginga.qtw import Widgets as GWidgets
     Q = qlview.QLView
