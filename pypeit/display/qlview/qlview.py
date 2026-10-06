@@ -812,6 +812,32 @@ class QLView(GingaPlugin.LocalPlugin):
         self.state.active_slit_key = w.get_text().split()[0]
         self.overlay.activate(self.state.active_slit_key, self.slit_canvas)
 
+    def set_redux_path_cb(self, w) -> None:
+        """Button callback: choose the reduction output directory in a folder dialog.
+
+        Opens a folder chooser starting at the current
+        :attr:`state.redux_path` (or the home directory if that does not
+        exist).  The dialog also accepts a typed path.  The chosen directory
+        becomes :attr:`state.redux_path`, the same value edited in the
+        Settings dialog and saved by "Save Default Config".  Cancelling leaves
+        the path unchanged.
+
+        Parameters
+        ----------
+        w : ginga widget
+            The ``Button`` widget that fired the callback.
+        """
+        start_dir = self.state.redux_path
+        if not start_dir or not os.path.isdir(start_dir):
+            start_dir = str(Path.home())
+        path = QtGui.QFileDialog.getExistingDirectory(
+            None, "Select Reduction Output Directory", start_dir
+        )
+        if not path:
+            return  # cancelled
+        self.state.redux_path = path
+        self.logger.info(f"Reduction path set to {path}")
+
     def reduce_slit_cb(self, w):
         """Launch a PypeIt QuickLook reduction for the selected slit.
 

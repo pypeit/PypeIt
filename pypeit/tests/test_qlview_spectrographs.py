@@ -5,6 +5,7 @@ Results are compared by column *display name* so that the internal attribute
 names used to key each column are free to change.
 """
 import logging
+from pathlib import Path
 import subprocess
 import sys
 
@@ -517,3 +518,31 @@ def test_suggest_calibrations_search_root(calib_tree, monkeypatch):
         roots.clear()
         qlview.QLView._suggest_calibrations(_Plugin(selection), 'raw.fits')
         assert roots == [str(setup_dir.parent)], selection
+
+
+def test_set_redux_path_cb(tmp_path, monkeypatch):
+    qlview = pytest.importorskip('pypeit.display.qlview.qlview')
+    from pypeit.display.qlview.state import QLViewState
+    calls = []
+
+    def _dialog(parent, title, start_dir):
+        calls.append(start_dir)
+        return _dialog.result
+    monkeypatch.setattr(qlview.QtGui.QFileDialog, 'getExistingDirectory', _dialog)
+
+    class _Plugin:
+        logger = _LOGGER
+        def __init__(self): self.state = QLViewState()
+
+    plugin = _Plugin()
+    # No path yet: starts in the home directory and sets the chosen path
+    _dialog.result = str(tmp_path)
+    qlview.QLView.set_redux_path_cb(plugin, None)
+    assert calls[-1] == str(Path.home())
+    assert plugin.state.redux_path == str(tmp_path)
+
+    # Starts from the current path; cancelling leaves it unchanged
+    _dialog.result = ''
+    qlview.QLView.set_redux_path_cb(plugin, None)
+    assert calls[-1] == str(tmp_path)
+    assert plugin.state.redux_path == str(tmp_path)

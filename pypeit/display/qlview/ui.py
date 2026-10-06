@@ -229,6 +229,18 @@ class QLViewUI:
         fr = Widgets.Frame("Reduction Control")
         self.plugin.vbox_redux = Widgets.VBox()
 
+        # Button that opens a folder chooser for the reduction output path.
+        # The path itself is not shown here; it is also editable in Settings.
+        hbox_redux_path = Widgets.HBox()
+        btn_redux_path = Widgets.Button("Set Reduction Path...")
+        btn_redux_path.set_tooltip(
+            "Choose the directory where quicklook reductions are written"
+        )
+        btn_redux_path.add_callback("activated", self.plugin.set_redux_path_cb)
+        hbox_redux_path.add_widget(btn_redux_path, stretch=0)
+        hbox_redux_path.add_widget(Widgets.Label(""), stretch=1)
+        self.plugin.vbox_redux.add_widget(hbox_redux_path, stretch=0)
+
         # Slit selector (filled after "Render Slits"), reduce button, and the
         # SNR threshold passed to the quicklook reduction.
         hbox = Widgets.HBox()
