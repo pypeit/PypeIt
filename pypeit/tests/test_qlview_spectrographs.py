@@ -61,11 +61,12 @@ _HEADER_KEYS = [
     'OBJECT', 'TARGNAME', 'FRAMENO', 'FRAMENUM', 'KOAIMTYP', 'IMTYPE', 'MASKNAME', 'SLMSKNAM',
     'SLITNAME', 'OBSMODE', 'EXPTIME', 'ELAPTIME', 'TRUITIME', 'TTIME', 'GRATENAM', 'DWFILNAM',
     'DECKNAME', 'XDISPERS', 'GRISNAME', 'GRANAME', 'DICHNAME', 'PATTERN', 'FRAMEID', 'SCIFILT1',
-    'SCIFILT2', 'FIL1NAME', 'FILTER', 'FILTER1', 'FILTER2', 'MGTNAME', 'SLIT',
+    'SCIFILT2', 'FIL1NAME', 'FILTER', 'FILTER1', 'FILTER2', 'MGTNAME', 'SLIT', 'GRANGLE',
+    'BINNING',
 ]
 
 _CONFIG_KEYS = ['decker', 'decker_secondary', 'dispname', 'filter1', 'filter2', 'dichroic',
-                'slitwid']
+                'slitwid', 'dispangle', 'binning']
 
 NAMES = ['keck_deimos', 'keck_hires', 'keck_lris_blue', 'keck_lris_red_mark4', 'keck_mosfire',
          'keck_nirspec_high']
@@ -112,15 +113,21 @@ EXPECTED = {
     'keck_lris_red_mark4': dict(
         header='LRIS', prefix='DET',
         raw_cols=['Type', 'Frame No', 'Name', 'Object', 'Img Type', 'Slit/Mask', 'Grating',
-                  'Dichroic', 'Exp Time', 'Last Changed'],
-        red_cols=['Type', 'Name', 'Slit/Mask', 'Grating/Grism', 'Dichroic', 'Last Changed'],
-        raw_full={'Frame No': 'v_FRAMENO', 'Object': 'v_TARGNAME', 'Img Type': 'v_KOAIMTYP',
-                  'Slit/Mask': 'v_SLITNAME', 'Grating': 'v_GRANAME', 'Dichroic': 'v_DICHNAME',
-                  'Exp Time': 'v_EXPTIME'},
+                  'Grating Angle', 'Dichroic', 'Binning', 'Exp Time', 'Last Changed'],
+        red_cols=['Type', 'Name', 'Slit/Mask', 'Grating/Grism', 'Grating Angle', 'Dichroic',
+                  'Binning', 'Last Changed'],
+        # OBJECT is preferred over TARGNAME; the image type is inferred from
+        # the lamps and trapdoor, which this header does not have
+        raw_full={'Frame No': 'v_FRAMENO', 'Object': 'v_OBJECT', 'Img Type': 'N/A',
+                  'Slit/Mask': 'v_SLITNAME', 'Grating': 'v_GRANAME',
+                  'Grating Angle': 'v_GRANGLE', 'Dichroic': 'v_DICHNAME',
+                  'Binning': 'v_BINNING', 'Exp Time': 'v_EXPTIME'},
         red_full={'Slit/Mask': 'v_SLITNAME', 'Grating/Grism': 'v_GRANAME',
-                  'Dichroic': 'v_DICHNAME'},
+                  'Grating Angle': 'v_GRANGLE', 'Dichroic': 'v_DICHNAME',
+                  'Binning': 'v_BINNING'},
         red_dir={'Slit/Mask': 'c_decker', 'Grating/Grism': 'c_dispname',
-                 'Dichroic': 'c_dichroic'},
+                 'Grating Angle': 'c_dispangle', 'Dichroic': 'c_dichroic',
+                 'Binning': 'c_binning'},
     ),
     'keck_mosfire': dict(
         header='MOSFIRE', prefix='DET',
@@ -269,7 +276,8 @@ def test_reduced_info_unrelated_dir(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_supported_spectrographs():
-    assert spectrograph_support.supported_spectrographs() == ('keck_deimos', 'keck_mosfire')
+    assert spectrograph_support.supported_spectrographs() \
+            == ('keck_deimos', 'keck_lris_red_mark4', 'keck_mosfire')
     for name in spectrograph_support.supported_spectrographs():
         spec = load_spectrograph(name)
         assert spec.header_name is not None
@@ -299,8 +307,10 @@ def test_load_qlview_spectrograph():
 def test_match_header_name():
     assert spectrograph_support.match_header_name(' deimos ') == 'keck_deimos'
     assert spectrograph_support.match_header_name('MOSFIRE') == 'keck_mosfire'
-    # LRIS is not supported by the viewer
-    assert spectrograph_support.match_header_name('LRIS') is None
+    # Only the current LRIS red detector is supported
+    assert spectrograph_support.match_header_name('LRIS') == 'keck_lris_red_mark4'
+    # LRIS blue is not supported by the viewer
+    assert spectrograph_support.match_header_name('LRISBLUE') is None
     assert spectrograph_support.label('keck_deimos') == 'DEIMOS'
 
 
@@ -650,3 +660,25 @@ def test_unique_run_dir(tmp_path):
     assert unique(str(tmp_path), 'DET01_1653_113046') == str(tmp_path / 'DET01_1653_113046_2')
     (tmp_path / 'DET01_1653_113046_2').mkdir()
     assert unique(str(tmp_path), 'DET01_1653_113046') == str(tmp_path / 'DET01_1653_113046_3')
+
+
+@pytest.mark.parametrize('cards, expected', [
+    (dict(TRAPDOOR='closed', NEON='on', ARGON='on', TTIME=1.0), 'Arc'),
+    (dict(TRAPDOOR='closed', HALOGEN='on', TTIME=5.0), 'Flat'),
+    (dict(TRAPDOOR='open', FLAMP1='on', TTIME=30.0), 'Flat'),
+    (dict(TRAPDOOR='closed', FLAMP1='off', TTIME=0.0), 'Bias'),
+    (dict(TRAPDOOR='closed', FLAMP1='off', TTIME=60.0), 'Dark'),
+    (dict(TRAPDOOR='open', FLAMP1='off', FLAMP2='off', TTIME=600.0), 'Science'),
+    (dict(FLAMP1='off'), 'N/A'),
+])
+def test_lris_red_image_type(cards, expected):
+    # Headers written at the telescope have no KOAIMTYP; the type is inferred
+    # from the lamps and trapdoor, as in PypeIt's LRIS frame typing
+    spec = load_spectrograph('keck_lris_red_mark4')
+    assert spec.qlview_raw_info(fits.Header(cards))['IMTYPE'] == expected
+
+
+def test_lris_red_grating_angle():
+    spec = load_spectrograph('keck_lris_red_mark4')
+    assert spec.qlview_raw_info(fits.Header({'GRANGLE': 31.071106}))['GRANGLE'] == '31.07'
+    assert spec.qlview_reduced_info(fits.Header({'GRANGLE': 50.902935}))['dispangle'] == '50.90'

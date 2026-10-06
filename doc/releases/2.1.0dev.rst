@@ -57,8 +57,8 @@ Functionality/Performance Improvements and Additions
 - Instrument support for the quicklook viewer (``pypeit_qlview``) is now
   defined by new ``qlview_*`` hooks of the
   :class:`~pypeit.spectrographs.spectrograph.Spectrograph` classes; set
-  ``qlview_supported = True`` to offer a spectrograph in the viewer.  Keck/DEIMOS
-  and Keck/MOSFIRE are currently supported.  The viewer's remote HTTP API
+  ``qlview_supported = True`` to offer a spectrograph in the viewer.  Keck/DEIMOS,
+  Keck/LRIS red (Mark4 detector), and Keck/MOSFIRE are currently supported.  The viewer's remote HTTP API
   identifies instruments by their PypeIt spectrograph name (e.g.,
   ``keck_deimos``).
 - Added the ``ech_angle_fits_file`` and ``ech_composite_arc_file``

@@ -187,6 +187,18 @@ Instrument Selector
 
 How to choose an instrument and what changes when the selection is updated.
 
+The following instruments are currently supported:
+
+- Keck/DEIMOS (``keck_deimos``)
+- Keck/LRIS red camera with the Mark4 detector, in use since May 2021
+  (``keck_lris_red_mark4``).  Data taken with the earlier LRIS red detectors
+  and the LRIS blue camera are not supported.  LRIS headers do not record a
+  dither pattern, so "Detect AB Pair" does not find B frames for LRIS; enter
+  the B frame path directly instead.  The image type shown in the file
+  browser is inferred from the lamp and trapdoor status, so standard stars
+  are shown as science frames.
+- Keck/MOSFIRE (``keck_mosfire``)
+
 Show/Hide Tree Checkboxes
 --------------------------
 
