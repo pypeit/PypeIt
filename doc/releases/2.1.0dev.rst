@@ -226,8 +226,8 @@ Bug Fixes
   ``.calib`` files, with extra quotes (``'"SINGLE:B"'``), which prevented
   ``pypeit_ql`` from matching raw frames to existing calibrations (Issue
   #2099).  The extra quotes in PypeIt files written by older versions are
-  removed when the file is read, with a warning; regenerate the file (e.g.,
-  with ``pypeit_setup``) to avoid the warning.
+  removed when the file is read, with a warning; regenerate the file with
+  ``pypeit_setup`` or directly edit it to avoid the warning.
 - Restore the manual spatial flexure correction (Issue #2180): a value in the
   pypeit-file ``shift`` column again overrides the automatically computed
   spatial flexure for that science/standard frame.  The feature was lost in
