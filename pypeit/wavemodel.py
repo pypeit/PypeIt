@@ -694,9 +694,9 @@ def create_linelist(wavelength, spec, fwhm, sigdetec=2.,
     """
 
     log.info("Searching for peaks {} sigma above background".format(sigdetec))
-    tampl_true, tampl, tcent, twid, centerr, ww, arcnorm, nsig = arc.detect_lines(spec, sigdetect=sigdetec,
-                                                                                  fwhm=fwhm, cont_samp=cont_samp,
-                                                                                  debug=debug)
+    tampl_true, tampl, tcent, twid, centerr, ww, arcnorm, nsig = arc.detect_lines(
+        spec, sigdetect=sigdetec, fwhm=fwhm, cont_samp=cont_samp, debug=debug
+    )
 
     peaks_good = tcent[ww]
     ampl_good = tampl[ww]

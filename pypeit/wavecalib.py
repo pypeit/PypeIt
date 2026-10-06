@@ -695,12 +695,12 @@ class BuildWaveCalib:
             # Now preferred
             if self.binspectral is None:
                 raise PypeItError("You must specify binspectral for the full_template method!")
-            final_fit, order_vec = autoid.full_template(arccen, self.lamps, self.par, ok_mask_idx, self.det,
-                                             self.binspectral, slit_ids=self.slits.slitord_id,
-                                             measured_fwhms=self.measured_fwhms,
-                                             nonlinear_counts=self.nonlinear_counts,
-                                             nsnippet=self.par['nsnippet'], 
-                                             x_percentile=self.par['cc_percent_ceil'])
+            final_fit, order_vec = autoid.full_template(
+                arccen, self.measured_fwhms, self.lamps, self.par, ok_mask_idx, self.det,
+                self.binspectral, slit_ids=self.slits.slitord_id,
+                nonlinear_counts=self.nonlinear_counts, nsnippet=self.par['nsnippet'],
+                x_percentile=self.par['cc_percent_ceil']
+            )
 
             # For SlicerIFU, the wavelength coverage should be roughly the same for all slices, so if just one slit
             # successfully calibrated, try this as the template.
@@ -710,7 +710,27 @@ class BuildWaveCalib:
                 if refslit != self.slits.slitord_id[refslitidx]:
                     raise PypeItError(f"Reference slit {refslit} not found in the slits. "
                                       f"Check your reference slit or slit IDs.")
-                log.info(f"Attempting to wavelength calibrate all slits using the solution from slit {refslit}")
+                if final_fit[str(refslitidx)] is None:
+                    # The requested reference slit did not yield a solution in
+                    # the first pass.  Since the wavelength coverage should be
+                    # roughly the same for all slices, fall back to whichever
+                    # other slit *did* successfully calibrate with the most
+                    # matched arc lines (a proxy for solution quality) instead
+                    # of crashing outright.
+                    good_idx = [i for i in range(self.slits.slitord_id.size)
+                               if final_fit[str(i)] is not None]
+                    if len(good_idx) == 0:
+                        raise PypeItError(
+                            "None of the slits were successfully wavelength calibrated in the "
+                            "first pass of the 'full_template' method, including the requested "
+                            f"reference slit ({refslit}).  Cannot proceed."
+                        )
+                    refslitidx = max(good_idx, key=lambda i: final_fit[str(i)].pixel_fit.size)
+                    log.warning(f"Requested reference slit {refslit} does not have a wavelength "
+                               f"solution. Using the solution from slit "
+                               f"{self.slits.slitord_id[refslitidx]} instead.")
+                log.info(f"Attempting to wavelength calibrate all slits using the solution from "
+                        f"slit {self.slits.slitord_id[refslitidx]}")
                 # Generate a template dict
                 template_dict = {'wave': final_fit[str(refslitidx)].wave_soln,
                                  'spec': final_fit[str(refslitidx)].spec,
@@ -719,13 +739,12 @@ class BuildWaveCalib:
                                  'lines_pix': None,
                                  'lines_wav': None,
                                  'lines_fit_ord': None}
-                final_fit, order_vec = autoid.full_template(arccen, self.lamps, self.par, ok_mask_idx, self.det,
-                                                            self.binspectral, slit_ids=self.slits.slitord_id,
-                                                            measured_fwhms=self.measured_fwhms,
-                                                            nonlinear_counts=self.nonlinear_counts,
-                                                            nsnippet=self.par['nsnippet'],
-                                                            x_percentile=self.par['cc_percent_ceil'],
-                                                            template_dict=template_dict)
+                final_fit, order_vec = autoid.full_template(
+                    arccen, self.measured_fwhms, self.lamps, self.par, ok_mask_idx, self.det,
+                    self.binspectral, slit_ids=self.slits.slitord_id,
+                    nonlinear_counts=self.nonlinear_counts, nsnippet=self.par['nsnippet'],
+                    x_percentile=self.par['cc_percent_ceil'], template_dict=template_dict
+                )
             # Grab arxiv for redo later?
             if self.par['echelle']: 
                 # Hold for later usage
