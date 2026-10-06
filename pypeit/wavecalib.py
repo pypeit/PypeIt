@@ -710,7 +710,27 @@ class BuildWaveCalib:
                 if refslit != self.slits.slitord_id[refslitidx]:
                     raise PypeItError(f"Reference slit {refslit} not found in the slits. "
                                       f"Check your reference slit or slit IDs.")
-                log.info(f"Attempting to wavelength calibrate all slits using the solution from slit {refslit}")
+                if final_fit[str(refslitidx)] is None:
+                    # The requested reference slit did not yield a solution in
+                    # the first pass.  Since the wavelength coverage should be
+                    # roughly the same for all slices, fall back to whichever
+                    # other slit *did* successfully calibrate with the most
+                    # matched arc lines (a proxy for solution quality) instead
+                    # of crashing outright.
+                    good_idx = [i for i in range(self.slits.slitord_id.size)
+                               if final_fit[str(i)] is not None]
+                    if len(good_idx) == 0:
+                        raise PypeItError(
+                            "None of the slits were successfully wavelength calibrated in the "
+                            "first pass of the 'full_template' method, including the requested "
+                            f"reference slit ({refslit}).  Cannot proceed."
+                        )
+                    refslitidx = max(good_idx, key=lambda i: final_fit[str(i)].pixel_fit.size)
+                    log.warning(f"Requested reference slit {refslit} does not have a wavelength "
+                               f"solution. Using the solution from slit "
+                               f"{self.slits.slitord_id[refslitidx]} instead.")
+                log.info(f"Attempting to wavelength calibrate all slits using the solution from "
+                        f"slit {self.slits.slitord_id[refslitidx]}")
                 # Generate a template dict
                 template_dict = {'wave': final_fit[str(refslitidx)].wave_soln,
                                  'spec': final_fit[str(refslitidx)].spec,

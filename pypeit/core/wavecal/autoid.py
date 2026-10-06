@@ -524,9 +524,19 @@ def reidentify(
 
     nspec = spec.size
 
-    # Force the random number generator to always use the same seed.
-    # TODO: Allow the seed to be an input parameter?
-    rng = np.random.default_rng(seed=99)
+    # Seed the random number generator using the input spectrum itself.  This
+    # keeps the result fully deterministic and reproducible for a given input
+    # spectrum, while ensuring that the pseudo-random sequence used by the
+    # differential-evolution optimizer in
+    # :func:`~pypeit.core.wavecal.wvutils.xcorr_shift_stretch` is not identical
+    # for every slit and every wavelength snippet passed through this
+    # function.  Using a single, hardcoded seed for all of these distinct
+    # optimization problems can systematically bias the search toward the
+    # same (sometimes poor) region of parameter space; e.g., it caused
+    # complete wavelength calibration failures for all 24 slits of the
+    # Keck/KCRM medium_rh3 development-suite setup.
+    seed = int(np.fmin(np.abs(np.sum(spec[np.isfinite(spec)])), 2**32 - 1))
+    rng = np.random.default_rng(seed=seed)
     # Ensure nlocal_cc is odd
     nlocal_cc_odd = nlocal_cc + 1 if nlocal_cc % 2 == 0 else nlocal_cc
     # Set the window
