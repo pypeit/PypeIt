@@ -58,6 +58,13 @@ The following describes a typical workflow for using the GUI.
       that calibrations for each science configuration used throughout the night have
       already been processed.
 
+#. Choose where the quicklook reductions will be written: click "Set Reduction
+   Path..." at the top of the "Reduction Control" section, then pick or create a
+   directory in the pop-up window (you can also type a path there). Each
+   reduction is written to its own subdirectory. The reduction path can also be
+   changed in the Settings dialog, and saved for future sessions with "Save
+   Default Config" (see :ref:`qlview-config`). If the path does not exist when
+   you reduce a slit, the viewer offers to create it.
 #. Select a science frame for reducing by double clicking on a file, or pressing
    the "Go" button. This will draw the raw frame onto Ginga's Image Viewer. If you
    are observing using a dither pattern, the GUI can process AB frame pairs. Select
@@ -85,8 +92,13 @@ The following describes a typical workflow for using the GUI.
    on one object at a time.
 #. Once you are ready to process, click "Reduce Slit". This launches a background
    process to apply the selected calibrations to that slit, following all user
-   provided extraction constraints. At the bottom of the screen, 3 new buttons will
-   appear.
+   provided extraction constraints. An entry for the reduction is added to the
+   top of the list of reductions at the bottom of the "Reduction Control"
+   section, showing the raw file, start time, and status, with buttons to view
+   the results. The list scrolls once it is full, and the line above it counts
+   the reductions that are running, done, and failed. "Clear Finished" removes
+   the entries for reductions that are done or failed; "Remove" removes a
+   single entry. Reducing the same slit again adds a separate entry.
 #. Wait for the "Show" button to become enabled, indicating the reduction is
    complete. Press the button to see the 1D spectra extracted.
 #. In the Spec1D viewer, you can inspect all the object spectra that were
@@ -120,6 +132,8 @@ open it will attach to that instance and open the plugin there, otherwise it
 will open a new instance. Sometimes the GUI takes too long to render, and times
 out. If this happens, re-run ``pypeit_qlview`` again and it will attach to the
 Ginga window.
+
+.. _qlview-config:
 
 Configuration File
 ------------------
