@@ -322,14 +322,20 @@ class InputFile:
         blocks in older files still match the metadata read from the raw
         files.
 
-        Args:
-            obj (:obj:`object`):
-                Object parsed from the setup block.  Dictionaries and lists are
-                processed recursively.
+        Strings that start and end with a double quote and contain a colon
+        have the outer quotes removed.  Dictionaries and lists are processed
+        recursively.  Anything else is returned unchanged, including any
+        element of a dictionary or list that is not such a string.
 
-        Returns:
-            :obj:`object`: The object with the quotes removed from all
-            affected strings.
+        Parameters
+        ----------
+        obj : :obj:`object`
+            Object parsed from the setup block.
+
+        Returns
+        -------
+        :obj:`object`
+            The object with the quotes removed from all affected strings.
         """
         if isinstance(obj, dict):
             return {k: InputFile._strip_legacy_quotes(v) for k, v in obj.items()}
@@ -337,8 +343,8 @@ class InputFile:
             return [InputFile._strip_legacy_quotes(v) for v in obj]
         if isinstance(obj, str) and len(obj) > 1 and obj[0] == obj[-1] == '"' and ':' in obj:
             log.warning(f'Removing the extra quotes from the setup value {obj}, written by an '
-                        'older version of PypeIt.  Regenerate your PypeIt file (e.g., with '
-                        'pypeit_setup) to avoid this warning.')
+                        'older version of PypeIt.  Regenerate your PypeIt file with '
+                        'pypeit_setup or directly edit it to avoid this warning.')
             return obj[1:-1]
         return obj
 
