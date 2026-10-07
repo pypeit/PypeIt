@@ -1696,7 +1696,7 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
 
         return left_edges, right_edges
 
-    def get_arc_extract_center(self, slitcen, slits, det):
+    def get_arc_extract_center(self, slitcen, slits, det, arc_files=None):
         """
         Snap arc extraction center to the nearest fiber in each block.
 

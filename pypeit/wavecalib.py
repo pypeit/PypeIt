@@ -1109,7 +1109,7 @@ class BuildWaveCalib:
         # Allow the spectrograph to adjust extraction centers (e.g. snap
         # to nearest fiber for fiber-fed IFUs instead of block-slit midpoint)
         slitcen = self.spectrograph.get_arc_extract_center(
-            self.slitcen, self.slits, self.det)
+            self.slitcen, self.slits, self.det, arc_files=self.msarc.files)
         # Do it on the slits not masked in self.slitmask
         arccen, arccen_bpm, arc_maskslit = arc.get_censpec(
             slitcen, self.slitmask, self.msarc.image,

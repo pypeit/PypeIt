@@ -967,13 +967,15 @@ class Spectrograph:
             "does not implement get_ifu_datacube_meta(); it is required to "
             "build a fiber-IFU datacube.")
 
-    def get_arc_extract_center(self, slitcen, slits, det):
+    def get_arc_extract_center(self, slitcen, slits, det, arc_files=None):
         """
         Return adjusted slit centers for arc spectrum extraction.
 
         For most spectrographs, the arc is extracted at the geometric center
         of each slit.  Fiber-fed spectrographs may override this to place
-        the extraction center on a fiber rather than in an inter-fiber gap.
+        the extraction center on a fiber rather than in an inter-fiber gap;
+        Keck/MOSFIRE moves it off the wide alignment box of ``(align)``
+        long-slit masks.
 
         Parameters
         ----------
@@ -983,6 +985,9 @@ class Spectrograph:
             Slit traces.
         det : :obj:`int`
             1-indexed detector number.
+        arc_files : :obj:`list`, optional
+            Raw files combined into the arc image, for spectrographs whose
+            adjustment depends on the frames (e.g. their slitmask).
 
         Returns
         -------

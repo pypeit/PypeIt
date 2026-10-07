@@ -1205,6 +1205,98 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         return 880, 1190
 
     @staticmethod
+    def alignment_box_rows(filename):
+        """
+        Detector rows (spatial pixels) covered by the alignment boxes of a
+        LONGSLIT ``(align)`` mask.
+
+        The ``(align)`` long-slit masks open one or more CSU bars to a wide
+        (4 arcsec) alignment box (``Alignment_Slit_List`` extension), usually
+        bar 23, the middle of the slit. Bar 1 is at the top of the long slit
+        (highest row) and the bars step down by one CSU length plus the bar
+        gap.
+
+        Args:
+            filename (:obj:`str`):
+                Raw MOSFIRE file.
+
+        Returns:
+            :obj:`list`: ``(row_start, row_end, bar_row_ranges)`` tuples, one
+            per alignment bar, where ``bar_row_ranges`` maps every bar of the
+            long slit to its ``(row_start, row_end)``; empty if the file is
+            not a LONGSLIT ``(align)`` frame or has no alignment slits.
+        """
+        hdu = io.fits_open(filename)
+        hdr = hdu[0].header
+        decker = str(hdr.get('MASKNAME', ''))
+        if 'LONGSLIT' not in decker or '(align)' not in decker or 'x' not in decker:
+            return []
+        try:
+            align = hdu['Alignment_Slit_List'].data
+        except KeyError:
+            return []
+        bars = [int(str(b).strip()) for b in align['Slit_Number'] if str(b).strip()]
+        if len(bars) == 0:
+            return []
+        platescale = hdr['PSCALE']
+        csu = KeckMOSFIRESpectrograph._CSUlength(platescale)
+        gap = KeckMOSFIRESpectrograph._slit_gap(platescale)
+        _, pix_end = KeckMOSFIRESpectrograph.find_longslit_pos(hdr)
+        nbars = int(decker.split('x')[0].split('-')[1])
+        rows = {n: (pix_end - (n - 1) * (csu + gap) - csu, pix_end - (n - 1) * (csu + gap))
+                for n in range(1, nbars + 1)}
+        return [(rows[b][0], rows[b][1], rows) for b in bars if b in rows]
+
+    def get_arc_extract_center(self, slitcen, slits, det, arc_files=None):
+        """
+        Move the arc extraction off the alignment box of LONGSLIT ``(align)``
+        masks.
+
+        On these masks the long slit has a wide alignment box in the middle,
+        where the arc (OH) lines are several times broader than in the
+        science slit (2024-12-30, ``LONGSLIT-46x1 (align)``: 16 instead of 4
+        pixels), so the arc spectrum extracted at the slit center
+        cross-correlates poorly with the templates. When the center of a slit
+        at mid-detector falls within ``boxcar`` pixels of a box, the whole
+        center trace is shifted by a constant to the center of the adjacent
+        science bar on the nearer side that is not itself a box.
+
+        See :func:`~pypeit.spectrographs.spectrograph.Spectrograph.get_arc_extract_center`.
+        """
+        if arc_files is None or len(arc_files) == 0:
+            return slitcen
+        boxes, rows = [], None
+        for f in arc_files:
+            try:
+                b = self.alignment_box_rows(f)
+            except (OSError, KeyError, ValueError):
+                continue
+            if b:
+                boxes += [(lo, hi) for lo, hi, _ in b]
+                rows = b[0][2]
+        if not boxes:
+            return slitcen
+        boxes = sorted(set(boxes))
+        box_bars = {n for n, r in rows.items() if r in boxes}
+        margin = 3.
+        adjusted = slitcen.copy()
+        mid = slitcen.shape[0] // 2
+        for i in range(slitcen.shape[1]):
+            c = slitcen[mid, i]
+            hit = [n for n in box_bars if rows[n][0] - margin <= c <= rows[n][1] + margin]
+            if not hit:
+                continue
+            n = hit[0]
+            cands = [m for m in (n - 1, n + 1) if m in rows and m not in box_bars]
+            if not cands:
+                continue
+            new = min((0.5 * (rows[m][0] + rows[m][1]) for m in cands), key=lambda x: abs(x - c))
+            adjusted[:, i] = slitcen[:, i] + (new - c)
+            log.info(f'Slit {i}: arc extraction moved from spatial pixel {c:.1f} to {new:.1f}, '
+                     f'off the alignment box of bar {n} (rows {rows[n][0]:.0f}-{rows[n][1]:.0f})')
+        return adjusted
+
+    @staticmethod
     def find_longslit_pos(hdr):
         """
         Given a MOSFIRE science raw file, find the position of the slit
