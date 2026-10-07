@@ -996,6 +996,39 @@ class Spectrograph:
         """
         return slitcen
 
+    def transfer_wavecal(self, final_fit, arccen, slits, par, lamps, arc_files=None):
+        """
+        Replace the wavelength solutions of some slits by solutions transferred
+        from other slits of the same frame.
+
+        Called by :class:`~pypeit.wavecalib.BuildWaveCalib` after the
+        ``full_template`` fits. Most spectrographs do nothing; Keck/MOSFIRE
+        calibrates the 4-arcsec bars of the ``long2pos_specphot`` mask from
+        their 0.7-arcsec neighbors.
+
+        Parameters
+        ----------
+        final_fit : :obj:`dict`
+            Wavelength fits keyed by the slit index (as a string); an entry
+            may be None.
+        arccen : `numpy.ndarray`_
+            Arc spectra, shape ``(nspec, nslits)``.
+        slits : :class:`~pypeit.slittrace.SlitTraceSet`
+            Slit traces.
+        par : :class:`~pypeit.par.pypeitpar.WavelengthSolutionPar`
+            Wavelength calibration parameters.
+        lamps : :obj:`list`
+            Lamps used for the calibration.
+        arc_files : :obj:`list`, optional
+            Raw files combined into the arc image.
+
+        Returns
+        -------
+        :obj:`dict`
+            The (possibly modified) ``final_fit``.
+        """
+        return final_fit
+
     @staticmethod
     def maskdef_spec_minmax(maskfile=None, maskdef_ids=None, nspec=None, shift=150):
         """

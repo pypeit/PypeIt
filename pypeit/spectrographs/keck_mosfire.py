@@ -1205,6 +1205,134 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         return 880, 1190
 
     @staticmethod
+    def long2pos_bar_widths(filename):
+        """
+        CSU bars of a ``long2pos_specphot`` frame: ``(slit_number, width,
+        position)`` in decreasing slit number (the order of increasing spatial
+        pixel on the detector), from the ``Mechanical_Slit_List`` extension;
+        empty for other masks.
+        """
+        hdu = io.fits_open(filename)
+        if 'long2pos_specphot' not in str(hdu[0].header.get('MASKNAME', '')):
+            return []
+        try:
+            mech = hdu['Mechanical_Slit_List'].data
+        except KeyError:
+            return []
+        bars = [(int(str(r['Slit_Number']).strip()), float(str(r['Slit_width']).strip()),
+                 float(str(r['Position_of_Slit']).strip()))
+                for r in mech if str(r['Slit_Number']).strip()]
+        return sorted(bars, reverse=True)
+
+    def transfer_wavecal(self, final_fit, arccen, slits, par, lamps, arc_files=None):
+        """
+        Calibrate the 4-arcsec bars of ``long2pos_specphot`` from their
+        0.7-arcsec neighbors.
+
+        Each of positions A and C of the mask is three CSU bars, 0.7, 4.0 and
+        0.7 arcsec wide, offset by 0.56 arcsec in the dispersion direction.
+        Through a 4-arcsec bar the arc lines are flat-topped and about 22
+        pixels wide, and ``full_template`` often fails on them (RMS of
+        0.7-1.5 pixels on 2024-07-21 and 2014-06-01, against 0.02-0.07 in the
+        0.7-arcsec bars). The narrow neighbors see the same lines shifted by
+        a few pixels. For every 4-arcsec bar, the shift to each neighbor at
+        the same position (within 1 arcsec) whose fit exists is measured by
+        cross-correlating the bar's arc spectrum with the neighbor's,
+        smoothed by the 4-arcsec line width, and the neighbors' identified
+        lines, moved by their shifts, are refit (``input_only``) on the
+        bar's pixel grid. The traced slits must match the mask's bars one to
+        one (in spatial order); otherwise nothing is changed.
+
+        See :func:`~pypeit.spectrographs.spectrograph.Spectrograph.transfer_wavecal`.
+        """
+        from scipy.ndimage import uniform_filter1d
+        from pypeit.core.wavecal import waveio, wv_fitting, wvutils
+        if arc_files is None or len(arc_files) == 0:
+            return final_fit
+        bars = []
+        for f in arc_files:
+            try:
+                bars = self.long2pos_bar_widths(f)
+            except (OSError, KeyError, ValueError):
+                continue
+            if bars:
+                break
+        nslits = arccen.shape[1]
+        if not bars or len(bars) != nslits:
+            if bars:
+                log.warning(f'long2pos_specphot: {nslits} traced slits for {len(bars)} bars; '
+                            'no wavelength transfer to the 4-arcsec bars.')
+            return final_fit
+        order = np.argsort(slits.spat_id)
+        line_lists, _, _ = waveio.load_line_lists(lamps, include_unknown=False,
+                                                  lamps_wvrng=par['lamps_wvrng'])
+        nspec = arccen.shape[0]
+        # 4 arcsec in the dispersion direction, in pixels
+        box = int(round(4.0 / self.get_detector_par(1)['platescale']))
+        maxlag = 3 * box
+
+        def contsub(s):
+            return wvutils.arc_lines_from_spec(np.asarray(s, dtype=float))[4]
+
+        for k, (num, width, pos) in enumerate(bars):
+            if width < 2.0:
+                continue
+            iw = order[k]
+            wide = contsub(arccen[:, iw])
+            tcent, ids, used = [], [], []
+            for kk in (k - 1, k + 1):
+                if kk < 0 or kk >= nslits or bars[kk][1] >= 2.0 or abs(bars[kk][2] - pos) > 1.0:
+                    continue
+                inn = order[kk]
+                fit = final_fit.get(str(inn))
+                if fit is None or fit.pypeitfit is None:
+                    continue
+                narrow = uniform_filter1d(contsub(arccen[:, inn]), box)
+                a = wide / (np.linalg.norm(wide) + 1e-30)
+                b = narrow / (np.linalg.norm(narrow) + 1e-30)
+                lags = np.arange(-maxlag, maxlag + 1)
+                cc = np.array([np.sum(a[max(0, l):nspec + min(0, l)] * b[max(0, -l):nspec - max(0, l)])
+                               for l in lags])
+                j = int(np.argmax(cc))
+                shift = float(lags[j])
+                if 0 < j < len(lags) - 1:
+                    den = cc[j - 1] - 2 * cc[j] + cc[j + 1]
+                    if den != 0:
+                        shift += 0.5 * (cc[j - 1] - cc[j + 1]) / den
+                gpm = fit.pypeitfit.bool_gpm
+                tcent.append(np.asarray(fit['pixel_fit'])[gpm] + shift)
+                ids.append(np.asarray(fit['wave_fit'])[gpm])
+                used.append(f'slit {slits.spat_id[inn]} (bar {bars[kk][0]}, shift {shift:+.2f} pix, '
+                            f'cc {cc[j]:.3f}, RMS {fit.rms:.3f})')
+            if not tcent:
+                log.warning(f'long2pos_specphot: no calibrated 0.7-arcsec neighbor for the 4-arcsec '
+                            f'bar {num} (slit {slits.spat_id[iw]}); its own solution is kept.')
+                continue
+            tcent = np.concatenate(tcent)
+            ids = np.concatenate(ids)
+            keep = (tcent > 0) & (tcent < nspec - 1)
+            tcent, ids = tcent[keep], ids[keep]
+            srt = np.argsort(tcent)
+            tcent, ids = tcent[srt], ids[srt]
+            disp = np.median(np.abs(np.diff(ids) / np.diff(tcent))) if len(ids) > 1 else 1.
+            n_final = wvutils.parse_param(par, 'n_final', iw)
+            new = wv_fitting.iterative_fitting(
+                arccen[:, iw], tcent, np.arange(len(tcent)), ids, line_lists, disp,
+                match_toler=par['match_toler'], func=par['func'], n_first=par['n_first'],
+                sigrej_first=par['sigrej_first'], n_final=n_final,
+                sigrej_final=par['sigrej_final'], input_only=True)
+            if new is None:
+                log.warning(f'long2pos_specphot: the transferred fit failed for bar {num} '
+                            f'(slit {slits.spat_id[iw]}); its own solution is kept.')
+                continue
+            old = final_fit.get(str(iw))
+            old_rms = 'none' if old is None else f'{old.rms:.3f}'
+            final_fit[str(iw)] = new
+            log.info(f'long2pos_specphot: 4-arcsec bar {num} (slit {slits.spat_id[iw]}) calibrated from '
+                     f'{"; ".join(used)}: {len(ids)} lines, RMS {new.rms:.3f} pix (own fit {old_rms})')
+        return final_fit
+
+    @staticmethod
     def alignment_box_rows(filename):
         """
         Detector rows (spatial pixels) covered by the alignment boxes of a

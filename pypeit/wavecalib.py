@@ -726,6 +726,9 @@ class BuildWaveCalib:
                                                             nsnippet=self.par['nsnippet'],
                                                             x_percentile=self.par['cc_percent_ceil'],
                                                             template_dict=template_dict)
+            # Spectrograph-specific transfer of solutions between slits
+            final_fit = self.spectrograph.transfer_wavecal(final_fit, arccen, self.slits, self.par,
+                                                           self.lamps, arc_files=self.msarc.files)
             # Grab arxiv for redo later?
             if self.par['echelle']: 
                 # Hold for later usage
