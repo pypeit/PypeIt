@@ -56,7 +56,7 @@ PypeIt ``Spectrograph`` classes (``.spectrograph_support``, ``.calib_utils``)
       all operations to an HTTP server via ``requests``, enabling use
       cases where the raw data lives on a remote instrument workstation.
 
-    The active backends are selected at startup from ``~/.quicklook.cfg``
+    The active backends are selected at startup from ``~/.pypeit/quicklook.cfg``
     and can be changed at runtime through the Settings dialog.
 
 ``SlitOverlay`` (``.slit_overlay``)
@@ -104,7 +104,7 @@ Data flow
 
 Configuration
 -------------
-``~/.quicklook.cfg`` (INI format, ``[DEFAULT]`` section) controls startup
+``~/.pypeit/quicklook.cfg`` (INI format, ``[DEFAULT]`` section) controls startup
 paths, file-filter defaults, backend selection, poll cadence, and
 reduction timeout.  Path values support ``strftime``-style format codes
 (e.g. ``raw_path_template = /data/raw/%Y%m%d``) that are expanded at
@@ -152,6 +152,9 @@ from .file_browser import FileBrowserController
 from .slit_overlay import SlitOverlay
 from .state import QLViewState
 from .ui import QLViewUI
+
+CONFIG_FILE = Path.home() / ".pypeit" / "quicklook.cfg"
+"""Default-settings file read at startup and written by "Save Default Config"."""
 
 
 class QLView(GingaPlugin.LocalPlugin):
@@ -348,7 +351,7 @@ class QLView(GingaPlugin.LocalPlugin):
     # --- Callbacks ---
 
     def create_config_cb(self, w):
-        """Write the current settings to ``~/.quicklook.cfg``.
+        """Write the current settings to ``~/.pypeit/quicklook.cfg``.
 
         Serialises the active raw path, reduced calibrations path, redux
         output path, file-filter flags, and reduction timeout to a
@@ -362,7 +365,7 @@ class QLView(GingaPlugin.LocalPlugin):
         w : ginga.gw.Widgets.Button
             The "Save Default Config" button widget (unused).
         """
-        config_file = Path.home() / ".quicklook.cfg"
+        config_file = CONFIG_FILE
         config = configparser.ConfigParser()
 
         raw_path = self.raw_text_entry.get_text()
@@ -387,6 +390,7 @@ class QLView(GingaPlugin.LocalPlugin):
             "reduced_show_dirs": str(self.reduced_filter_dirs),
             "reduction_timeout": str(self.reduction_timeout),
         }
+        config_file.parent.mkdir(parents=True, exist_ok=True)
         with open(config_file, "w") as f:
             config.write(f)
         self.logger.info(f"Saved default config to {config_file}")
@@ -2773,7 +2777,7 @@ class QLView(GingaPlugin.LocalPlugin):
         """Ginga plugin lifecycle hook: initialize state and populate the UI.
 
         Called by the Ginga framework when the plugin is started.  Reads
-        ``~/.quicklook.cfg`` (if it exists) to seed the raw-data path,
+        ``~/.pypeit/quicklook.cfg`` (if it exists) to seed the raw-data path,
         reduced-calibrations path, reduction output path, file-filter flags,
         and reduction timeout.  Template keys (``raw_path_template``,
         ``reduced_path_template``, ``redux_path_template``) take precedence
@@ -2785,7 +2789,7 @@ class QLView(GingaPlugin.LocalPlugin):
         objects, and registers :meth:`canvas_clicked_cb` on the main image
         canvas.
         """
-        config_file = Path.home() / ".quicklook.cfg"
+        config_file = CONFIG_FILE
         raw_path = os.getcwd()
         reduced_path = os.getcwd()
         redux_path = self.state.redux_path

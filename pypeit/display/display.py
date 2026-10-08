@@ -729,7 +729,7 @@ def launch_qlview():
     pipeline from within the viewer.
 
     Configuration (initial paths, instrument, reduction backend, file
-    filters, etc.) is read from ``~/.quicklook.cfg`` at plugin start-up.
+    filters, etc.) is read from ``~/.pypeit/quicklook.cfg`` at plugin start-up.
     See ``pypeit_qlview --help`` and the QLView plugin documentation for
     details.
     """

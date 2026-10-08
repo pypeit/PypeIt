@@ -713,3 +713,34 @@ def test_http_header_info_unreadable_file(http_client, tmp_path):
     resp = http_client.get('/api/header_info', query_string={
         'path': str(bad), 'instrument': 'keck_deimos', 'mode': 'reduced'})
     assert resp.status_code == 500 and 'error' in resp.get_json()
+
+
+def test_save_default_config(tmp_path, monkeypatch):
+    # "Save Default Config" writes ~/.pypeit/quicklook.cfg, creating ~/.pypeit
+    import configparser
+    qlview = pytest.importorskip('pypeit.display.qlview.qlview')
+    from pypeit.display.qlview.state import QLViewState
+    assert qlview.CONFIG_FILE == Path.home() / '.pypeit' / 'quicklook.cfg'
+    config_file = tmp_path / '.pypeit' / 'quicklook.cfg'
+    monkeypatch.setattr(qlview, 'CONFIG_FILE', config_file)
+
+    class _Entry:
+        def __init__(self, text): self.text = text
+        def get_text(self): return self.text
+
+    class _Plugin:
+        logger = _LOGGER
+        raw_filter_fits = raw_filter_dirs = reduced_filter_dirs = True
+        raw_filter_nonfits = reduced_filter_fits = reduced_filter_nonfits = False
+        reduction_timeout = 600.0
+        def __init__(self):
+            self.state = QLViewState(redux_path='/data/redux')
+            self.raw_text_entry = _Entry('/data/raw')
+            self.reduced_text_entry = _Entry('/data/reduced')
+
+    qlview.QLView.create_config_cb(_Plugin(), None)
+    config = configparser.ConfigParser()
+    config.read(config_file)
+    assert config['DEFAULT']['redux_path'] == '/data/redux'
+    assert config['DEFAULT']['raw_path'] == '/data/raw'
+    assert config['DEFAULT']['reduced_path'] == '/data/reduced'

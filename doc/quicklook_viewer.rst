@@ -145,7 +145,7 @@ Primarily, it tells the GUI where the default locations for the raw data
 (``raw path``), calibrations (``reduced_path``) and extracted products
 (``redux_path``) should be.
 
-This file is stored in ``~/.quicklook.cfg`` and looks like this:
+This file is stored in ``~/.pypeit/quicklook.cfg`` and looks like this:
 
 .. code-block::
 
@@ -445,7 +445,7 @@ PypeIt ``Spectrograph`` classes (``pypeit/display/qlview/spectrograph_support.py
       all operations to an HTTP server via ``requests``, enabling use cases
       where the raw data lives on a remote instrument workstation.
 
-    The active backends are selected at startup from ``~/.quicklook.cfg``
+    The active backends are selected at startup from ``~/.pypeit/quicklook.cfg``
     and can be changed at runtime through the Settings dialog.
 
 ``SlitOverlay`` (``pypeit/display/qlview/slit_overlay.py``)
@@ -493,7 +493,7 @@ Data Flow
 Configuration Keys
 ~~~~~~~~~~~~~~~~~~
 
-``~/.quicklook.cfg`` (INI format, ``[DEFAULT]`` section) controls startup
+``~/.pypeit/quicklook.cfg`` (INI format, ``[DEFAULT]`` section) controls startup
 paths, file-filter defaults, backend selection, poll cadence, and
 reduction timeout.  Path values support ``strftime``-style format codes
 (e.g. ``raw_path_template = /data/raw/%Y%m%d``) that are expanded at

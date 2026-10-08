@@ -4,7 +4,7 @@ Launch the PypeIt interactive quicklook viewer.
 Opens Ginga with the QLView local plugin, which provides a self-contained
 file browser, slit-overlay renderer, and one-click quicklook reduction
 interface.  Configuration (initial raw/reduced paths, instrument,
-reduction backend, etc.) is read from ``~/.quicklook.cfg`` at startup.
+reduction backend, etc.) is read from ``~/.pypeit/quicklook.cfg`` at startup.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
