@@ -45,6 +45,7 @@ Submodules
    pypeit.spectrographs.p200_dbsp
    pypeit.spectrographs.p200_ngps
    pypeit.spectrographs.p200_tspec
+   pypeit.spectrographs.ramp_spectrograph
    pypeit.spectrographs.shane_hamspec
    pypeit.spectrographs.shane_kast
    pypeit.spectrographs.slitmask
