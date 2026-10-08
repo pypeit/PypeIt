@@ -19,6 +19,7 @@ from astropy import table
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import utils
+from pypeit import qaWriter
 from pypeit import specobj
 from pypeit import specobjs
 from pypeit.core import pydl
@@ -1578,34 +1579,32 @@ def objfind_QA(spat_peaks, snr_peaks, spat_vector, snr_vector, snr_thresh, qa_ti
 
     """
 
-    plt.plot(spat_vector, snr_vector, drawstyle='steps-mid', color='black', label = 'Collapsed SNR (FWHM convol)')
-    plt.hlines(snr_thresh,spat_vector.min(),spat_vector.max(), color='red',linestyle='--',
-               label='SNR_THRESH={:5.3f}'.format(snr_thresh))
+    fig, ax = plt.subplots()
+    ax.plot(spat_vector, snr_vector, drawstyle='steps-mid', color='black', label = 'Collapsed SNR (FWHM convol)')
+    ax.hlines(snr_thresh,spat_vector.min(),spat_vector.max(), color='red',linestyle='--',
+              label='SNR_THRESH={:5.3f}'.format(snr_thresh))
     if np.any(peak_gpm):
-        plt.plot(spat_peaks[peak_gpm], snr_peaks[peak_gpm], color='red', marker='o', markersize=10.0,
-                 mfc='lawngreen', fillstyle='full',linestyle='None', zorder = 10,label='{:d} Good Objects'.format(np.sum(peak_gpm)))
+        ax.plot(spat_peaks[peak_gpm], snr_peaks[peak_gpm], color='red', marker='o', markersize=10.0,
+                mfc='lawngreen', fillstyle='full',linestyle='None', zorder = 10,label='{:d} Good Objects'.format(np.sum(peak_gpm)))
     if np.any(near_edge_bpm):
-        plt.plot(spat_peaks[near_edge_bpm], snr_peaks[near_edge_bpm], color='red', marker='o', markersize=10.0,
-                 mfc='cyan', fillstyle='full', linestyle='None', zorder = 10,label='{:d} Rejected: Near Edge'.format(np.sum(near_edge_bpm)))
+        ax.plot(spat_peaks[near_edge_bpm], snr_peaks[near_edge_bpm], color='red', marker='o', markersize=10.0,
+                mfc='cyan', fillstyle='full', linestyle='None', zorder = 10,label='{:d} Rejected: Near Edge'.format(np.sum(near_edge_bpm)))
     if np.any(nperslit_bpm):
-        plt.plot(spat_peaks[nperslit_bpm], snr_peaks[nperslit_bpm], color='red', marker='o', markersize=10.0,
-                 mfc='yellow', fillstyle='full', linestyle='None', zorder = 10,label='{:d} Rejected: Nperslit'.format(np.sum(nperslit_bpm)))
-    plt.legend()
-    plt.xlabel('Approximate Spatial Position (pixels)')
-    plt.ylabel('SNR')
-    plt.title(qa_title)
-    plt.tick_params(axis="both", which="both", direction="in", top=True, right=True)
-    plt.tight_layout()
+        ax.plot(spat_peaks[nperslit_bpm], snr_peaks[nperslit_bpm], color='red', marker='o', markersize=10.0,
+                mfc='yellow', fillstyle='full', linestyle='None', zorder = 10,label='{:d} Rejected: Nperslit'.format(np.sum(nperslit_bpm)))
+    ax.legend()
+    ax.set_xlabel('Approximate Spatial Position (pixels)')
+    ax.set_ylabel('SNR')
+    ax.set_title(qa_title)
+    ax.tick_params(axis="both", which="both", direction="in", top=True, right=True)
+    fig.tight_layout()
     #plt.ylim(np.fmax(snr_vector.min(), -20.0), 1.3*snr_vector.max())
-    fig = plt.gcf()
-    if show:
-        plt.show()
     # Write to disk?
+    qafile = None
     if objfindQA_filename is not None:
         qafile = Path(objfindQA_filename).absolute()
         qafile.parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(qafile, dpi=400)
-    plt.close('all')
+    qaWriter.save_figure(fig, qafile, show=show, dpi=400)
 
 
 def objtrace_QA(
@@ -1747,10 +1746,14 @@ def objtrace_QA(
             color="r", linewidth=2.0, linestyle="--", label="Fit",
         )
 
-        plt.ylim((0.995 * np.amin(trace_fit[:, i]), 1.005 * np.amax(trace_fit[:, i])))
-
         axis.legend(fontsize=tsz-ntrace)
         axis.tick_params(axis="both", which="both", direction="in", top=True, right=True)
+
+    # TODO: These limits are only applied to the bottom panel.  This reproduces
+    # the original behavior, where plt.ylim was called within the loop above
+    # and therefore always acted on the last (current) axes.  Applying them to
+    # each panel, as was presumably intended, clips the data in some panels.
+    axis.set_ylim((0.995 * np.amin(trace_fit[:, -1]), 1.005 * np.amax(trace_fit[:, -1])))
 
     try:
         *_, slit, det = trace_names[0].split('-')
@@ -1764,13 +1767,9 @@ def objtrace_QA(
     fig.supxlabel("Spectral Pixel")
     fig.supylabel("Spatial Pixel")
 
-    plt.tight_layout()
+    fig.tight_layout()
     # Display and/or save the plot(s)
-    if show:
-        plt.show()
-    if objtraceQA_filename is not None:
-        fig.savefig(objtraceQA_filename, dpi=400)
-    plt.close("all")
+    qaWriter.save_figure(fig, objtraceQA_filename, show=show, dpi=400)
 
 
 def get_fwhm(fwhm_in, nsamp, smash_peakflux, spat_fracpos, flux_smash_smth):

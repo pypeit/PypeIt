@@ -38,6 +38,7 @@ dependencies = [
     "packaging>=22.0",
     "scipy>=1.9",
     "matplotlib>=3.7",
+    "pillow>=9",
     "PyYAML>=6.0",
     "PyERFA>=2.0.0",
     "fast-histogram>=0.11",
