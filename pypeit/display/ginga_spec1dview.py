@@ -255,8 +255,6 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         fr.set_widget(w)
         vbox.add_widget(fr, stretch=0)
 
-        # Handle spectral feature selection later
-
         top.add_widget(vbox, stretch=0)
 
         spacer = Widgets.Label('')
