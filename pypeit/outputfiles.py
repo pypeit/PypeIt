@@ -84,7 +84,9 @@ def construct_basename(filename, target, camera, mjd, allowed_extensions):
     dtime = datetime.datetime.strptime(tobs.isot, '%Y-%m-%dT%H:%M:%S.%f')
     dtime = datetime.datetime.strftime(dtime, '%Y%m%dT')
     tobs = tobs.isot.split('T')[1].replace(':', '')
-    _target = target.replace(' ', '')
+    # spaces are removed; path separators (e.g. the KOA target 'HIP85871/7.25')
+    # would put the output in a non-existent directory, so they become '-'
+    _target = target.replace(' ', '').replace('/', '-').replace('\\', '-')
     return f'{root}-{_target}_{camera}_{dtime}{tobs}'
 
 

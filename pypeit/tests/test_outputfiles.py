@@ -178,3 +178,11 @@ def test_existing_spec2d_files_found_and_missing(tmp_path):
     assert missing == ['kr260610_00058'], \
         'the second comb_id group has no reduced spec2d file yet and should be reported missing'
     assert target_name == 'J0750+6927', 'should return the literal target string from the data table'
+
+
+def test_construct_basename_path_separators_in_target():
+    basename = outputfiles.construct_basename('m150428_0260.fits', 'HIP85871/7.25', _CAMERA, _MJD,
+                                              ['.fits'])
+    assert '/' not in basename and basename.startswith('m150428_0260-HIP85871-7.25_')
+    basename = outputfiles.construct_basename('b27.fits', 'A\\B C', _CAMERA, _MJD, ['.fits'])
+    assert basename.startswith('b27-A-BC_')
