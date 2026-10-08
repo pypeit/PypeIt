@@ -2854,7 +2854,8 @@ class NIRSpecSlitCalibrations(Calibrations):
             edges.edge_fit[:,edges.is_left], edges.edge_fit[:,edges.is_right], self.spectrograph.pypeline,
             detname=self.spectrograph.get_det_name(self.det),
             nspat=int(thismask.shape[1]), PYP_SPEC=self.spectrograph.name,
-            specmin=specmin, specmax=specmax, pad=self.par['slitedges']['pad'])
+            specmin=specmin, specmax=specmax,
+            pad=np.asarray(self.par['slitedges']['pad'], dtype=float))
 
         self.slits.set_paths(self.calib_dir, setup, calib_id, detname)
         self.slits.calib_key = calib_key
