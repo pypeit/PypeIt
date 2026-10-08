@@ -835,14 +835,12 @@ class RawImage:
             raise PypeItError('CODING ERROR: Must use a single image (single detector or detector '
                        'mosaic) to determine spatial flexure.')
 
-        # get filename for QA
-        fname = self.spectrograph.rawfile_basename(
-            Path(self.filename[0]).name if len(self.filename) > 1 else self.filename
-        )
-        # NOTE: This was a conflict that I (KBW) resolved.  I think
-        # rawfile_basename is new, but I since added the outputfiles functions.
-        # Please check how I resolved this!
-        basename = f'{fname}_{self.spectrograph.get_det_name(self.det)}'
+        # get filename for QA.  self.filename is a list when a mosaic is built
+        # from several files (e.g., JWST/NIRSpec); use the first one.
+        _filename = self.filename[0] if isinstance(self.filename, (list, tuple)) \
+                        else self.filename
+        root = outputfiles.strip_raw_extension(_filename, self.spectrograph.allowed_extensions)
+        basename = f'{root}_{self.spectrograph.get_det_name(self.det)}'
         outdir = str(Path(slits.calib_dir).parent) if slits.calib_dir is not None else None
         qa_outfile = qa.set_qa_filename(basename, 'spat_flexure_qa_corr', out_dir=outdir)
 

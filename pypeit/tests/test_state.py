@@ -391,6 +391,47 @@ def test_load_mosaic_det_roundtrip(tmp_path):
     assert loaded.bias[0].mean == pytest.approx(2.0)
 
 
+def test_current_det_mosaic_roundtrip(tmp_path):
+    """
+    ``current_det`` accepts a mosaic tuple (e.g., JWST/NIRSpec), serializes
+    without pydantic warnings, and round-trips through the JSON file.
+    """
+    s = make_state(tmp_path)
+    s.current_det = (1, 2)
+    with warnings.catch_warnings():
+        warnings.simplefilter('error')
+        s.write()
+    loaded = s.load()
+    assert loaded.current_det == [1, 2]
+
+
+def test_wv_calib_state_without_wv_fits(tmp_path):
+    """
+    ``wv_calib_state`` records the per-slit status but skips the ``rms`` metric
+    when the wavelength calibration has no per-slit fits (e.g., JWST/NIRSpec).
+    """
+    from types import SimpleNamespace
+    import numpy as np
+    from pypeit.slittrace import SlitTraceSet
+
+    calib = Calibrations.__new__(Calibrations)
+    calib.state = make_state(tmp_path)
+    calib.calib_ID, calib.det, calib.raw_files = 1, (1, 2), ['raw.fits']
+    calib.slits = SlitTraceSet(np.full((10, 1), 2.), np.full((10, 1), 8.), 'MultiSlit',
+                               nspat=10, PYP_SPEC='jwst_nirspec')
+    calib.wv_calib = SimpleNamespace(wv_fits=None, get_path=lambda: 'WaveCalib.fits')
+    calib._wv_calib_qa_files = lambda: []
+
+    calib.wv_calib_state()
+
+    entry = calib.state.wv_calib[0]
+    assert entry.status == 'success'
+    slit_id = int(calib.slits.slitord_id[0])
+    assert list(entry.slits.keys()) == [slit_id]
+    assert entry.slits[slit_id].status == 'success'
+    assert entry.slits[slit_id].rms is None
+
+
 # -----------------------------------------------------------------------
 # safe_write / safe_update_calib (C5)
 # -----------------------------------------------------------------------

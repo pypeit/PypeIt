@@ -39,7 +39,6 @@ from astropy.table import Table
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import io
-from pypeit import outputfiles
 from pypeit.core import parse
 from pypeit.core import procimg
 from pypeit.core import meta
@@ -447,6 +446,9 @@ class Spectrograph:
             The basename of the input file.
 
         """
+        # Imported here to avoid a circular import:
+        # outputfiles -> inputfiles -> spectrographs.util -> spectrograph
+        from pypeit import outputfiles
         return outputfiles.construct_basename(
             filename, self.camera, self.allowed_extensions, target=targname, mjd=mjd, slit=slitname
         )

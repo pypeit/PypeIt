@@ -153,6 +153,26 @@ def test_find_reduced_spec2d_missing_returns_none(tmp_path):
         'should return None when no candidate spec2d file exists on disk'
 
 
+def test_find_reduced_spec2d_slitname(tmp_path):
+    # JWST/NIRSpec writes one spec2d file per slit, with the slit name at the end
+    # of the file name and the detector tag (_nrs1) removed.
+    spec = load_spectrograph('jwst_nirspec')
+    row = Table({'filename': ['jw01967012001_03102_00001_nrs1_cal.fits'],
+                 'target': ['J2255+0251'], 'mjd': [59880.26487402199]})[0]
+    spec2d_paths = {}
+    for slit in ['S200A1', 'S200A2']:
+        basename = spec.rawfile_basename(row['filename'], targname=row['target'],
+                                         slitname=slit, mjd=row['mjd'])
+        spec2d_paths[slit] = tmp_path / f'spec2d_{basename}.fits'
+        _write_spec2d(spec2d_paths[slit], target='J2255+0251')
+
+    assert outputfiles.find_reduced_spec2d(tmp_path, row, spec, slitname='S200A2') \
+            == spec2d_paths['S200A2'], 'exact match should select the file for the requested slit'
+
+    assert outputfiles.find_reduced_spec2d(tmp_path, row, spec, slitname='S1600A1') is None, \
+            'should return None when no spec2d file exists for the requested slit'
+
+
 def test_existing_spec2d_files_found_and_missing(tmp_path):
     pypeit_file = inputfiles.PypeItFile(
         config={'rdx': {'spectrograph': 'keck_kcrm'}},

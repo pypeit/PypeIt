@@ -741,7 +741,7 @@ class Calibrations:
         Args:
             force (:obj:`str`, optional):
                 Currently ignored
-            frame_file (:obj:`str`, optional):
+            frame (:obj:`str`, optional):
                 The file to use for generating the BPM. If None,
                 the raw file associated to the index `self.frame`
                 is used instead.
@@ -753,10 +753,10 @@ class Calibrations:
         # Check internals
         self._chk_set(['par', 'det'])
         # Set the frame to use for the BPM
-        if frame_file is None:
-            frame_file = self.fitstbl.frame_paths(self.frame)
+        if frame is None:
+            frame = self.fitstbl.frame_paths(self.frame)
         # Build it
-        self.msbpm = self.spectrograph.bpm(frame_file, self.det,
+        self.msbpm = self.spectrograph.bpm(frame, self.det,
                                            msbias=self.msbias if self.par['bpm_usebias'] else None)
         # Return
         return self.msbpm
@@ -1431,8 +1431,9 @@ class Calibrations:
                 status = 'success'
             self.state.update_calib('wv_calib', self.calib_ID, self.det, 
                                 'status', status, slit=slit_ID)
-            # Metrics
-            if status == 'success':
+            # Metrics.  Some wavelength calibrations (e.g., JWST/NIRSpec, which
+            # only provide a wavelength image) have no per-slit fits.
+            if status == 'success' and self.wv_calib.wv_fits is not None:
                 self.state.update_calib('wv_calib', self.calib_ID, self.det, 
                                 'rms', self.wv_calib.wv_fits[islit].rms,
                                 slit=slit_ID)
@@ -2568,6 +2569,8 @@ class NIRSpecSlitCalibrations(Calibrations):
         frame = {'type': 'arc', 'class': wavecalib.WaveCalib}
         wave_files, cal_file, calib_key, setup, calib_id, detname \
                 = self.find_calibrations(frame['type'], frame['class'], slit_name=self.user_slits['slit_info'])
+        # Record the raw files for the state (see wv_calib_state)
+        self.raw_files = wave_files
 
         # If a processed calibration frame exists and
         # we want to reuse it, do so (or just load it):
@@ -2580,7 +2583,6 @@ class NIRSpecSlitCalibrations(Calibrations):
 
             # Return
             if self.par['wavelengths']['redo_slits'] is None:
-                self.wvcalib_state(cal_file)
                 return self.wv_calib
 
         log.info(f'Preparing a {wavecalib.WaveCalib.calib_type} calibration frame.')
@@ -2599,9 +2601,6 @@ class NIRSpecSlitCalibrations(Calibrations):
         self.wv_calib.set_paths(self.calib_dir, setup, calib_id, detname)
         self.wv_calib.calib_key = calib_key
         self.wv_calib.to_file()
-
-        # State
-        self.wvcalib_state(self.wv_calib.get_path())
 
         return self.wv_calib
 
@@ -2635,6 +2634,8 @@ class NIRSpecSlitCalibrations(Calibrations):
         frame = {'type': 'tilt', 'class': wavetilts.WaveTilts}
         tilt_files, cal_file, calib_key, setup, calib_id, detname \
                 = self.find_calibrations(frame['type'], frame['class'], slit_name=self.user_slits['slit_info'])
+        # Record the raw files for the state (see tilts_state)
+        self.raw_files = tilt_files
 
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
@@ -2661,9 +2662,6 @@ class NIRSpecSlitCalibrations(Calibrations):
         self.wavetilts.set_paths(self.calib_dir, setup, calib_id, detname)
         self.wavetilts.calib_key = calib_key
         self.wavetilts.to_file()
-
-        # # State
-        # self.tilts_state(buildwaveTilts, self.wavetilts.get_path())
 
         return self.wavetilts
 
@@ -2743,6 +2741,8 @@ class NIRSpecSlitCalibrations(Calibrations):
         frame = {'type': 'trace', 'class': slittrace.SlitTraceSet}
         trace_files, cal_file, calib_key, setup, calib_id, detname \
                 = self.find_calibrations(frame['type'], frame['class'], slit_name=self.user_slits['slit_info'])
+        # Record the raw files for the state (see slits_state)
+        self.raw_files = trace_files
 
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
@@ -2860,9 +2860,6 @@ class NIRSpecSlitCalibrations(Calibrations):
         self.slits.calib_key = calib_key
         self.slits.to_file()
 
-        # State
-        self.slits_state(self.slits.get_path())
-
         return self.slits
 
     def get_flats(self, force: str = None):
@@ -2884,6 +2881,8 @@ class NIRSpecSlitCalibrations(Calibrations):
         pixel_frame = {'type': 'pixelflat', 'class': flatfield.FlatImages}
         pixel_files, cal_file, calib_key, setup, calib_id, detname \
             = self.find_calibrations(pixel_frame['type'], pixel_frame['class'], slit_name=self.user_slits['slit_info'])
+        # Record the raw files for the state (see _flats_state_files)
+        self._flat_input_files = {'pixelflat': list(pixel_files)}
 
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
@@ -2958,6 +2957,11 @@ class NIRSpecSlitCalibrations(Calibrations):
                                 'output_file', self.flatimages.get_path())
 
         return self.flatimages
+
+    def slit_slices_state(self):
+        # Not tracked by the run state (no calibration file is written); see
+        # :data:`~pypeit.state.run_state.calib_classes`.
+        pass
 
     def get_slit_slices(self, force:str=None):
         """

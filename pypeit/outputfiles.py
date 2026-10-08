@@ -244,18 +244,26 @@ def spec2d_target(spec2d_file):
     return None
 
 
-def find_reduced_spec2d(science_dir, row, spectrograph):
+def find_reduced_spec2d(science_dir, row, spectrograph, slitname=None):
     """
     Find the existing spec2d product for a science-frame row.
 
     Tries an exact match first, reconstructing the spec2d basename from the row's own
-    metadata via :func:`construct_basename`; a hit is target-correct by construction,
-    since the row's own target was used to build the name, so no header read is
-    needed. Falls back to matching by raw-file stem and verifying the target
-    recorded in each candidate's header, for cases where the exact name can't be
-    reconstructed (e.g. no ``mjd`` column, or a corrupt/missing ``mjd`` value) or
-    doesn't match an existing file (e.g. an older ``.pypeit`` file, or different
-    metadata precision).
+    metadata via
+    :func:`~pypeit.spectrographs.spectrograph.Spectrograph.rawfile_basename`; a hit is
+    target-correct by construction, since the row's own target was used to build the
+    name, so no header read is needed. Falls back to matching by raw-file stem and
+    verifying the target recorded in each candidate's header, for cases where the
+    exact name can't be reconstructed (e.g. no ``mjd`` column, or a corrupt/missing
+    ``mjd`` value) or doesn't match an existing file (e.g. an older ``.pypeit`` file,
+    or different metadata precision).
+
+    .. warning::
+
+        The fallback does not work for JWST/NIRSpec: the raw-file stem keeps the
+        detector tag (e.g., ``_nrs1``), which is removed from the NIRSpec spec2d
+        file names, and ``slitname`` is not used to select among the per-slit
+        spec2d files.  For NIRSpec, only the exact match is reliable.
 
     Parameters
     ----------
@@ -267,9 +275,15 @@ def find_reduced_spec2d(science_dir, row, spectrograph):
         :func:`~pypeit.inputfiles.group_science_rows`. Must have ``filename``,
         ``target``, and ``mjd`` columns.
     spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
-        Spectrograph instance, used for
-        :attr:`~pypeit.spectrographs.spectrograph.Spectrograph.camera` and
+        Spectrograph instance, used to construct the expected file name (see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.rawfile_basename`)
+        and for
         :attr:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_extensions`.
+    slitname : :obj:`str`, optional
+        Slit name for spectrographs reduced one slit at a time (e.g.,
+        JWST/NIRSpec), which is included in the spec2d file name.  If None, the
+        spec2d file name is expected not to include a slit name.  Only used for
+        the exact match.
 
     Returns
     -------
@@ -278,19 +292,25 @@ def find_reduced_spec2d(science_dir, row, spectrograph):
         fallback search, the first (alphabetically sorted) is used and a warning is
         logged. Returns None if no candidate matches.
     """
-    raw_filename = row['filename']
+    raw_filename = str(row['filename']).strip()
     target = row['target']
     mjd = row['mjd'] if 'mjd' in row.colnames else None
     if mjd is not None:
-        expected_basename = construct_basename(
-            raw_filename, spectrograph.camera, spectrograph.allowed_extensions, target=target,
-            mjd=mjd
+        # Use the spectrograph method so that any spectrograph-specific naming
+        # (e.g., JWST/NIRSpec) matches the name used when the file was written.
+        expected_basename = spectrograph.rawfile_basename(
+            raw_filename, targname=target, slitname=slitname, mjd=mjd
         )
         exact = Path(science_dir) / f'spec2d_{expected_basename}.fits'
         if exact.is_file():
             return exact
 
-    raw_stem = strip_raw_extension(str(raw_filename).strip(), spectrograph.allowed_extensions)
+    # NOTE: This fallback does not work for JWST/NIRSpec.  The raw-file stem
+    # keeps the detector tag (e.g., ``_nrs1``), which is removed from the
+    # NIRSpec spec2d file names (see
+    # JWSTNIRSpecSpectrograph.rawfile_basename), and ``slitname`` is not used
+    # to select among the per-slit spec2d files.
+    raw_stem = strip_raw_extension(raw_filename, spectrograph.allowed_extensions)
     candidates = sorted(Path(science_dir).glob(f'spec2d_{raw_stem}-*.fits'))
     matches = []
     for candidate in candidates:
@@ -309,7 +329,7 @@ def find_reduced_spec2d(science_dir, row, spectrograph):
     return None if len(matches) == 0 else matches[0]
 
 
-def existing_spec2d_files(pypeit_file, target, science_dir, spectrograph):
+def existing_spec2d_files(pypeit_file, target, science_dir, spectrograph, slitname=None):
     """
     Find the current reduced spec2d products expected for a target.
 
@@ -323,6 +343,8 @@ def existing_spec2d_files(pypeit_file, target, science_dir, spectrograph):
         Directory to search for reduced spec2d files.
     spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
         Spectrograph instance, passed through to :func:`find_reduced_spec2d`.
+    slitname : :obj:`str`, optional
+        Slit name, passed through to :func:`find_reduced_spec2d`.
 
     Returns
     -------
@@ -341,7 +363,7 @@ def existing_spec2d_files(pypeit_file, target, science_dir, spectrograph):
     missing = []
     for group in inputfiles.group_science_rows(rows):
         row = group[0]
-        spec2d = find_reduced_spec2d(science_dir, row, spectrograph)
+        spec2d = find_reduced_spec2d(science_dir, row, spectrograph, slitname=slitname)
         if spec2d is None:
             missing.append(
                 strip_raw_extension(str(row['filename']).strip(), spectrograph.allowed_extensions)

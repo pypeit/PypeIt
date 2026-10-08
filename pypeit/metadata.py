@@ -512,7 +512,7 @@ class PypeItMetaData:
         _obstime = self.construct_obstime(row) if obstime is None else obstime
         return self.spectrograph.rawfile_basename(
             self['filename'][row], targname=self['target'][row], slitname=slitname,
-            mjd=None if obstime is None else _obstime.mjd
+            mjd=_obstime.mjd
         )
 
     def get_configuration_names(self, ignore=None, return_index=False, configs=None):

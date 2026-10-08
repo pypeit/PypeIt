@@ -4,6 +4,7 @@ Module for JWST NIRSpec specific methods.
 .. include:: ../include/links.rst
 """
 import copy
+from pathlib import Path
 
 import numpy as np
 from astropy.io import fits
@@ -39,45 +40,40 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         'msa.fits', 'rate.fits', 'rate.fits.gz', 'uncal.fits', 'uncal.fits.gz', '.fits', '.fits.gz'
     ]
 
-    # NOTE: I left this derived class method as is.  We should integrate it with
-    # the new functions in `outputfiles`, if possible.
-    def rawfile_basename(self, filename, targname=None, slitname=None):
+    def rawfile_basename(self, filename, targname=None, slitname=None, mjd=None):
         """
         Return the basename of a raw file, which is used for naming output
         files by the function :func:`~pypeit.metadata.construct_basename`.
-        This can be spectrograph-dependent if specific changes need to be made.
 
-        Here we strip ``_assign_wcs``, ``_interpolatedflat``,
-        ``_interpolatedflat_fs``, ``_cal``, ``_nrs1``, and ``_nrs2`` suffixes
-        that are typical of JWST NIRSpec data products, so that NRS1 and NRS2
-        files from the same exposure map to the same basename.
+        The ``_nrs1`` and ``_nrs2`` detector tags are removed so that NRS1 and
+        NRS2 files from the same exposure map to the same basename.  The
+        result is then passed to :func:`~pypeit.outputfiles.construct_basename`,
+        which strips the JWST data-product suffix (e.g., ``_cal.fits``,
+        ``_assign_wcs.fits``; see :attr:`allowed_extensions`) and appends the
+        target, camera, observation time, and slit name.
 
         Args:
-            filename (:obj:`str`):
+            filename (:obj:`str`, `Path`_):
                 Input raw fits filename.
+            targname (:obj:`str`, optional):
+                Target name to be added in the basename.
+                If None, no target name will be added.
             slitname (:obj:`str`, optional):
                 Slit name to be added in the basename for per-slit outputs.
                 If None, no slit name will be added.
+            mjd (:obj:`float`, optional):
+                The MJD of the observation.  If None, no observation time will
+                be added.
 
         Returns:
             :obj:`str`:
             The basename of the input file.
 
         """
-
-        _filename = filename.split('.fits')[0]
-
-        for tag in ['_assign_wcs', '_interpolatedflat', '_interpolatedflat_fs', '_cal', '_nrs1', '_nrs2']:
-            _filename = _filename.replace(tag, '')
-
-        if targname is not None:
-            _filename = _filename + '-' + targname
-
-        # Embed slit name in basename (for per-slit outputs)
-        if slitname is not None:
-            _filename = _filename + f'_{slitname}'
-
-        return _filename
+        _filename = Path(filename).name.replace('_nrs1', '').replace('_nrs2', '')
+        return super().rawfile_basename(
+            _filename, targname=targname, slitname=slitname, mjd=mjd
+        )
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -427,7 +423,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         Returns:
             `astropy.table.Table`_: modified fitstbl.
         """
-        # Compute rawfile_basename for every row (no targname/slitname so that
+        # Compute rawfile_basename for every row (no targname/slitname/mjd so that
         # _nrs1 and _nrs2 files from the same exposure map to the same value).
         basenames = np.array([self.rawfile_basename(f) for f in fitstbl['filename']])
         unique_basenames = np.unique(basenames)
