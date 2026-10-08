@@ -156,6 +156,13 @@ def get_header_info(spec: Spectrograph, path: str, mode: str, logger) -> Dict[st
     -------
     dict
         Mapping of column attribute name to display value.
+
+    Raises
+    ------
+    Exception
+        Any error reading a FITS file is passed to the caller, which logs it
+        (see :meth:`~pypeit.display.qlview.file_browser.FileBrowserController._get_info`
+        and the HTTP server's ``/api/header_info`` endpoint).
     """
     if mode == 'raw':
         with fits.open(path) as hdul:
@@ -166,11 +173,8 @@ def get_header_info(spec: Spectrograph, path: str, mode: str, logger) -> Dict[st
         # .pypeit file, whose keys are the reduced-column attribute names.
         cfg = read_pypeit_setup_config(path, spec.name, logger)
         return {key: cfg.get(key, 'N/A') for _, key in spec.qlview_reduced_columns()}
-    try:
-        with fits.open(path) as hdul:
-            return spec.qlview_reduced_info(hdul[0].header)
-    except Exception:
-        return {}
+    with fits.open(path) as hdul:
+        return spec.qlview_reduced_info(hdul[0].header)
 
 
 def det_label(spec: Spectrograph, det_id: str) -> str:

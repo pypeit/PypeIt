@@ -682,3 +682,34 @@ def test_lris_red_grating_angle():
     spec = load_spectrograph('keck_lris_red_mark4')
     assert spec.qlview_raw_info(fits.Header({'GRANGLE': 31.071106}))['GRANGLE'] == '31.07'
     assert spec.qlview_reduced_info(fits.Header({'GRANGLE': 50.902935}))['dispangle'] == '50.90'
+
+
+# ---------------------------------------------------------------------------
+# Errors reading reduced files
+# ---------------------------------------------------------------------------
+
+def test_reduced_info_unreadable_file_is_logged(tmp_path, caplog):
+    # An unreadable reduced FITS file raises from get_header_info, and the file
+    # browser logs it and shows N/A rather than failing silently
+    from pypeit.display.qlview.backends import LocalFileBrowserBackend
+    from pypeit.display.qlview.file_browser import FileBrowserController
+    bad = tmp_path / 'Flat_A_0_DET01.fits'
+    bad.write_text('not a fits file')
+    spec = load_spectrograph('keck_deimos')
+    with pytest.raises(Exception):
+        spectrograph_support.get_header_info(spec, str(bad), 'reduced', _LOGGER)
+
+    columns = spectrograph_support.build_columns(spec, 'reduced')
+    controller = FileBrowserController(_LOGGER, {}, LocalFileBrowserBackend())
+    with caplog.at_level(logging.ERROR, logger=_LOGGER.name):
+        info = controller._get_info(str(bad), spec, columns, mode='reduced')
+    assert f'Error reading metadata for {bad}' in caplog.text
+    assert all(info[key] == 'N/A' for _, key in columns if key not in ['icon', 'name', 'st_mtime_str'])
+
+
+def test_http_header_info_unreadable_file(http_client, tmp_path):
+    bad = tmp_path / 'Flat_A_0_DET01.fits'
+    bad.write_text('not a fits file')
+    resp = http_client.get('/api/header_info', query_string={
+        'path': str(bad), 'instrument': 'keck_deimos', 'mode': 'reduced'})
+    assert resp.status_code == 500 and 'error' in resp.get_json()
