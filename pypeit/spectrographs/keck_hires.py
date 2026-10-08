@@ -21,6 +21,7 @@ from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.core import standard
 from pypeit.spectrographs import spectrograph
+from pypeit.spectrographs.keck_utils import koa_qlview_header_fields
 from pypeit.images import detector_container
 from pypeit.par import parset
 from pypeit.images.mosaic import Mosaic
@@ -923,6 +924,70 @@ class KECKHIRESSpectrograph(KECKHIRESBaseSpectrograph):
         composite_arc_file = 'keck_hires_composite_arc.fits'
 
         return [angle_fits_file, composite_arc_file]
+
+    # ------------------------------------------------------------------
+    # Quicklook viewer (pypeit_qlview) hooks
+    #
+    # Untested!  HIRES is not offered in the quicklook viewer.
+    # ------------------------------------------------------------------
+
+    qlview_label = 'HIRES'
+
+    def qlview_raw_columns(self):
+        """
+        Instrument-specific raw-file columns for the quicklook viewer; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_raw_columns`.
+        """
+        return [('Frame No', 'FRAMENO'), ('Object', 'OBJECT'), ('Img Type', 'IMTYPE'),
+                ('Decker', 'DECKNAME'), ('XDisp', 'XDISPERS'), ('Exp Time', 'EXPTIME')]
+
+    def qlview_raw_info(self, hdr):
+        """
+        Read the quicklook-viewer raw-file column values; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_raw_info`.
+        """
+        info = koa_qlview_header_fields(hdr)
+        info['OBJECT'] = hdr.get('TARGNAME', hdr.get('OBJECT', 'N/A'))
+        info['DECKNAME'] = hdr.get('DECKNAME', 'N/A')
+        info['XDISPERS'] = hdr.get('XDISPERS', 'N/A')
+        info['EXPTIME'] = hdr.get('ELAPTIME', 'N/A')
+        return info
+
+    def qlview_reduced_columns(self):
+        """
+        Instrument-specific reduced-file columns for the quicklook viewer; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_reduced_columns`.
+        """
+        return [('Decker', 'decker'), ('XDisp', 'dispname'), ('Filter', 'filter1')]
+
+    def qlview_reduced_info(self, hdr):
+        """
+        Read the quicklook-viewer reduced-file column values; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_reduced_info`.
+        """
+        return {
+            'decker': hdr.get('DECKNAME', 'N/A'),
+            'dispname': hdr.get('XDISPERS', 'N/A'),
+            'filter1': hdr.get('FIL1NAME', 'N/A'),
+        }
+
+    def qlview_display_image(self, raw_path):
+        """
+        Construct the quicklook-viewer display image for a raw HIRES file.
+
+        This is simply the raw data in the first extension; the detectors are
+        not processed or mosaicked.
+
+        Args:
+            raw_path (:obj:`str`, `Path`_):
+                Path to the raw file.
+
+        Returns:
+            `numpy.ndarray`_: 2D image.
+        """
+        with fits.open(raw_path) as hdul:
+            data = hdul[1].data
+        return np.zeros((100, 100), dtype=float) if data is None else data.astype(float)
 
 
 class KeckHIRESOrigSpectrograph(KECKHIRESBaseSpectrograph):

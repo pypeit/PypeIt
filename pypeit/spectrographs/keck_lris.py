@@ -24,6 +24,7 @@ from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.core import standard
 from pypeit.spectrographs import spectrograph
+from pypeit.spectrographs.keck_utils import koa_qlview_header_fields
 from pypeit.spectrographs import slitmask
 from pypeit.images import detector_container
 from pypeit import dataPaths
@@ -1137,6 +1138,54 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
 
         return bpm_img
 
+    # ------------------------------------------------------------------
+    # Quicklook viewer (pypeit_qlview) hooks
+    #
+    # Untested!  LRIS Blue is not offered in the quicklook viewer.
+    # ------------------------------------------------------------------
+
+    qlview_label = 'LRIS Blue'
+
+    def qlview_raw_columns(self):
+        """
+        Instrument-specific raw-file columns for the quicklook viewer; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_raw_columns`.
+        """
+        return [('Frame No', 'FRAMENO'), ('Object', 'OBJECT'), ('Img Type', 'IMTYPE'),
+                ('Slit/Mask', 'MASKNAME'), ('Grism', 'GRISNAME'),
+                ('Dichroic', 'DICHNAME'), ('Exp Time', 'EXPTIME')]
+
+    def qlview_raw_info(self, hdr):
+        """
+        Read the quicklook-viewer raw-file column values; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_raw_info`.
+        """
+        info = koa_qlview_header_fields(hdr)
+        info['OBJECT'] = hdr.get('TARGNAME', 'N/A')
+        info['MASKNAME'] = hdr.get('SLITNAME', 'N/A')
+        info['GRISNAME'] = hdr.get('GRISNAME', 'N/A')
+        info['DICHNAME'] = hdr.get('DICHNAME', 'N/A')
+        return info
+
+    def qlview_reduced_columns(self):
+        """
+        Instrument-specific reduced-file columns for the quicklook viewer; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_reduced_columns`.
+        """
+        return [('Slit/Mask', 'decker'), ('Grating/Grism', 'dispname'),
+                ('Dichroic', 'dichroic')]
+
+    def qlview_reduced_info(self, hdr):
+        """
+        Read the quicklook-viewer reduced-file column values; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_reduced_info`.
+        """
+        return {
+            'decker': hdr.get('SLITNAME', 'N/A'),
+            'dispname': hdr.get('GRISNAME', 'N/A'),
+            'dichroic': hdr.get('DICHNAME', 'N/A'),
+        }
+
 
 class KeckLRISBOrigSpectrograph(KeckLRISBSpectrograph):
     """
@@ -1815,6 +1864,117 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
         # Note:  There is no way we know to super super super
         return spectrograph.Spectrograph.get_rawimage(self, raw_file, det)
 
+    # ------------------------------------------------------------------
+    # Quicklook viewer (pypeit_qlview) hooks
+    # ------------------------------------------------------------------
+
+    qlview_supported = True
+    qlview_label = 'LRIS Red'
+
+    def qlview_raw_columns(self):
+        """
+        Instrument-specific raw-file columns for the quicklook viewer; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_raw_columns`.
+        """
+        return [('Frame No', 'FRAMENO'), ('Object', 'OBJECT'), ('Img Type', 'IMTYPE'),
+                ('Slit/Mask', 'MASKNAME'), ('Grating', 'GRANAME'),
+                ('Grating Angle', 'GRANGLE'), ('Dichroic', 'DICHNAME'),
+                ('Binning', 'BINNING'), ('Exp Time', 'EXPTIME')]
+
+    def qlview_raw_info(self, hdr):
+        """
+        Read the quicklook-viewer raw-file column values; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_raw_info`.
+
+        The object is the observer-entered ``OBJECT`` (e.g., "internal flat"),
+        falling back to ``TARGNAME``.  The image type is not in the headers
+        written at the telescope (``KOAIMTYP`` is only added by KOA), so it
+        is inferred from the lamps and trapdoor; see
+        :func:`_qlview_image_type`.
+        """
+        info = koa_qlview_header_fields(hdr)
+        info['OBJECT'] = hdr.get('OBJECT', hdr.get('TARGNAME', 'N/A'))
+        info['IMTYPE'] = self._qlview_image_type(hdr)
+        info['MASKNAME'] = hdr.get('SLITNAME', 'N/A')
+        info['GRANAME'] = hdr.get('GRANAME', 'N/A')
+        info['GRANGLE'] = self._qlview_grating_angle(hdr)
+        info['DICHNAME'] = hdr.get('DICHNAME', 'N/A')
+        info['BINNING'] = hdr.get('BINNING', 'N/A')
+        return info
+
+    @staticmethod
+    def _qlview_grating_angle(hdr):
+        """
+        Format the grating angle (``GRANGLE``) for the quicklook viewer.
+
+        Args:
+            hdr (`astropy.io.fits.Header`_):
+                Primary header.
+
+        Returns:
+            :obj:`str`: The angle in degrees to two decimal places, the raw
+            value if it is not a number, or ``N/A`` if it is missing.
+        """
+        grangle = hdr.get('GRANGLE', None)
+        if grangle is None:
+            return 'N/A'
+        try:
+            return f'{float(grangle):.2f}'
+        except (TypeError, ValueError):
+            return str(grangle)
+
+    def _qlview_image_type(self, hdr):
+        """
+        Infer the type of a raw frame for display in the quicklook viewer.
+
+        Uses the same lamp status (``lampstat01``) and trapdoor (``hatch``)
+        criteria as :func:`check_frame_type`, but without the exposure-time
+        limits, so it is a guide rather than PypeIt's frame typing.
+
+        Args:
+            hdr (`astropy.io.fits.Header`_):
+                Primary header of a raw file.
+
+        Returns:
+            :obj:`str`: ``Arc``, ``Flat``, ``Bias``, ``Dark``, ``Science``, or
+            ``N/A`` if the header lacks the needed keywords.
+        """
+        trapdoor = hdr.get('TRAPDOOR', None)
+        try:
+            lamps = self.compound_meta([hdr], 'lampstat01')
+        except Exception:
+            return 'N/A'
+        if lamps == 'on' or lamps in ['Halogen', '2H']:
+            return 'Flat'
+        if lamps != 'off':
+            return 'Arc'
+        if trapdoor == 'open':
+            return 'Science'
+        if trapdoor == 'closed':
+            return 'Bias' if not hdr.get('TTIME', 0) else 'Dark'
+        return 'N/A'
+
+    def qlview_reduced_columns(self):
+        """
+        Instrument-specific reduced-file columns for the quicklook viewer; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_reduced_columns`.
+        """
+        return [('Slit/Mask', 'decker'), ('Grating/Grism', 'dispname'),
+                ('Grating Angle', 'dispangle'), ('Dichroic', 'dichroic'),
+                ('Binning', 'binning')]
+
+    def qlview_reduced_info(self, hdr):
+        """
+        Read the quicklook-viewer reduced-file column values; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_reduced_info`.
+        """
+        return {
+            'decker': hdr.get('SLITNAME', 'N/A'),
+            'dispname': hdr.get('GRANAME', 'N/A'),
+            'dispangle': self._qlview_grating_angle(hdr),
+            'dichroic': hdr.get('DICHNAME', 'N/A'),
+            'binning': hdr.get('BINNING', 'N/A'),
+        }
 
 class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
     """

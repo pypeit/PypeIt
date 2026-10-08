@@ -25,14 +25,19 @@ class SlitImage(AstroImage):
 
     Parameters
     ----------
-    wav_np : `numpy.ndarray`_
-        Wavelength map image
+    wav_np : `numpy.ndarray`_, optional
+        Wavelength map image.
+    rms_np : `numpy.ndarray`_, optional
+        Per-pixel wavelength-fit RMS image.  Must have the same shape as
+        *wav_np* when provided.  Pixels outside all slits should be 0 or
+        ``nan``; those values are suppressed in the readout.
     **kwargs:
         Keyword arguments for `AstroImage`_
     """
-    def __init__(self, wav_np=None, **kwargs):
+    def __init__(self, wav_np=None, rms_np=None, **kwargs):
         super(SlitImage, self).__init__(**kwargs)
         self.wav_np = wav_np
+        self.rms_np = rms_np
 
     def info_xy(self, data_x, data_y, settings):
         """
@@ -66,12 +71,22 @@ class SlitImage(AstroImage):
         # Convert wavelength value to a string. Return an empty
         # string if the provided coordinate is off the image
         _ht, _wd = self.wav_np.shape
-        wav_s = '{:<14.6g}'.format(self.wav_np[_d_y, _d_x]) \
-                    if 0 <= _d_y < _ht and 0 <= _d_x < _wd else ''
+        in_bounds = 0 <= _d_y < _ht and 0 <= _d_x < _wd
+        wav_s = '{:<14.6g}'.format(self.wav_np[_d_y, _d_x]) if in_bounds else ''
+
+        # Build the RMS readout when an RMS image has been supplied and the
+        # cursor is inside a slit (rms value > 0 and finite).
+        rms_lbl = ''
+        rms_s = ''
+        if self.rms_np is not None and in_bounds:
+            rms_val = self.rms_np[_d_y, _d_x]
+            if np.isfinite(rms_val) and rms_val > 0:
+                rms_lbl = 'RMS'
+                rms_s = '{:<10.4g}'.format(rms_val)
 
         # TODO: Not sure we need this try/except block
         try:
-            info.update(dict(ra_lbl="\u03bb", ra_txt=wav_s, dec_lbl='', dec_txt=''))
+            info.update(dict(ra_lbl="\u03bb", ra_txt=wav_s, dec_lbl=rms_lbl, dec_txt=rms_s))
         except Exception as e:
             self.logger.error('Error including wavelength value: {0}'.format(e), exc_info=True)
         return info
@@ -88,7 +103,7 @@ class SlitWavelength(GingaPlugin.GlobalPlugin):
         super(SlitWavelength, self).__init__(fv)
 
     def load_buffer(self, imname, chname, img_buf, dims, dtype, header, wav_buf, wav_dtype,
-                    metadata):
+                    metadata, rms_buf=None, rms_dtype=None):
         """
         Load and display the 2D slit image.
 
@@ -113,6 +128,14 @@ class SlitWavelength(GingaPlugin.GlobalPlugin):
             numpy data type of wav_buf array encoding (e.g. 'float32')
         metadata : :obj:`dict`
             other metadata about image to attach to image
+        rms_buf : bytes, optional
+            Per-pixel wavelength-fit RMS data, as a buffer.  Must have the
+            same length as *wav_buf* once interpreted as *rms_dtype*.  When
+            ``None`` (default) the DEC readout field is left blank, preserving
+            the original behaviour.
+        rms_dtype : :obj:`str`, optional
+            numpy data type of *rms_buf* (e.g. ``'float32'``).  Required when
+            *rms_buf* is provided; ignored otherwise.
 
         Returns
         -------
@@ -144,8 +167,16 @@ class SlitWavelength(GingaPlugin.GlobalPlugin):
                 data.byteswap(True)
             wav_np = data.reshape(dims)
 
+            # Unpack the optional per-pixel RMS image
+            rms_np = None
+            if rms_buf is not None and rms_dtype is not None:
+                rms_data = np.frombuffer(rms_buf, dtype=rms_dtype)
+                if byteswap:
+                    rms_data.byteswap(True)
+                rms_np = rms_data.reshape(dims)
+
             # Create image container
-            image = SlitImage(wav_np=wav_np, logger=self.logger)
+            image = SlitImage(wav_np=wav_np, rms_np=rms_np, logger=self.logger)
             image.load_buffer(img_buf, dims, dtype, byteswap=byteswap, metadata=metadata)
             image.update_keywords(header)
             image.set(name=imname, path=None)

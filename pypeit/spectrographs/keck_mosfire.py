@@ -18,6 +18,7 @@ from pypeit.core import framematch, meta
 from pypeit import utils
 from pypeit import io
 from pypeit.spectrographs import spectrograph
+from pypeit.spectrographs.keck_utils import koa_qlview_header_fields
 from pypeit.images import detector_container
 from pypeit.par import parset
 from pypeit.spectrographs.slitmask import SlitMask
@@ -1228,3 +1229,52 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             pix_end = hdr['CRPIX2'] + (slit_length/2. + 1)
 
         return int(round(pix_start)), int(round(pix_end))
+
+    # ------------------------------------------------------------------
+    # Quicklook viewer (pypeit_qlview) hooks
+    # ------------------------------------------------------------------
+
+    qlview_supported = True
+    qlview_label = 'MOSFIRE'
+
+    def qlview_raw_columns(self):
+        """
+        Instrument-specific raw-file columns for the quicklook viewer; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_raw_columns`.
+        """
+        return [('Frame No', 'FRAMENO'), ('Dither Pos', 'DITHER_POS'), ('Object', 'OBJECT'),
+                ('Img Type', 'IMTYPE'), ('Mask Name', 'MASKNAME'), ('Obs Mode', 'OBSMODE'),
+                ('Exp Time', 'EXPTIME')]
+
+    def qlview_raw_info(self, hdr):
+        """
+        Read the quicklook-viewer raw-file column values; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_raw_info`.
+
+        The dither position is ``'N/A'`` for the ``Stare`` pattern; otherwise
+        it is the ``FRAMEID`` value (e.g., ``'A'``, ``'B'``).
+        """
+        info = koa_qlview_header_fields(hdr)
+        info['DITHER_POS'] = 'N/A' if hdr.get('PATTERN', '') == 'Stare' \
+                                else hdr.get('FRAMEID', 'N/A')
+        return info
+
+    def qlview_reduced_columns(self):
+        """
+        Instrument-specific reduced-file columns for the quicklook viewer; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_reduced_columns`.
+        """
+        return [('CSU Mask', 'decker_secondary'), ('Filter', 'filter1'),
+                ('Dispname', 'dispname'), ('Slit Width', 'slitwid')]
+
+    def qlview_reduced_info(self, hdr):
+        """
+        Read the quicklook-viewer reduced-file column values; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_reduced_info`.
+        """
+        return {
+            'decker_secondary': hdr.get('MASKNAME', 'N/A'),
+            'filter1': hdr.get('FILTER', hdr.get('FILTER1', 'N/A')),
+            'dispname': hdr.get('FILTER2', 'N/A'),
+            'slitwid': hdr.get('MGTNAME', hdr.get('SLIT', hdr.get('SLITWIDTH', 'N/A'))),
+        }
