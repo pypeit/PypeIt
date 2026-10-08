@@ -73,9 +73,11 @@ class RampSpectrograph:
     (:attr:`ramp_sig_guess`) instead of self-calibrating."""
     ramp_fit_workers = None
     """Number of worker threads for up-the-ramp fitting.  ``None`` selects
-    ``min(6, os.cpu_count())``; set to ``1`` to disable threading.  The
-    per-pixel fit is memory-bandwidth bound, so throughput plateaus at roughly
-    6 threads (measured ~3x over the serial fit on a 10-core machine)."""
+    ``min(6, os.cpu_count())``.  This is set from the general ``[rdx] ncpu``
+    parameter in :func:`cache_metadata` (``ncpu <= 1`` keeps this parallel
+    default; ``ncpu > 1`` is used as given).  The per-pixel fit is
+    memory-bandwidth bound, so throughput plateaus at roughly 6 threads
+    (measured ~3x over the serial fit on a 10-core machine)."""
     ramp_fit_chunk_rows = 16
     """Number of detector rows fit per
     :func:`~pypeit.ext.fitramp.fitramp.fit_ramps` call.  Small chunks keep each
@@ -113,10 +115,18 @@ class RampSpectrograph:
         """
         self._ramp_output_dir = Path(fitstbl.par['rdx']['redux_path'])
         self._rampfit_dir = fitstbl.par['rdx']['rampfit_dir']
-        # Let the user override the ramp-fit threading/chunking from the
-        # [rdx] block of the pypeit file; unset (None) keeps the class default.
-        if fitstbl.par['rdx']['ramp_fit_cores'] is not None:
-            self.ramp_fit_workers = fitstbl.par['rdx']['ramp_fit_cores']
+        # Drive the ramp-fit thread count from the general [rdx] ncpu parameter.
+        # ncpu at its default of 1 means the user has not opted into
+        # parallelism, so the fit keeps its own class default (workers None ->
+        # min(6, os.cpu_count())) rather than running serially -- threading does
+        # not change the fitted result, only the speed.  An explicit ncpu > 1 is
+        # used as given (not capped): the fit plateaus near 6 threads on a
+        # typical laptop but keeps scaling on workstations with more memory
+        # bandwidth (see the MMT/MMIRS docs).
+        ncpu = fitstbl.par['rdx']['ncpu']
+        self.ramp_fit_workers = None if ncpu <= 1 else ncpu
+        # ramp_fit_chunk_rows is an orthogonal expert knob (rows fit per call);
+        # unset (None) keeps the class default.
         if fitstbl.par['rdx']['ramp_fit_chunk_rows'] is not None:
             self.ramp_fit_chunk_rows = fitstbl.par['rdx']['ramp_fit_chunk_rows']
         self._ramp_fitstbl = fitstbl

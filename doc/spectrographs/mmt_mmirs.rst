@@ -80,24 +80,32 @@ repeating this cost each time a science frame is loaded.
 Performance tuning
 ^^^^^^^^^^^^^^^^^^^
 
-Two :ref:`parameters` in the ``[rdx]`` block control the parallel fit:
+The parallel fit uses the general ``[rdx] ncpu`` parameter (the same knob that
+parallelizes QA writing, also settable with ``run_pypeit --ncpu``):
 
 .. code-block:: ini
 
     [rdx]
         spectrograph = mmt_mmirs
-        ramp_fit_cores = 12        # worker threads (None -> min(6, os.cpu_count()); 1 disables)
+        ncpu = 12                  # worker threads for the ramp fit (and QA)
         ramp_fit_chunk_rows = 16   # detector rows fit per call (expert knob)
 
-The values that ship as defaults were tuned on a laptop (Apple M1, 16 GB).
-Because the fit is **memory-bandwidth bound** rather than compute bound
-(it is dominated by element-wise array arithmetic, not linear algebra), the
-speedup plateaus at roughly ``ramp_fit_cores = 6`` on such a machine and can
-*regress* beyond it as the memory bus saturates.  Raising ``ramp_fit_cores``
-therefore pays off mainly on a workstation with more memory bandwidth (more
-memory channels), where the bandwidth ceiling is higher.  Peak memory scales
-roughly as ``ramp_fit_cores * ramp_fit_chunk_rows``, so increase the core
-count only if you have both the cores and the RAM to spare.
+``ncpu`` defaults to 1, meaning the rest of the reduction runs serially, but
+the ramp fit treats that default as "not specified" and keeps its own parallel
+default of ``min(6, os.cpu_count())`` -- threading does not change the fitted
+result, only the speed.  Set ``ncpu`` explicitly to use a different number of
+threads (``ncpu = 1`` with a one-core machine being the only way to force a
+serial fit).
+
+The defaults were tuned on a laptop (Apple M1, 16 GB).  Because the fit is
+**memory-bandwidth bound** rather than compute bound (it is dominated by
+element-wise array arithmetic, not linear algebra), the speedup plateaus at
+roughly ``ncpu = 6`` on such a machine and can *regress* beyond it as the
+memory bus saturates.  Raising ``ncpu`` therefore pays off mainly on a
+workstation with more memory bandwidth (more memory channels), where the
+bandwidth ceiling is higher.  Peak memory scales roughly as
+``ncpu * ramp_fit_chunk_rows``, so increase the thread count only if you have
+both the cores and the RAM to spare.
 
 ``ramp_fit_chunk_rows`` is an expert knob: small blocks keep each thread's
 working set resident in cache, and 16 rows was empirically near-optimal and

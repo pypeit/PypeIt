@@ -255,15 +255,15 @@ def test_cache_metadata_records_darks(tmp_path):
         'cache_metadata must record the reduction dir for RampFit output'
 
 
-def test_cache_metadata_applies_rdx_ramp_overrides(tmp_path):
-    """[rdx] ramp_fit_cores / ramp_fit_chunk_rows override the class defaults."""
+def test_cache_metadata_drives_workers_from_ncpu(tmp_path):
+    """[rdx] ncpu drives the ramp-fit worker count; ramp_fit_chunk_rows overrides."""
     sci = _write_synth(synth_ramp_hdulist(4, seed=31), tmp_path / 'sci.fits')
     spec = load_spectrograph('mmt_mmirs')
     default_workers = spec.ramp_fit_workers
     default_chunk = spec.ramp_fit_chunk_rows
 
     par = spec.default_pypeit_par()
-    par['rdx']['ramp_fit_cores'] = 3
+    par['rdx']['ncpu'] = 3
     par['rdx']['ramp_fit_chunk_rows'] = 40
     data = Table({'filename': [sci.name], 'directory': [str(sci.parent)],
                   'idname': ['object']})
@@ -271,7 +271,7 @@ def test_cache_metadata_applies_rdx_ramp_overrides(tmp_path):
     PypeItMetaData(spec, par=par, data=data)
 
     assert spec.ramp_fit_workers == 3, \
-        'the [rdx] ramp_fit_cores override must set the instance worker count'
+        'an explicit [rdx] ncpu must set the instance worker count'
     assert spec.ramp_fit_chunk_rows == 40, \
         'the [rdx] ramp_fit_chunk_rows override must set the instance chunk size'
     assert mmt_mmirs.MMTMMIRSSpectrograph.ramp_fit_workers == default_workers, \
@@ -280,12 +280,30 @@ def test_cache_metadata_applies_rdx_ramp_overrides(tmp_path):
         'the override must not mutate the class default'
 
 
+def test_cache_metadata_ncpu_passes_through_uncapped(tmp_path):
+    """A workstation ncpu above the ~6-thread plateau is passed through as given."""
+    sci = _write_synth(synth_ramp_hdulist(4, seed=33), tmp_path / 'sci.fits')
+    spec = load_spectrograph('mmt_mmirs')
+    par = spec.default_pypeit_par()
+    par['rdx']['ncpu'] = 12
+    data = Table({'filename': [sci.name], 'directory': [str(sci.parent)],
+                  'idname': ['object']})
+    PypeItMetaData(spec, par=par, data=data)
+    assert spec.ramp_fit_workers == 12, \
+        'ncpu must pass through uncapped so workstations can exceed the plateau'
+
+
 def test_cache_metadata_keeps_ramp_defaults_when_unset(tmp_path):
-    """With no [rdx] override, the ramp-fit class defaults are left untouched."""
+    """With ncpu at its default of 1, the ramp fit keeps its parallel default.
+
+    ncpu=1 means the user has not opted into parallelism, so the fit keeps its
+    own class default (``ramp_fit_workers is None`` -> ``min(6, cpu_count)``)
+    rather than running serially; threading does not change the fitted result.
+    """
     sci = _write_synth(synth_ramp_hdulist(4, seed=32), tmp_path / 'sci.fits')
     spec, _ = _metadata_for([sci], ['object'])
     assert spec.ramp_fit_workers == mmt_mmirs.MMTMMIRSSpectrograph.ramp_fit_workers, \
-        'with no override the instance must keep the class-default worker count'
+        'with ncpu=1 the instance must keep the class-default worker count'
     assert spec.ramp_fit_chunk_rows == mmt_mmirs.MMTMMIRSSpectrograph.ramp_fit_chunk_rows, \
         'with no override the instance must keep the class-default chunk size'
 

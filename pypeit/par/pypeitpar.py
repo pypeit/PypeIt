@@ -3035,7 +3035,7 @@ class ReduxPar(ParSet):
     def __init__(self, spectrograph=None, detnum=None, sortroot=None, calwin=None, scidir=None,
                  qadir=None, redux_path=None, ignore_bad_headers=None, slitspatnum=None,
                  maskIDs=None, quicklook=None, chk_version=None, ncpu=None,
-                 ramp_fit_cores=None, ramp_fit_chunk_rows=None, rampfit_dir=None):
+                 ramp_fit_chunk_rows=None, rampfit_dir=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3071,8 +3071,13 @@ class ReduxPar(ParSet):
         dtypes['ncpu'] = int
         descr['ncpu'] = 'Number of CPUs PypeIt may use.  The default, 1, runs the code ' \
                         'fully serially, exactly as in previous versions.  Currently, ' \
-                        'this only sets the number of threads used to write the QA ' \
-                        'figures (capped at 8); the reduction itself is still serial.  ' \
+                        'this sets the number of threads used to write the QA ' \
+                        'figures (capped at 8) and, for up-the-ramp spectrographs ' \
+                        '(currently MMT/MMIRS), the threads used for ramp fitting; the ' \
+                        'reduction itself is otherwise still serial.  Note that MMIRS ' \
+                        'ramp fitting keeps a parallel default of min(6, os.cpu_count()) ' \
+                        'even at ncpu=1, since threading does not change the fitted ' \
+                        'result; set ncpu explicitly to use more (or fewer) threads.  ' \
                         'Values less than 1 are reset to 1.  This is used by any script ' \
                         'that runs the main reduction (e.g., ``run_pypeit``, ' \
                         '``pypeit_ql``), and ``run_pypeit --ncpu`` overrides it.'
@@ -3136,18 +3141,9 @@ class ReduxPar(ParSet):
                                'results. I.e., you really need to know what you are doing if ' \
                                'you set this to False!'
 
-        # Up-the-ramp fitting performance (currently only used by MMT/MMIRS)
-        dtypes['ramp_fit_cores'] = int
-        descr['ramp_fit_cores'] = 'Number of worker threads used for up-the-ramp fitting of ' \
-                                  'raw frames (currently only MMT/MMIRS).  If None, defaults to ' \
-                                  'min(6, os.cpu_count()); set to 1 to disable threading.  The ' \
-                                  'fit is memory-bandwidth bound, so on a typical user\'s ' \
-                                  'computer more than ~6 threads does not help and can hurt; ' \
-                                  'raising this pays off mainly on workstations with more ' \
-                                  'memory bandwidth. ' \
-                                  'Peak memory scales roughly as cores * ramp_fit_chunk_rows, ' \
-                                  'so increase it only if you have the RAM (and cores) to spare.'
-
+        # Up-the-ramp fitting performance (currently only used by MMT/MMIRS).
+        # The worker-thread count is driven by the general ncpu parameter above;
+        # only the per-call chunk size is a dedicated (expert) knob here.
         dtypes['ramp_fit_chunk_rows'] = int
         descr['ramp_fit_chunk_rows'] = 'Number of detector rows fit per up-the-ramp fitting ' \
                                        'call (currently only MMT/MMIRS).  If None, defaults to ' \
@@ -3178,7 +3174,7 @@ class ReduxPar(ParSet):
         # Basic keywords
         parkeys = [ 'spectrograph', 'quicklook', 'detnum', 'sortroot', 'calwin', 'scidir', 'qadir',
                     'redux_path', 'ignore_bad_headers', 'slitspatnum', 'maskIDs', 'chk_version',
-                    'ncpu', 'ramp_fit_cores', 'ramp_fit_chunk_rows', 'rampfit_dir']
+                    'ncpu', 'ramp_fit_chunk_rows', 'rampfit_dir']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
