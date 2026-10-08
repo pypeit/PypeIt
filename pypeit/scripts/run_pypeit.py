@@ -61,6 +61,12 @@ class RunPypeIt(scriptbase.ScriptBase):
                             help='Overwrite any existing files/directories')
         parser.add_argument('-c', '--calib_only', default=False, action='store_true',
                             help='Only run on calibrations')
+        parser.add_argument('--ncpu', type=int, default=None,
+                            help='Number of CPUs to use.  Overrides the [rdx] ncpu '
+                                 'parameter.  The default (None) uses the parameter value, '
+                                 'which itself defaults to 1 (fully serial).  Currently, '
+                                 'this only sets the number of threads used to write the '
+                                 'QA figures; the reduction itself is still serial.')
 
         return parser
 
@@ -74,6 +80,7 @@ class RunPypeIt(scriptbase.ScriptBase):
 
         from pypeit import pypeit
         from pypeit import log
+        from pypeit import qaWriter
         from pypeit import PypeItError
 
         # Set a default log file based on the name of the pypeit file, not the
@@ -89,7 +96,8 @@ class RunPypeIt(scriptbase.ScriptBase):
         # Instantiate the main pipeline reduction object
         pypeIt = pypeit.PypeIt(
             args.pypeit_file, reuse_calibs=args.reuse_calibs, overwrite=args.overwrite,
-            redux_path=args.redux_path, calib_only=args.calib_only, show=args.show
+            redux_path=args.redux_path, calib_only=args.calib_only, show=args.show,
+            ncpu=args.ncpu
         )
 
         if args.calib_only:
@@ -100,6 +108,9 @@ class RunPypeIt(scriptbase.ScriptBase):
 
         # QA HTML
         log.info('Generating QA HTML')
+        # Ensure all deferred QA figures are on disk before the HTML wrappers
+        # are built
+        qaWriter.flush()
         pypeIt.build_qa()
 
         return 0
