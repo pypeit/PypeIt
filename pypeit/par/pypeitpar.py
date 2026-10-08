@@ -3034,7 +3034,7 @@ class ReduxPar(ParSet):
     """
     def __init__(self, spectrograph=None, detnum=None, sortroot=None, calwin=None, scidir=None,
                  qadir=None, redux_path=None, ignore_bad_headers=None, slitspatnum=None,
-                 maskIDs=None, quicklook=None, chk_version=None):
+                 maskIDs=None, quicklook=None, chk_version=None, ncpu=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3065,6 +3065,16 @@ class ReduxPar(ParSet):
         descr['quicklook'] = 'Run a quick look reduction? This is usually good if you want to quickly ' \
                              'reduce the data (usually at the telescope in real time) to get an initial ' \
                              'estimate of the data quality.'
+
+        defaults['ncpu'] = 1
+        dtypes['ncpu'] = int
+        descr['ncpu'] = 'Number of CPUs PypeIt may use.  The default, 1, runs the code ' \
+                        'fully serially, exactly as in previous versions.  Currently, ' \
+                        'this only sets the number of threads used to write the QA ' \
+                        'figures (capped at 8); the reduction itself is still serial.  ' \
+                        'Values less than 1 are reset to 1.  This is used by any script ' \
+                        'that runs the main reduction (e.g., ``run_pypeit``, ' \
+                        '``pypeit_ql``), and ``run_pypeit --ncpu`` overrides it.'
 
         dtypes['detnum'] = [int, list]
         descr['detnum'] = 'Restrict reduction to a list of detector indices. ' \
@@ -3140,7 +3150,8 @@ class ReduxPar(ParSet):
 
         # Basic keywords
         parkeys = [ 'spectrograph', 'quicklook', 'detnum', 'sortroot', 'calwin', 'scidir', 'qadir',
-                    'redux_path', 'ignore_bad_headers', 'slitspatnum', 'maskIDs', 'chk_version']
+                    'redux_path', 'ignore_bad_headers', 'slitspatnum', 'maskIDs', 'chk_version',
+                    'ncpu']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -3153,6 +3164,9 @@ class ReduxPar(ParSet):
         return cls(**kwargs)
 
     def validate(self):
+        if self.data['ncpu'] is not None and self.data['ncpu'] < 1:
+            log.warning(f"ncpu must be a positive integer; changing {self.data['ncpu']} to 1.")
+            self.data['ncpu'] = 1
         if self.data['slitspatnum'] is not None:
             if self.data['maskIDs'] is not None:
                 raise ValueError("You cannot assign both splitspatnum and maskIDs")
@@ -4177,13 +4191,22 @@ class EdgeTracePar(ParSet):
 #        descr['trim'] = 'How much to trim off each edge of each slit.  Each number should be 0 ' \
 #                        'or positive'
 
-        # TODO: Describe better where and how this is used.  It's not
-        # actually used in the construction of the nominal slit edges,
-        # but only in subsequent use of the slits (e.g., flat-fielding)
-        defaults['pad'] = 0
-        dtypes['pad'] = int
-        descr['pad'] = 'Integer number of pixels to consider beyond the slit edges when ' \
-                       'selecting pixels that are \'on\' the slit.'
+        defaults['pad'] = 0.0
+        dtypes['pad'] = [int, float, list, np.ndarray]
+        descr['pad'] = 'Number of pixels to consider beyond the slit edges when ' \
+                       'generating a slitmask from the slit edges. Note that this parameter ' \
+                       'is *not* used to extend the slit edges themselves, but only to ' \
+                       'define the slitmask used for subsequent processing (e.g., flat-fielding).  A ' \
+                       'positive value is used to extend the slit edges, while a negative value is ' \
+                       'used to shrink the slit edges. Another use of this parameter is for echelle data ' \
+                       'where some of the slits are overlapping (and therefore you ' \
+                       'are unable to trace the slit edges from the flatfield data) you might be able to trace the ' \
+                       'slits using a standard star frame or a pinhole decker, and then use the `pad` parameter to ' \
+                       'extend the slit edges to the correct location (avoiding any parts of the slits that overlap). '\
+                       'You can also provide a list of two numbers to define the padding for the left and right edges '\
+                       'separately.  For example, ' \
+                       '10,20 will extend the left edge by 10 pixels and the right edge by 20 pixels. ' \
+                       'If you provide a list with a single number, it will be used for both edges.'
 
 #        defaults['single'] = []
 #        dtypes['single'] = list
@@ -4338,6 +4361,23 @@ class EdgeTracePar(ParSet):
 
         if self['order_outlier'] is not None and self['order_outlier'] < self['order_fitrej']:
             log.warning('Order outlier threshold should not be less than the rejection threshold.')
+
+        # Ensure pad is a two element list.  NOTE: This is deliberately kept as a
+        # plain Python list (not a numpy array) because this parameter is written
+        # to a FITS header (see ParSet.to_header), and header cards cannot hold
+        # numpy arrays.
+        if isinstance(self['pad'], (int, float)):
+            self['pad'] = [float(self['pad']), float(self['pad'])]
+        elif isinstance(self['pad'], (list, np.ndarray)):
+            _pad = np.asarray(self['pad']).ravel()
+            if _pad.size == 1:
+                self['pad'] = [float(_pad[0]), float(_pad[0])]
+            elif _pad.size == 2:
+                self['pad'] = [float(_pad[0]), float(_pad[1])]
+            else:
+                raise PypeItError('If pad is a list or array, it must have length 1 or 2.')
+        else:
+            raise PypeItError('Pad must be an int, float, list, or array.')
 
 
 class WaveTiltsPar(ParSet):

@@ -6,6 +6,7 @@ from astropy.io import fits
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import outputfiles
+from pypeit import qaWriter
 from pypeit.core import parse
 from pypeit.display import display
 from pypeit.history import History
@@ -549,6 +550,9 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
         except Exception as e:
             log.warning(f"Failed to record science extract state: {e}")
 
+    # Ensure this exposure's deferred QA figures are on disk before returning
+    qaWriter.flush()
+
     # Return
     return all_spec2d, all_specobjs_extract
 
@@ -620,7 +624,16 @@ def save_exposure(spectrograph, fitstbl, par,
     else:
         update_det = par['rdx']['detnum']
 
-    subheader = spectrograph.subheader_for_spec(row_fitstbl, head2d)
+    # Build the processed header before the spectral subheader so that both
+    # the 1D and 2D files receive units from the completed processing steps.
+    pri_hdr = all_spec2d.build_primary_hdr(head2d, spectrograph,
+                                         redux_path=par['rdx']['redux_path'],
+                                         calib_dir=calibrations_path,
+                                         history=history)
+    subheader = spectrograph.subheader_for_spec(row_fitstbl, pri_hdr)
+    for key, value in subheader.items():
+        pri_hdr[key.upper()] = value
+
     # 1D spectra
     if all_specobjs.nobj > 0 and not par['reduce']['extraction']['skip_extraction']:
         # Spectra
@@ -646,14 +659,6 @@ def save_exposure(spectrograph, fitstbl, par,
     # 2D spectra
     outfile2d = outputfiles.spec_output_file(fitstbl, par, frame, slitname=slitname, twod=True)
 
-    # Build header
-    pri_hdr = all_spec2d.build_primary_hdr(head2d, spectrograph,
-                                            redux_path=par['rdx']['redux_path'],
-                                            calib_dir=calibrations_path,
-                                            subheader=subheader,
-                                            history=history)
-
-    # Write
     all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr,
                                 update_det=update_det,
                                 slitspatnum=par['rdx']['slitspatnum'])

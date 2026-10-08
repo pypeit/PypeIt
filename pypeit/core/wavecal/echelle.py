@@ -54,7 +54,7 @@ def predict_ech_order_coverage(angle_fits_params, xd_angle_coeffs,
 
 def predict_ech_wave_soln(angle_fits_params, ech_angle_coeffs, ech_angle, order_vec, nspec):
     """
-    Predict an echelle spectrum wavelength solution for each order by evluating the polynomial fits of
+    Predict an echelle spectrum wavelength solution for each order by evaluating the polynomial fits of
     wavelength solution coefficients vs echelle angle at the given echelle angle.
 
     Args:
@@ -66,7 +66,7 @@ def predict_ech_wave_soln(angle_fits_params, ech_angle_coeffs, ech_angle, order_
         ech_angle (float):
             Echelle angle
         order_vec (`numpy.ndarray`_):
-            Array of order numbers for the deisred predicted spectrum. Shape = (norders,)
+            Array of order numbers for the desired predicted spectrum. Shape = (norders,)
         nspec (int):
             Number of spectral pixels in the echelle spectrum
 
@@ -101,7 +101,7 @@ def predict_ech_wave_soln(angle_fits_params, ech_angle_coeffs, ech_angle, order_
     return wave_soln_guess
 
 
-def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle, 
+def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle,
                         xdangle, xdisp, nspec, norders, pad=3):
     """
     Predict the echelle arc spectrum using the fits to wavelength solution vs echangle and xdangle  and the archived
@@ -267,7 +267,9 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
 
     if debug:
         log.info(f'Cross-correlation for order identification: shift={shift_cc:.3f}, corr={corr_cc:.3f}')
-        from matplotlib import pyplot as plt
+        import matplotlib
+        matplotlib.use('qtagg')  # Sets the interactive backend to QtAgg
+        import matplotlib.pyplot as plt
         xvals = np.arange(arccen_pad.flatten('F').size)
         plt.clf()
         ax = plt.gca()
