@@ -18,9 +18,11 @@ Documentation Updates
   command-line entry point but was missing from the docs/script registry).
 - Added a :ref:`spectrograph page <soar_triplespec>` and a worked-example
   :ref:`tutorial <soar_triplespec_howto>` for SOAR/TripleSpec.
-- Rewrote the :ref:`spectrograph page <moircs>` and the
-  :ref:`tutorial <moircs_howto>` for Subaru/MOIRCS using the
-  development-suite ``HK500`` data.
+- Rewrote the :ref:`spectrograph page <moircs>` (now covering the ``HK500``
+  and ``VB_K`` grisms, standards and ThAr arcs) and the
+  :ref:`tutorial <moircs_howto>` for Subaru/MOIRCS, using the
+  development-suite ``HK500`` data.  The tutorial stresses checking the
+  automatic frame typing and metadata in the PypeIt file.
 - Added new documentation that allows PypeIt to trace the echelle orders with
   a pinhole decker or standard star trace (and pad the trace to the full slit length).
 
