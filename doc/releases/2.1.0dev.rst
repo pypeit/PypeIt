@@ -96,6 +96,14 @@ Instrument-specific Updates
   With the object-finding trace the extraction is stable and agrees with the
   other nod frames; the standard star changes by <1%.
 
+- Keck/MOSFIRE: the read noise now follows the readout mode in the
+  ``SAMPMODE`` and ``NUMREADS`` header cards, from the Keck detector table
+  (CDS 21 e-; MCDS-4/8/16/32/64/128 10.8/7.7/5.8/4.2/3.5/3.0 e-,
+  interpolated in log2 of the number of reads), instead of 5.8 e- (MCDS-16)
+  for every frame.  CDS frames, common for flats, arcs and short exposures,
+  had their read noise underestimated by a factor of 3.6.  Without a header,
+  and for Single or UTR reads, 5.8 e- is kept with a warning.
+
 - P200/NGPS ``u`` channel: support He dome-lamp frames (``IMGTYPE=DOMEHE``) as a
   second arc lamp.  The internal ThAr lamp has no detectable lines below
   ~3490 A, leaving the wavelength solution extrapolated over 3050-3490 A.  Each

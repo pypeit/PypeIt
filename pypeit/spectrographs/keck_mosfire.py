@@ -25,6 +25,50 @@ from pypeit.spectrographs.slitmask import SlitMask
 from IPython import embed
 
 
+MOSFIRE_READ_NOISE = {1: 21.0, 4: 10.8, 8: 7.7, 16: 5.8, 32: 4.2, 64: 3.5, 128: 3.0}
+"""
+MOSFIRE read noise in e- rms per frame, keyed by the number of reads per
+group (``NUMREADS``): 1 is CDS (``SAMPMODE = 2``), the others MCDS-N
+(``SAMPMODE = 3``).  From the Keck MOSFIRE detector page,
+https://www2.keck.hawaii.edu/inst/mosfire/detector.html.
+"""
+
+MOSFIRE_DEFAULT_READ_NOISE = MOSFIRE_READ_NOISE[16]
+"""Read noise [e-] used without a header: MCDS-16, the default readout mode."""
+
+
+def mosfire_read_noise(sampmode, numreads):
+    """
+    Read noise for a MOSFIRE readout mode.
+
+    The value is interpolated linearly in ``log2(N)`` between the
+    entries of :data:`MOSFIRE_READ_NOISE` and held at the end values outside
+    them.  CDS (``SAMPMODE = 2``) is ``N = 1`` whatever ``NUMREADS``
+    says.
+
+    Args:
+        sampmode (:obj:`int`):
+            Header ``SAMPMODE``: 1 Single, 2 CDS, 3 MCDS, 4 UTR.
+        numreads (:obj:`int`):
+            Header ``NUMREADS``, the number of reads per group.
+
+    Returns:
+        :obj:`float`: Read noise in e- rms, or None if the mode is not CDS
+        or MCDS with a positive number of reads (Single, UTR and missing
+        cards are not tabulated).
+    """
+    try:
+        sampmode = int(sampmode)
+        nreads = 1 if sampmode == 2 else int(numreads)
+    except (TypeError, ValueError):
+        return None
+    if sampmode not in (2, 3) or nreads < 1:
+        return None
+    n = np.array(sorted(MOSFIRE_READ_NOISE))
+    rn = np.array([MOSFIRE_READ_NOISE[k] for k in n])
+    return float(np.interp(np.log2(nreads), np.log2(n), rn))
+
+
 class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/MOSFIRE specific code
@@ -48,11 +92,24 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             hdu (`astropy.io.fits.HDUList`_, optional):
                 The open fits file with the raw image of interest.  If not
                 provided, frame-dependent parameters are set to a default.
+                The read noise follows the readout mode in the ``SAMPMODE``
+                and ``NUMREADS`` cards (see :func:`mosfire_read_noise`);
+                without a header it is the MCDS-16 value.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
+        ronoise = MOSFIRE_DEFAULT_READ_NOISE
+        if hdu is not None:
+            sampmode, numreads = hdu[0].header.get('SAMPMODE'), hdu[0].header.get('NUMREADS')
+            _ronoise = mosfire_read_noise(sampmode, numreads)
+            if _ronoise is None:
+                log.warning(f'No tabulated read noise for SAMPMODE={sampmode}, NUMREADS={numreads}; '
+                            f'using {ronoise} e- (MCDS-16).')
+            else:
+                ronoise = _ronoise
+
         # Detector 1
         detector_dict = dict(
             binning         = '1,1',
@@ -68,7 +125,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             numamplifiers   = 1,
             mincounts       = -1e10,
             gain            = np.atleast_1d(2.15),  # Taken from MOSFIRE detector webpage
-            ronoise         = np.atleast_1d(5.8), # This is for 16 non-destructuve reads, the default readout mode
+            ronoise         = np.atleast_1d(ronoise),  # from SAMPMODE/NUMREADS; MCDS-16 by default
             datasec         = np.atleast_1d('[5:2044,5:2044]'),
             #oscansec        = np.atleast_1d('[:,:]')
         )
