@@ -1269,7 +1269,8 @@ class CoAdd2D:
         """
         if type != 'weights' and type != 'offsets':
             raise PypeItError('Unrecognized type for check_input')
-        if isinstance(input, (list, np.ndarray)):
+        if isinstance(input, (list, np.ndarray)) and \
+            all(isinstance(x, (int, float, np.integer, np.floating)) and not isinstance(x, bool) for x in input):
             if len(input) != self.nexp:
                 raise PypeItError(
                     f'If {type} are input it must be a list/array with same number of elements '
