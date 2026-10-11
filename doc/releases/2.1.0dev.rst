@@ -24,12 +24,36 @@ Documentation Updates
 Dependency Changes
 ------------------
 
+- ``threadpoolctl`` (already required by ``scikit-learn``) is now an explicit
+  dependency; it is used to pin the BLAS/OpenMP thread count while a detector is
+  reduced.
 - Adds support for python 3.14
 - ``pillow`` (already required by ``matplotlib``) is now an explicit
   dependency; it is used to write the QA PNGs.
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
+- PypeIt can now reduce detectors/mosaics concurrently.  With ``[rdx] ncpu``
+  (or ``run_pypeit --ncpu``) greater than 1, the calibration build, the
+  science-image processing, and the extraction are distributed over worker
+  processes, one detector each.  Object finding and global sky subtraction
+  remain serial because they require a cross-detector slitmask barrier.
+  Outputs are identical to the serial run to machine precision on data where
+  PypeIt is reproducible; note that on multi-slit data it currently is not,
+  independently of ``ncpu`` (see Issue #2208).  Peak memory
+  usage scales with the number of detectors reduced simultaneously, which in
+  practice is the limit on how large ``ncpu`` can usefully be.  Concurrency
+  currently requires a ``fork``-capable platform (Linux); elsewhere PypeIt warns
+  and reduces the detectors serially.
+- To keep the products independent of ``ncpu``, PypeIt now pins the BLAS/OpenMP
+  thread count to 1 while reducing a detector, in the serial path as well as in
+  the workers.  Thread count changes the order in which the numerical libraries
+  accumulate a reduction, and the sigma-clipped iterative fits in the sky
+  subtraction amplify that last-bit difference into a visibly different sky
+  model.  The trade-off is that a default ``ncpu = 1`` reduction no longer uses
+  multi-threaded linear algebra and is a few percent slower than in previous
+  versions; in exchange, results are now reproducible across ``ncpu`` settings
+  and across machines with different core counts.
 - Added the ``lamps_wvrng`` wavelength-calibration parameter, which restricts
   the lines used from each entry in ``lamps`` to a wavelength range.  This
   allows a subset of a shipped line list to be used without copying the file.
@@ -227,6 +251,12 @@ Script Changes
 Testing
 -------
 
+- Added :mod:`pypeit.tests.test_parallel` and an ``--ncpu`` end-to-end
+  regression to ``test_runpypeit``, which reduces ``shane_kast_blue`` serially
+  and with ``--ncpu 2`` and requires the products to match exactly.
+- Added a dev-suite ``--ncpu 2`` reduction of the two-detector
+  ``keck_lris_blue/multi_600_4000_slitmask`` setup, with a ``vet_tests`` comparison
+  against the serial products.
 - Add new tests for :mod:`~pypeit.core.pydl`
 - Added new tests for :class:`~pypeit.inputfiles.InputFile` objects.
 - Added tests for MMT/Binospec setup grouping and INCAN-based flat/trace frame
@@ -241,6 +271,11 @@ Testing
 Under-the-hood Improvements
 ---------------------------
 
+- Added :mod:`~pypeit.parallel`, a small helper that maps a per-detector
+  function over the detector list either serially or over a
+  ``ProcessPoolExecutor``.  Workers pin their BLAS/OpenMP thread count to 1 and
+  buffer their log records, which the parent replays grouped in detector order
+  so that each detector's block stays contiguous in the run log.
 - Adds new :class:`~pypeit.core.fitting.PypeItFitCollection` class to replace
   the pypeit-specific uses of ``pypeit.core.pydl.TraceSet``.  This was
   primarily done to avoid a circular import.
@@ -281,6 +316,16 @@ Under-the-hood Improvements
 Bug Fixes
 ---------
 
+- Fixed a bug in :func:`~pypeit.exposure.reduce_exposure` where a detector
+  whose calibrations failed was removed from the detector list *while that list
+  was being iterated*, causing the following detector to be skipped silently
+  and then reduced with calibrations that were never built.
+- Fixed :class:`~pypeit.images.bitmaskarray.BitMaskArray` and
+  :class:`~pypeit.specobjs.SpecObjs` raising ``RecursionError`` when unpickled
+  or deep-copied.  Both classes define ``__getattr__`` methods that read an
+  attribute set by ``__init__``; because :mod:`pickle` builds an instance
+  without calling ``__init__`` and then probes it for ``__setstate__``, the
+  lookup re-entered ``__getattr__`` indefinitely.
 - Fix setup values that include a colon (e.g., the Keck/DEIMOS amplifier mode,
   ``SINGLE:B``) being written to the setup block of PypeIt files, and to
   ``.calib`` files, with extra quotes (``'"SINGLE:B"'``), which prevented
