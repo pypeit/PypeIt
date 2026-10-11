@@ -24,6 +24,7 @@ __all__ = [
     'keck_mosfire',
     'keck_nires',
     'keck_nirspec',
+    'keck_osiris',
     'lbt_luci',
     'lbt_mods',
     'ldt_deveny',

@@ -1,0 +1,24 @@
+# %ECSV 1.0
+# ---
+# datatype:
+# - {name: begin, datatype: string}
+# - {name: end, datatype: string}
+# - {name: mjd_begin, datatype: float64}
+# - {name: mjd_end, datatype: float64}
+# - {name: file, datatype: string}
+# meta: !!omap
+# - comments: [Keck/OSIRIS wavelength-coefficient epochs., 'Source: OsirisDRP data/calibrations.xml (<wavesolns>).', begin/end are YYMMDD
+#       (end inclusive); mjd_end is the MJD of the, midnight following the end date (inf = open ended).]
+# schema: astropy-2.0
+begin end mjd_begin mjd_end file
+050222 060222 53423.0 53789.0 osiris_wave_coeffs_050222-060222.fits
+060223 091004 53789.0 55109.0 osiris_wave_coeffs_060223-091004.fits
+091005 120103 55109.0 55930.0 osiris_wave_coeffs_091005-120103.fits
+120104 121109 55930.0 56241.0 osiris_wave_coeffs_120104-121109.fits
+121110 151231 56241.0 57388.0 osiris_wave_coeffs_121110-151231.fits
+160101 170508 57388.0 57882.0 osiris_wave_coeffs_160101_170508.fits
+170509 180316 57882.0 58194.0 osiris_wave_coeffs_170509_180316.fits
+180317 190430 58194.0 58604.0 osiris_wave_coeffs_180317_190430.fits
+190501 191231 58604.0 58849.0 osiris_wave_coeffs_190501_191231.fits
+200101 201215 58849.0 59199.0 osiris_wave_coeffs_200101_201215.fits
+201216 None 59199.0 inf osiris_wave_coeffs.fits
