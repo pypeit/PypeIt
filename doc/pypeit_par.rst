@@ -256,33 +256,38 @@ CalibrationsPar Keywords
 
 Class Instantiation: :class:`~pypeit.par.pypeitpar.CalibrationsPar`
 
-=========================  ====================================================  =======  =================================  =================================================================================================================================================================================================================================================
-Key                        Type                                                  Options  Default                            Description                                                                                                                                                                                                                                      
-=========================  ====================================================  =======  =================================  =================================================================================================================================================================================================================================================
-``alignframe``             :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the align frames                                                                                                                                                                                            
-``alignment``              :class:`~pypeit.par.pypeitpar.AlignPar`               ..       `AlignPar Keywords`_               Define the procedure for the alignment of traces                                                                                                                                                                                                 
-``arcframe``               :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the wavelength calibration                                                                                                                                                                                  
-``biasframe``              :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the bias correction                                                                                                                                                                                         
-``bpm_usebias``            bool                                                  ..       False                              Make a bad pixel mask from bias frames? Bias frames must be provided.                                                                                                                                                                            
-``calib_dir``              str                                                   ..       ``Calibrations``                   The name of the directory for the processed calibration frames.  The host path for the directory is set by the redux_path (see :class:`~pypeit.par.pypeitpar.ReduxPar`).  Beware that success when changing the default value is not well tested!
-``darkframe``              :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the dark-current correction                                                                                                                                                                                 
-``flatfield``              :class:`~pypeit.par.pypeitpar.FlatFieldPar`           ..       `FlatFieldPar Keywords`_           Parameters used to set the flat-field procedure                                                                                                                                                                                                  
-``illumflatframe``         :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the illumination flat                                                                                                                                                                                       
-``lampoffflatsframe``      :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the lamp off flats                                                                                                                                                                                          
-``pinholeframe``           :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the pinholes                                                                                                                                                                                                
-``pixelflatframe``         :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the pixel flat                                                                                                                                                                                              
-``raise_chk_error``        bool                                                  ..       True                               Raise an error if the calibration check fails                                                                                                                                                                                                    
-``scattlight_pad``         int                                                   ..       5                                  Number of unbinned pixels to extend the slit edges by when masking the slits.                                                                                                                                                                    
-``scattlightframe``        :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the scattered light frames                                                                                                                                                                                  
-``skyframe``               :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the sky background observations                                                                                                                                                                             
-``slitedges``              :class:`~pypeit.par.pypeitpar.EdgeTracePar`           ..       `EdgeTracePar Keywords`_           Slit-edge tracing parameters                                                                                                                                                                                                                     
-``slitless_pixflatframe``  :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the slitless pixel flat                                                                                                                                                                                     
-``standardframe``          :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the spectrophotometric standard observations                                                                                                                                                                
-``tiltframe``              :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the wavelength tilts                                                                                                                                                                                        
-``tilts``                  :class:`~pypeit.par.pypeitpar.WaveTiltsPar`           ..       `WaveTiltsPar Keywords`_           Define how to trace the slit tilts using the trace frames                                                                                                                                                                                        
-``traceframe``             :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for images used for slit tracing                                                                                                                                                                                
-``wavelengths``            :class:`~pypeit.par.pypeitpar.WavelengthSolutionPar`  ..       `WavelengthSolutionPar Keywords`_  Parameters used to derive the wavelength solution                                                                                                                                                                                                
-=========================  ====================================================  =======  =================================  =================================================================================================================================================================================================================================================
+=========================  ====================================================  ==================  =================================  ===========================================================================================================================================================================================================================================================================================
+Key                        Type                                                  Options             Default                            Description                                                                                                                                                                                                                                                                                
+=========================  ====================================================  ==================  =================================  ===========================================================================================================================================================================================================================================================================================
+``alignframe``             :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..                  `FrameGroupPar Keywords`_          The frames and combination rules for the align frames                                                                                                                                                                                                                                      
+``alignment``              :class:`~pypeit.par.pypeitpar.AlignPar`               ..                  `AlignPar Keywords`_               Define the procedure for the alignment of traces                                                                                                                                                                                                                                           
+``arcframe``               :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..                  `FrameGroupPar Keywords`_          The frames and combination rules for the wavelength calibration                                                                                                                                                                                                                            
+``biasframe``              :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..                  `FrameGroupPar Keywords`_          The frames and combination rules for the bias correction                                                                                                                                                                                                                                   
+``bpm_usebias``            bool                                                  ..                  False                              Make a bad pixel mask from bias frames? Bias frames must be provided.                                                                                                                                                                                                                      
+``calib_dir``              str                                                   ..                  ``Calibrations``                   The name of the directory for the processed calibration frames.  The host path for the directory is set by the redux_path (see :class:`~pypeit.par.pypeitpar.ReduxPar`).  Beware that success when changing the default value is not well tested!                                          
+``darkframe``              :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..                  `FrameGroupPar Keywords`_          The frames and combination rules for the dark-current correction                                                                                                                                                                                                                           
+``flatfield``              :class:`~pypeit.par.pypeitpar.FlatFieldPar`           ..                  `FlatFieldPar Keywords`_           Parameters used to set the flat-field procedure                                                                                                                                                                                                                                            
+``illumflatframe``         :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..                  `FrameGroupPar Keywords`_          The frames and combination rules for the illumination flat                                                                                                                                                                                                                                 
+``lampoffflatsframe``      :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..                  `FrameGroupPar Keywords`_          The frames and combination rules for the lamp off flats                                                                                                                                                                                                                                    
+``osiris_rect_method``     str                                                   ``drp``, ``lstsq``  ``drp``                            Keck/OSIRIS only: algorithm used to extract the lenslet spectra from the raw frame with the rectification matrix.  ``drp`` is a port of the iterative solver of the Keck OSIRIS DRP (``spatrectif_000.c``); ``lstsq`` is an exact weighted least-squares solution.  Options are: drp, lstsq
+``osiris_rect_niter``      int                                                   ..                  40                                 Keck/OSIRIS only: number of iterations of the ``drp`` rectification solver (the DRP default for science frames is 40).                                                                                                                                                                     
+``osiris_rect_relax``      int, float                                            ..                  1.0                                Keck/OSIRIS only: relaxation factor applied to each update of the ``drp`` rectification solver (the DRP ``relaxation`` parameter).                                                                                                                                                         
+``osiris_rect_use_var``    bool                                                  ..                  False                              Keck/OSIRIS only: use the ``VAR`` extension of the raw frame (instead of the PypeIt noise model) as the pixel noise passed to the rectification solver.                                                                                                                                    
+``osiris_rectmat_dir``     str                                                   ..                  ..                                 Keck/OSIRIS only: directory holding the Keck rectification matrices (``sYYMMDD_cNNN___infl_<filter>_<scale>.fits``).  The matrix matching the filter and plate scale of the observation, with the latest date on or before the observation, is selected automatically.                     
+``pinholeframe``           :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..                  `FrameGroupPar Keywords`_          The frames and combination rules for the pinholes                                                                                                                                                                                                                                          
+``pixelflatframe``         :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..                  `FrameGroupPar Keywords`_          The frames and combination rules for the pixel flat                                                                                                                                                                                                                                        
+``raise_chk_error``        bool                                                  ..                  True                               Raise an error if the calibration check fails                                                                                                                                                                                                                                              
+``scattlight_pad``         int                                                   ..                  5                                  Number of unbinned pixels to extend the slit edges by when masking the slits.                                                                                                                                                                                                              
+``scattlightframe``        :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..                  `FrameGroupPar Keywords`_          The frames and combination rules for the scattered light frames                                                                                                                                                                                                                            
+``skyframe``               :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..                  `FrameGroupPar Keywords`_          The frames and combination rules for the sky background observations                                                                                                                                                                                                                       
+``slitedges``              :class:`~pypeit.par.pypeitpar.EdgeTracePar`           ..                  `EdgeTracePar Keywords`_           Slit-edge tracing parameters                                                                                                                                                                                                                                                               
+``slitless_pixflatframe``  :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..                  `FrameGroupPar Keywords`_          The frames and combination rules for the slitless pixel flat                                                                                                                                                                                                                               
+``standardframe``          :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..                  `FrameGroupPar Keywords`_          The frames and combination rules for the spectrophotometric standard observations                                                                                                                                                                                                          
+``tiltframe``              :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..                  `FrameGroupPar Keywords`_          The frames and combination rules for the wavelength tilts                                                                                                                                                                                                                                  
+``tilts``                  :class:`~pypeit.par.pypeitpar.WaveTiltsPar`           ..                  `WaveTiltsPar Keywords`_           Define how to trace the slit tilts using the trace frames                                                                                                                                                                                                                                  
+``traceframe``             :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..                  `FrameGroupPar Keywords`_          The frames and combination rules for images used for slit tracing                                                                                                                                                                                                                          
+``wavelengths``            :class:`~pypeit.par.pypeitpar.WavelengthSolutionPar`  ..                  `WavelengthSolutionPar Keywords`_  Parameters used to derive the wavelength solution                                                                                                                                                                                                                                          
+=========================  ====================================================  ==================  =================================  ===========================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -5752,6 +5757,139 @@ Alterations to the default parameters are:
           pix_shift_bounds = (-8.0, 8.0)
   [telluric]
       pix_shift_bounds = (-8.0, 8.0)
+
+.. _instr_par-keck_osiris:
+
+KECK OSIRIS (``keck_osiris``)
+-----------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = keck_osiris
+  [calibrations]
+      [[biasframe]]
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              use_overscan = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              noise_floor = 0.01
+              use_pixelflat = False
+              use_illumflat = False
+      [[standardframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              noise_floor = 0.01
+              use_pixelflat = False
+              use_illumflat = False
+      [[flatfield]]
+          method = skip
+      [[wavelengths]]
+          reference = sky
+          method = full_template
+          lamps = OH_NIRES,
+          fwhm = 2.0
+      [[slitedges]]
+          pad = 0.0, 0.0,
+  [scienceframe]
+      [[process]]
+          use_biasimage = False
+          use_overscan = False
+          noise_floor = 0.01
+          use_pixelflat = False
+          use_illumflat = False
+  [reduce]
+      [[findobj]]
+          skip_second_find = True
+          skip_final_global = True
+      [[cube]]
+          slit_spec = False
+  [sensfunc]
+      algorithm = IR
+      [[IR]]
+          telgridfile = TellPCA_3000_26000_R10000.fits
 
 .. _instr_par-lbt_luci1:
 

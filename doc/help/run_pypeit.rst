@@ -7,7 +7,7 @@
                       pypeit_file
     
     PypeIt: The Python Spectroscopic Data Reduction Pipeline
-    Version 2.0.2.dev1093+g279e0bc58
+    Version 2.0.2.dev1358+gf152c5836.d20261011
     
     Available spectrographs include:
         aat_uhrf, apf_levy, arc_arces, arc_kosmos, arc_tspec, bok_bc,
@@ -19,9 +19,9 @@
         keck_hires, keck_hires_orig, keck_kcrm, keck_kcwi, keck_lris_blue,
         keck_lris_blue_orig, keck_lris_red, keck_lris_red_mark4,
         keck_lris_red_orig, keck_mosfire, keck_nires, keck_nirspec_high,
-        keck_nirspec_high_old, keck_nirspec_low, lbt_luci1, lbt_luci2,
-        lbt_mods1b, lbt_mods1b_proc, lbt_mods1r, lbt_mods1r_proc, lbt_mods2b,
-        lbt_mods2b_proc, lbt_mods2r, lbt_mods2r_proc, ldt_deveny,
+        keck_nirspec_high_old, keck_nirspec_low, keck_osiris, lbt_luci1,
+        lbt_luci2, lbt_mods1b, lbt_mods1b_proc, lbt_mods1r, lbt_mods1r_proc,
+        lbt_mods2b, lbt_mods2b_proc, lbt_mods2r, lbt_mods2r_proc, ldt_deveny,
         magellan_fire, magellan_fire_long, magellan_ldss3, magellan_mage,
         mdm_modspec, mdm_osmos_mdm4k, mdm_osmos_r4k, mmt_binospec,
         mmt_binospec_ifu, mmt_bluechannel, mmt_mmirs, not_alfosc,

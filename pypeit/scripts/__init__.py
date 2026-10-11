@@ -41,6 +41,7 @@ __all__ = [
     'fit_ramp',
     'multislit_flexure',
     'obslog',
+    'osiris_rectify',
     'parse_slits',
     'print_bpm',
     'qa_html',
