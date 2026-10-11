@@ -1,20 +1,16 @@
 """
 Module for Magellan/LDSS3 specific methods.
 
-LDSS3-C reads a single CCD through two amplifiers and writes **each amplifier
-to its own file**, e.g. ``ccd0042c1.fits`` and ``ccd0042c2.fits``.  PypeIt joins
-the two halves internally in :func:`MagellanLDSS3Spectrograph.get_rawimage`, so
-no external merging step is required.  Only the amplifier-1 files are ingested
-during setup (see :func:`MagellanLDSS3Spectrograph.find_raw_files`) and the
-amplifier-2 file is located and read automatically.
-
 .. include:: ../include/links.rst
 """
 import re
+import copy
 from pathlib import Path
+from dataclasses import dataclass
 
 import numpy as np
 from astropy.time import Time
+from astropy.io import fits
 
 from pypeit import log
 from pypeit import PypeItError
@@ -26,18 +22,64 @@ from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 
 
+@dataclass(frozen=True)
+class LDSS3AmplifierProperties:
+    """Gain and read noise of one LDSS3 amplifier in one readout mode."""
+    speed: str          # SPEED header value: 'Slow', 'Fast' or 'Turbo'
+    readout_gain: str   # GAIN header value: 'Low' or 'High'
+    opamp: int          # OPAMP header value (1 = c1 file, 2 = c2 file)
+    gain: float         # e-/ADU
+    ronoise: float      # e-
+    det: int = 1         # PypeIt detector number (LDSS3-C has a single detector)
+    source: str = ''    # where the numbers come from
+    # e-; the response departs from linear by >1% above this level.
+    # LDSS3 User Manual, Section 6.1.
+    full_well_non_linearity: float = 175000.
+    saturation_level: float = 65535.  # ADU, 16-bit ADC
+
+    @property
+    def nonlinear_relative_to_saturation(self):
+        """
+        Return the non-linearity fraction relative to the ADC saturation level for this amplifier.
+        This ensures that pixels above the non-linearity threshold are masked even if they are
+        below the saturation level.
+
+        Not used for now, but could be used to set the nonlinear parameter in the detector container
+        if the non-linearity threshold is characterized in the future.
+        """
+        return self.full_well_non_linearity / self.gain / self.saturation_level
+
+    def matches(self, speed, readout_gain):
+        """
+        Check whether this entry applies to a readout mode.
+
+        Args:
+            speed (:obj:`str`):
+                Value of the ``SPEED`` header card.
+            readout_gain (:obj:`str`):
+                Value of the ``GAIN`` header card.
+
+        Returns:
+            :obj:`bool`: True if both values match this entry, ignoring case
+            and surrounding whitespace.
+        """
+        return (self.speed.lower() == str(speed).strip().lower()
+                and self.readout_gain.lower() == str(readout_gain).strip().lower())
+
+
 class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
     """
-    Class to handle Magellan/LDSS3 data. Works for both MultiSlit and LongSlit modes.
-    LDSS3 Technical documentation: https://www.lco.cl/technical-documentation/index-2/
-    
+    Class to handle Magellan/LDSS3 data. Supports both multislit and longslit modes.
 
-    LDS3-C specs: https://www.lco.cl/?epkb_post_type_1=ldss3_c-2
-    
-    Currently supported grisms: VPH-All, VPH-Blue and VPH-Red.  Other grisms are not supported.
-    
-    Only 1x1 binning has been tested.
-    
+    LDSS3 has one detector read by two amplifiers, written to separate files.
+    Both amplifiers can be reduced together, or either one alone:
+
+    - Two-amplifier reduction: the c1 and c2 files of each exposure are in the
+      same raw data directory.
+    - Single-amplifier reduction: the raw data directory holds only c1 or only
+      c2 files.  Keep the c1 and c2 files in separate directories, because a
+      companion file found next to the listed file will always be joined.
+
     """
     ndet = 1
     name = 'magellan_ldss3'
@@ -45,64 +87,43 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
     camera = 'LDSS3-C'
     header_name = 'LDSS3-C'
     supported = True
-    comment = 'Low Dispersion Survey Spectrograph 3-C; VPH-All, VPH-Blue and VPH-Red'
-    url = 'https://www.lco.cl/technical-documentation/ldss-3-user-manual/'
+    comment = 'VPH-All, VPH-Blue and VPH-Red grisms; see :doc:`magellan_ldss3`'
+    url = 'https://www.lco.cl/technical-documentation/ldss-3-user-manual'
 
-    # Nominal amplifier properties, used when the raw headers are unavailable.
-    # Both are superseded by the measured tables below whenever the readout mode
-    # is one we have characterised.
-    # This is readout mode-dependent
-    nominal_gain = np.array([1.65, 1.44])
-    nominal_ronoise = np.array([6.4, 6.7])
+    # Gain (e-/ADU) and read noise (e-) per readout mode, Low gain setting only.
+    # Other settings fall back on the EGAIN and ENOISE header cards; see
+    # get_detector_par().
+    LDSS3_AMPLIFIERS_PROPERTIES = [
+        # Slow/Low: LDSS3 User Manual, Section 6.1.  At these gains the 16-bit
+        # ADC saturates near 1e4 e-, well below the full well.
+        LDSS3AmplifierProperties(speed='Slow', readout_gain='Low', opamp=1, gain=0.15, ronoise=4.4),
+        LDSS3AmplifierProperties(speed='Slow', readout_gain='Low', opamp=2, gain=0.13, ronoise=5.3),
 
-    # Read noise for LDSS3-C, in e-, for amplifiers 1 and 2 in each readout mode.
-    #
-    # The ENOISE header card is not reliable. All frames carry
-    # the Slow-mode value regardless of the mode actually used.
-    #
-    # Slow and Turbo are published values and are not verified here.  Fast was
-    # measured: 6.37 +- 0.07 and 6.65 +- 0.07 e- from the scatter of bias-pair
-    # differences, over 34 pairs at five epochs from 2018 to 2025.  
-    # Other modes need to be measured if they are ever used,
-    # but the published values are probably good enough for most purposes.
-    #
-    # The first bias of a sequence should be discarded. Its pedestal is offset and it carries
-    # structure the rest do not. 
-    #
+        # Fast/Low: measured.  Gain from photon transfer on flat pairs (eight
+        # data sets, 2018-2025, three grisms): 1.648 +/- 0.006 and 1.439 +/- 0.007.
+        # Read noise from bias-pair differences: 6.37 +/- 0.07 and 6.65 +/- 0.07.
+        # The User Manual gives 1.67/1.45 e-/ADU and 7.0/7.2 e-.  The gain ratio
+        # sets the step at the amplifier boundary.
+        LDSS3AmplifierProperties(speed='Fast',  readout_gain='Low', opamp=1, gain=1.65, ronoise=6.4,
+                                 source='Measured'),
+        LDSS3AmplifierProperties(speed='Fast',  readout_gain='Low', opamp=2, gain=1.44, ronoise=6.7,
+                                 source='Measured'),
 
-    ronoise_by_speed = {'slow': (4.4, 5.3),    # from LCO documentation
-                        'fast': (6.4, 6.7),    # measured
-                        'turbo': (10.0, 10.0)} # from LCO documentation
+        # Turbo/Low: LDSS3 User Manual, Section 6.1.  The read noise is
+        # approximate ("not measured lately") and Turbo is not meant for science.
+        LDSS3AmplifierProperties(speed='Turbo', readout_gain='Low', opamp=1, gain=3.04, ronoise=10.0),
+        LDSS3AmplifierProperties(speed='Turbo', readout_gain='Low', opamp=2, gain=2.63, ronoise=10.0)
+        ]
 
-    # Gain for LDSS3-C, in e-/ADU, for amplifiers 1 and 2 in each readout mode.
-    #
-    # Slow and Turbo are the values published by LCO and have not been verified recently.
-    #
-    # Fast is measured, and differs from the published 1.5/1.8.
-    # Photon transfer on flat pairs, over eight data sets spanning 2018 to 2025
-    # and three grisms, gives 1.648 +- 0.006 and 1.439 +- 0.007; EGAIN reports
-    # 1.65/1.47.  An abnormal discountinuity seen at the amplifier boundary is due to a gain mismatch.
-    # 
-    # Measuring these values accurately is needed to remove any step in the
-    # image at the amplifier boundary.  
-    # On the VPH-All longslit flat,
-    # which has a slit spanning the boundary, the step is
-    #
-    #     g2/g1 = 0.873 (measured)   ->   +0.8 %
-    #     g2/g1 = 0.891 (EGAIN)      ->   +2.8 %
-    #     g2/g1 = 1.200 (published)  ->  +32.3 %
-    #
-    # The value measured here is used as the default, but the EGAIN card is used as a fallback
-    # A similar characterization is needed for other readout modes
-    # 
-    gain_by_speed = {'slow': (0.16, 0.19), # from LCO documentation
-                     'fast': (1.65, 1.44), # measured 
-                     'turbo': (2.7, 3.1)}  # from LCO documentation
+    # Expected shape of the 2-amplifier combined image, in unbinned pixels
+    n_spat_unbinned = 2048
+    n_spec_unbinned = 4096
 
-    # Matches an LDSS3 raw filename of the form ``<stem>c<amp>.fits[.gz]``.  The
-    # amplifier index is anchored immediately before the extension so that a
-    # stem which happens to contain "c1" is not mistaken for the amplifier tag.
-    _amp_file_regex = re.compile(r'(?P<stem>.+?)c(?P<amp>\d+)(?P<ext>\.fits(?:\.gz)?)\Z',
+    # Matches an LDSS3 raw filename of the form ``ccd<number>c<amp>.fits[.gz]``.
+    # For an example filename ``ccd0042c1.fits``, the stem is ``ccd0042``
+    # (the ``ccd`` prefix is kept in the stem), the amplifier is ``1``, and the
+    # extension is ``.fits``.
+    _amp_file_regex = re.compile(r'(?P<stem>ccd\d+)c(?P<amp>\d+)(?P<ext>\.fits(?:\.gz)?)\Z',
                                  re.IGNORECASE)
 
     @classmethod
@@ -118,9 +139,7 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         Returns:
             :obj:`tuple`: The exposure stem (:obj:`str`), the 1-indexed
             amplifier number (:obj:`int`), and the file extension (:obj:`str`).
-            Returns None if the name does not follow the amplifier-split
-            convention, which is the case for files that have already been
-            merged outside of PypeIt.
+            Returns None if the name does not follow the LDSS3 file naming convention.
         """
         match = cls._amp_file_regex.fullmatch(Path(filename).name)
         if match is None:
@@ -130,47 +149,82 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
     @classmethod
     def amp_files(cls, raw_file):
         """
-        Find every per-amplifier file belonging to one exposure.
+        Find both amplifier files associated with one exposure.
+
+        The two amplifier files are assumed to be in the same directory
+        and have the same extension, differing only in the amplifier index.
 
         Args:
             raw_file (:obj:`str`, `Path`_):
                 Any one of the amplifier files for the exposure.
 
         Returns:
-            :obj:`list`: `Path`_ objects for the amplifier files, ordered by the
-            amplifier index encoded in the filename.  If ``raw_file`` does not
-            follow the amplifier-split naming convention it is assumed to be an
-            already-merged image and is returned on its own.
+            :obj:`list`: `Path`_ objects for the amplifier files, sorted by amplifier number.
+            If raw_file does not follow the LDSS3 file naming convention, or if the companion
+            amplifier file is missing, the list will contain None for the missing amplifier(s).
         """
+
         path = Path(raw_file)
         parsed = cls.parse_amp_file(path)
-        if parsed is None:
-            # Not an amplifier-split name; treat it as a single, merged image
-            log.warning(f'File {raw_file} does not follow the LDSS3 amplifier-split naming '
-                        'convention; assuming it is an already-merged image.')
-            return [path]
+        amps_files = [None, None]
 
-        stem, _, _ = parsed
-        found = []
-        for candidate in path.parent.glob(f'{stem}c*'):
-            cand_parsed = cls.parse_amp_file(candidate)
-            # Require an exact stem match so that, e.g., "ccd004" does not pick
-            # up the amplifier files of "ccd0042"
-            if cand_parsed is not None and cand_parsed[0] == stem:
-                found.append((cand_parsed[1], candidate))
-        if len(found) == 0:
-            raise PypeItError(f'No LDSS3 amplifier files found for {raw_file}')
-        return [f[1] for f in sorted(found)]
+        if parsed is None:
+            # Filename was not matched
+            log.info(f'{raw_file} does not follow the LDSS3 file naming convention '
+                     '(ccd<number>c<amp>.fits[.gz]).')
+            return amps_files
+
+        stem, amp, file_ext = parsed
+
+        opamp = fits.getheader(path, ext=0)['OPAMP']
+        # Check that the OPAMP header card matches the amplifier number in the filename.
+        if opamp != amp:
+            # Skip this exposure if not.
+            log.warning(f'File {raw_file} has OPAMP={opamp} but filename indicates {amp}; skipping.')
+            return amps_files
+
+        # Save the file. The list is 0-indexed, but the amplifier numbers are 1-indexed.
+        amps_files[amp-1] = path
+
+        # Companion amplifier (1-indexed, 1 or 2).
+        other_amp = 3-amp
+
+        # The companion amplifier file is expected to be in the same directory.
+        other_amp_path = path.parent / f'{stem}c{other_amp}{file_ext}'
+
+        # Check that the companion amplifier file exists.
+        if not other_amp_path.exists():
+            log.info(f'File {other_amp_path} not found for {raw_file}')
+            return amps_files
+
+        # Check that the OPAMP header card matches too.
+        other_opamp = fits.getheader(other_amp_path, ext=0)['OPAMP']
+        if other_opamp != other_amp:
+            # Skip this exposure if not.
+            log.warning(f'File {other_amp_path} has OPAMP={other_opamp} but the filename '
+                        f'indicates {other_amp}; skipping.')
+            return amps_files
+
+        # Save the companion amplifier file
+        amps_files[other_amp-1] = other_amp_path
+
+        return amps_files
 
     @classmethod
     def find_raw_files(cls, root, extension=None):
         """
         Find raw observations for this spectrograph in the provided directory.
 
-        Overrides the base class to return only **one file per exposure**.
-        LDSS3-C writes each amplifier to its own file; the companion amplifier
-        files are found and read automatically by :func:`get_rawimage`.  Without
-        this filter, every exposure would be ingested twice and reduced twice.
+        Overrides the base class to return one file per exposure.  All LDSS3
+        raw files must be in the same directory.  The amplifier files are
+        associated by
+        :func:`~pypeit.spectrographs.magellan_ldss3.MagellanLDSS3Spectrograph.amp_files`.
+
+        Only one group of exposures is returned, chosen in this order:
+
+        1. Exposures with both amplifier files; the ``c1`` file is returned.
+        2. Otherwise, exposures with only a ``c1`` file.
+        3. Otherwise, exposures with only a ``c2`` file.
 
         Args:
             root (:obj:`str`, `Path`_, :obj:`list`):
@@ -183,92 +237,141 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
             :obj:`list`: `Path`_ objects for the unique raw exposures found.
         """
         files = super().find_raw_files(root, extension=extension)
+        parents = {Path(f).parent for f in files}
+        if len(parents) > 1:
+            raise PypeItError(
+                f'LDSS3 raw files were found in {len(parents)} directories: '
+                f'{", ".join(sorted(str(p) for p in parents))}. All amplifier files for a '
+                f'given exposure must be in the same directory; a symlink is enough.')
 
-        # Group the amplifier-split files by exposure and keep the lowest
-        # amplifier index in each group.  Grouping (rather than simply keeping
-        # amplifier 1) means a directory holding only amplifier-2 files still
-        # yields one file per exposure.
-        exposures = {}
-        keep = []
-        for path in files:
+        # One entry per exposure.
+        exposures = {}  # stem -> [c1, c2]
+        for file in files:
+            path = Path(file)
             parsed = cls.parse_amp_file(path)
             if parsed is None:
-                # Already-merged image; pass it through untouched
-                keep.append(path)
                 continue
-            key = (str(Path(path).parent), parsed[0])
-            if key not in exposures or parsed[1] < exposures[key][0]:
-                exposures[key] = (parsed[1], path)
+            stem, amp, file_ext = parsed
+            if stem not in exposures:
+                exposures[stem] = cls.amp_files(path)
 
-        keep += [v[1] for v in exposures.values()]
-        ndropped = len(files) - len(keep)
-        if ndropped > 0:
-            log.info(f'Ignoring duplicate amplifier file(s) for {ndropped} exposure(s). Only c1 '
-                     'files are read from the .pypeit and c2 are read automatically.')
-        return sorted(keep)
+        # (c1 present, c2 present), description, index of file to keep, detector mode
+        _amp_priority = (
+            ((True, True),  'with both amplifiers',  0, 'TWO-AMPLIFIER (whole detector)'),
+            ((True, False), 'with amplifier 1 only', 0, 'SINGLE-AMPLIFIER (half detector)'),
+            ((False, True), 'with amplifier 2 only', 1, 'SINGLE-AMPLIFIER (half detector)'),
+        )
+
+        # Reduce only the highest-priority group that exists, so every frame in a
+        # setup can be associated with the same calibrations.
+        for present, label, i, mode in _amp_priority:
+            usable = sorted(v[i] for v in exposures.values()
+                            if tuple(map(bool, v)) == present)
+            if not usable:
+                continue
+            if nskip := len(exposures) - len(usable):
+                log.warning(f'Found {len(usable)} exposure(s) {label}; the '
+                            f'remaining {nskip} of {len(exposures)} will be skipped.')
+            msg = f'Found {len(usable)} exposure(s) {label} as {mode} images.'
+            if present == (True, True):
+                log.info(msg)
+            else:
+                log.info(f'No complete c1/c2 pairs found.  {msg}')
+            return usable
+
+        log.warning('No usable LDSS3 exposures found.')
+        return []
 
     def get_detector_par(self, det, hdu=None, amp_headers=None):
         """
         Return metadata for the selected detector.
 
-        LDSS3-C has a single CCD read through two amplifiers.
+        LDSS3-C has a single CCD read by two amplifiers.
+
+        The gain and read noise depend on the readout mode,
+        which is the same for both amplifiers.
+
+        This function accepts either a single ``hdu`` or a list of amplifier
+        headers (``amp_headers``). If both are provided, ``amp_headers`` is used.
+
+        If two amplifier headers are provided, assumes a 2-amplifier reduction
+        and returns the gain and read noise for each amplifier.
+
+        If one amplifier header (or hdu) is provided, assumes a 1-amplifier reduction
+        and returns the gain and read noise for that amplifier.
 
         Args:
             det (:obj:`int`):
-                1-indexed detector number.
+                1-indexed detector number. Only det=1 is supported for LDSS3-C.
             hdu (`astropy.io.fits.HDUList`_, optional):
-                The open fits file with the raw image of interest.  If not
-                provided, frame-dependent parameters are set to a default.
+                The opened FITS file. Can be any of the amplifier files for the exposure.
             amp_headers (:obj:`list`, optional):
-                `astropy.io.fits.Header`_ objects, one per amplifier actually
-                found for this exposure, ordered by amplifier.  When provided,
-                the number of amplifiers, the gain and the read noise are taken
-                from these headers.  When not provided, nominal two-amplifier
-                values are used.
+                `astropy.io.fits.Header`_ objects, one per amplifier.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
-        # Binning
-        binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
+        if det != 1:
+            # Only one detector is supported for LDSS3-C.
+            raise PypeItError(f'LDSS3 has only one detector, but det={det} was requested.')
 
-        if amp_headers is None:
-            gain = self.nominal_gain.copy()
-            ronoise = self.nominal_ronoise.copy()
+        if amp_headers is not None:
+            if len(amp_headers) not in (1, 2):
+                raise PypeItError('LDSS3 amplifier headers must be provided for 1 or 2 amplifiers, '
+                                  f'but {len(amp_headers)} were given.')
+            headers = list(amp_headers)
+        elif hdu is not None:
+            headers = [hdu[0].header]
         else:
-            # Take the gain from the published table, keyed on the readout mode.
-            gain = []
-            for i, h in enumerate(amp_headers):
-                iamp = int(h.get('OPAMP', i + 1)) - 1
-                speed = str(h.get('SPEED', '')).strip().lower()
-                table = self.gain_by_speed.get(speed)
-                if table is not None and 0 <= iamp < len(table):
-                    gain.append(float(table[iamp]))
-                else:
-                    fallback = float(h.get('EGAIN', self.nominal_gain[min(i, 1)]))
-                    log.warning(f'Gain for LDSS3 readout mode {h.get("SPEED")!r} has not '
-                                f'been characterised; falling back on the EGAIN card '
-                                f'({fallback} e-/ADU). ')
-                    gain.append(fallback)
-            gain = np.array(gain)
-            # Take the read noise from the published table, keyed on the
-            # readout mode
-            ronoise = []
-            for i, h in enumerate(amp_headers):
-                iamp = int(h.get('OPAMP', i + 1)) - 1
-                speed = str(h.get('SPEED', '')).strip().lower()
-                table = self.ronoise_by_speed.get(speed)
-                if table is not None and 0 <= iamp < len(table):
-                    ronoise.append(float(table[iamp]))
-                else:
-                    fallback = float(h.get('ENOISE', self.nominal_ronoise[min(i, 1)]))
-                    log.warning(f'Unrecognised LDSS3 readout mode {h.get("SPEED")!r}; '
-                                f'falling back on the ENOISE card ({fallback} e-), '
-                                'which is known to report the Slow-mode value '
-                                'regardless of the mode actually used.')
-                    ronoise.append(fallback)
-            ronoise = np.array(ronoise)
+            log.warning('No header or hdu provided; assuming Fast speed, Low gain, and 1x1 binning.')
+            headers = []
+
+        # The readout speed, gain and binning are the same for both amplifiers
+        if headers:
+            readout_speed, readout_gain = self.get_meta_value(headers, 'readmode').split(',')
+            binning = self.get_meta_value(headers, 'binning')
+        else:
+            # Assume Fast speed and Low gain if a header is not available.
+            readout_speed, readout_gain, binning = 'fast', 'low', '1,1'
+
+        # The OPAMP header card is 1-indexed
+        opamps = sorted(int(h.get('OPAMP', i + 1)) for i, h in enumerate(headers)) \
+                    if headers else [1, 2]
+        # Amplifier properties.
+        amps = sorted((a for a in self.LDSS3_AMPLIFIERS_PROPERTIES
+                       if a.matches(readout_speed, readout_gain) and a.opamp in opamps),
+                      key=lambda a: a.opamp)
+        # In case no amplifier properties are found.
+        amps = amps if amps else None
+
+        # The non-linearity threshold, defined relative to the saturation level.
+        # NOTE: The LDSS3 non-linearity is expressed in terms
+        # of e- in 6.1, and in ADUs, in 6.2.
+        # The e- values imply non-linearity is not reached below the saturation level
+        # for the Slow and Fast readout modes,
+        # but 6.2 says that linearity is better than 1% below 40,000 ADUs
+        # (0.61 of the ADC saturation).
+        # TODO: This value will be adopted to avoid masking too many pixels,
+        # but a good characterization of the non-linearity threshold is needed.
+        nonlinear = 0.95
+
+        if amps is None:
+            log.warning(f'LDSS3 readout mode {readout_speed}/{readout_gain} is not characterized; '
+                        'taking the gain and read noise from the EGAIN and ENOISE header keys.')
+            gain = [h['EGAIN'] for h in headers]
+            ronoise = [h['ENOISE'] for h in headers]
+            # The same for every amplifier and readout mode.
+            saturation = self.LDSS3_AMPLIFIERS_PROPERTIES[0].saturation_level
+        elif len(amps) == len(opamps):
+            # All found amplifiers are characterized
+            gain = [amp.gain for amp in amps]
+            ronoise = [amp.ronoise for amp in amps]
+            saturation = amps[0].saturation_level
+        else:
+            raise PypeItError(f'LDSS3 readout mode {readout_speed}/{readout_gain} is tabulated for '
+                              f'{len(amps)} amplifier(s); '
+                              f'expected {len(opamps)}, with OPAMP {", ".join(str(o) for o in opamps)}.')
 
         detector_dict = dict(
                             binning         = binning,
@@ -280,26 +383,16 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
-                            platescale      = 0.189,    # from the LDSS3-C manual
-                            darkcurr        = 25.0,     # from the LDSS3-C manual, in e-/hr/pix
-                            # LDSS3-C has a full well of ~205000 e- (10%
-                            # non-linear) and stays within 1% of linear below
-                            # ~175000 e-. The ADC is
-                            # 16-bit, so max ADU is 65535
-                            #
-                            # The threshold is a single scalar compared in
-                            # electrons, while the two amplifiers have different
-                            # gains, so it has to be low enough to catch the
-                            # amplifier with the *smaller* gain.
-                            saturation      = 65535.,
-                            nonlinear       = 0.99,
+                            platescale      = 0.189,    # From the LDSS3-C User Manual
+                            darkcurr        = 25.0,     # From the LDSS3-C User Manual, in e-/hr/pix
+                            saturation      = saturation, # 16-bit ADC
+                            nonlinear       = nonlinear,
                             mincounts       = -1e10,
-                            numamplifiers   = len(gain),
+                            numamplifiers   = len(gain), # 2 if two-amplifier reduction, 1 if single-amplifier reduction
                             gain            = np.atleast_1d(gain),
                             ronoise         = np.atleast_1d(ronoise),
                             )
 
-        # Instantiate
         return detector_container.DetectorContainer(**detector_dict)
 
     def init_meta(self):
@@ -315,6 +408,7 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         self.meta['dec'] = dict(ext=0, card='DEC')
         self.meta['target'] = dict(ext=0, card='OBJECT')
         self.meta['decker'] = dict(ext=0, card='APERTURE')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
         self.meta['binning'] = dict(ext=0, card=None, compound=True)
         # mjd is not in the header, but can be constructed from UT-DATE and UT-TIME
         self.meta['mjd'] = dict(ext=0, card=None, compound=True)
@@ -324,13 +418,14 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         self.meta['dispname'] = dict(ext=0, card='GRISM')
         self.meta['filter1'] = dict(ext=0, card='FILTER')
         self.meta['idname'] = dict(ext=0, card='EXPTYPE')
-        # Distinguishes the two amplifier files of a single exposure
-        self.meta['amp'] = dict(ext=0, card='OPAMP')
+        self.meta['readmode'] = dict(ext=0, card=None, compound=True)
 
     def compound_meta(self, headarr, meta_key):
         """
         Methods to generate metadata requiring interpretation of the header
         data, instead of simply reading the value of a header card.
+
+        If ``headarr`` is a list of headers, the first header is used to construct the metadata value.
 
         Args:
             headarr (:obj:`list`):
@@ -339,20 +434,24 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
                 Metadata keyword to construct.
 
         Returns:
-            object: Metadata value read from the header(s).
+            :obj:`object`: Metadata value read from the header(s).
         """
         if meta_key == 'mjd':
-            # NOTE: The JD header card is not usable; build the MJD from the UT
-            # date and time instead.
+            # Build the MJD from the UT date and time.
             ttime = Time('{:s}T{:s}'.format(headarr[0]['UT-DATE'], headarr[0]['UT-TIME']),
                          format='isot')
             return ttime.mjd
+
         if meta_key == 'binning':
             # The BINNING card is written in the raw detector frame, which is
-            # spatial along NAXIS1 and spectral along NAXIS2, i.e. the opposite
-            # of the PypeIt (spectral,spatial) convention.
+            # spatial along NAXIS1 and spectral along NAXIS2.
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             return parse.binning2string(binspec, binspatial)
+
+        if meta_key == 'readmode':
+            speed, gain = str(headarr[0]['SPEED']).strip().lower(), str(headarr[0]['GAIN']).strip().lower()
+            return f'{speed},{gain}'
+
         return None
 
     @classmethod
@@ -381,13 +480,14 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         par['calibrations']['tilts']['spat_order'] = 6
         par['calibrations']['tilts']['spec_order'] = 6
 
-        # edges.  Narrow detector defects otherwise get synced into spurious
+        # Slit edges.  Narrow detector defects otherwise get synced into spurious
         # few-pixel slits; the narrowest real LDSS3 slitlets are ~5 arcsec.
         par['calibrations']['slitedges']['edge_thresh'] = 20.
         par['calibrations']['slitedges']['minimum_slit_length'] = 2.
 
         # Processing steps
-        turn_off = dict(use_biasimage=False, use_darkimage=False)
+        # TODO: is there a reason why use_biasimage=False?
+        turn_off = dict(use_darkimage=False, use_biasimage=False)
         par.reset_all_processimages_par(**turn_off)
 
         # Combine the (usually few) bias and dark frames with a median
@@ -395,7 +495,7 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         par['calibrations']['darkframe']['process']['combine'] = 'median'
 
         # Mask saturated slits; the alignment boxes of a slitmask are routinely
-        # saturated in the flats
+        # saturated in the flats.
         par['calibrations']['flatfield']['saturated_slits'] = 'mask'
 
         # Extraction
@@ -406,17 +506,17 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
 
         # Flexure.  The default wavelength solution comes from arc lamps taken
         # at a different telescope pointing, so correct the residual spectral
-        # flexure against the sky.  Set this to 'skip' when calibrating on sky
+        # flexure against the sky.  May set this to 'skip' when calibrating on sky
         # lines instead (see the magellan_ldss3 documentation).
         par['flexure']['spec_method'] = 'boxcar'
 
-        # cosmic ray rejection parameters for science frames
+        # Cosmic ray rejection parameters for science frames
         par['scienceframe']['process']['sigclip'] = 5.0
         par['scienceframe']['process']['objlim'] = 2.0
 
         # Set the default exposure time ranges for the frame typing.  The
         # science/standard split is driven entirely by these ranges.
-        # The types have to be checked in the .pypeit file anyways
+        # The types have to be checked in the .pypeit file against an observing log.
         par['calibrations']['standardframe']['exprng'] = [None, 100]
         par['calibrations']['arcframe']['exprng'] = [None, 60]
         par['calibrations']['tiltframe']['exprng'] = [None, 60]
@@ -441,7 +541,7 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
                 adjust the input parameters.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
-                use :func:`default_pypeit_par`.
+                use :func:`~pypeit.spectrographs.magellan_ldss3.MagellanLDSS3Spectrograph.default_pypeit_par`.
 
         Returns:
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
@@ -460,36 +560,27 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         if decker is not None and ('center' in decker.lower() or 'long' in decker.lower()):
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
-        # Arc-lamp wavelength solutions.  Sky-line calibration is available as a
-        # documented alternative; see doc/spectrographs/magellan_ldss3.rst.
-        if grating == 'VPH-Blue':
-            par['calibrations']['wavelengths']['lamps'] = ['HeI', 'NeI', 'ArI']
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['reid_arxiv'] \
-                    = 'magellan_ldss3_vph_blue_HeINeIArI.fits'
-        elif grating == 'VPH-Red':
-            par['calibrations']['wavelengths']['lamps'] = ['HeI', 'NeI', 'ArI']
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['reid_arxiv'] \
-                    = 'magellan_ldss3_vph_red_HeINeIArI.fits'
-        elif grating == 'VPH-All':
-            par['calibrations']['wavelengths']['lamps'] = ['HeI', 'NeI', 'ArI']
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['reid_arxiv'] \
-                    = 'magellan_ldss3_vph_all_HeINeIArI.fits'
-            # NOTE: The bluest arc line detectable with VPH-All is near 3890 A,
-            # around pixel 740.  The wavelength solution is therefore
-            # extrapolated over the bluest ~740 pixels, where the grism has no
-            # throughput and the science frames carry no signal either.
-        elif grating is not None:
-            log.warning(f'No archived LDSS3 wavelength solution for grism {grating}; '
-                        'falling back on holy-grail.')
-            par['calibrations']['wavelengths']['lamps'] = ['HeI', 'NeI', 'ArI']
-            par['calibrations']['wavelengths']['method'] = 'holy-grail'
+        par['calibrations']['wavelengths']['lamps'] = ['HeI', 'NeI', 'ArI']
+        par['calibrations']['wavelengths']['method'] = 'full_template'
+
+        match grating:
+            case 'VPH-Blue':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_ldss3_vph_blue_HeINeIArI.fits'
+            case 'VPH-Red':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_ldss3_vph_red_HeINeIArI.fits'
+            case 'VPH-All':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_ldss3_vph_all_HeINeIArI.fits'
+            case _:
+                par['calibrations']['wavelengths']['method'] = 'holy-grail'
+                log.warning(f'No archived LDSS3 wavelength solution for grism {grating}; '
+                            'falling back on holy-grail.')
+        # NOTE: A wavelength solution using sky lines on deep observations
+        # is also available for VPH-Red, with the reid_arxiv=magellan_ldss3_vph_red_sky.fits
+        # and lamps=OH_LDSS3_vac.
 
         # FWHM, in binned pixels
         if binning is not None:
-            par['calibrations']['wavelengths']['fwhm'] = 6.0 / parse.parse_binning(binning)[0]
+            par['calibrations']['wavelengths']['fwhm'] = 5.0 / parse.parse_binning(binning)[0]
 
         return par
 
@@ -505,67 +596,67 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         """
         # filter1 matters because the order-blocking filter (e.g. BPF-380-590)
         # sets the usable wavelength range for a given grism.
-        # observers are recommended to use the same filter for all exposures in a given configuration, 
-        # but it is not enforced and this can be overwritten in the .pypeit file if necessary
+        # Observers are recommended to use the same filter for all exposures in a given configuration,
+        # but it is not enforced and this can be overridden in the .pypeit file if necessary.
         return ['dispname', 'decker', 'binning', 'filter1']
 
-    def valid_configuration_values(self):
+    def raw_header_cards(self):
         """
-        Return a fixed set of valid values for metadata used to define a
-        unique instrument configuration.
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
 
-        Frames taken with the grism wheel open are acquisition, through-slit
-        or direct images.  PypeIt cannot reduce them, so they are dropped
-        during setup rather than being carried through as untyped rows.
-        
-        Only the three VPH grisms are supported, so the valid values for ``dispname``
-        are hard-coded here. 
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
 
         Returns:
-            :obj:`dict`: Keys are the metadata keywords and values are the
-            lists of valid values for that keyword.
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
         """
-        return {'dispname': ['VPH-All', 'VPH-Blue', 'VPH-Red']}
+        # Do not propagate ENOISE, EGAIN because values are set from the table.
+        return ['GRISM', 'APERTURE', 'BINNING', 'FILTER', 'SPEED', 'GAIN']
 
-    def config_independent_frames(self):
+    def modify_config(self, row, cfg):
         """
-        Define frame types that are independent of the fully defined
-        instrument configuration.
+        Modify the configuration requirement for one frame.
 
-        Bias and dark frames are taken with the grism wheel left wherever it
-        happened to be, so their ``dispname`` is meaningless and they must not
-        be matched on it.
+        Arcs and flats are often taken without the order-blocking filter used
+        for the science frames.  For any frame that is not a science or standard
+        frame, the filter is ignored when matching it to a configuration.
 
-        Returns:
-            :obj:`dict`: Dictionary where the keys are the frame types that
-            are configuration independent and the values are the metadata
-            keywords that can be used to assign the frames to a configuration
-            group.
-        """
-        return {'bias': 'binning', 'dark': 'binning'}
-
-    def pypeit_file_keys(self):
-        """
-        Define the list of keys to be output into a standard ``PypeIt`` file.
+        Args:
+            row (`astropy.table.Row`_):
+                The table row with the metadata for one frame.
+            cfg (:obj:`dict`):
+                Dictionary with metadata associated to a specific configuration.
 
         Returns:
-            :obj:`list`: The list of keywords in the relevant
-            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
-            :ref:`pypeit_file`.
+            :obj:`dict`: The configuration to match this frame against.
         """
-        return super().pypeit_file_keys() + ['amp']
+        ftype = str(row['frametype'])
+        if 'science' in ftype or 'standard' in ftype:
+            return cfg
+        _cfg = copy.deepcopy(cfg)
+        # Match on this frame's own filter, so the filter never blocks a match.
+        _cfg['filter1'] = row['filter1']
+        return _cfg
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
 
         LDSS3's ``EXPTYPE`` card alone is not sufficient to identify frame types.
-        The ``OBJECT`` card is the exposure name, which is set by the observer and may not reflect the actual exposure type.
-        
-        This method implements a set of rules to determine the frame type but it is not guaranteed to be correct.  
-        The user should check the frame typing in the .pypeit file and adjust it if necessary based
-        on an observing log.
-        See :ref:`magellan_ldss3` for the naming conventions this recognises.
+
+        This method implements a set of rules to determine the frame type, but it is not
+        guaranteed to be correct.
+
+        NOTE: The user should always double-check the frame typing in the .pypeit
+        file and adjust it if necessary against an observing log.
 
         Args:
             ftype (:obj:`str`):
@@ -576,102 +667,92 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
             exprng (:obj:`list`, optional):
                 Range in the allowed exposure time for a frame of type
                 ``ftype``. See
-                :func:`pypeit.core.framematch.check_frame_exptime`.
+                :func:`~pypeit.core.framematch.check_frame_exptime`.
 
         Returns:
             `numpy.ndarray`_: Boolean array with the flags selecting the
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-        # Only ever type the amplifier-1 file of an exposure.  find_raw_files()
-        # already filters these out during setup
-        primary = np.array([str(a).strip() in ('1', 'None', '') for a in fitstbl['amp']])
-
         idname = np.array([str(n).strip().lower() for n in fitstbl['idname']])
         target = np.array([str(n).strip().lower() for n in fitstbl['target']])
         grism = np.array([str(n).strip().lower() for n in fitstbl['dispname']])
 
-        # Frames taken with the grism wheel open are acquisition, through-slit
-        # or direct images; they are never spectroscopic calibrations or data.
+        # Open grism means no disperser is in the beam.
         dispersed = grism != 'open'
-        # Explicitly non-spectroscopic object names
-        setup_frame = self._has_keyword(target, words=self.setup_words)
-        is_arc = self._has_keyword(target, words=self.arc_words)
-        is_flat = self._has_keyword(target, words=self.flat_words,
-                                    substrings=self.flat_substrings)
+
+        setup_frame = self._has_keyword(target, self.setup_keywords)
+
+        is_arc = self._has_keyword(target, self.arc_keywords)
+        is_flat = self._has_keyword(target, self.flat_keywords)
+        # Bias and dark frames are identified from EXPTYPE alone.
+        is_bias = idname == 'bias'
+        is_dark = idname == 'dark'
 
         if ftype == 'bias':
-            return good_exp & primary & ((idname == 'bias')
-                                         | self._has_keyword(target, words=['zero', 'bias']))
+            return good_exp & is_bias
         if ftype == 'dark':
-            return good_exp & primary & ((idname == 'dark')
-                                         | self._has_keyword(target, words=['dark']))
+            return good_exp & is_dark
         if ftype in ['arc', 'tilt']:
-            # Checked before the flats: an arc frame is sometimes written with
-            # EXPTYPE='Flat' and an object name that also names the flat
-            return good_exp & primary & dispersed & is_arc
+            # Checked before the flats because arc frames are sometimes written with
+            # EXPTYPE='Flat'.
+            return good_exp & dispersed & is_arc
         if ftype in ['pixelflat', 'illumflat', 'trace']:
-            return good_exp & primary & dispersed & is_flat & np.logical_not(is_arc)
+            return good_exp & dispersed & is_flat & np.logical_not(is_arc)
         if ftype in ['science', 'standard']:
             # The science/standard split is set by the exposure-time ranges in
             # the 'scienceframe' and 'standardframe' parameters.
-            is_cal = is_arc | is_flat | self._has_keyword(target,
-                                                          words=['zero', 'bias', 'dark'])
-            return good_exp & primary & dispersed & np.logical_not(is_cal) \
-                    & np.logical_not(setup_frame)
+            is_cal = is_arc | is_flat | is_bias | is_dark
+            return (good_exp & dispersed & np.logical_not(is_cal)
+                    & np.logical_not(setup_frame))
 
-        log.warning('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.warning(f'Cannot determine if frames are of type {ftype}.')
         return np.zeros(len(fitstbl), dtype=bool)
 
-    # Object-name keywords used for frame typing.  ``*_words`` are matched
-    # against whitespace-, underscore- or hyphen-delimited words, so that short
-    # or ambiguous tokens cannot match inside a target designation.
-    # ``*_substrings`` are matched anywhere in the name,
-    # for distinctive tokens that observers run together with others, such as
-    # the 'flat' in 'flatQh'.
-    # this is intended to help frame typing, but it is not guaranteed to be correct.  
-    # The user should check the frame typing in the .pypeit file and adjust it if necessary based on an observing log.
-    arc_words = ['arc', 'arcs', 'henear', 'hene', 'lamp', 'comp']
-    flat_words = ['qh', 'ff', 'flatfield']
-    flat_substrings = ['flat', 'quartz', 'dome']
-    setup_words = ['align', 'thr', 'field', 'focus', 'acq']
+    # OBJECT keywords used for frame typing.  They are matched as substrings,
+    # ignoring case, so 'arc' also covers 'arcs' and 'wave' covers 'wavecal'.
+    arc_keywords = ['arc', 'hene', 'hear', 'wave']
+    # 'qh' and 'ql' also cover the combined 'qlqh' and 'qhql' lamp names.  A
+    # science or standard target containing any of these is typed as a flat.
+    flat_keywords = ['flat', 'quartz', 'dome', 'qh', 'ql']
+    # Frames whose OBJECT contains one of these are never typed as science or
+    # standard.  The setup keywords are used to identify setup frames that might
+    # be taken with a disperser in the beam.
+    setup_keywords = ['align', 'focus', 'acq']
 
     @staticmethod
-    def _has_keyword(names, words=None, substrings=None):
+    def _has_keyword(names, keywords):
         """
         Test each of ``names`` for any of the given keywords.
 
         Args:
             names (`numpy.ndarray`_):
                 Lower-cased strings to test.
-            words (:obj:`list`, optional):
-                Lower-case words to look for as whitespace-, underscore- or
-                hyphen-delimited words.
-            substrings (:obj:`list`, optional):
+            keywords (:obj:`list`):
                 Lower-case strings to look for anywhere in the name.
 
         Returns:
             `numpy.ndarray`_: Boolean array, one element per entry in ``names``.
         """
-        _words = set() if words is None else set(words)
-        _subs = [] if substrings is None else substrings
-        return np.array([len(_words & set(re.split(r'[\s_\-]+', n))) > 0
-                         or any(s in n for s in _subs) for n in names])
+        return np.array([any(k in n for k in keywords) for n in names])
 
     def get_rawimage(self, raw_file, det):
         """
-        Read raw images and generate a few other bits and pieces
-        that are key for image processing.
+        Take a raw LDSS3 amplifier file and return the combined image for the detector.
 
-        The two LDSS3 amplifiers live in separate files.  Both are located and
-        read here, and joined into a single image laid out as::
+        The two amplifier files are located by
+        :func:`~pypeit.spectrographs.magellan_ldss3.MagellanLDSS3Spectrograph.amp_files`.
+        Amplifier 2 is flipped
+        about the spatial axis so that it abuts amplifier 1 at the center of the CCD, and
+        the two are joined along the spatial axis with the overscan regions at the outer
+        edges and the data sections in the middle::
 
             [ overscan_1 | data_1 | flip(data_2) | flip(overscan_2) ]
 
-        along the spatial axis.  If the companion amplifier file is missing, the
-        image is built from the single amplifier available and the detector is
-        reconfigured to have one amplifier, so that the gain and read noise are
-        not applied to a region that holds no data.
+        If one amplifier is missing, its data and overscan sections are left as
+        zeros and are trimmed away during processing.  If only amplifier 2 is
+        present, it is labeled as amplifier 1 in the data-section and
+        overscan-section images, because PypeIt numbers amplifiers from 1.
 
         Args:
             raw_file (:obj:`str`, `Path`_):
@@ -688,68 +769,66 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
             (`numpy.ndarray`_).
         """
         self._check_extensions(raw_file)
-        amp_files = self.amp_files(raw_file)
+        amp_files = [f for f in self.amp_files(raw_file) if f is not None]
+        if not amp_files:
+            raise PypeItError(f'No amplifier file found for {raw_file}.')
 
-        # Read each amplifier and sort by the OPAMP header card, which is
-        # authoritative; the filename index is only a fallback.
-        amps = []
-        for ifile in amp_files:
-            data, overscan, header, nx, nxb = ldss3_read_amp(ifile)
-            parsed = self.parse_amp_file(ifile)
-            opamp = header.get('OPAMP', parsed[1] if parsed is not None else len(amps) + 1)
-            amps.append((int(opamp), data, overscan, header, nx, nxb))
-        amps.sort(key=lambda a: a[0])
+        # amps is a dict indexed by the amplifier number (which are 1-indexed).
+        amps = {}
+        for amp_file in amp_files:
+            data, overscan, header, hdu = ldss3_read_amp(amp_file)
+            opamp = int(header['OPAMP'])
+            amps[opamp] = {'data': data, 'overscan': overscan,
+                                'header': header, 'hdu': hdu}
+        # Use amplifier 1 as the reference for the detector parameters,
+        # or amplifier 2 if amplifier 1 is missing.
+        opamp = min(amps.keys())
 
-        namp = len(amps)
-        if namp == 1:
-            log.warning(f'Only one amplifier file found for {Path(raw_file).name}; '
-                        'proceeding with a single amplifier.')
-        elif namp != 2:
-            raise PypeItError(f'Expected 1 or 2 LDSS3 amplifier files, found {namp} for '
-                              f'{raw_file}.')
-
-        # Warn about binning we have not been able to validate
-        binning = self.get_meta_value([amps[0][3]], 'binning')
+        # Warn about binning we have not been able to validate.
+        binning = self.get_meta_value([amps[opamp]['header']], 'binning')
         if binning != '1,1':
-            log.warning(f'LDSS3 support has only been verified for 1x1 binning; found '
+            log.warning('LDSS3 support has only been verified for 1x1 binning; found '
                         f'{binning}. Check the data and overscan sections carefully.')
-
-        # The image is opened again here so that the returned HDUList is the one
-        # PypeIt associates with the file it was given.
-        hdu = io.fits_open(amp_files[0])
-
-        detector_par = self.get_detector_par(det if det is not None else 1, hdu=hdu,
-                                             amp_headers=[a[3] for a in amps])
 
         # Assemble.  Work in the raw detector frame, which is spatial along the
         # first axis and spectral along the second, then transpose at the end to
-        # give the PypeIt (nspec,nspat) convention.
-        nspec = amps[0][1].shape[1]
-        nspat = sum(a[4] for a in amps)
-        array = np.zeros((nspat, nspec), dtype=float)
+        # give the PypeIt (nspec, nspat) convention.
+        ndata, nspec = amps[opamp]['data'].shape
+        nx_oscan = amps[opamp]['overscan'].shape[0]
+        array = np.zeros((2 * (ndata + nx_oscan), nspec), dtype=float)
         rawdatasec_img = np.zeros_like(array, dtype=int)
         oscansec_img = np.zeros_like(array, dtype=int)
 
-        # Amplifier 1: overscan at the low-spatial edge, then the data
-        _, data1, overscan1, _, _, nxb1 = amps[0]
-        ndata1 = data1.shape[0]
-        array[:nxb1, :] = overscan1
-        oscansec_img[:nxb1, :] = 1
-        array[nxb1:nxb1+ndata1, :] = data1
-        rawdatasec_img[nxb1:nxb1+ndata1, :] = 1
+        # Fill in the data and overscan sections for each amplifier.  The
+        # amplifier 2 data and overscan are flipped about the spatial axis.
+        if 1 in amps:
+            array[:nx_oscan, :] = amps[1]['overscan']
+            oscansec_img[:nx_oscan, :] = 1
+            array[nx_oscan:nx_oscan+ndata, :] = amps[1]['data']
+            rawdatasec_img[nx_oscan:nx_oscan+ndata, :] = 1
 
-        # Amplifier 2: flipped about the spatial axis so that it abuts amplifier
-        # 1 at the physical centre of the CCD, then its overscan at the high edge
-        if namp > 1:
-            _, data2, overscan2, _, _, nxb2 = amps[1]
-            ndata2 = data2.shape[0]
-            start = nxb1 + ndata1
-            array[start:start+ndata2, :] = np.flipud(data2)
-            rawdatasec_img[start:start+ndata2, :] = 2
-            array[start+ndata2:start+ndata2+nxb2, :] = np.flipud(overscan2)
-            oscansec_img[start+ndata2:start+ndata2+nxb2, :] = 2
+        if 2 in amps:
+            # If only amplifier 2 is present, set the amplifier id to 1 in the data-section and overscan-section images.
+            # This is needed because PypeIt expects the amplifier id to be 1-indexed.
+            # Cannot set amp_id=2 if amp_id=1 does not exist.
+            amp2_id = 2 if 1 in amps else 1
 
-        exptime = self.get_meta_value([amps[0][3]], 'exptime')
+            start = nx_oscan + ndata
+            array[start:start+ndata, :] = np.flipud(amps[2]['data'])
+            rawdatasec_img[start:start+ndata, :] = amp2_id
+            array[start+ndata:start+ndata+nx_oscan, :] = np.flipud(amps[2]['overscan'])
+            oscansec_img[start+ndata:start+ndata+nx_oscan, :] = amp2_id
+
+        detector_par = self.get_detector_par(det,
+                                             amp_headers=[amps[i]['header'] for i in amps])
+
+        exptime = self.get_meta_value([amps[opamp]['header']], 'exptime')
+        hdu = amps[opamp]['hdu']  # return the first amplifier's HDU for the header
+
+        # Close the other amplifier HDUs to avoid leaving open file handles.
+        for i in amps:
+            if i != opamp:
+                amps[i]['hdu'].close()
 
         return detector_par, array.T, hdu, exptime, rawdatasec_img.T, oscansec_img.T
 
@@ -757,72 +836,93 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         """
         Generate a default bad-pixel mask.
 
+        NOTE: Defined for the two-amplifier joined image. When only
+        one amplifier file is present, the bad-pixel mask is trimmed to the
+        data section of that amplifier.
+
         Args:
             filename (:obj:`str` or None):
-                An example file to use to get the image shape.
+                Either amplifier file, used to get the spatial binning and, for a
+                single-amplifier image, identify the amplifier number.
             det (:obj:`int`):
                 1-indexed detector number to use when getting the image
-                shape from the example file.
-            shape (tuple, optional):
-                Processed image shape.  Required if filename is None.
-                Ignored if filename is not None.
+                shape from the input file.
+            shape (:obj:`tuple`, optional):
+                Processed image shape, (nspec, nspat).  Required if filename is
+                None.
             msbias (`numpy.ndarray`_, optional):
-                Processed bias frame used to identify bad pixels.
+                Processed bias frame used to identify bad pixels. Not used.
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
             to 1 and an unmasked value set to 0.
         """
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
+        log.info("Using hard-coded BPM")
 
-        binspat = parse.parse_binning(self.get_meta_value(filename, 'binning'))[1] \
-                if filename is not None else 1
+        if filename:
+            # Get the binning from the header of the example file
+            binning = parse.parse_binning(self.get_meta_value(filename, 'binning'))
+            _, binspat = binning
+        else:
+            # Guess the binning from the shape of bpm_img
+            bpm_shape = bpm_img.shape
+            if self.n_spat_unbinned % bpm_shape[1] != 0:
+                raise PypeItError(f'Cannot determine the spatial binning: bpm shape {bpm_shape} '
+                                  'does not divide the unbinned width '
+                                  f'{self.n_spat_unbinned}.')
+            binspat = self.n_spat_unbinned // bpm_shape[1]
 
-        # Bad columns, as (first, last) inclusive spatial pixel ranges of the
-        # assembled and trimmed unbinned frame.  Measured from the column
-        # median of combined bias frames, and confirmed on two epochs four years
-        # apart (2018 and 2022).  The first and last entries are the outer edges
+        # Bad columns, measured from the column
+        # median of combined bias frames.
+        # The first and last entries are the outer edges
         # of amplifiers 1 and 2.
+        nspat_unbinned = bpm_img.shape[1] * binspat
+        offset = 0
+
+        if nspat_unbinned < self.n_spat_unbinned:
+            # This means that only one amplifier is present, so we need to determine which one it is.
+            parsed = None if filename is None else self.parse_amp_file(filename)
+            if parsed is None:
+                raise PypeItError('Cannot identify the amplifier of a single-amplifier LDSS3 '
+                                  'image without an LDSS3 amplifier file.')
+            amp = parsed[1]
+            # If only amplifier 2 is present, the bad columns are offset by the width of amplifier 1.
+            offset = (amp - 1) * nspat_unbinned
+
+        # These coordinates are defined in the unbinned, two-amplifier frame,
+        # so we need to adjust for the offset of the single amplifier if only one is present
+        # because Pypeit trims the bpm to the data section of the amplifier.
+        # The offset is 0 for amplifier 1 and nspat_unbinned for amplifier 2.
         for c1, c2 in [(0, 11), (443, 443), (608, 608), (1413, 1413), (1492, 1494),
                        (1549, 1551), (1602, 1606), (1635, 1640), (1688, 1690),
                        (1695, 1695), (1999, 2000), (2034, 2047)]:
-            bpm_img[:, c1 // binspat:c2 // binspat + 1] = 1
+            lo = max((c1 - offset) // binspat, 0)
+            hi = min((c2 - offset) // binspat + 1, bpm_img.shape[1])
+            if lo < hi:
+                bpm_img[:, lo:hi] = 1
 
         return bpm_img
 
-
-def ldss3_read_amp(fil):
+def ldss3_read_amp(filename):
     """
     Read a single amplifier file of LDSS3 data.
 
     Args:
-        fil (:obj:`str`, `Path`_):
+        filename (:obj:`str`, `Path`_):
             Filename.
 
     Returns:
         :obj:`tuple`: The data section and overscan section of the amplifier,
-        each a `numpy.ndarray`_ ordered as (spatial,spectral); the primary
-        `astropy.io.fits.Header`_; and the total and overscan widths along the
-        spatial axis (:obj:`int`).
+        each a `numpy.ndarray`_ ordered as (spatial, spectral); the primary
+        `astropy.io.fits.Header`_; and the opened `astropy.io.fits.HDUList`_.
     """
-    log.info(f'Reading LDSS3 amplifier file: {fil}')
-    hdu = io.fits_open(fil)
-    head = hdu[0].header
+    log.debug(f'Reading LDSS3 amplifier file: {filename}')
+    hdu = io.fits_open(filename)
+    array, header = hdu[0].data, hdu[0].header
 
-    # NOTE: DATASEC and BIASSEC are written in binned pixels -- they sum to
-    # NAXIS1 -- so no binning correction is applied here.
-    x1, x2, _, _ = np.array(parse.load_sections(head['DATASEC'], fmt_iraf=False)).flatten()
-    b1, b2, _, _ = np.array(parse.load_sections(head['BIASSEC'], fmt_iraf=False)).flatten()
-    _, _, y1, y2 = np.array(parse.load_sections(head['DATASEC'], fmt_iraf=False)).flatten()
+    array = array.T * 1.0
+    data = array[parse.sec2slice(header['DATASEC'], one_indexed=True, include_end=True)]
+    overscan = array[parse.sec2slice(header['BIASSEC'], one_indexed=True, include_end=True)]
 
-    nxb = b2 - b1 + 1
-    nx = (x2 - x1 + 1) + nxb
-    ny = y2 - y1 + 1
-
-    # Transpose to (spatial,spectral) and drop the unused overscan rows
-    array = hdu[0].data.T[:, :ny] * 1.0
-    data = array[:nx-nxb, :]
-    overscan = array[nx-nxb:nx, :]
-
-    hdu.close()
-    return data, overscan, head, nx, nxb
+    return data, overscan, header, hdu
