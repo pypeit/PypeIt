@@ -42,7 +42,8 @@ HDR_2016_FULL = dict(HDR_2016_TRUNC, ISSKY=0, PA_SPEC=0, DTMP7=55.3,
 
 HDR_2024 = dict(COMMON, INSTRUME='OSIRIS', CURRINST='OSIRIS', OBSTYPE='a',
                 ISSKY=0, SFILTER='Kbb', SSCALE='0.050', ITIME=2000,
-                SAMPMODE=3, NUMREADS=1, MJD_OBS=60343.480002,
+                TRUITIME=1.475, SAMPMODE=3, NUMREADS=1,
+                MJD_OBS=60343.480002,
                 TARGNAME='HD89239(A0V)', ROTPOSN=487.0,
                 INSTANGL=311.99999999, PA_SPEC=175, DTMP7=54.19,
                 WXPRESS=617.57, WXOUTTMP=0.5, WXOUTHUM=30.0)
@@ -92,11 +93,16 @@ def test_exptime_units(spec):
     # 2016: ITIME in milliseconds
     for cards in [HDR_2016_TRUNC, HDR_2016_FULL]:
         assert spec.get_meta_value(make_header(cards), 'exptime') == 240.
-    # 2024: a 2 s exposure has ITIME = 2000 ms; the era decides the units
-    assert spec.get_meta_value(make_header(HDR_2024), 'exptime') == 2.
+    # 2024: TRUITIME (s per coadd) takes precedence over ITIME
+    assert spec.get_meta_value(make_header(HDR_2024), 'exptime') == 1.475
     # COADDS multiplies
-    assert spec.get_meta_value(make_header(dict(HDR_2024, COADDS=3)),
-                               'exptime') == 6.
+    assert np.isclose(spec.get_meta_value(make_header(dict(HDR_2024,
+                                                           COADDS=3)),
+                                          'exptime'), 3 * 1.475)
+    # Without TRUITIME, a 2 s exposure has ITIME = 2000 ms; the era
+    # decides the units
+    notru = {k: v for k, v in HDR_2024.items() if k != 'TRUITIME'}
+    assert spec.get_meta_value(make_header(notru), 'exptime') == 2.
     # Without MJD-OBS, ITIME > 2000 flags milliseconds
     nomjd = {k: v for k, v in HDR_2016_FULL.items() if k != 'MJD_OBS'}
     assert KeckOSIRISSpectrograph.exptime_from_header(nomjd) == 240.
@@ -138,7 +144,8 @@ def test_frame_typing(spec):
              SSCALE='0.020'),                                  # dark
         HDR_2024,                                              # standard
         dict(HDR_2024, ISSKY=1),                               # std sky
-        dict(HDR_2024, TARGNAME='NGC3245', ITIME=600000),      # science
+        dict(HDR_2024, TARGNAME='NGC3245', ITIME=600000,
+             TRUITIME=598.963),                                # science
         dict(HDR_2016_FULL, OBSTYPE='s', TARGNAME='star'),     # standard
         dict(HDR_2016_FULL, OBSTYPE='c'),                      # calib
     ]
