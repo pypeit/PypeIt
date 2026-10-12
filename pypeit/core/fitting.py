@@ -605,6 +605,14 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
         else:
             weights = np.ones(xarray.size, dtype=float)
 
+    # Convert the inputs to float once.  The PypeItFit objects below all share
+    # these copies (PypeItFit never modifies its inputs), rather than each
+    # making its own on every iteration.
+    _xarray = np.array(xarray, dtype=float)
+    _yarray = np.array(yarray, dtype=float)
+    _x2 = None if x2 is None else np.array(x2, dtype=float)
+    _weights = np.array(weights, dtype=float)
+
     # Iterate, and mask out new values on each iteration
     iIter = 0
     qdone = False
@@ -616,10 +624,10 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
             log.warning("More parameters than data points - fit might be undesirable")
         if not np.any(this_gpm):
             log.warning("All points were masked. Returning current fit and masking all points. Fit is likely undesirable")
-        pypeitFit = PypeItFit(xval=xarray.astype(float), yval=yarray.astype(float),
+        pypeitFit = PypeItFit(xval=_xarray, yval=_yarray,
                               func=function, order=np.atleast_1d(order),
-                              x2=x2.astype(float) if x2 is not None else x2,
-                              weights=weights.astype(float), gpm=this_gpm.astype(int),
+                              x2=_x2,
+                              weights=_weights, gpm=this_gpm.astype(int),
                               minx=float(minx) if minx is not None else minx,
                               maxx=float(maxx) if maxx is not None else maxx,
                               minx2=float(minx2) if minx2 is not None else minx2,
@@ -637,10 +645,10 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
         log.warning(f'Maximum number of iterations maxiter={maxiter} reached in robust_polyfit_djs')
 
     # Do the final fit
-    pypeitFit = PypeItFit(xval=xarray.astype(float), yval=yarray.astype(float),
+    pypeitFit = PypeItFit(xval=_xarray, yval=_yarray,
                           func=function, order=np.atleast_1d(order),
-                          x2=x2.astype(float) if x2 is not None else x2,
-                          weights=weights.astype(float), gpm=this_gpm.astype(int),
+                          x2=_x2,
+                          weights=_weights, gpm=this_gpm.astype(int),
                           minx=float(minx) if minx is not None else minx,
                           maxx=float(maxx) if maxx is not None else maxx,
                           minx2=float(minx2) if minx2 is not None else minx2,
