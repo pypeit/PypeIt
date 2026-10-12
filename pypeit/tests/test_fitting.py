@@ -124,3 +124,25 @@ def test_polyfit2d_chunked_rank_deficient():
     c_full, c_chunk = _polyfit2d_both_paths(x, y, z, (3, 2), function='legendre', miny=0., maxy=10.)
     assert np.allclose(c_chunk, c_full, rtol=0, atol=1e-10), \
         'Chunked fit differs from the full fit for a rank-deficient system'
+
+
+@pytest.mark.parametrize('function', ['legendre2d', 'chebyshev2d', 'polynomial2d'])
+def test_evaluate_fit_2d_chunked(function):
+    rng = np.random.default_rng(42)
+    c = rng.standard_normal((4, 5))
+    val2d = {'legendre2d': np.polynomial.legendre.legval2d,
+             'chebyshev2d': np.polynomial.chebyshev.chebval2d,
+             'polynomial2d': np.polynomial.polynomial.polyval2d}[function]
+    # 2D input, so the output shape must be preserved, and not a multiple of
+    # the chunk size
+    x, y = np.meshgrid(np.linspace(-1, 1, 101), np.linspace(-1, 1, 99))
+    full = val2d(x, y, c)
+    for chunk in (1000, 7, x.size, 10*x.size):
+        chunked = fitting._chunked_val2d(val2d, x, y, c, chunk=chunk)
+        assert chunked.shape == full.shape, 'Chunked evaluation changed the output shape'
+        assert np.array_equal(chunked, full), 'Chunked evaluation changed the result'
+    # And through evaluate_fit, with the [-1,1] scaling
+    assert np.array_equal(
+        fitting.evaluate_fit(c, function, x, x2=y, minx=-1., maxx=1., minx2=-1., maxx2=1.),
+        fitting.evaluate_fit(c, function, x.ravel(), x2=y.ravel(), minx=-1., maxx=1., minx2=-1.,
+                             maxx2=1.).reshape(x.shape))

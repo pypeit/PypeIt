@@ -423,6 +423,46 @@ class PypeItFit(DataContainer):
         return np.sqrt(np.sum(weights * (yval - values) ** 2))
 
 
+def _chunked_val2d(val2d, x, y, c, chunk=None):
+    """
+    Evaluate a 2D polynomial series in chunks of points.
+
+    numpy's 2D evaluation functions (e.g.,
+    :func:`numpy.polynomial.legendre.legval2d`) evaluate one dimension at a
+    time, holding several temporary arrays with one row per coefficient in
+    the second dimension and one column per point.  For millions of points
+    these are GBs.  Every point is evaluated independently, so evaluating
+    ``chunk`` points at a time gives identical results with temporaries that
+    are only ``chunk`` points long.
+
+    Args:
+        val2d (callable):
+            2D evaluation function, e.g.,
+            :func:`numpy.polynomial.legendre.legval2d`.
+        x, y (`numpy.ndarray`_):
+            Coordinates at which to evaluate the series; broadcast against
+            each other.
+        c (`numpy.ndarray`_):
+            2D array of series coefficients.
+        chunk (:obj:`int`, optional):
+            Number of points to evaluate at a time.  If None, use
+            :data:`POLYFIT2D_CHUNK`.
+
+    Returns:
+        `numpy.ndarray`_: The series evaluated at ``(x, y)``.
+    """
+    _chunk = POLYFIT2D_CHUNK if chunk is None else chunk
+    x, y = np.broadcast_arrays(np.asarray(x), np.asarray(y))
+    if x.size <= _chunk:
+        return val2d(x, y, c)
+    xr, yr = x.ravel(), y.ravel()
+    out = np.empty(xr.size, dtype=np.result_type(xr, yr, c, float))
+    for start in range(0, xr.size, _chunk):
+        sl = slice(start, start + _chunk)
+        out[sl] = val2d(xr[sl], yr[sl], c)
+    return out.reshape(x.shape)
+
+
 def evaluate_fit(fitc, func, x, x2=None, minx=None,
                  maxx=None, minx2=None, maxx2=None):
     """
@@ -456,14 +496,14 @@ def evaluate_fit(fitc, func, x, x2=None, minx=None,
     if ('2d' in func) and (x2 is not None):
         # Is this a 2d fit?
         if func[:-2] == "polynomial":
-            return np.polynomial.polynomial.polyval2d(x, x2, fitc)
+            return _chunked_val2d(np.polynomial.polynomial.polyval2d, x, x2, fitc)
         elif func[:-2] in ["legendre", "chebyshev"]:
             # Scale x-direction
             xv, _, _ = scale_minmax(x, minx=minx, maxx=maxx)
             # Scale x2-direction
             x2v, _, _ = scale_minmax(x2, minx=minx2, maxx=maxx2)
-            return (np.polynomial.legendre.legval2d(xv, x2v, fitc) if func[:-2] == "legendre"
-                    else np.polynomial.chebyshev.chebval2d(xv, x2v, fitc))
+            return _chunked_val2d(np.polynomial.legendre.legval2d if func[:-2] == "legendre"
+                                  else np.polynomial.chebyshev.chebval2d, xv, x2v, fitc)
         else:
             raise PypeItError("Function {0:s} has not yet been implemented for 2d fits".format(func))
         # TODO: Why is this return here?  The code will never reach this point
