@@ -233,6 +233,14 @@ class PypeIt:
             log.info(f'Detectors to work on: {detectors}')
 
             # Loop on Detectors
+            # TODO: This is a second flat per-detector loop that could be run
+            # concurrently with parallel.map_over_detectors and
+            # pypeit_steps.calib_status_one, exactly as the calibration stage of
+            # exposure.reduce_exposure now is.  It was left serial in the first
+            # version of the detector parallelism because, unlike that stage,
+            # this loop keeps the returned Calibrations object and assigns
+            # self.det as a side effect, so converting it requires auditing what
+            # else reads those.
             for self.det in detectors:
                 log.info(f'Working on detector {self.det}')
 
