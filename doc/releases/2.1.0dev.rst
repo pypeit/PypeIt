@@ -108,6 +108,13 @@ Functionality/Performance Improvements and Additions
   a Binospec long-slit reduction drops from a 16.1 to a 6.9 GiB peak and runs
   faster.  The coefficients agree with the previous solution to round-off;
   smaller fits are computed exactly as before.
+- Reduced the memory used by B-spline fits, with no change to the results:
+  the weighted design matrix is formed one B-spline span at a time; for 2D
+  fits (``BSpline2D``), the polynomial basis is only recomputed when the
+  design matrix must be rebuilt, and the cached design matrix stores its
+  B-spline and polynomial factors instead of their product.  For the 2D
+  flat-field fit of a Binospec long-slit detector, this removes ~5 GiB of
+  temporary arrays.
 
 Instrument-specific Updates
 ---------------------------

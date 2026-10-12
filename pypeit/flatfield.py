@@ -1442,7 +1442,7 @@ class FlatField:
                 continue
 
             # Perform the full 2d fit
-            twod_bspl, twod_gpm_fit, twod_flat_fit, _, exit_status = iterative_bspline_fit(
+            _, twod_gpm_fit, twod_flat_fit, _, exit_status = iterative_bspline_fit(
                 twod_spec_coo_data, twod_flat_data, ivar=twod_ivar_data, basis='poly',
                 basis_x=twod_spat_coo_data, npoly=npoly, xmin=0.0, xmax=1.0, gpm=twod_gpm_data,
                 nord=4, upper=twod_sigrej, lower=twod_sigrej,

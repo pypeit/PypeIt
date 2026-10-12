@@ -1147,6 +1147,51 @@ def test_bspline2d_build_design_matrix_P_kwarg_used():
     assert not np.allclose(A_stored, A_alt), 'different P kwarg must change the design matrix'
 
 
+def test_bspline2d_lazy_design_matches_dense():
+    """The lazy design matrix returns exactly the rows of the dense one."""
+    rng = np.random.default_rng(122)
+    N = 500
+    x = np.sort(rng.uniform(0, 5, N))
+    basis_x = rng.uniform(0, 1, N)
+    spl = _setup_bspline2d(x, basis_x, npoly=3, xmin=0.0, xmax=1.0,
+                           funcname='legendre', knots=Knots(count=8), nord=4)
+    A, lower, upper = spl._build_design_matrix(x)
+    A_lazy, lower_lazy, upper_lazy = spl._build_design_matrix(x, lazy=True)
+    assert A_lazy.shape == A.shape, 'lazy design matrix has the wrong shape'
+    np.testing.assert_array_equal(lower_lazy, lower)
+    np.testing.assert_array_equal(upper_lazy, upper)
+    for sl in (slice(0, N), slice(17, 140), slice(N-1, N)):
+        np.testing.assert_array_equal(A_lazy[sl, :], A[sl, :])
+        np.testing.assert_array_equal(A_lazy[sl], A[sl])
+    with pytest.raises(IndexError):
+        A_lazy[:, 0]
+
+
+def test_bspline2d_fit_lazy_design_bit_identical():
+    """Fitting with the lazy (cached) design matrix matches the dense matrix exactly."""
+    rng = np.random.default_rng(123)
+    N = 5000
+    x = np.sort(rng.uniform(0, 100, N))
+    basis_x = rng.uniform(0, 1, N)
+    y = 1 + 0.02*np.sin(x/10) + 0.05*np.sin(6*basis_x) + 0.003*rng.standard_normal(N)
+    y[rng.choice(N, 50, replace=False)] += 0.05
+    gpm = rng.uniform(size=N) > 0.02
+    kw = dict(ivar=gpm/0.003**2, basis='poly', basis_x=basis_x, npoly=4, xmin=0.0, xmax=1.0,
+              gpm=gpm, nord=4, upper=3, lower=3, kwargs_knots={'spacing': 2.0}, maxiter=10)
+    _, gpm_lazy, yfit_lazy, _, _ = iterative_bspline_fit(x, y, **kw)
+
+    # Force the dense design matrix and refit
+    build = BSpline2D._build_design_matrix
+    try:
+        BSpline2D._build_design_matrix = \
+            lambda self, x, P=None, npoly=None, lazy=False: build(self, x, P=P, npoly=npoly)
+        _, gpm_dense, yfit_dense, _, _ = iterative_bspline_fit(x, y, **kw)
+    finally:
+        BSpline2D._build_design_matrix = build
+    np.testing.assert_array_equal(gpm_lazy, gpm_dense)
+    np.testing.assert_array_equal(yfit_lazy, yfit_dense)
+
+
 def test_bspline2d_build_design_matrix_P_kwarg_no_mutation():
     """Passing P kwarg must not change self.P."""
     rng = np.random.default_rng(121)

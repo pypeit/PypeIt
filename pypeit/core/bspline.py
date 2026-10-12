@@ -656,12 +656,8 @@ class BSpline:
         bw = A.shape[1]
         nfull = self._poly_scale(nn)
 
-        a2 = A
-        yw = y
-        if w is not None:
-            sqrt_w = np.sqrt(w)
-            a2 = A * sqrt_w[:, np.newaxis]  # whitened design matrix
-            yw = y * sqrt_w
+        sqrt_w = None if w is None else np.sqrt(w)
+        yw = y if w is None else y * sqrt_w
 
         alpha = np.zeros((bw, nfull + bw), dtype=float)
         beta = np.zeros(nfull + bw, dtype=float)
@@ -675,9 +671,12 @@ class BSpline:
                 continue
             sl = slice(lower[k], upper[k] + 1)
             itop = self._poly_scale(k)
-            work = a2[sl, :].T @ a2[sl, :]          # (bw, bw) Gram block
+            # Whiten the design matrix one span at a time, rather than making
+            # a whitened copy of the whole (N, bw) matrix up front.
+            a2 = A[sl, :] if sqrt_w is None else A[sl, :] * sqrt_w[sl, np.newaxis]
+            work = a2.T @ a2                        # (bw, bw) Gram block
             alpha[bi_col - bi_row, bi_row + itop] += work[bi_row, bi_col]
-            beta[itop:min(itop, nfull) + bw] += yw[sl] @ a2[sl, :]
+            beta[itop:min(itop, nfull) + bw] += yw[sl] @ a2
 
         return alpha, beta
 
@@ -1095,6 +1094,46 @@ class BSpline:
 # BSpline2D — B-spline with polynomial second-variable dependence
 # ---------------------------------------------------------------------------
 
+class _OuterProductDesign:
+    r"""
+    The 2D B-spline design matrix, with rows computed on demand.
+
+    Row :math:`i` of the 2D design matrix is the outer product of the
+    B-spline basis :math:`B_i` (length ``nord``) and the polynomial basis
+    :math:`P_i` (length ``npoly``).  Storing ``B`` and ``P`` instead of their
+    ``(N, nord * npoly)`` product reduces the memory held by the
+    :class:`BSpline2D` design-matrix cache (``P`` is already held as
+    :attr:`BSpline2D.P`).  Indexing returns exactly the same values as
+    slicing the dense matrix built by :meth:`BSpline2D._build_design_matrix`,
+    so the fit is unchanged.
+
+    Only the access patterns used by :meth:`BSpline._assemble_normal_equations`
+    and :meth:`BSpline2D._evaluate_model` are supported: ``A.shape`` and
+    ``A[rows, :]`` (or ``A[rows]``) for a row slice ``rows``.
+
+    Parameters
+    ----------
+    B : :class:`numpy.ndarray`, shape (N, nord)
+        B-spline basis values.
+    P : :class:`numpy.ndarray`, shape (N, npoly)
+        Polynomial basis values.
+    """
+    def __init__(self, B, P):
+        self.B = B
+        self.P = P
+        self.shape = (B.shape[0], B.shape[1] * P.shape[1])
+
+    def __getitem__(self, key):
+        rows, cols = key if isinstance(key, tuple) else (key, slice(None))
+        if cols != slice(None):
+            raise IndexError('_OuterProductDesign only supports selecting rows.')
+        # Same element-wise products as the broadcast in
+        # BSpline2D._build_design_matrix, but einsum is ~2x faster for the
+        # short (npoly) inner dimension.
+        A_3d = np.einsum('ni,nj->nij', self.B[rows], self.P[rows])
+        return A_3d.reshape(A_3d.shape[0], self.shape[1])
+
+
 class BSpline2D(BSpline):
     r"""
     B-spline with polynomial dependence on a second variable.
@@ -1312,7 +1351,7 @@ class BSpline2D(BSpline):
                 )
         return P
 
-    def _build_design_matrix(self, x, P=None, npoly=None):
+    def _build_design_matrix(self, x, P=None, npoly=None, lazy=False):
         r"""
         Construct the 2D B-spline design matrix via a vectorised outer product.
 
@@ -1340,10 +1379,15 @@ class BSpline2D(BSpline):
         npoly : int or None, optional
             Number of polynomial terms, used for the final reshape.  Falls
             back to :attr:`npoly` when ``None``.
+        lazy : bool, optional
+            Instead of the dense matrix, return an
+            :class:`_OuterProductDesign`, which holds only ``B`` and ``P`` and
+            computes rows of ``A`` when they are indexed.  Used by
+            :meth:`fit` to keep the cached design matrix small.
 
         Returns
         -------
-        A : :class:`numpy.ndarray`, shape (N, bw)
+        A : :class:`numpy.ndarray` or :class:`_OuterProductDesign`, shape (N, bw)
             Design matrix.
         lower : :class:`numpy.ndarray` of int
             First data index (inclusive) in each B-spline span.
@@ -1371,6 +1415,9 @@ class BSpline2D(BSpline):
         rindx = indx[::-1]
         bb = self._uniq(rindx)
         lower[rindx[bb] - self.nord + 1] = nx - bb - 1
+
+        if lazy:
+            return _OuterProductDesign(B, _P), lower, upper
 
         # Vectorised outer product; reshape returns a view (no copy)
         A_3d = B[:, :, np.newaxis] * _P[:, np.newaxis, :]   # (N, nord, npoly)
@@ -1403,7 +1450,7 @@ class BSpline2D(BSpline):
 
         Parameters
         ----------
-        A : :class:`numpy.ndarray`, shape (N, bw)
+        A : :class:`numpy.ndarray` or :class:`_OuterProductDesign`, shape (N, bw)
             Design matrix with ``bw = nord * npoly``.
         lower : :class:`numpy.ndarray` of int
             First data index (inclusive) in each span.
@@ -1501,8 +1548,11 @@ class BSpline2D(BSpline):
 
         Returns
         -------
-        P : :class:`numpy.ndarray`, shape (N, npoly)
-            Polynomial basis matrix.  Always a concrete array; never ``None``.
+        P : :class:`numpy.ndarray`, shape (N, npoly), or None
+            Polynomial basis matrix.  For a string ``basis``, ``None`` when
+            ``recalculate`` is ``False``: the basis is only needed to rebuild
+            the design matrix, so it is not computed when the cache is valid.
+            Always a concrete array for an array-valued ``basis``.
         recalculate : bool
             ``True`` when the design matrix must be rebuilt.  For an
             array-valued ``basis``, ``False`` when the caller passes the same
@@ -1564,7 +1614,12 @@ class BSpline2D(BSpline):
         # xmin/xmax are available for later value() calls.
         self.xmin     = basis_x.min() if xmin is None else xmin
         self.xmax     = basis_x.max() if xmax is None else xmax
-        return self._poly_basis(self._normalize_basis_x(basis_x)), recalculate
+        # The basis is only needed to rebuild the design matrix.  When the
+        # cached design matrix is still valid (e.g., on every rejection
+        # iteration of an iterative fit), skip building a new (N, npoly) basis.
+        if not recalculate:
+            return None, False
+        return self._poly_basis(self._normalize_basis_x(basis_x)), True
 
     # ------------------------------------------------------------------
     # Public API — overrides with optional basis_x
@@ -1640,7 +1695,7 @@ class BSpline2D(BSpline):
         # _resolve_basis, which set self.P and the recalculate flag.
         if recalculate:
             self.P = P
-            self._cached_design = self._build_design_matrix(x)
+            self._cached_design = self._build_design_matrix(x, lazy=True)
             self.x  = x
             self.basis_x = basis_x
         A, lower, upper = self._cached_design
