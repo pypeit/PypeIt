@@ -7,13 +7,13 @@
 # TODO -- Consider moving the Object out of core
 
 import numpy as np
-import inspect
 from matplotlib import pyplot as plt
 
 
 from scipy.optimize import curve_fit
 
 from pypeit import log
+from pypeit import utils
 from pypeit import PypeItError
 from pypeit.core import bspline
 from pypeit.core import pydl
@@ -253,7 +253,7 @@ class PypeItFit(DataContainer):
                  fitcov=None, func=None, minx=None, maxx=None, minx2=None,
                  maxx2=None, gpm=None, success=None):
         # Setup the DataContainer
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         _d = {k: values[k] for k in args[1:]}
         # Init
         super(PypeItFit, self).__init__(d=_d)

@@ -396,3 +396,10 @@ Bug Fixes
   reference point (``CRVAL``) rather than the sky position of the source
   actually used for the extraction (the fitted or manually-specified
   position). Affects any SlicerIFU-pypeline point-source extraction.
+- Fix a memory leak on Python 3.13 and later: the
+  ``inspect.getargvalues(inspect.currentframe())`` idiom used by many
+  ``__init__`` methods to collect their arguments created a reference cycle
+  (PEP 667 made ``frame.f_locals`` a proxy that refers back to the frame), so
+  every ``DataContainer`` (e.g., ``PypeItImage``, ``PypeItFit``) and ``ParSet``
+  was kept alive, along with its arrays, until the cyclic garbage collector
+  ran.  The idiom is replaced by the new :func:`~pypeit.utils.init_arg_values`.

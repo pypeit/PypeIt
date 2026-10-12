@@ -5,7 +5,6 @@ Module containing routines used by 3D datacubes.
 """
 
 from pathlib import Path
-import inspect
 
 from astropy import wcs, units
 from astropy.io import fits
@@ -104,7 +103,7 @@ class DataCube(datamodel.DataContainer):
     def __init__(self, flux, sig, bpm, wave, PYP_SPEC, blaze_wave, blaze_spec,
                  whitelight_range=None, sensfunc=None, fluxed=None):
 
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         if whitelight_range is not None:
             values['whitelight_range'] = np.asarray(whitelight_range, dtype=float)
         _d = dict([(k, values[k]) for k in args[1:]])

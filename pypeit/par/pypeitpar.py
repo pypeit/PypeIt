@@ -61,7 +61,6 @@ assuming you want it to be accessed throughout the code.
 from pathlib import Path
 import os
 import warnings
-import inspect
 from IPython import embed
 from collections import OrderedDict
 
@@ -74,6 +73,7 @@ from pypeit.par import util
 from pypeit.core.framematch import FrameTypeBitMask
 from pypeit.core import parse
 from pypeit import log
+from pypeit import utils
 from pypeit import PypeItError
 from pypeit import dataPaths
 
@@ -123,7 +123,7 @@ class FrameGroupPar(ParSet):
     def __init__(self, frametype=None, useframe=None, exprng=None, process=None):
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
@@ -231,7 +231,7 @@ class ProcessImagesPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
@@ -594,7 +594,7 @@ class FlatFieldPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
@@ -871,7 +871,7 @@ class FlexurePar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
@@ -997,7 +997,7 @@ class AlignPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
@@ -1080,7 +1080,7 @@ class ScatteredLightPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
@@ -1201,7 +1201,7 @@ class Coadd1DPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
@@ -1483,7 +1483,7 @@ class Coadd2DPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
@@ -1660,7 +1660,7 @@ class CubePar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
@@ -1997,7 +1997,7 @@ class CubeExtractionPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
@@ -2161,7 +2161,7 @@ class FluxCalibratePar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
@@ -2245,7 +2245,7 @@ class SensFuncPar(ParSet):
                  IR=None, polyorder=None, star_type=None, star_mag=None, star_ra=None, extr=None,
                  star_dec=None, star_arxiv=None, mask_hydrogen_lines=None, mask_helium_lines=None, hydrogen_mask_wid=None):
         # Grab the parameter names and values from the function arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k, values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter set
@@ -2434,7 +2434,7 @@ class SensfuncUVISPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
@@ -2558,7 +2558,7 @@ class SlitMaskPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
@@ -2684,7 +2684,7 @@ class TelluricPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k, values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
@@ -3039,7 +3039,7 @@ class ReduxPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])      # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
@@ -3224,7 +3224,7 @@ class WavelengthSolutionPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
@@ -3702,7 +3702,7 @@ class EdgeTracePar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])      # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
@@ -4423,7 +4423,7 @@ class WaveTiltsPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])      # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
@@ -4595,7 +4595,7 @@ class ReducePar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
@@ -4687,7 +4687,7 @@ class FindObjPar(ParSet):
                  force_center_obj=None):
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
@@ -4905,7 +4905,7 @@ class SkySubPar(ParSet):
                  joint_fit_use_sci=None, sci_exclude_radius=None):
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
@@ -5039,7 +5039,7 @@ class ExtractionPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
@@ -5155,7 +5155,7 @@ class CalibrationsPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])      # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
@@ -5437,7 +5437,7 @@ class PypeItPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])      # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
@@ -5873,7 +5873,7 @@ class TelescopePar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
@@ -5985,7 +5985,7 @@ class Collate1DPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter

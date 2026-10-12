@@ -98,7 +98,7 @@ holds two arrays and a metadata parameter::
         def __init__(self, vec1, meta1, arr1):
             # All arguments are passed directly to the container
             # instantiation
-            args, _, _, values = inspect.getargvalues(inspect.currentframe())
+            args, values = utils.init_arg_values()
             super(BasicContainer, self).__init__({k: values[k] for k in args[1:]}) 
 
         def _bundle(self):
@@ -216,7 +216,7 @@ one and a bad one::
         def __init__(self, tab1, arr1):
             # All arguments are passed directly to the container
             # instantiation, but the list is incomplete
-            args, _, _, values = inspect.getargvalues(inspect.currentframe())
+            args, values = utils.init_arg_values()
             super(GoodMixedTypeContainer, self).__init__({k: values[k] for k in args[1:]}) 
 
         def _validate(self):
@@ -336,7 +336,7 @@ Consider::
                      'alt': dict(otype=np.ndarray, descr='test')}
 
         def __init__(self, inp1, inp2, func='add'):
-            args, _, _, values = inspect.getargvalues(inspect.currentframe())
+            args, values = utils.init_arg_values()
             super(BadInitContainer, self).__init__({k: values[k] for k in args[1:]}) 
 
 
@@ -394,7 +394,7 @@ Consider::
         def __init__(self, inp1, inp2, func='add'):
             # Since func is part of the datamodel now, we can use the normal
             # two intantiation lines.
-            args, _, _, values = inspect.getargvalues(inspect.currentframe())
+            args, values = utils.init_arg_values()
             super(ComplexInitContainer, self).__init__({k: values[k] for k in args[1:]}) 
 
         def _validate(self):
@@ -469,6 +469,7 @@ from astropy.table import Table
 
 from pypeit import io
 from pypeit import log
+from pypeit import utils
 from pypeit import PypeItDataModelError
 from pypeit.utils import eval_tuple
 

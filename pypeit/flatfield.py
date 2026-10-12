@@ -7,7 +7,6 @@ Implements the flat-field class.
 """
 from pathlib import Path
 import copy
-import inspect
 import gc
 import numpy as np
 
@@ -102,7 +101,7 @@ class FlatImages(calibframe.CalibFrame):
                  illumflat_spat_bsplines=None, illumflat_bpm=None, illumflat_finecorr=None,
                  PYP_SPEC=None, spat_id=None):
         # Parse
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
@@ -603,7 +602,7 @@ class FiberFlatImages(calibframe.CalibFrame):
                  fiber_ids=None, fiber_types=None, fiber_throughput=None,
                  PYP_SPEC=None):
         # Parse
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         d = dict([(k, values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
