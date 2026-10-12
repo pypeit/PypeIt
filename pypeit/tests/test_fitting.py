@@ -83,3 +83,44 @@ def test_pypeitfitcollection():
     # allclose, just to be on the safe side.
 #    assert np.array_equal(fit.yfit, trace_fit), 'Fit changed!'
     assert np.allclose(fit.yfit, trace_fit), 'Fit changed!'
+
+
+def _polyfit2d_both_paths(x, y, z, deg, **kwargs):
+    # Solve once with the full design matrix and once in chunks
+    full_chunk = fitting.POLYFIT2D_CHUNK
+    try:
+        fitting.POLYFIT2D_CHUNK = x.size
+        c_full = fitting.polyfit2d_general(x, y, z, deg, **kwargs)[0]
+        fitting.POLYFIT2D_CHUNK = 1000
+        c_chunk = fitting.polyfit2d_general(x, y, z, deg, **kwargs)[0]
+    finally:
+        fitting.POLYFIT2D_CHUNK = full_chunk
+    return c_full, c_chunk
+
+
+@pytest.mark.parametrize('function, deg', [('legendre', (5, 6)), ('chebyshev', (3, 4)),
+                                           ('polynomial', (3, 3))])
+def test_polyfit2d_chunked(function, deg):
+    rng = np.random.default_rng(42)
+    npts = 10500     # Deliberately not a multiple of the chunk size
+    x = rng.uniform(0, 4096, npts)
+    y = rng.uniform(0, 4112, npts)
+    z = np.sin(x/700) + 0.3*np.cos(y/900) + 0.01*rng.standard_normal(npts)
+    w = rng.uniform(0.5, 2.0, npts)
+    c_full, c_chunk = _polyfit2d_both_paths(x, y, z, deg, w=w, function=function)
+    assert c_chunk.shape == c_full.shape, 'Chunked fit has the wrong shape'
+    assert np.allclose(c_chunk, c_full, rtol=0, atol=1e-10*np.max(np.abs(c_full))), \
+        'Chunked fit differs from the full fit'
+
+
+def test_polyfit2d_chunked_rank_deficient():
+    # With y constant, only the x terms are constrained; both paths must return
+    # the same minimum-norm solution.
+    rng = np.random.default_rng(42)
+    npts = 10500
+    x = rng.uniform(0, 4096, npts)
+    y = np.full(npts, 7.0)
+    z = np.sin(x/700) + 0.01*rng.standard_normal(npts)
+    c_full, c_chunk = _polyfit2d_both_paths(x, y, z, (3, 2), function='legendre', miny=0., maxy=10.)
+    assert np.allclose(c_chunk, c_full, rtol=0, atol=1e-10), \
+        'Chunked fit differs from the full fit for a rank-deficient system'

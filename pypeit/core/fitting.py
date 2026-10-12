@@ -1019,12 +1019,13 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
     deg = np.asarray(deg)
     # Vander
     if function == 'polynomial':
-        vander = np.polynomial.polynomial.polyvander2d(x, y, deg)
+        xv, yv = x, y
+        vander2d = np.polynomial.polynomial.polyvander2d
     elif function == 'legendre' or function == 'chebyshev':
         xv, minx, maxx = scale_minmax(x, minx=minx, maxx=maxx)
         yv, miny, maxy = scale_minmax(y, minx=miny, maxx=maxy)
-        vander = np.polynomial.legendre.legvander2d(xv, yv, deg) if function == 'legendre' \
-            else np.polynomial.chebyshev.chebvander2d(xv, yv, deg)
+        vander2d = np.polynomial.legendre.legvander2d if function == 'legendre' \
+            else np.polynomial.chebyshev.chebvander2d
     else:
         raise PypeItError("Not ready for this type of {:s}".format(function))
     # Weights
@@ -1034,13 +1035,87 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
             log.debug("fitting.polyfit2d - Expected 1D vector for weights")
         if len(x) != len(w) or len(y) != len(w) or len(x) != len(y):
             log.debug("fitting.polyfit2d - Expected x, y and weights to have same length")
-        z = z * w
-        vander = vander * w[:,np.newaxis]
-    # Reshape
-    vander = vander.reshape((-1,vander.shape[-1]))
-    z = z.reshape((vander.shape[0],))
-    c = np.linalg.lstsq(vander, z, rcond=None)[0]
+
+    if xv.size <= POLYFIT2D_CHUNK:
+        # Small enough to build the full design matrix
+        vander = vander2d(xv, yv, deg)
+        if w is not None:
+            z = z * w
+            vander = vander * w[:,np.newaxis]
+        # Reshape
+        vander = vander.reshape((-1,vander.shape[-1]))
+        z = z.reshape((vander.shape[0],))
+        c = np.linalg.lstsq(vander, z, rcond=None)[0]
+    else:
+        c = _chunked_lstsq2d(vander2d, xv.ravel(), yv.ravel(), z.ravel(), deg,
+                             w=None if w is None else w.ravel())
     return c.reshape(deg+1), minx, maxx, miny, maxy
+
+
+POLYFIT2D_CHUNK = 2**15
+"""
+Maximum number of data points for which :func:`polyfit2d_general` builds the
+full design matrix; larger fits are solved in chunks of this many points by
+:func:`_chunked_lstsq2d`.
+"""
+
+
+def _chunked_lstsq2d(vander2d, x, y, z, deg, w=None, chunk=POLYFIT2D_CHUNK):
+    """
+    Solve a weighted 2D linear least-squares fit without forming the full
+    design matrix.
+
+    The full design matrix has one row per data point and one column per
+    coefficient, which for a fit over a whole detector (millions of points) is
+    several GB, and :func:`numpy.linalg.lstsq` makes another copy of it.  Here
+    the rows are processed in chunks with a sequential ("tall-skinny") QR
+    decomposition: each chunk is stacked under the triangular factor of the
+    previous ones and re-factored, so only an ``ncoeff x ncoeff`` triangular
+    matrix, its projected right-hand side, and one chunk are ever held in
+    memory.  Because the design matrix and its triangular factor have the same
+    null space, solving the final small system with
+    :func:`numpy.linalg.lstsq` gives the same (minimum-norm) least-squares
+    solution as solving the full system, to within round-off.
+
+    Args:
+        vander2d (callable):
+            2D pseudo-Vandermonde function, e.g.
+            :func:`numpy.polynomial.legendre.legvander2d`.
+        x, y (`numpy.ndarray`_):
+            1D arrays with the (already scaled) coordinates of the data.
+        z (`numpy.ndarray`_):
+            1D array with the data values.
+        deg (`numpy.ndarray`_):
+            Degree of the fit in each dimension, ``[nx, ny]``.
+        w (`numpy.ndarray`_, optional):
+            1D array of weights.  As in :func:`polyfit2d_general`, both the
+            design matrix and the data are multiplied by ``w`` (not its
+            square root).
+        chunk (:obj:`int`, optional):
+            Number of data points to process at a time.
+
+    Returns:
+        `numpy.ndarray`_: The flattened fit coefficients.
+    """
+    ncoeff = int(np.prod(np.asarray(deg) + 1))
+    # Factor the design matrix augmented by the data as its last column.  The
+    # first ncoeff rows of the last column of the triangular factor are then
+    # Q^T z, so the orthogonal factor Q itself never has to be formed.
+    r = np.zeros((0, ncoeff+1), dtype=float)
+    for start in range(0, x.size, chunk):
+        sl = slice(start, start + chunk)
+        aug = np.empty((min(chunk, x.size - start), ncoeff+1), dtype=float)
+        aug[:,:-1] = vander2d(x[sl], y[sl], deg)
+        aug[:,-1] = z[sl]
+        if w is not None:
+            aug *= w[sl,np.newaxis]
+        r = np.linalg.qr(np.concatenate((r, aug)), mode='r')
+    # The triangular factor has the same singular values as the full design
+    # matrix, so use the singular-value cutoff that numpy.linalg.lstsq would
+    # have applied to the full matrix (rcond=None means eps*max(M,N)).  This
+    # matters for poorly conditioned fits, e.g. unscaled 'polynomial' bases.
+    rcond = np.finfo(float).eps * max(x.size, ncoeff)
+    return np.linalg.lstsq(r[:ncoeff,:ncoeff], r[:ncoeff,-1], rcond=rcond)[0]
 
 
 def twoD_Gaussian(tup, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):

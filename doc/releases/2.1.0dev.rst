@@ -100,6 +100,14 @@ Functionality/Performance Improvements and Additions
 - ``fitting.robust_fit`` now converts its inputs to float once per call
   rather than copying them on every rejection iteration, reducing memory use
   for large fits (e.g., the flat-field fine spatial-illumination correction).
+- ``fitting.polyfit2d_general`` now solves fits with more than
+  ``POLYFIT2D_CHUNK`` (32768) points in chunks, using a sequential QR
+  decomposition, instead of building the full design matrix.  For fits over a
+  whole detector (e.g., the wavelength tilts and the flat-field fine
+  correction), this removes several GB of temporary arrays: the tilts stage of
+  a Binospec long-slit reduction drops from a 16.1 to a 6.9 GiB peak and runs
+  faster.  The coefficients agree with the previous solution to round-off;
+  smaller fits are computed exactly as before.
 
 Instrument-specific Updates
 ---------------------------
