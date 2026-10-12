@@ -50,11 +50,19 @@ DETS = [1, 2, 3, 4]
 
 
 def test_nworkers():
+    # NOTE: the expectations are derived from os.cpu_count() rather than
+    # hard-coded.  A CI runner can have as few as 3 cores, so e.g.
+    # nworkers(8, 3) is 3 on a workstation but 2 there, and asserting the
+    # literal 3 fails on the small machine for the wrong reason.
+    ncores = max(1, (os.cpu_count() or 1) - 1)
     assert parallel.nworkers(1, 4) == 1, 'ncpu=1 must collapse to a single worker'
     assert parallel.nworkers(None, 4) == 1, 'ncpu=None must collapse to a single worker'
-    assert parallel.nworkers(8, 3) == 3, 'number of workers must be capped by the item count'
-    assert parallel.nworkers(1000, 100) == max(1, (os.cpu_count() or 1) - 1), \
+    assert parallel.nworkers(8, 3) == min(3, ncores), \
+            'number of workers must be capped by the item count'
+    assert parallel.nworkers(1000, 1) == 1, 'a single item needs a single worker'
+    assert parallel.nworkers(1000, 100) == ncores, \
             'number of workers must be capped by the available CPUs'
+    assert parallel.nworkers(4, 0) == 1, 'the worker count must never drop below 1'
 
 
 def test_serial_and_parallel_are_bit_identical():

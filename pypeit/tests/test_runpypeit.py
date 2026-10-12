@@ -17,6 +17,8 @@ from pypeit.scripts.run_pypeit import RunPypeIt
 from pypeit.scripts.sensfunc import SensFunc
 from pypeit.scripts.flux_calib import FluxCalib
 from pypeit import specobjs, sensfunc
+from pypeit import log
+from pypeit import parallel
 from pypeit.par import pypeitpar 
 from pypeit.tests import tstutils
 
@@ -122,6 +124,10 @@ def test_run_pypeit():
 
 
 @pytest.mark.remote_data
+@pytest.mark.skipif(not parallel.can_fork(),
+                    reason='detector parallelism is fork-based and therefore Linux-only; '
+                           'elsewhere --ncpu 2 falls back to the serial loop, so this would '
+                           'compare a serial reduction against itself')
 def test_run_pypeit_ncpu():
     """
     Reduce shane_kast_blue twice, serially and with --ncpu 2, into separate
@@ -182,5 +188,7 @@ def test_run_pypeit_ncpu():
     assert s[0].WAVE_RMS == p[0].WAVE_RMS, \
             'wavelength solution RMS differs between the serial and the --ncpu 2 reduction'
 
-    # Clean-up
+    # Clean-up.  The reduction leaves its log file open, and Windows refuses to
+    # remove a file that is still held, so release it before deleting the tree.
+    log.close_file()
     shutil.rmtree(outdir)
