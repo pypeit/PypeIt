@@ -26,25 +26,28 @@ model, so pinning only the workers would make the products depend on ``ncpu``.
 
 .. note::
 
-    This is version 1 of the detector parallelism and it requires the ``fork``
-    start method, i.e., Linux.  On platforms where ``fork`` is unavailable
-    (Windows) or unsafe (macOS), :func:`map_over_detectors` warns and falls back
-    to the serial loop.  Supporting ``spawn`` is a future goal, which is why
-    ``func`` must be a module-level function: under ``fork`` a closure happens to
-    work, but it must not be relied on.
+    This is version 1 of the detector parallelism and it is ``fork``-based,
+    i.e., **Linux-only**; see :func:`can_fork`.  On Windows, where ``fork`` does
+    not exist, and on macOS, where it exists but is unsafe in a process that
+    already has threads, :func:`map_over_detectors` warns and falls back to the
+    serial loop -- the reduction still completes and its products are unchanged.
+    Supporting ``spawn`` is a future goal, which is why ``func`` must be a
+    module-level function: under ``fork`` a closure happens to work, but it must
+    not be relied on.
 
 .. include:: ../include/links.rst
 """
 import logging
 import multiprocessing as mp
 import os
+import sys
 import traceback
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from pypeit import log
 from pypeit import PypeItError
 
-__all__ = ['nworkers', 'map_over_detectors', 'surviving_detectors']
+__all__ = ['nworkers', 'can_fork', 'map_over_detectors', 'surviving_detectors']
 
 
 THREAD_ENV_VARS = ('OMP_NUM_THREADS', 'OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS',
@@ -84,6 +87,26 @@ def nworkers(ncpu, nitem):
     if ncpu is None or ncpu <= 1:
         return 1
     return max(1, min(int(ncpu), int(nitem), max(1, (os.cpu_count() or 1) - 1)))
+
+
+def can_fork():
+    """
+    Whether this platform can be used to reduce detectors concurrently.
+
+    Version 1 of the detector parallelism is ``fork``-based, which restricts it
+    to **Linux**.  Windows has no ``fork`` at all.  macOS does expose one, so
+    testing :func:`multiprocessing.get_all_start_methods` alone is not enough:
+    forking a process that already has threads running is unsafe there (it is
+    why CPython stopped defaulting to it), and the parent of a reduction has
+    both the QA encoder pool and whatever threads the BLAS runtime started.
+    Rather than fork unsafely, both platforms fall back to the serial loop.
+
+    Returns
+    -------
+    :obj:`bool`
+        True if the ``fork`` start method may be used.
+    """
+    return sys.platform.startswith('linux') and 'fork' in mp.get_all_start_methods()
 
 
 class _RecordBuffer(logging.Handler):
@@ -264,12 +287,12 @@ def map_over_detectors(func, detectors, ncpu=1, args=(), kwargs=None, payload=No
     if ncpu is None or ncpu <= 1:
         return _serial()
 
-    if 'fork' not in mp.get_all_start_methods():
-        # Version 1 of the detector parallelism is fork-only; see the module
-        # docstring.
-        log.warning(f'The "fork" start method is not available on this platform, so ncpu={ncpu} '
-                    f'cannot be used to process {label}s concurrently.  Falling back to '
-                    f'processing the {label}s serially.')
+    if not can_fork():
+        # Version 1 of the detector parallelism is fork-based, and therefore
+        # Linux-only; see can_fork and the module docstring.
+        log.warning(f'Concurrent {label} processing requires the "fork" start method, which is '
+                    f'only used on Linux, so ncpu={ncpu} cannot be honoured on this platform '
+                    f'({sys.platform}).  Falling back to processing the {label}s serially.')
         return _serial()
 
     # ---------------------------- parallel ---------------------------------

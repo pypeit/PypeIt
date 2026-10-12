@@ -86,6 +86,8 @@ def test_payload_is_per_detector():
             'each worker must receive only its own payload entry'
 
 
+@pytest.mark.skipif(not parallel.can_fork(),
+                    reason='no fork: map_over_detectors runs serially, with no worker to pin')
 def test_worker_threads_are_pinned():
     from threadpoolctl import threadpool_info
     if len(threadpool_info()) == 0:
@@ -105,18 +107,27 @@ def test_worker_logs_replayed_in_detector_order(caplog):
     assert order == DETS, 'worker log records must be replayed grouped in detector order'
 
 
+@pytest.mark.skipif(not parallel.can_fork(),
+                    reason='no fork: the serial path propagates the original exception, '
+                           'rather than wrapping it per detector')
 def test_worker_exception_names_the_detector():
     with pytest.raises(PypeItError, match='detector 2'):
         parallel.map_over_detectors(_fail, DETS, ncpu=3)
 
 
+def test_serial_exception_propagates():
+    """Without a worker to attribute it to, the original exception is raised."""
+    with pytest.raises(RuntimeError, match='boom'):
+        parallel.map_over_detectors(_fail, DETS, ncpu=1)
+
+
 def test_fork_unavailable_falls_back_to_serial(monkeypatch, caplog):
     """
-    On a platform without ``fork``, ``ncpu>1`` must warn and run serially.
+    On a platform without usable ``fork``, ``ncpu>1`` must warn and run serially.
 
-    Linux always has ``fork``, so the guard is otherwise dead code here.
+    On Linux the guard is otherwise dead code, so it is forced here.
     """
-    monkeypatch.setattr(parallel.mp, 'get_all_start_methods', lambda: ['spawn', 'forkserver'])
+    monkeypatch.setattr(parallel, 'can_fork', lambda: False)
     with caplog.at_level('WARNING', logger='pypeit'):
         out = parallel.map_over_detectors(_work, DETS, ncpu=3, kwargs=dict(scale=2.0))
     assert any('fork' in m for m in caplog.messages), 'the fallback must warn about "fork"'
