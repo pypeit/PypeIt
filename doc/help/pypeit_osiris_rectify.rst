@@ -37,7 +37,7 @@
                             from which the matrix is selected by filter, scale and
                             date
       --method {drp,lstsq}  Solver; default from the osiris_rect_method parameter
-                            (drp) (default: None)
+                            (lstsq) (default: None)
       --niter NITER         Iterations of the drp solver; default from
                             osiris_rect_niter (40) (default: None)
       --relax RELAX         Relaxation of the drp solver; default from

@@ -100,6 +100,9 @@ class PypeIt:
             self.par['rdx'].validate()
         # QA figures are encoded by a thread pool when ncpu > 1
         qaWriter.init(ncpu=self.par['rdx']['ncpu'])
+        # Give the spectrograph access to the run parameters (used by
+        # spectrograph-provided processing steps, e.g. rectification)
+        self.spectrograph.set_runtime_par(self.par)
 
         # Write the full parameter set here
         # --------------------------------------------------------------

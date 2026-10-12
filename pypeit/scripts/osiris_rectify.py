@@ -65,7 +65,7 @@ class OsirisRectify(scriptbase.ScriptBase):
         parser.add_argument('--method', type=str, default=None,
                             choices=['drp', 'lstsq'],
                             help='Solver; default from the '
-                                 'osiris_rect_method parameter (drp)')
+                                 'osiris_rect_method parameter (lstsq)')
         parser.add_argument('--niter', type=int, default=None,
                             help='Iterations of the drp solver; default '
                                  'from osiris_rect_niter (40)')
@@ -154,21 +154,32 @@ class OsirisRectify(scriptbase.ScriptBase):
             raise PypeItError(f'{outfile} exists; use --overwrite.')
 
         # Raw frame(s), in the raw orientation and ADU
-        img, var, bpm, exptime, hdr, _, var_ext = \
+        img, var, bpm, exptime, hdr, detpar, var_ext = \
             OsirisRectify.read_frame(spec, args.raw_file)
         if use_var:
             if var_ext is None:
                 raise PypeItError(f'{args.raw_file} has no VAR extension.')
             var = var_ext
+        # Flux-independent weighting variance (read noise + smooth
+        # background; M2 Q&A 1), in ADU^2
+        rn_var = (float(detpar['ronoise'][0]) / float(detpar['gain'][0]))**2
+        gain = float(detpar['gain'][0])
+        wvar = lenslet_rectify.background_variance(img * gain, rn_var * gain**2,
+                                                   bpm) / gain**2
         if args.bkg is not None:
             bimg, bvar, bbpm, bexp, _, _, bvar_ext = \
                 OsirisRectify.read_frame(spec, args.bkg)
             if not np.isclose(bexp, exptime):
                 log.warning(f'Exposure times differ ({exptime} vs {bexp} '
                             's); subtracting the frames in ADU anyway.')
+            wvar = wvar + lenslet_rectify.background_variance(
+                bimg * gain, rn_var * gain**2, bbpm) / gain**2
             img = img - bimg
             var = var + (bvar_ext if use_var else bvar)
             bpm |= bbpm
+        # Column offsets from the unilluminated reference rows; for an A-B
+        # pair this is applied to the difference, as in the DRP that made
+        # the reference cubes (the PypeIt flow applies it to each frame)
         if not args.no_refrows:
             img = lenslet_rectify.subtract_reference_rows(img)
         if not args.no_bpm:
@@ -187,15 +198,20 @@ class OsirisRectify(scriptbase.ScriptBase):
         # Solve
         log.info(f'Rectifying {args.raw_file} with method={method}')
         t0 = time.perf_counter()
+        weights = np.where(wvar > 0, 1. / np.where(wvar > 0, wvar, 1.), 0.)
         if method == 'drp':
-            rect, ivar, rbpm = lenslet_rectify.rectify_drp(
-                img, bpm, matrix, niter=niter, relax=relax,
-                noise=np.sqrt(var))
+            rect, _, rbpm = lenslet_rectify.rectify_drp(
+                img, bpm, matrix, niter=niter, relax=relax)
+            # Variance from the least-squares machinery (M2 Q&A 3)
+            (var_out,), vbpm = lenslet_rectify.lstsq_variance(
+                weights, bpm, matrix, [var])
+            ivar = np.where(var_out > 0, 1. / np.where(var_out > 0,
+                                                        var_out, 1.), 0.)
+            rbpm = rbpm | vbpm
         else:
-            ivar_pix = np.where(var > 0, 1. / np.where(var > 0, var, 1.),
-                                0.)
+            # Flux-independent weights and sandwich variance (M2 Q&A 1)
             rect, ivar, rbpm = lenslet_rectify.rectify_lstsq(
-                img, ivar_pix, bpm, matrix)
+                img, weights, bpm, matrix, var=var)
         dt = time.perf_counter() - t0
         log.info(f'Rectification took {dt:.1f} s')
 

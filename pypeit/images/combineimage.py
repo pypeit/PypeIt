@@ -275,11 +275,16 @@ class CombineImage:
             # should *never* make it here.
             raise PypeItError("Bad choice for combine.  Allowed options are 'median', 'mean'.")
 
-        # Recompute the inverse variance using the combined image
+        # Recompute the inverse variance using the combined image.  For
+        # rectified images (see RawImage.rectify) the shot noise of the raw
+        # counts is already in the base variance.
+        rectified = 'rectify' in rawImage.process_steps
+        shot_noise = self.par['shot_noise'] and not rectified
+        noise_floor = 0. if rectified else self.par['noise_floor']
         comb_var = procimg.variance_model(comb_basev,
-                                          counts=comb_img if self.par['shot_noise'] else None,
+                                          counts=comb_img if shot_noise else None,
                                           count_scale=comb_scl,
-                                          noise_floor=self.par['noise_floor'])
+                                          noise_floor=noise_floor)
 
         # Build the combined image
         comb = pypeitimage.PypeItImage(image=comb_img, ivar=utils.inverse(comb_var), nimg=nframes,
@@ -293,8 +298,8 @@ class CombineImage:
                                        spat_flexure=comb_spat_flex,
                                        PYP_SPEC=rawImage.PYP_SPEC,
                                        units='e-' if self.par['apply_gain'] else 'ADU',
-                                       exptime=comb_texp, noise_floor=self.par['noise_floor'],
-                                       shot_noise=self.par['shot_noise'])
+                                       exptime=comb_texp, noise_floor=noise_floor,
+                                       shot_noise=shot_noise)
 
         # Internals
         # TODO: Do we need these?
@@ -303,7 +308,9 @@ class CombineImage:
         comb.process_steps = rawImage.process_steps
 
         # Build the base level mask
-        comb.build_mask(saturation='default' if not ignore_saturation else None, mincounts='default')
+        # Rectified images have their saturation flagged on the raw frame
+        comb.build_mask(saturation=None if ignore_saturation or rectified
+                        else 'default', mincounts='default')
 
         # Flag all pixels with no contributions from any of the stacked images.
         comb.update_mask('STCKMASK', indx=np.logical_not(gpm))

@@ -187,6 +187,7 @@ class RawImage:
                           orient=False,
                           subtract_bias=False,
                           subtract_dark=False,
+                          rectify=False,
                           build_mosaic=False,
                           spatial_flexure_shift=False,
                           flatfield=False)
@@ -299,8 +300,13 @@ class RawImage:
         """
         if self.dark is None and self.par['shot_noise']:
             raise PypeItError('Dark image has not been created!  Run build_dark.')
-        _dark = self.dark if self.par['shot_noise'] else None
-        _counts = self.image if self.par['shot_noise'] else None
+        # After a rectification the shot noise (and noise floor) of the raw
+        # counts is already part of the (flux-independent) variance
+        # components; the rectified counts are not Poisson distributed.
+        shot_noise = self.par['shot_noise'] and not self.steps['rectify']
+        noise_floor = 0. if self.steps['rectify'] else self.par['noise_floor']
+        _dark = self.dark if shot_noise else None
+        _counts = self.image if shot_noise else None
         # NOTE: self.dark is expected to be in *counts*.  This means that
         # procimg.base_variance should be called with exptime=None.  If the
         # exposure time is provided, the units of the dark current are expected
@@ -308,7 +314,7 @@ class RawImage:
         self.base_var = procimg.base_variance(self.rn2img, darkcurr=_dark, #exptime=self.exptime,
                                               proc_var=self.proc_var, count_scale=self.img_scale)
         var = procimg.variance_model(self.base_var, counts=_counts, count_scale=self.img_scale,
-                                     noise_floor=self.par['noise_floor'])
+                                     noise_floor=noise_floor)
         return utils.inverse(var)
 
     def correct_nonlinear(self):
@@ -458,6 +464,12 @@ class RawImage:
 
             #. :func:`subtract_dark`: Subtract the processed dark image and
                propagate any error.
+
+            #. :func:`rectify`: Only for spectrographs with
+               ``has_rectification = True``: replace the image, its variance
+               components and BPM by a spectrograph-provided transformation
+               (e.g. the extraction of the interleaved lenslet spectra of
+               Keck/OSIRIS).
 
             #. :func:`build_mosaic`: If data from multiple detectors are being
                processed as components of a detector mosaic, this resamples the
@@ -663,6 +675,15 @@ class RawImage:
         #     the dark subtraction is added to the processing variance.
         self.subtract_dark()
 
+        #   - Spectrograph-provided rectification (e.g. extraction of the
+        #     interleaved spectra of a lenslet IFU).  This replaces the image,
+        #     its variance components, the datasec image and the BPM, so it
+        #     must follow the dark subtraction and precede the cosmic-ray
+        #     masking.  Off for all spectrographs but those that set
+        #     has_rectification.
+        if self.spectrograph.has_rectification:
+            self.rectify()
+
         # Create the mosaic images.  This *must* come after trimming and
         # orienting and before determining the spatial flexure shift and
         # applying any flat-fielding.
@@ -707,8 +728,10 @@ class RawImage:
                                               PYP_SPEC=self.spectrograph.name,
                                               units='e-' if self.par['apply_gain'] else 'ADU',
                                               exptime=self.exptime,
-                                              noise_floor=self.par['noise_floor'],
-                                              shot_noise=self.par['shot_noise'],
+                                              noise_floor=0. if self.steps['rectify']
+                                                else self.par['noise_floor'],
+                                              shot_noise=self.par['shot_noise']
+                                                and not self.steps['rectify'],
                                               bpm=_bpm.astype(bool), 
                                               filename=self.filename)
 
@@ -720,7 +743,9 @@ class RawImage:
             # TODO: CR rejection of the darks was failing for HIRES for some reason...
             pypeitImage.build_crmask(self.par)
 
-        pypeitImage.build_mask(saturation='default', mincounts='default')
+        # Saturation is flagged on the raw frame by rectifying spectrographs
+        pypeitImage.build_mask(saturation=None if self.steps['rectify']
+                               else 'default', mincounts='default')
         if flat_bpm is not None:
             pypeitImage.update_mask('BADSCALE', indx=flat_bpm)
 
@@ -967,6 +992,67 @@ class RawImage:
 
     # TODO: expscale is currently not a parameter that the user can control.
     # Should it be?
+    def rectify(self, force=False):
+        """
+        Apply the spectrograph-provided rectification.
+
+        The spectrograph (see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.rectify`)
+        receives the processed image in the PypeIt orientation, its full
+        inverse variance (read noise, dark current, processing variance and,
+        if ``shot_noise`` is set, the Poisson noise of the counts), the
+        flux-independent variance, the read-noise variance, the BPM and the
+        raw headers.  It returns the rectified image, the read-noise part
+        and the rest of its variance, and its BPM, which replace
+        :attr:`image`, :attr:`rn2img`, :attr:`proc_var` and the BPM.  The
+        dark current and its variance, already propagated, are reset to
+        zero; :attr:`datasec_img` is set to a single amplifier.  After this
+        step the Poisson noise is part of :attr:`proc_var`, so the shot
+        noise of the rectified counts is not added again (see
+        :func:`build_ivar`).
+
+        Generated by JXP and Claude.
+
+        Args:
+            force (:obj:`bool`, optional):
+                Force the step to be applied, even if the step log
+                (:attr:`steps`) indicates that it already has been.
+
+        Raises:
+            PypeItError:
+                Raised for detector mosaics, which are not supported.
+        """
+        step = inspect.stack()[0][3]
+        if self.steps[step] and not force:
+            log.warning('Image was already rectified.')
+            return
+        if self.nimg > 1:
+            raise PypeItError('Rectification of detector mosaics is not '
+                              'supported.')
+        # Full and flux-independent variance of the processed raw image
+        base_var = procimg.base_variance(self.rn2img, darkcurr=self.dark,
+                                         proc_var=self.proc_var,
+                                         count_scale=self.img_scale)
+        var = procimg.variance_model(
+            base_var, counts=self.image if self.par['shot_noise'] else None,
+            count_scale=self.img_scale, noise_floor=self.par['noise_floor'])
+        out = self.spectrograph.rectify(
+            self.image[0], utils.inverse(var[0]), self.bpm[0].astype(bool),
+            self.headarr, self.par, base_var=base_var[0],
+            rn2img=self.rn2img[0], filename=self.filename)
+        # Replace the image and its variance components
+        self.image = np.expand_dims(out['image'], 0)
+        self.rn2img = np.expand_dims(out['rn2img'], 0)
+        self.proc_var = np.expand_dims(out['proc_var'], 0)
+        self._bpm = np.expand_dims(out['bpm'].astype(self.bpm.dtype), 0)
+        self.datasec_img = np.ones(self.image.shape, dtype=int)
+        # Dark current (counts and variance) is already propagated
+        self.dark = np.zeros(self.image.shape, dtype=float)
+        if self.dark_var is not None:
+            self.dark_var = np.zeros(self.image.shape, dtype=float)
+        self.img_scale = None
+        self.steps[step] = True
+
     def build_dark(self, dark_image=None, expscale=False):
         """
         Build the dark image data used for dark subtraction and error
