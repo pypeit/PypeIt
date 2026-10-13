@@ -1282,7 +1282,7 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         par['scienceframe']['process']['objlim'] = 1.5
         par['scienceframe']['process']['use_illumflat'] = False
         par['scienceframe']['process']['use_specillum'] = False
-        par['scienceframe']['process']['spat_flexure_correct'] = False
+        par['scienceframe']['process']['spat_flexure_method'] = 'skip'
         par['scienceframe']['process']['use_biasimage'] = False
         par['scienceframe']['process']['use_darkimage'] = False
 

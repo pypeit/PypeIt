@@ -15,6 +15,7 @@ from astropy import units
 from pypeit import log
 from pypeit import PypeItError
 from pypeit.calibframe import CalibFrame
+from pypeit.metadata import parse_manual_spat_flexure
 from pypeit.images import buildimage
 from pypeit import specobjs
 from pypeit import find_objects
@@ -39,7 +40,16 @@ def get_manual_flexure(fitstbl, frame:int):
     The manual value is taken from the ``shift`` column of the pypeit
     file.  A blank entry (or ``None``) means no manual value; any
     numeric entry -- including ``0.`` -- is a user request to override
-    the automatically computed spatial flexure.  See Issue #2180.
+    the automatically computed spatial flexure.  See Issue #2180 and
+    :func:`~pypeit.metadata.parse_manual_spat_flexure`.
+
+    .. note::
+
+        During the reduction, the manual values of all frames (science,
+        standard, background, and calibration frames) are collected using
+        :func:`~pypeit.metadata.PypeItMetaData.get_shifts` and applied when
+        each raw frame is processed; see
+        :func:`~pypeit.images.rawimage.RawImage.spatial_flexure_shift`.
 
     Parameters
     ----------
@@ -60,18 +70,7 @@ def get_manual_flexure(fitstbl, frame:int):
     # built without the user-added columns.
     if 'shift' not in fitstbl.keys():
         return None
-    # Blank (or 'None') is the "not set" sentinel; see
-    # PypeItMetaData.set_user_added_columns()
-    manual_flexure = str(fitstbl[frame]['shift']).strip()
-    if manual_flexure.lower() in ['', 'none']:
-        return None
-    try:
-        return float(manual_flexure)
-    except ValueError:
-        raise PypeItError(
-            'Invalid value in the pypeit-file shift column: '
-            f'{manual_flexure}.  Must be a number or blank.'
-        )
+    return parse_manual_spat_flexure(fitstbl[frame]['shift'])
 
 
 def get_sci_metadata(spectrograph, fitstbl, frame:int, det):
@@ -318,7 +317,9 @@ def process_one_det(spectrograph, fitstbl, par, frames:list,
     frame_par = par['calibrations']['standardframe'] \
                     if std_redux else par['scienceframe']
 
-    # Build Science image
+    # Build Science image.  Any manual (user-supplied) spatial flexure in the
+    # pypeit-file "shift" column (Issue #2180) overrides the automatically
+    # computed spatial flexure of the corresponding frame.
     sci_files = fitstbl.frame_paths(frames)
     sciImg = buildimage.buildimage_fromlist(
         spectrograph, det, frame_par,
@@ -327,6 +328,7 @@ def process_one_det(spectrograph, fitstbl, par, frames:list,
         scattlight=caliBrate.msscattlight,
         flatimages=caliBrate.flatimages,
         slits=caliBrate.slits,  # For flexure correction
+        manual_spat_flexure=fitstbl.get_shifts(frames),
         ignore_saturation=False)
 
     # get no bkg subtracted sciImg to generate a global sky model without bkg subtraction.
@@ -349,21 +351,13 @@ def process_one_det(spectrograph, fitstbl, par, frames:list,
                                                 scattlight=caliBrate.msscattlight,
                                                 flatimages=caliBrate.flatimages,
                                                 slits=caliBrate.slits,
+                                                manual_spat_flexure=fitstbl.get_shifts(bg_frames),
                                                 ignore_saturation=False)
 
         # NOTE: If the spatial flexure exists for sciImg, the subtraction
         # function propagates that to the subtracted image, ignoring any
         # spatial flexure determined for the background image.
         sciImg = bkg_redux_sciimg.sub(bgimg)
-
-    # Manual (user-supplied) spatial flexure, restored per Issue #2180.
-    # A finite value in the pypeit-file "shift" column overrides the
-    # automatically computed spatial flexure.
-    manual_flexure = get_manual_flexure(fitstbl, frames[0])
-    if manual_flexure is not None:
-        log.info(f'Implementing manual flexure of {manual_flexure}')
-        sciImg.spat_flexure = manual_flexure
-    log.info(f'Spatial flexure being used is: {sciImg.spat_flexure}')
 
     # Write out the science image?
     if sci_outfile is not None:

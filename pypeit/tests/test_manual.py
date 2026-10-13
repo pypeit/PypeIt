@@ -10,6 +10,7 @@ from pypeit.manual_extract import ManualExtractionObj
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import PypeItError
 from pypeit.pypeit_steps import get_manual_flexure
+from pypeit.metadata import PypeItMetaData, parse_manual_spat_flexure
 
 def test_instantiate():
 
@@ -99,3 +100,45 @@ def test_manual_flexure():
     tbl_bad['shift'] = ['bad']
     with pytest.raises(PypeItError):
         get_manual_flexure(tbl_bad, 0)
+
+
+def test_parse_manual_spat_flexure():
+    # Blank, None, nan, and masked entries mean "not set"
+    for value in ['', '  ', 'None', 'none', 'nan', None, np.ma.masked]:
+        assert parse_manual_spat_flexure(value) is None, \
+            f'{value!r} should mean no manual flexure'
+    # Numbers (including 0) are manual overrides
+    assert parse_manual_spat_flexure(' -1.5 ') == -1.5, 'String number not parsed'
+    assert parse_manual_spat_flexure(0.) == 0., 'A shift of 0. should count as a manual flexure'
+    assert parse_manual_spat_flexure(3) == 3., 'Integer shift not parsed'
+    # Anything else raises an error
+    for value in ['bad', 'inf']:
+        with pytest.raises(PypeItError):
+            parse_manual_spat_flexure(value)
+
+
+def test_get_shifts():
+    # Manual spatial flexure for multiple frames, as used to build the
+    # science and calibration images
+    spec = load_spectrograph('shane_kast_blue')
+    data = Table()
+    data['filename'] = ['b1.fits', 'b27.fits', 'b28.fits', 'b29.fits']
+    data['shift'] = ['', '2.5', '0', 'None']
+    fitstbl = PypeItMetaData(spec, spec.default_pypeit_par(), data=data)
+
+    shifts = fitstbl.get_shifts([0, 1, 2, 3])
+    assert isinstance(shifts, np.ma.MaskedArray), 'Shifts should be a masked array'
+    assert np.array_equal(shifts.mask, [True, False, False, True]), \
+        'Only the frames with a numeric shift should be unmasked'
+    assert np.array_equal(shifts.compressed(), [2.5, 0.]), 'Incorrect shifts'
+    # Single index and boolean selection
+    assert fitstbl.get_shifts(1)[0] == 2.5, 'Incorrect shift for a single frame'
+    assert np.array_equal(fitstbl.get_shifts(np.array([False, True, True, False])), [2.5, 0.]), \
+        'Incorrect shifts for a boolean selection'
+    # Individual elements are masked when not set, as expected by
+    # RawImage.spatial_flexure_shift
+    assert np.ma.is_masked(fitstbl.get_shifts([0])[0]), 'Unset shift should be masked'
+
+    # No shift column means no manual flexure for any frame
+    fitstbl.table.remove_column('shift')
+    assert np.all(fitstbl.get_shifts([0, 1]).mask), 'Missing shift column should mask all shifts'

@@ -28,6 +28,53 @@ from pypeit.io import dict_to_lines
 from pypeit.par import PypeItPar
 
 
+def parse_manual_spat_flexure(value):
+    """
+    Parse a single entry of the pypeit-file ``shift`` column.
+
+    The ``shift`` column holds a user-supplied (manual) spatial flexure, in
+    pixels, for each frame.  A blank entry (or ``None``) means no manual
+    value; any numeric entry -- including ``0.`` -- is a user request to
+    override the automatically computed spatial flexure of that frame.  For
+    backwards compatibility, ``nan`` is also treated as "not set".  See
+    Issue #2180.
+
+    Parameters
+    ----------
+    value : :obj:`str`, :obj:`float`, None
+        The entry in the ``shift`` column.  Masked entries are treated as
+        blank.
+
+    Returns
+    -------
+    :obj:`float` or None
+        The manual spatial flexure shift in pixels, or None if the user did
+        not provide one.
+
+    Raises
+    ------
+    PypeItError
+        Raised if the entry is neither blank nor a finite number.
+    """
+    # Blank (or 'None') is the "not set" sentinel; see
+    # PypeItMetaData.set_user_added_columns()
+    if np.ma.is_masked(value):
+        return None
+    _value = str(value).strip()
+    if _value.lower() in ['', 'none', 'nan']:
+        return None
+    try:
+        shift = float(_value)
+    except ValueError:
+        shift = None
+    if shift is None or not np.isfinite(shift):
+        raise PypeItError(
+            'Invalid value in the pypeit-file shift column: '
+            f'{_value}.  Must be a number or blank.'
+        )
+    return shift
+
+
 # TODO: Turn this into a DataContainer
 # Initially tried to subclass this from astropy.table.Table, but that
 # proved too difficult.
@@ -1287,7 +1334,11 @@ class PypeItMetaData:
 
     def get_shifts(self, indx):
         """
-        Return the shifts for the provided rows.
+        Return the user-supplied (manual) spatial flexure shifts for the
+        provided rows.
+
+        The shifts are read from the ``shift`` column; see
+        :func:`parse_manual_spat_flexure` for the allowed entries.
 
         Args:
             indx (:obj:`int`, array-like):
@@ -1296,17 +1347,26 @@ class PypeItMetaData:
                 array of the correct length.
 
         Returns:
-            `numpy.ndarray`_: Array with the shifts.
+            `numpy.ma.MaskedArray`_: Floating-point array with the manual
+            shift (in pixels) of each selected frame.  Frames without a
+            manual shift are masked.
         """
-        # Make indx an array
+        # Make indx an array of integer row indices
         _indx = np.atleast_1d(indx)
-        # Check if shifts are defined, if not, return a masked array
+        if _indx.dtype == bool:
+            _indx = np.where(_indx)[0]
+        # Initialize with all shifts masked (i.e., not set)
+        shifts = np.ma.array(np.zeros(_indx.size), mask=np.ones(_indx.size, dtype=bool))
         # TODO : Maybe change the shifts to spatflex to be clear that this is a spatial flexure?
         #        "shift" was previously used to indicate spectral flexure.
         if 'shift' not in self.keys():
-            return np.ma.array(np.zeros(_indx.shape), mask=np.ones(_indx.shape, dtype=bool))
-        # Otherwise, return the shifts
-        return self['shift'][indx]
+            return shifts
+        # Parse the user-supplied values; assigning a value unmasks it
+        for i, row in enumerate(_indx):
+            shift = parse_manual_spat_flexure(self['shift'][row])
+            if shift is not None:
+                shifts[i] = shift
+        return shifts
 
     def set_frame_types(self, type_bits, merge=True):
         """
@@ -1535,7 +1595,9 @@ class PypeItMetaData:
         if 'bkg_id' not in self.keys():
             self['bkg_id'] = -1
         if 'shift' not in self.keys():
-            self['shift'] = np.ma.masked
+            # Blank means no manual spatial flexure; any numeric value
+            # (including 0.) is a user-requested override.
+            self['shift'] = ''
 
         # NOTE: Importantly, this if statement means that, if the user has
         # defined any non-negative combination IDs in their pypeit file, none of
@@ -1569,10 +1631,11 @@ class PypeItMetaData:
 
         """
         if 'manual' not in self.keys():
-            self['manual'] = np.ma.array(np.zeros(len(self)), mask=np.ones(len(self), dtype=bool))
+            self['manual'] = ''
         if 'shift' not in self.keys():
-            # Instantiate a masked array
-            self['shift'] = np.ma.array(np.zeros(len(self)), mask=np.ones(len(self), dtype=bool))
+            # Blank means no manual spatial flexure; any numeric value
+            # (including 0.) is a user-requested override.
+            self['shift'] = ''
 
     def write_sorted(self, ofile, overwrite=True, ignore=None, 
                      write_bkg_pairs=False, write_manual=False):

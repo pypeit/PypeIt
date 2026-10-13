@@ -1225,9 +1225,7 @@ class FlatField:
 
             # Create the tilts for pixels in this slit only (not full image)
             if self.slitless:
-                tilts = np.tile(np.arange(rawflat.shape[0]) / rawflat.shape[0], (rawflat.shape[1], 1)).T
-                # TODO : Check why this is "(nspec-1)" below, but "/ rawflat.shape[0]" in the line above.
-                spec_coo = tilts * (nspec-1)
+                tilts = np.tile(np.arange(rawflat.shape[0]) / (rawflat.shape[0]-1), (rawflat.shape[1], 1)).T
             else:
                 tilts = self.wavetilts.fit2tiltimg(slitid_img_init, spat_flexure=self.spat_flexure)
 
@@ -2079,11 +2077,13 @@ class FiberFlatField(FlatField):
         # ------------------------------------------------------------------
         if self.wavetilts is not None and self.wv_calib is not None:
             log.info("Building wavelength image for fiber flat extraction")
-            flex = self.wavetilts.spat_flexure
-            slitmask = self.slits.slit_img(initial=True, flexure=flex)
-            tilts = self.wavetilts.fit2tiltimg(slitmask, flexure=flex)
+            # Same as FlatField.build_waveimg: the slit image is evaluated at
+            # the spatial flexure of the flat, and fit2tiltimg accounts for
+            # the flexure of the flat relative to the tilts.
+            slitmask = self.slits.slit_img(initial=True, spat_flexure=self.spat_flexure)
+            tilts = self.wavetilts.fit2tiltimg(slitmask, spat_flexure=self.spat_flexure)
             waveimg = self.wv_calib.build_waveimg(tilts, self.slits,
-                                                  spat_flexure=flex)
+                                                  spat_flexure=self.spat_flexure)
         else:
             log.warning("Wavelength calibration unavailable; using pixel "
                         "coordinates as wavelength proxy for fiber flat "

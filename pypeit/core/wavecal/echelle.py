@@ -225,10 +225,12 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
         The percent_ceil value to be used by xcorr_shift to set the percentile to which to normalize the CCF
     cc_synth_arc: bool, optional
         If this parameter is True, peak finding will be performed and a
-        synthetic arc will be created to be used for the cross-correlations.  If
-        a synthetic arc has already been created by get_xcorr_arc, or if you prefer
-        to cross-correlate the input spectrum and the arc spectrum directly, then
-        set this to False.
+        synthetic arc will be created to be used for the cross-correlations,
+        and the cross-correlation function is continuum subtracted before its
+        peak is found.  If False, the stacked arc spectra are cross-correlated
+        directly and the continuum subtraction is skipped; this is
+        significantly faster for large spectral formats (e.g., 4k detectors
+        with ~100 orders, such as Shane/Hamspec), but less robust.
 
     Returns
     -------
@@ -253,12 +255,14 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
     arccen_pad = np.zeros((nspec, norders_guess))
     arccen_pad[:nspec, :norders] = arcspec
 
-    # Cross correlate the data with the predicted arc spectrum
+    # Cross correlate the data with the predicted arc spectrum.  When
+    # cross-correlating the arcs directly (cc_synth_arc=False), also skip the
+    # (slow for large formats) continuum subtraction of the CCF.
     # TODO Does it make sense for xcorr_shift to continuum subtract here?
     shift_cc, corr_cc = wvutils.xcorr_shift(
         arccen_pad.flatten('F'), arcspec_guess_pad.flatten('F'),
         cc_synth_arc=cc_synth_arc, percent_ceil=cc_percent_ceil,
-        cont_subtract=not cc_synth_arc,
+        cont_subtract=cc_synth_arc,
         sigdetect=5.0, sig_ceil=10.0, fwhm=4.0, debug=debug)
 
     if debug:

@@ -1379,7 +1379,7 @@ class FiberFindObjects(FindObjects):
                 raise PypeItError("Wavelength calibration required for "
                                   "fiber sky subtraction")
             self.waveimg = self.wv_calib.build_waveimg(
-                self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
+                self.tilts, self.slits, spat_flexure=self.spat_flexure)
 
         fiber_flatimages = self._load_fiber_flatimages()
 
@@ -1494,7 +1494,7 @@ class FiberFindObjects(FindObjects):
         if self.wv_calib is not None:
             fwhmimg = self.wv_calib.build_fwhmimg(
                 self.tilts, self.slits, initial=True,
-                spat_flexure=self.spat_flexure_shift)
+                spat_flexure=self.spat_flexure)
         fwhm_box = None
 
         wave_box = wave_num / (box_denom + (box_denom == 0.0))
@@ -1553,7 +1553,7 @@ class FiberFindObjects(FindObjects):
         if self.wv_calib is not None:
             fwhmimg = self.wv_calib.build_fwhmimg(
                 self.tilts, self.slits, initial=True,
-                spat_flexure=self.spat_flexure_shift)
+                spat_flexure=self.spat_flexure)
 
         for sobj in sobjs:
             other_slit = (slitmask != sobj.SLITID) & (slitmask != -1)
@@ -2441,7 +2441,7 @@ class FiberFindObjects(FindObjects):
         nspec, nspat = self.sciImg.image.shape
         sky_model = np.zeros_like(self.sciImg.image)
         slitmask = self.slits.slit_img(
-            pad=0, flexure=self.spat_flexure_shift)
+            pad=0, spat_flexure=self.spat_flexure)
         spat_pix = np.arange(nspat)
         for sobj in sobjs:
             sky_spec = sobj.BOX_COUNTS_SKY

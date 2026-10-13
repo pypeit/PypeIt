@@ -43,7 +43,7 @@ def test_wavetilts():
     ofile.unlink()
 
 
-def test_fit2tiltimg_negative_spat_id():
+def test_fit2tiltimg_negative_spat_id(tmp_path):
     """
     Regression test: fit2tiltimg must fill slits whose spat_id is negative.
 
@@ -56,7 +56,17 @@ def test_fit2tiltimg_negative_spat_id():
     """
     nspec, nspat = 100, 40
     # Two slits: one with a negative spat_id (edge order), one positive.
-    spat_id = np.array([-12, 150])
+    spat_id = np.array([-12, 30])
+    # fit2tiltimg reads the slit edges from the Slits calibration file, so
+    # build the slits and write them to the calibrations directory.
+    left = np.tile(np.array([-20., 25.]), (nspec, 1))
+    right = np.tile(np.array([-4., 35.]), (nspec, 1))
+    slits = SlitTraceSet(left_init=left, right_init=right, pypeline='MultiSlit',
+                         nspat=nspat, PYP_SPEC='dummy')
+    assert np.array_equal(slits.spat_id, spat_id), 'Unexpected slit spat_id values'
+    slits.set_paths(tmp_path, 'A', '1', 'DET01')
+    slits.to_file()
+
     # A gentle spectral ramp so the evaluated tilts vary across the slit
     # (tilts = 0.2 + 0.6 * spec_fraction, within the fit2tilts clamp).
     coeffs = np.zeros((6, 4, 2))
@@ -66,17 +76,19 @@ def test_fit2tiltimg_negative_spat_id():
     wvtilts = wavetilts.WaveTilts(coeffs=coeffs, nslit=2,
                                   spat_order=np.array([3, 3]),
                                   spec_order=np.array([5, 5]),
-                                  spat_id=spat_id, func2d='legendre2d')
+                                  spat_id=spat_id, func2d='legendre2d',
+                                  slits_filename=Path(slits.get_path()).name)
+    wvtilts.set_paths(tmp_path, 'A', '1', 'DET01')
 
     # Build a slitmask: -1 off-slit, spat_id on-slit (mimics slit_img output).
     slitmask = np.full((nspec, nspat), -1, dtype=int)
     slitmask[:, 5:15] = -12
-    slitmask[:, 25:35] = 150
+    slitmask[:, 25:35] = 30
 
     tilts = wvtilts.fit2tiltimg(slitmask)
 
     neg = slitmask == -12
-    pos = slitmask == 150
+    pos = slitmask == 30
     # The negative-spat_id slit must be filled with varying (non-zero) tilts,
     # exactly like the positive one.  Under the `>= 0` bug it stays all zero.
     assert np.unique(tilts[neg]).size > 1, \

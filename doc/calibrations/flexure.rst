@@ -29,10 +29,15 @@ This algorithm is performed for any frame type by setting
 ``spat_flexure_method = <method>`` in the ``process`` block
 of :ref:`processimagespar`, where you should replace ``<method>`` with one of the
 following valid methods:
-``skip`` - this will skip the spatial flexure correction
-``detector`` - this will calculate one spatial flexure value for all slits on the detector
-``slit`` - this will calculate the spatial flexure for each slit separately
-``edge`` - this will calculate the spatial flexure for each slit edge separately
+
+    - ``skip`` - this will skip the spatial flexure correction
+    - ``detector`` - this will calculate one spatial flexure value for all slits on the detector
+    - ``slit`` - this will calculate the spatial flexure for each slit separately
+    - ``edge`` - this will calculate the spatial flexure for each slit edge separately
+    - ``leftedge`` - this will calculate the spatial flexure of the left edge of each
+      slit, and assign the same value to the right edge
+    - ``rightedge`` - this will calculate the spatial flexure of the right edge of each
+      slit, and assign the same value to the left edge
 
 We have made our own determinations for which instruments to enable this as the
 default. Inspect the :ref:`instr_par` list to see if your instrument is included
@@ -42,7 +47,6 @@ that the spatial flexure is different for different slits or slit edges. Also no
 that some spectrographs post-process the spatial flexure values when using the ``slit``
 or ``edge`` methods (e.g. perform a linear fit to the spatial flexure values) to improve
 the result. Consult the documentation for your instrument to see if this is the case.
-(search for the value of ``spat_flexure_correct``).
 A QA plot is generated for each frame for which the spatial flexure correction
 is applied. We recommend the user to inspect these plots to ensure the flexure
 correction is reasonable. See :ref:`qa-spat-flex` for more information.
@@ -116,10 +120,16 @@ flexure shift yourself via the ``shift`` column in the data block of your
     pypeit_setup -r /path/to/raw -s shane_kast_blue -c A -f
 
 The column is blank by default, meaning no manual correction: the
-automatically computed value (if ``spat_flexure_correct = True``) is
-used.  Set the column to any number (in pixels, including ``0.0``) for
-a science or standard frame to override the automatic determination
-for that frame:
+automatically computed value (if ``spat_flexure_method`` is not ``skip``)
+is used.  Set the column to any number (in pixels, including ``0.0``) for
+a given frame to override the automatic determination for that frame.  The
+manual value is applied even if ``spat_flexure_method = skip`` for that frame
+type, and it is applied as a single shift to both edges of every slit.  This
+works for any frame type that is processed using the slit traces, i.e.,
+science, standard, and background frames, as well as arc, tilt, and flat-field
+(pixel, illumination, and lamp-off) calibration frames.  Values set for frames
+that are processed without the slit traces (e.g., the trace frames used to
+define the slits) are ignored.
 
 .. code-block:: console
 

@@ -570,8 +570,9 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
     cc_synth_arc : bool, default = True
         If this parameter is True, peak finding will be performed and a
         synthetic arc will be created to be used for the cross-correlations.  If
-        a synthetic arc has already been created by get_xcorr_arc, then set this
-        to False
+        a synthetic arc has already been created by get_xcorr_arc, or if you prefer
+        to cross-correlate the input spectrum and the arc spectrum directly, then
+        set this to False.
     cont_subtract : bool, default = True
         If True, continuum subtract the cross-correlation function before
         finding its peak (passed to
@@ -579,9 +580,6 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
         (iterative, and for very long input spectra slow) continuum fit;
         the CCF is normalized, so the peak is usually well determined
         without it.
-        a synthetic arc has already been created by get_xcorr_arc, or if you prefer
-        to cross-correlate the input spectrum and the arc spectrum directly, then
-        set this to False.
     lag_range : tuple, default = None
         A tuple of the form (lag_min, lag_max) which sets the range of lags to
         search over. If None, max_lag_frac will be used to set the range of lags.

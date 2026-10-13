@@ -2163,7 +2163,7 @@ class IFUCalibrations(Calibrations):
 
         # Prep
         frame = {'type': 'trace', 'class': slittrace.SlitTraceSet}
-        raw_trace_files, cal_file, calib_key, setup, calib_id, detname \
+        raw_trace_files, _, cal_file, calib_key, setup, calib_id, detname \
                 = self.find_calibrations(frame['type'], frame['class'])
 
         if len(raw_trace_files) == 0 and cal_file is None:
@@ -2300,8 +2300,8 @@ class IFUCalibrations(Calibrations):
 
         # Find pixel flat frames (Fiber pypeline does not use illumflat)
         pixel_frame = {'type': 'pixelflat', 'class': flatfield.FlatImages}
-        raw_pixel_files, pixel_cal_file, pixel_calib_key, pixel_setup, \
-            pixel_calib_id, detname \
+        raw_pixel_files, raw_pixel_index, pixel_cal_file, pixel_calib_key, \
+            pixel_setup, pixel_calib_id, detname \
             = self.find_calibrations(pixel_frame['type'], pixel_frame['class'])
 
         if len(raw_pixel_files) == 0 and pixel_cal_file is None:
@@ -2376,11 +2376,14 @@ class IFUCalibrations(Calibrations):
             self.spectrograph, self.det, self.par['pixelflatframe'],
             raw_pixel_files, dark=self.msdark, slits=self.slits,
             bias=self.msbias, bpm=self.msbpm,
-            scattlight=self.msscattlight)
+            scattlight=self.msscattlight,
+            manual_spat_flexure=self.fitstbl.get_shifts(raw_pixel_index))
 
         # Handle lamp-off flats if present
         raw_lampoff_files = self.fitstbl.find_frame_files(
             'lampoffflats', calib_ID=self.calib_ID)
+        raw_lampoff_index = self.fitstbl.find_frames(
+            'lampoffflats', calib_ID=self.calib_ID, index=True)
         if len(raw_lampoff_files) > 0:
             self.get_bpm(frame=raw_lampoff_files[0])
             self.check_calibrations(raw_lampoff_files)
@@ -2391,13 +2394,15 @@ class IFUCalibrations(Calibrations):
                 self.spectrograph, self.det,
                 self.par['lampoffflatsframe'], raw_lampoff_files,
                 slits=self.slits, dark=self.msdark, bias=self.msbias,
-                bpm=self.msbpm, scattlight=self.msscattlight)
+                bpm=self.msbpm, scattlight=self.msscattlight,
+                manual_spat_flexure=self.fitstbl.get_shifts(raw_lampoff_index))
             pixel_flat = pixel_flat.sub(lampoff_flat)
 
         # Instantiate FiberFlatField instead of FlatField
         fiberFlatField = flatfield.FiberFlatField(
             pixel_flat, self.spectrograph, self.par['flatfield'],
             self.slits, wavetilts=self.wavetilts, wv_calib=self.wv_calib,
+            spat_flexure=pixel_flat.spat_flexure,
             qa_path=self.qa_path, calib_key=calib_key)
 
         # Run returns (flatImages, fiber_flatimages)

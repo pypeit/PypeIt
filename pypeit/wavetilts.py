@@ -156,22 +156,33 @@ class WaveTilts(calibframe.CalibFrame):
 
         Returns:
             `numpy.ndarray`_:  New tilt image
+
+        Raises:
+            PypeItError:
+                Raised if the slits calibration file cannot be found, or if
+                ``spat_flexure`` has the wrong shape.
         """
         log.info("Generating a tilts image from the fit parameters")
 
+        # The spatial flexure of the tilts relative to the initial slits
+        tilts_spat_flexure = np.zeros((self.nslit, 2), dtype=float) \
+            if self.spat_flexure is None else self.spat_flexure
+
         # Load the slits
+        if self.calib_dir is None or self.slits_filename is None:
+            raise PypeItError('Cannot generate tilts image: the calibration directory and/or the '
+                              'name of the Slits calibration file are not defined.')
         cal_file = Path(self.calib_dir).absolute() / self.slits_filename
-        if cal_file.exists():
-            slits = slittrace.SlitTraceSet.from_file(cal_file, chk_version=chk_version)
-            _left, _right, _mask = slits.select_edges(initial=True, spat_flexure=self.spat_flexure)
-        else:
-            log.error(f'Slits file {str(cal_file)} not found.  Cannot generate tilts image.')
+        if not cal_file.exists():
+            raise PypeItError(f'Slits file {str(cal_file)} not found.  Cannot generate tilts image.')
+        slits = slittrace.SlitTraceSet.from_file(cal_file, chk_version=chk_version)
+        _left, _right, _mask = slits.select_edges(initial=True, spat_flexure=tilts_spat_flexure)
 
         # Check the spatial flexure input
         _spat_flexure = np.zeros((self.nslit, 2), dtype=float) if spat_flexure is None else spat_flexure
         if _spat_flexure.shape != (self.nslit, 2):
-            log.error(f'Input spat_flexure has shape {_spat_flexure.shape}, but should be '
-                      f'({self.nslit}, 2).  Cannot generate tilts image.')
+            raise PypeItError(f'Input spat_flexure has shape {_spat_flexure.shape}, but should be '
+                              f'({self.nslit}, 2).  Cannot generate tilts image.')
 
         # Set up the output image
         final_tilts = np.zeros_like(slitmask, dtype=float)
@@ -192,7 +203,7 @@ class WaveTilts(calibframe.CalibFrame):
             # Furthermore, _spat_flexure is the spatial flexure of the current frame relative to the
             # initial slits. We therefore need to evaluate the tilts at the relative spatial flexure
             # between the current frame and the tilts. Therefore:
-            rel_spat_flexure = _spat_flexure[slit_idx, :] - self.spat_flexure[slit_idx, :]
+            rel_spat_flexure = _spat_flexure[slit_idx, :] - tilts_spat_flexure[slit_idx, :]
             # Prepare the evaluation coordinates
             _spec_eval, _spat_eval = tracewave.fit2tilts_prepareSlit(_left[:, slit_idx],
                                                                      _right[:, slit_idx],

@@ -90,7 +90,7 @@ class Extract:
             objtype (:obj:`str`):
                 Specifies object being reduced 'science', 'standard', or
                 'science_coadd2d'.  This is used only to determine the
-                spat_flexure_shift and ech_order for coadd2d.
+                spat_flexure and ech_order for coadd2d.
             global_sky (`numpy.ndarray`_, optional):
                 Fit to global sky. If None, an array of zeroes is generated the
                 same size as ``sciImg``.
@@ -1004,7 +1004,7 @@ class FiberExtract(Extract):
         self.sobjs = sobjs.copy()
 
         # Build slit ID image
-        slitid_img = self.slits.slit_img(pad=0, flexure=self.spat_flexure_shift)
+        slitid_img = self.slits.slit_img(pad=0, spat_flexure=self.spat_flexure)
 
         # Science image minus sky
         inmask = self.sciImg.select_flag(invert=True)

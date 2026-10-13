@@ -525,6 +525,7 @@ class RawImage:
             manual_spat_flexure (:obj:`float`, optional):
                 The spatial flexure of the image. This is only set if the user wishes to
                 manually correct the slit traces of this image for spatial flexure.
+                None or ``np.ma.masked`` means that no manual value is set.
             debug (:obj:`bool`, optional):
                 Run in debug mode.
 
@@ -682,9 +683,11 @@ class RawImage:
         # function checks that the slits exist if running the spatial flexure
         # correction, so no need to do it again here.
         self.spat_flexure_shift = None
-        if self.par['spat_flexure_method'] != "skip" or not np.ma.is_masked(manual_spat_flexure):
+        # None and masked both mean that no manual spatial flexure is set
+        _manual_spat_flexure = np.ma.masked if manual_spat_flexure is None else manual_spat_flexure
+        if self.par['spat_flexure_method'] != "skip" or not np.ma.is_masked(_manual_spat_flexure):
             self.spat_flexure_shift = self.spatial_flexure_shift(slits, flatimages=flatimages,
-                                                                 manual_spat_flexure=manual_spat_flexure,
+                                                                 manual_spat_flexure=_manual_spat_flexure,
                                                                  debug=debug
                                                                  )
 
@@ -1395,7 +1398,7 @@ class RawImage:
             elif self.par["scattlight"]["method"] == "gaps":
                 # Measure scattered light in inter-slit gaps and interpolate.
                 # Requires spectrograph to implement subtract_scattered_light_gaps().
-                offslitmask = slits.slit_img(flexure=None) == -1
+                offslitmask = slits.slit_img(spat_flexure=self.spat_flexure_shift) == -1
                 scatt_img = self.spectrograph.subtract_scattered_light_gaps(
                     self.image[ii, ...], offslitmask)
             else:

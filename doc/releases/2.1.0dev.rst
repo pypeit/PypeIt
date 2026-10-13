@@ -60,12 +60,12 @@ Functionality/Performance Improvements and Additions
   (``get_echelle_angle_files``).  Analogous to ``reid_arxiv``, and used by
   ``shane_hamspec`` to select era-matched archives via
   ``config_specific_par``.
-- Added the ``ech_direct_cc`` wavelength-calibration parameter: for the
-  ``echelle`` method order identification, cross-correlate the stacked arc
-  spectra directly instead of first building synthetic line-only arcs and
-  continuum-subtracting the correlation function.  Much faster for large
-  spectral formats (used by ``shane_hamspec``); the default (False) preserves
-  the original behavior.
+- The ``cc_synth_arc`` wavelength-calibration parameter now also controls the
+  ``echelle`` method order identification: if False, the stacked arc spectra
+  are cross-correlated directly instead of first building synthetic line-only
+  arcs and continuum-subtracting the correlation function.  Much faster for
+  large spectral formats (used by ``shane_hamspec``); the default (True)
+  preserves the original behavior.
 - Added the ``force_center_obj`` object-finding parameter (echelle only): skip
   peak-detection object finding and always extract one object forced at the
   center of each order, with the FWHM and boxcar radius set by the order
@@ -223,7 +223,9 @@ Bug Fixes
 
 - Restore the manual spatial flexure correction (Issue #2180): a value in the
   pypeit-file ``shift`` column again overrides the automatically computed
-  spatial flexure for that science/standard frame.  The feature was lost in
+  spatial flexure for that frame.  This applies to any frame type that is
+  processed using the slit traces, including science, standard, background,
+  and calibration (arc, tilt, and flat-field) frames.  The feature was lost in
   the 2.0.0 step-by-step processing refactor.  The ``shift`` column is
   now a string entry that is blank by default (like the ``manual``
   column), so an explicit ``0.0`` is a valid manual override; see
