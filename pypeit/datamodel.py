@@ -86,7 +86,7 @@ Here's how to create a derived class for a basic container that
 holds two arrays and a metadata parameter::
 
     import numpy as np
-    import inspect
+    from pypeit import utils
 
     from pypeit.datamodel import DataContainer
 
@@ -201,7 +201,7 @@ extensions. Here are two implementations of a mixed container, a good
 one and a bad one::
 
     import numpy as np
-    import inspect
+    from pypeit import utils
 
     from astropy.table import Table
 

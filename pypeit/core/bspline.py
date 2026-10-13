@@ -1558,9 +1558,9 @@ class BSpline2D(BSpline):
             array-valued ``basis``, ``False`` when the caller passes the same
             array object that was used to build the current cache and the cache
             is still valid; ``True`` otherwise.  For a string ``basis``,
-            ``True`` when the polynomial family name has changed, the cache is
-            empty, or the shapes of ``x`` or ``basis_x`` differ from the
-            cached shapes.
+            ``True`` when the polynomial family name, ``npoly``, or the
+            normalisation bounds have changed, the cache is empty, or ``x`` or
+            ``basis_x`` are not the arrays used to build the cache.
         """
         if isinstance(basis, np.ndarray):
             P = np.asarray(basis)
@@ -1599,21 +1599,26 @@ class BSpline2D(BSpline):
                 "basis='poly1' produces a polynomial with no constant term "
                 "and may be ill-conditioned.  Consider using 'legendre' instead."
             )
+        # Initialise normalisation bounds from data when not supplied; this
+        # must happen here rather than in _normalize_basis_x so that the stored
+        # xmin/xmax are available for later value() calls.
+        xmin = basis_x.min() if xmin is None else xmin
+        xmax = basis_x.max() if xmax is None else xmax
         recalculate = (
             basis != self.funcname
             or self._cached_design is None
             or x is not self.x
             or basis_x is not self.basis_x
+            or npoly != self.npoly
+            or xmin != self.xmin
+            or xmax != self.xmax
         )
         if npoly != self.npoly:
             self.coeff = self.icoeff = None   # force reallocation on npoly change
         self.npoly    = npoly
         self.funcname = basis
-        # Initialise normalisation bounds from data when not supplied; this
-        # must happen here rather than in _normalize_basis_x so that the stored
-        # xmin/xmax are available for later value() calls.
-        self.xmin     = basis_x.min() if xmin is None else xmin
-        self.xmax     = basis_x.max() if xmax is None else xmax
+        self.xmin     = xmin
+        self.xmax     = xmax
         # The basis is only needed to rebuild the design matrix.  When the
         # cached design matrix is still valid (e.g., on every rejection
         # iteration of an iterative fit), skip building a new (N, npoly) basis.

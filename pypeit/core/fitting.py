@@ -423,6 +423,14 @@ class PypeItFit(DataContainer):
         return np.sqrt(np.sum(weights * (yval - values) ** 2))
 
 
+POLYFIT2D_CHUNK = 2**15
+"""
+Maximum number of data points for which :func:`polyfit2d_general` builds the
+full design matrix; larger fits are solved in chunks of this many points by
+:func:`_chunked_lstsq2d`.  Also the chunk size used by :func:`_chunked_val2d`.
+"""
+
+
 def _chunked_val2d(val2d, x, y, c, chunk=None):
     """
     Evaluate a 2D polynomial series in chunks of points.
@@ -1092,15 +1100,7 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
     return c.reshape(deg+1), minx, maxx, miny, maxy
 
 
-POLYFIT2D_CHUNK = 2**15
-"""
-Maximum number of data points for which :func:`polyfit2d_general` builds the
-full design matrix; larger fits are solved in chunks of this many points by
-:func:`_chunked_lstsq2d`.
-"""
-
-
-def _chunked_lstsq2d(vander2d, x, y, z, deg, w=None, chunk=POLYFIT2D_CHUNK):
+def _chunked_lstsq2d(vander2d, x, y, z, deg, w=None, chunk=None):
     """
     Solve a weighted 2D linear least-squares fit without forming the full
     design matrix.
@@ -1132,11 +1132,13 @@ def _chunked_lstsq2d(vander2d, x, y, z, deg, w=None, chunk=POLYFIT2D_CHUNK):
             design matrix and the data are multiplied by ``w`` (not its
             square root).
         chunk (:obj:`int`, optional):
-            Number of data points to process at a time.
+            Number of data points to process at a time.  If None, use
+            :data:`POLYFIT2D_CHUNK`.
 
     Returns:
         `numpy.ndarray`_: The flattened fit coefficients.
     """
+    chunk = POLYFIT2D_CHUNK if chunk is None else chunk
     ncoeff = int(np.prod(np.asarray(deg) + 1))
     # Factor the design matrix augmented by the data as its last column.  The
     # first ncoeff rows of the last column of the triangular factor are then

@@ -721,6 +721,25 @@ def test_fit_design_matrix_cached():
     assert id(spl._cached_design) == cache_id, 'second fit() call must reuse the cached design matrix'
 
 
+@pytest.mark.parametrize('change', [dict(npoly=4), dict(xmin=-1.0), dict(xmax=2.0)])
+def test_fit_2d_basis_change_rebuilds_design(change):
+    """Changing npoly or the normalisation bounds with the same x/basis_x rebuilds the design."""
+    rng = np.random.default_rng(5)
+    x = np.sort(rng.uniform(0, 5, 400))
+    basis_x = rng.uniform(0, 1, 400)
+    y = np.sin(x) * (1 + basis_x)
+    kw = dict(basis='legendre', npoly=3, xmin=0.0, xmax=1.0)
+    spl = BSpline2D(x=x, knots=Knots(count=8), nord=4)
+    spl.fit(x, y, basis_x=basis_x, **kw)
+    kw.update(change)
+    err, yfit = spl.fit(x, y, basis_x=basis_x, **kw)
+    fresh = BSpline2D(x=x, knots=Knots(count=8), nord=4)
+    err_fresh, yfit_fresh = fresh.fit(x, y, basis_x=basis_x, **kw)
+    assert err == err_fresh == 0, 'both fits must succeed'
+    assert np.allclose(yfit, yfit_fresh, rtol=0, atol=1e-12), \
+        'refit with a changed basis must match a fresh fit'
+
+
 def test_fit_zero_invvar_points_ignored():
     """Points with ivar=0 are excluded and fit() still converges."""
     rng = np.random.default_rng(4)
