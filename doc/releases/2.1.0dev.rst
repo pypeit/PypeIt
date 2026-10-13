@@ -108,13 +108,15 @@ Functionality/Performance Improvements and Additions
   a Binospec long-slit reduction drops from a 16.1 to a 6.9 GiB peak and runs
   faster.  The coefficients agree with the previous solution to round-off;
   smaller fits are computed exactly as before.
-- Reduced the memory used by B-spline fits, with no change to the results:
-  the weighted design matrix is formed one B-spline span at a time; for 2D
-  fits (``BSpline2D``), the polynomial basis is only recomputed when the
-  design matrix must be rebuilt, and the cached design matrix stores its
-  B-spline and polynomial factors instead of their product.  For the 2D
-  flat-field fit of a Binospec long-slit detector, this removes ~5 GiB of
-  temporary arrays.
+- Reduced the memory used by B-spline fits, with no change to the results
+  beyond round-off: the weighted design matrix is formed one B-spline span at
+  a time; for 2D fits (``BSpline2D``), the polynomial basis is only
+  recomputed when the design matrix must be rebuilt, and the cached design
+  matrix stores its B-spline and polynomial factors instead of their product.
+  2D models (including ``BSpline2D.value``) are evaluated directly from these
+  factors, without forming the design matrix, so the fits are as fast as
+  before.  For the 2D flat-field fit of a Binospec long-slit detector, this
+  removes ~5 GiB of temporary arrays.
 - ``fitting.evaluate_fit`` now evaluates 2D fits in chunks of points.  The
   results are identical, but numpy's 2D evaluation functions no longer
   allocate temporaries over all points at once (~2 GiB for the flat-field
@@ -425,3 +427,6 @@ Bug Fixes
   every ``DataContainer`` (e.g., ``PypeItImage``, ``PypeItFit``) and ``ParSet``
   was kept alive, along with its arrays, until the cyclic garbage collector
   ran.  The idiom is replaced by the new :func:`~pypeit.utils.init_arg_values`.
+- ``BSpline2D.fit`` now rebuilds its cached design matrix when ``npoly``,
+  ``xmin`` or ``xmax`` change between calls with the same ``x`` and
+  ``basis_x``; previously it reused the matrix built with the old basis.
