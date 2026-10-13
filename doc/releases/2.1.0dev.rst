@@ -101,6 +101,32 @@ Functionality/Performance Improvements and Additions
 Instrument-specific Updates
 ---------------------------
 
+- Magellan/LDSS3: support for the VPH-Blue and VPH-Red grisms, and a rework of
+  how the two amplifier files are handled:
+
+  - pypeit_setup now recognizes the ``c1`` and ``c2`` files as a single
+    exposure without requiring -e c1.fits. The ``c1`` and ``c2`` files of an
+    exposure are paired automatically and checked against ``OPAMP``. 
+    When both are present, only the ``c1`` file is
+    written to the PypeIt file and the amplifiers are internally joined
+    when it is read. A directory with only ``c1`` or only ``c2`` files is reduced as a
+    single-amplifier image.
+  - Gain and read noise are set per readout mode (``SPEED`` and ``GAIN``).
+    Fast/Low uses values measured from LDSS3 flats and biases; Slow/Low and
+    Turbo/Low use the User Manual values.  Other modes fall back on the
+    ``EGAIN`` and ``ENOISE`` header cards.
+  - Pixel values above 95% of the 16-bit ADC limit are flagged as saturated.
+  - Added a bad-column mask measured from bias frames.
+  - Added archived HeI/NeI/ArI wavelength solutions for VPH-Blue and VPH-Red,
+    and rebuilt the VPH-All solution for consistency.  Added an
+    ``OH_LDSS3_vac`` line list with a VPH-Red sky template for optional
+    sky-line calibration.
+  - Frame typing uses ``EXPTYPE`` for biases and darks and ``OBJECT`` keywords
+    to separate arcs, flats and science/standard frames.  Science and standard frames
+    are separated by exposure time.
+  - The filter is now a configuration key, but arcs and flats are assigned
+    independently of the filter.
+
 - P200/NGPS ``u`` channel: support He dome-lamp frames (``IMGTYPE=DOMEHE``) as a
   second arc lamp.  The internal ThAr lamp has no detectable lines below
   ~3490 A, leaving the wavelength solution extrapolated over 3050-3490 A.  Each
@@ -281,6 +307,10 @@ Under-the-hood Improvements
 Bug Fixes
 ---------
 
+- Magellan/LDSS3: fixed the telescope (was MMT), the MJD (was the ``JD`` card,
+  unconverted), ``dataext`` (1 to 0), the binning axis used to scale the
+  wavelength FWHM (spatial to spectral), and ``default_pypeit_par``, which is
+  now a classmethod built on the base-class defaults.
 - Fix setup values that include a colon (e.g., the Keck/DEIMOS amplifier mode,
   ``SINGLE:B``) being written to the setup block of PypeIt files, and to
   ``.calib`` files, with extra quotes (``'"SINGLE:B"'``), which prevented
