@@ -1383,7 +1383,8 @@ class BSpline2D(BSpline):
             Instead of the dense matrix, return an
             :class:`_OuterProductDesign`, which holds only ``B`` and ``P`` and
             computes rows of ``A`` when they are indexed.  Used by
-            :meth:`fit` to keep the cached design matrix small.
+            :meth:`fit` to keep the cached design matrix small, and by
+            :meth:`value`, which never needs the dense matrix.
 
         Returns
         -------
@@ -1446,7 +1447,9 @@ class BSpline2D(BSpline):
                                  coeff[k:k+nord, :])
 
         The ``reshape`` call produces a *view* (no memory copy) because ``A`` is a
-        contiguous C-order array.
+        contiguous C-order array.  For an :class:`_OuterProductDesign`, the
+        same sum is computed as ``((B[sl] @ coeff[k:k+nord, :]) * P[sl]).sum(1)``,
+        which avoids building the rows of ``A`` (several times faster).
 
         Parameters
         ----------
@@ -1475,10 +1478,17 @@ class BSpline2D(BSpline):
         coeffbk = self.bkpt_gpm[self.nord:].nonzero()[0]
         goodcoeff = _coeff[coeffbk, :]  # (nn, npoly)
 
+        lazy = isinstance(A, _OuterProductDesign)
         yfit = np.zeros(A.shape[0], dtype=float)
         for k in range(n - self.nord + 1):
             if lower[k] <= upper[k]:
                 sl = slice(lower[k], upper[k] + 1)
+                if lazy:
+                    # sum_ij B[n,i] P[n,j] coeff[i,j] without forming the
+                    # (n, nord*npoly) outer product
+                    yfit[sl] = np.einsum('nj,nj->n', A.B[sl] @ goodcoeff[k:k + self.nord, :],
+                                         A.P[sl])
+                    continue
                 # reshape is a view (A is C-contiguous); coeff slice is (nord, npoly)
                 yfit[sl] = np.einsum(
                     'nij,ij->n',
@@ -1837,7 +1847,8 @@ class BSpline2D(BSpline):
 
         # Pass P_eval, eval_npoly, and the optional coeff override directly to
         # the private methods so that no instance attributes need to be mutated.
-        A, lower, upper = self._build_design_matrix(x[xsort], P=P_eval, npoly=eval_npoly)
+        A, lower, upper = self._build_design_matrix(x[xsort], P=P_eval, npoly=eval_npoly,
+                                                    lazy=True)
         yfit = self._evaluate_model(A, lower, upper, coeff=coeff, npoly=eval_npoly)
 
         return yfit[np.argsort(xsort, kind='stable')], gpm

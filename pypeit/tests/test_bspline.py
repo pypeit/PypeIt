@@ -1186,8 +1186,8 @@ def test_bspline2d_lazy_design_matches_dense():
         A_lazy[:, 0]
 
 
-def test_bspline2d_fit_lazy_design_bit_identical():
-    """Fitting with the lazy (cached) design matrix matches the dense matrix exactly."""
+def test_bspline2d_fit_lazy_design_matches_dense():
+    """Fitting with the lazy (cached) design matrix matches the dense matrix."""
     rng = np.random.default_rng(123)
     N = 5000
     x = np.sort(rng.uniform(0, 100, N))
@@ -1207,8 +1207,26 @@ def test_bspline2d_fit_lazy_design_bit_identical():
         _, gpm_dense, yfit_dense, _, _ = iterative_bspline_fit(x, y, **kw)
     finally:
         BSpline2D._build_design_matrix = build
+    # The lazy model evaluation sums in a different order, so yfit agrees to
+    # round-off; the rejection must be identical.
     np.testing.assert_array_equal(gpm_lazy, gpm_dense)
-    np.testing.assert_array_equal(yfit_lazy, yfit_dense)
+    np.testing.assert_allclose(yfit_lazy, yfit_dense, rtol=1e-13, atol=0)
+
+
+def test_bspline2d_evaluate_model_lazy_matches_dense():
+    """_evaluate_model gives the same model for the lazy and dense design matrices."""
+    rng = np.random.default_rng(124)
+    N = 500
+    x = np.sort(rng.uniform(0, 5, N))
+    basis_x = rng.uniform(0, 1, N)
+    spl = _setup_bspline2d(x, basis_x, npoly=3, xmin=0.0, xmax=1.0,
+                           funcname='legendre', knots=Knots(count=8), nord=4)
+    spl.reset_coeff()
+    spl.coeff[...] = rng.standard_normal(spl.coeff.shape)
+    A, lower, upper = spl._build_design_matrix(x)
+    A_lazy, _, _ = spl._build_design_matrix(x, lazy=True)
+    np.testing.assert_allclose(spl._evaluate_model(A_lazy, lower, upper),
+                               spl._evaluate_model(A, lower, upper), rtol=1e-13, atol=1e-13)
 
 
 def test_bspline2d_build_design_matrix_P_kwarg_no_mutation():
