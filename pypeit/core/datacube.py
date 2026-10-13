@@ -2298,7 +2298,8 @@ def compute_weights_frompix(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg, 
                             ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                             sn_smooth_npix=None, weight_method='auto',
                             reference_image=None, whitelight_range=None,
-                            correct_dar=True, specname="PYPSPEC", init_obj_position=None, show_qa=False):
+                            correct_dar=True, specname="PYPSPEC", init_obj_position=None, show_qa=False,
+                            spat_flexure=None, initial=False):
     r"""
     Calculate wavelength dependent optimal weights. The weighting is currently
     based on a relative :math:`(S/N)^2` at each wavelength. Note, this function
@@ -2411,6 +2412,20 @@ def compute_weights_frompix(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg, 
         Default is None.
     show_qa : bool, optional
         If True, show QA plots in ginga. 
+    spat_flexure : `numpy.ndarray`_, list, optional
+        The spatial flexure of each frame relative to its slits, which is used
+        to define the slit edges when computing the RA and Dec of each pixel.
+        This should be the same spatial flexure that was used to construct
+        ``slitidImg`` and the alignment splines.  This can be a single
+        array (or None) that is applied to all frames, or a list with one array
+        (or None) per frame.  Each array has shape (nslits, 2); see
+        :func:`~pypeit.slittrace.SlitTraceSet.select_edges`.  If None, no
+        spatial flexure is applied.
+    initial : bool, optional
+        If True, use the initial slit edges (instead of the tweaked edges, if
+        they are available) when computing the RA and Dec of each pixel.  This
+        should be consistent with the slit edges used to construct
+        ``slitidImg`` and the alignment splines.
 
     Returns
     -------
@@ -2437,7 +2452,7 @@ def compute_weights_frompix(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg, 
     wl_full, wl_sig, wl_bpm = generate_image_subpixel(image_wcs, voxedge, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtsImg,
                                       all_wcs, all_tilts, all_slits, all_align, all_dar, ra_offsets, dec_offsets,
                                       spec_subpixel=1, spat_subpixel=1, slice_subpixel=1, combine=True,
-                                      correct_dar=correct_dar)
+                                      correct_dar=correct_dar, spat_flexure=spat_flexure, initial=initial)
 
     # Compute the weights
     return compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
@@ -2445,7 +2460,8 @@ def compute_weights_frompix(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg, 
                            wl_full, wl_sig, wl_bpm, dspat, dwv,
                            ra_min=ra_min, ra_max=ra_max, dec_min=dec_min, dec_max=dec_max, wave_min=wave_min,
                            sn_smooth_npix=sn_smooth_npix, weight_method=weight_method, correct_dar=correct_dar, 
-                           init_obj_position=init_obj_position, show_qa=show_qa)
+                           init_obj_position=init_obj_position, show_qa=show_qa,
+                           spat_flexure=spat_flexure, initial=initial)
 
 # TODO Refactor this, it should not be done this way, instead we should be computing the weights from the final aligned
 # cubes, after sigma clipping is performed. See my notes in coadd3d.run()
@@ -2453,7 +2469,8 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
                     all_wcs, all_tilts, all_slits, all_align, all_dar, ra_offsets, dec_offsets,
                     whitelight_img, whitelight_sigma, whitelight_bpm, dspat, dwv,
                     ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
-                    sn_smooth_npix=None, weight_method='auto', correct_dar=True, fwhm=1.5, init_obj_position=None, show_qa=False):
+                    sn_smooth_npix=None, weight_method='auto', correct_dar=True, fwhm=1.5, init_obj_position=None, show_qa=False,
+                    spat_flexure=None, initial=False):
     r"""
     Calculate wavelength dependent optimal weights. The weighting is currently
     based on a relative :math:`(S/N)^2` at each wavelength
@@ -2556,6 +2573,20 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
             determined by running DAOStarFinder on the image. Default is None.
         show_qa : bool, optional
             If True, show the object detection QA plot in ginga. Default is False. 
+    spat_flexure : `numpy.ndarray`_, list, optional
+        The spatial flexure of each frame relative to its slits, which is used
+        to define the slit edges when computing the RA and Dec of each pixel.
+        This should be the same spatial flexure that was used to construct
+        ``slitidImg`` and the alignment splines.  This can be a single
+        array (or None) that is applied to all frames, or a list with one array
+        (or None) per frame.  Each array has shape (nslits, 2); see
+        :func:`~pypeit.slittrace.SlitTraceSet.select_edges`.  If None, no
+        spatial flexure is applied.
+    initial : bool, optional
+        If True, use the initial slit edges (instead of the tweaked edges, if
+        they are available) when computing the RA and Dec of each pixel.  This
+        should be consistent with the slit edges used to construct
+        ``slitidImg`` and the alignment splines.
 
     Returns
     -------
@@ -2571,6 +2602,7 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
             check_inputs([raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
                           all_wcs, all_tilts, all_slits, all_align, all_dar, ra_offsets, dec_offsets])
     numframes = len(_sciImg)
+    _spat_flexure = spat_flexure_per_frame(spat_flexure, numframes)
 
     # If there's only one frame, use uniform weighting
     if numframes == 1:
@@ -2629,7 +2661,8 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
                                    _all_tilts[ff], _all_slits[ff], _all_align[ff], _all_dar[ff],
                                    _ra_offsets[ff], _dec_offsets[ff],
                                    spec_subpixel=1, spat_subpixel=1, slice_subpixel=1,
-                                   skip_subpix_weights=True, correct_dar=correct_dar)
+                                   skip_subpix_weights=True, correct_dar=correct_dar,
+                                   spat_flexure=_spat_flexure[ff], initial=initial)
         # Store the flux and ivar spectra of the highest S/N object.
         # TODO :: This is the flux per spectral pixel, and not per detector pixel.  Is this correct?
         flux_stack[:, ff] = flxcube[:, 0, 0]
@@ -2657,9 +2690,35 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
     return all_wghts
 
 
+def spat_flexure_per_frame(spat_flexure, numframes):
+    """
+    Return a list with the spatial flexure of each frame.
+
+    Parameters
+    ----------
+    spat_flexure : `numpy.ndarray`_, list, None
+        The spatial flexure.  This can be a single array (or None) that applies
+        to all frames, or a list with one array (or None) per frame.
+    numframes : int
+        The number of frames.
+
+    Returns
+    -------
+    list
+        A list of length ``numframes`` with the spatial flexure of each frame.
+    """
+    if isinstance(spat_flexure, list):
+        if len(spat_flexure) != numframes:
+            raise PypeItError(f'The spatial flexure list has {len(spat_flexure)} elements, but '
+                              f'there are {numframes} frames.')
+        return spat_flexure
+    return [spat_flexure] * numframes
+
+
 def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg,
                             all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
-                            spec_subpixel=5, spat_subpixel=5, slice_subpixel=5, combine=False, correct_dar=True):
+                            spec_subpixel=5, spat_subpixel=5, slice_subpixel=5, combine=False, correct_dar=True,
+                            spat_flexure=None, initial=False):
     """
     Generate a white light image from the input pixels
 
@@ -2729,6 +2788,20 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
         If True, the DAR correction will be applied to the input images
         before generating the white light images. If False, the DAR
         correction will not be applied.
+    spat_flexure : `numpy.ndarray`_, list, optional
+        The spatial flexure of each frame relative to its slits, which is used
+        to define the slit edges when computing the RA and Dec of each pixel.
+        This should be the same spatial flexure that was used to construct
+        ``slitid_img_gpm`` and the alignment splines.  This can be a single
+        array (or None) that is applied to all frames, or a list with one array
+        (or None) per frame.  Each array has shape (nslits, 2); see
+        :func:`~pypeit.slittrace.SlitTraceSet.select_edges`.  If None, no
+        spatial flexure is applied.
+    initial : bool, optional
+        If True, use the initial slit edges (instead of the tweaked edges, if
+        they are available) when computing the RA and Dec of each pixel.  This
+        should be consistent with the slit edges used to construct
+        ``slitid_img_gpm`` and the alignment splines.
 
     Returns
     -------
@@ -2745,6 +2818,7 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
     # Perform some checks on the input -- note, more complete checks are performed in subpixellate()
     _sciImg, _ivarImg, _waveImg, _slitid_img_gpm, _wghtImg, _all_wcs, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset = \
         check_inputs([sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset])
+    _spat_flexure = spat_flexure_per_frame(spat_flexure, len(_sciImg))
 
     # Generate the white light images
     if combine:
@@ -2752,7 +2826,8 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
         img, sigimg, bpmimg, _ = subpixellate(image_wcs, bins, _sciImg, _ivarImg, _waveImg, _slitid_img_gpm, _wghtImg,
                                  _all_wcs, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset,
                                  spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel,
-                                 skip_subpix_weights=True, correct_dar=correct_dar)
+                                 skip_subpix_weights=True, correct_dar=correct_dar,
+                                 spat_flexure=_spat_flexure, initial=initial)
         return img[0, :, :], sigimg[0, :, :], bpmimg[0, :, :]
     else:
         # Prepare the array of white light images to be stored
@@ -2769,7 +2844,8 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
             img, sigimg, bpmimg, _ = subpixellate(image_wcs, bins, _sciImg[fr], _ivarImg[fr], _waveImg[fr], _slitid_img_gpm[fr], _wghtImg[fr],
                                      _all_wcs[fr], _tilts[fr], _slits[fr], _astrom_trans[fr], _all_dar[fr], _ra_offset[fr], _dec_offset[fr],
                                      spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel,
-                                     skip_subpix_weights=True, correct_dar=correct_dar)
+                                     skip_subpix_weights=True, correct_dar=correct_dar,
+                                     spat_flexure=_spat_flexure[fr], initial=initial)
             all_wl_imgs[:, :, fr] = img[0, :, :]
             all_sig_imgs[:, :, fr] = sigimg[0, :, :]
             all_bpm_imgs[:, :, fr] = bpmimg[0, :, :]
@@ -2781,7 +2857,8 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
 def generate_cube_subpixel(
     output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts, slits,
     astrom_trans, all_dar, ra_offset, dec_offset, spec_subpixel=5, spat_subpixel=5,
-    slice_subpixel=5, skip_subpix_weights=False, correct_dar=True
+    slice_subpixel=5, skip_subpix_weights=False, correct_dar=True, spat_flexure=None,
+    initial=False
 ):
     """
     Save a datacube using the subpixel algorithm. Refer to the
@@ -2858,6 +2935,20 @@ def generate_cube_subpixel(
     correct_dar : bool, optional
         If True, the DAR correction will be applied to the datacube. If the DAR
         correction is not available, the datacube will not be corrected.
+    spat_flexure : `numpy.ndarray`_, list, optional
+        The spatial flexure of each frame relative to its slits, which is used
+        to define the slit edges when computing the RA and Dec of each pixel.
+        This should be the same spatial flexure that was used to construct
+        ``slitid_img_gpm`` and the alignment splines.  This can be a single
+        array (or None) that is applied to all frames, or a list with one array
+        (or None) per frame.  Each array has shape (nslits, 2); see
+        :func:`~pypeit.slittrace.SlitTraceSet.select_edges`.  If None, no
+        spatial flexure is applied.
+    initial : bool, optional
+        If True, use the initial slit edges (instead of the tweaked edges, if
+        they are available) when computing the RA and Dec of each pixel.  This
+        should be consistent with the slit edges used to construct
+        ``slitid_img_gpm`` and the alignment splines.
 
     Returns
     -------
@@ -2885,7 +2976,8 @@ def generate_cube_subpixel(
         output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts,
         slits, astrom_trans, all_dar, ra_offset, dec_offset, spec_subpixel=spec_subpixel,
         spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel,
-        skip_subpix_weights=skip_subpix_weights, correct_dar=correct_dar
+        skip_subpix_weights=skip_subpix_weights, correct_dar=correct_dar,
+        spat_flexure=spat_flexure, initial=initial
     )
 
     # Get wavelength of each pixel
@@ -2895,13 +2987,15 @@ def generate_cube_subpixel(
 
     return flxcube, sigcube, bpmcube, normcube, wave
 
-# DEVELOPER NOTES: RJC is working towards making subpixellate a faster routine, and sometimes uses this decorator
+
+# DEVELOPER NOTES: RJC is working towards making subpixellate a faster routine, and sometimes uses this decorator to
 # find out the bottlenecks and how to speed things up. Please leave this decorator in for the time-being, uncommented.
 # @line_profiler.profile
 def subpixellate(
     output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts, slits,
     astrom_trans, all_dar, ra_offset, dec_offset, spec_subpixel=5, spat_subpixel=5,
-    slice_subpixel=5, skip_subpix_weights=False, correct_dar=True, verbose=False
+    slice_subpixel=5, skip_subpix_weights=False, correct_dar=True, verbose=False,
+    spat_flexure=None, initial=False
 ):
     r"""
     Subpixellate the input data into a datacube. This algorithm splits each
@@ -2993,6 +3087,20 @@ def subpixellate(
         is True.
     verbose : bool, optional
         If True, the code will print out more information. The default is False.
+    spat_flexure : `numpy.ndarray`_, list, optional
+        The spatial flexure of each frame relative to its slits, which is used
+        to define the slit edges when computing the RA and Dec of each pixel.
+        This should be the same spatial flexure that was used to construct
+        ``slitid_img_gpm`` and the alignment splines.  This can be a single
+        array (or None) that is applied to all frames, or a list with one array
+        (or None) per frame.  Each array has shape (nslits, 2); see
+        :func:`~pypeit.slittrace.SlitTraceSet.select_edges`.  If None, no
+        spatial flexure is applied.
+    initial : bool, optional
+        If True, use the initial slit edges (instead of the tweaked edges, if
+        they are available) when computing the RA and Dec of each pixel.  This
+        should be consistent with the slit edges used to construct
+        ``slitid_img_gpm`` and the alignment splines.
 
     Returns
     -------
@@ -3015,6 +3123,7 @@ def subpixellate(
     _sciImg, _ivarImg, _waveImg, _gpmImg, _wghtImg, _all_wcs, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset = \
         check_inputs([sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset])
     numframes = len(_sciImg)
+    _spat_flexure = spat_flexure_per_frame(spat_flexure, numframes)
 
     # Prepare the output arrays
     outshape = (bins[0].size-1, bins[1].size-1, bins[2].size-1)
@@ -3049,9 +3158,12 @@ def subpixellate(
         raimg_slc = np.zeros(slshape, dtype=float)
         decimg_slc = np.zeros(slshape, dtype=float)
         for ss in range(slice_subpixel):
-            # Generate an RA/Dec image for this subslice
+            # Generate an RA/Dec image for this subslice.  NOTE: The slit edges
+            # (initial/tweaked and spatial flexure) must be the same as those
+            # used to construct the slit image and the alignment splines.
             raimg_slc[:, :, ss], decimg_slc[:, :, ss], _ = this_slits.get_radec_image(
-                this_wcs, this_astrom_trans, this_tilts, slice_offset=slice_offs[ss]
+                this_wcs, this_astrom_trans, this_tilts, slice_offset=slice_offs[ss],
+                initial=initial, spat_flexure=_spat_flexure[fr]
             )
         # Loop through all slits
         for sl, spatid in enumerate(this_slits.spat_id):

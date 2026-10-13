@@ -46,12 +46,16 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, slitprof=None
             Slits object
         method (:obj:`str`, optional):
             Method to use to calculate the spatial flexure shift. Options
-            are 'detector' (default), 'slit', and 'edge'. The 'detector'
-            method calculates the shift for all slits simultaneously, the
-            'slit' method calculates the shift for each slit independently,
-            and the 'edge' method calculates the shift for each slit edge
-            independently.
-            Slits object
+            are 'detector' (default), 'slit', 'edge', 'leftedge', and
+            'rightedge'. The 'detector' method calculates a single shift for
+            all slits simultaneously. All other methods start from the
+            'detector' shift and then refine it using the maximum flux
+            gradient at the slit edges: the 'slit' method calculates the
+            shift for each slit independently (the average of the left and
+            right edge shifts), the 'edge' method calculates the shift for
+            each slit edge independently, and the 'leftedge' ('rightedge')
+            method calculates the shift of the left (right) edge of each
+            slit and applies the same shift to the other edge.
         bpm (`numpy.ndarray`_, optional):
             Bad pixel mask (True = Bad)
         slitprof (`numpy.ndarray`_, optional):
@@ -75,9 +79,17 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, slitprof=None
             Run in debug mode
 
     Returns:
-        float:  The spatial flexure shift relative to the initial slits
+        `numpy.ndarray`_: The spatial flexure shift (in pixels) relative to
+        the slits.  The shape is (nslits, 2), where the first (second)
+        column provides the shift of the left (right) edge of each slit.
 
+    Raises:
+        PypeItError: Raised if the method is not recognized.
     """
+    valid_methods = ['detector', 'slit', 'edge', 'leftedge', 'rightedge']
+    if method not in valid_methods:
+        raise PypeItError(f'Unknown spatial flexure method: {method}.  Options are: '
+                          f'{", ".join(valid_methods)}')
     log.info("Measuring spatial flexure")
     # Mask -- Includes short slits and those excluded by the user (e.g. ['rdx']['slitspatnum'])
     slitmask = slits.slit_img(initial=initial, exclude_flag=slits.bitmask.exclude_for_flexure)
@@ -158,31 +170,35 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, slitprof=None
 
     # If we're only calculating the detector flexure, return now
     if method == "detector":
-        pass
-    elif method in ["slit", "edge"]: # Compute the small correction to the flexure for each slit edge
-        log.info(f"Calculating the spatial flexure of each {method}.")
-        # Store an array of the small correction to the flexure for each slit
-        delta_flexure = np.zeros((slits.nslits, 2))
-        # Set up the slits and image properties
-        left, right, _ = slits.select_edges(initial=initial, spat_flexure=total_flexure)
-        # Loop through all slits and calculate the flexure of each slit edge.
-        for slit_idx in range(slits.nslits):
-            # Calculate the pixel shift that corresponds to the largest flux gradient
-            left_shift = trace.refine_edge(_sciimg, bpm, left[:, slit_idx], "left")
-            right_shift = trace.refine_edge(_sciimg, bpm, right[:, slit_idx], "right")
-            # These values are the fraction of the slit width, so convert to pixels
-            delta_flexure[slit_idx, 0] = left_shift
-            delta_flexure[slit_idx, 1] = right_shift
-        # If the method is slit, average the flexure for each edge
-        if method == "slit":
-            # use the average flexure for each edge as the flexure for the slit
-            delta_flexure = np.mean(delta_flexure, axis=1).reshape((slits.nslits, 1)).repeat(2, axis=1)
-        # Add the delta_flexure to the total_flexure
-        total_flexure += delta_flexure
-    else:
-        log.error("Not ready for this method")
+        return total_flexure
 
-    return total_flexure
+    # Compute the small correction to the flexure for each slit edge
+    log.info(f"Calculating the spatial flexure using the '{method}' method.")
+    # Store an array of the small correction to the flexure for each slit
+    delta_flexure = np.zeros((slits.nslits, 2))
+    # Set up the slits and image properties
+    left, right, _ = slits.select_edges(initial=initial, spat_flexure=total_flexure)
+    # Only refine the edges that are needed
+    refine_left = method != 'rightedge'
+    refine_right = method != 'leftedge'
+    # Loop through all slits and calculate the flexure of each slit edge.
+    for slit_idx in range(slits.nslits):
+        # Calculate the pixel shift that corresponds to the largest flux gradient
+        if refine_left:
+            delta_flexure[slit_idx, 0] = trace.refine_edge(_sciimg, bpm, left[:, slit_idx], "left")
+        if refine_right:
+            delta_flexure[slit_idx, 1] = trace.refine_edge(_sciimg, bpm, right[:, slit_idx], "right")
+    if method == "slit":
+        # Use the average flexure of both edges as the flexure for the slit
+        delta_flexure = np.mean(delta_flexure, axis=1).reshape((slits.nslits, 1)).repeat(2, axis=1)
+    elif method == "leftedge":
+        # Assign the left edge flexure to the right edge
+        delta_flexure[:, 1] = delta_flexure[:, 0]
+    elif method == "rightedge":
+        # Assign the right edge flexure to the left edge
+        delta_flexure[:, 0] = delta_flexure[:, 1]
+    # Add the delta_flexure to the total_flexure
+    return total_flexure + delta_flexure
 
 
 

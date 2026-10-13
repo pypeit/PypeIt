@@ -863,9 +863,11 @@ class RawImage:
                                                       sigdetect=self.par['spat_flexure_sigdetect'],
                                                       debug=debug)
 
-        # Each spectrograph can optionally post-process the spatial flexure values in their own way
-        _spat_flexure = spat_flexure if self.par['spat_flexure_polyord'] is None else \
-            self.spectrograph.spatial_flexure(spat_flexure, polyord=self.par['spat_flexure_polyord'])
+        # Each spectrograph can optionally post-process the (measured) spatial
+        # flexure values in their own way.  A manual value is used as is.
+        _spat_flexure = spat_flexure \
+            if self.par['spat_flexure_polyord'] is None or not np.ma.is_masked(manual_spat_flexure) \
+            else self.spectrograph.spatial_flexure(spat_flexure, polyord=self.par['spat_flexure_polyord'])
 
         # Print the flexure values
         if np.all(_spat_flexure == _spat_flexure[0, 0]):
@@ -873,10 +875,10 @@ class RawImage:
         else:
             # Print the flexure values for each slit separately
             for slit in range(_spat_flexure.shape[0]):
-                if self.par['spat_flexure_method'] == "slit":
-                    log.info("Spatial flexure (Slit {0:d}): {1:.2f} pixels".format(slits.spat_id[slit],
-                                                                                   _spat_flexure[slit, 0]))
-                elif self.par['spat_flexure_method'] == "edge":
+                if _spat_flexure[slit, 0] == _spat_flexure[slit, 1]:
+                    log.info(f'Spatial flexure (Slit {slits.spat_id[slit]}): '
+                             f'{_spat_flexure[slit, 0]:.2f} pixels')
+                else:
                     log.info(
                         f'Spatial flexure (Slit {slits.spat_id[slit]}): '
                         f'left={_spat_flexure[slit, 0]:.2f} pixels; '

@@ -10,12 +10,13 @@ from IPython import embed
 import numpy as np
 import pytest
 
+from pypeit import PypeItError
 from pypeit import utils
 from pypeit import slittrace
 from pypeit import alignframe
 from pypeit.core import datacube
 from pypeit.core.flexure import calculate_image_phase
-from pypeit.coadd3d import DataCube
+from pypeit.coadd3d import DataCube, SlicerIFUCoAdd3D
 
 
 def make_test_datacube(whitelight_range=None):
@@ -879,6 +880,87 @@ def test_generate_cube_subpixel_recovers_injected_source_position():
     assert 0.15 * flux_bright_peak < flux_faint_at_expected < 0.7 * flux_bright_peak, \
         "flux at the faint source's expected cube position does not match its known " \
         "amplitude relative to the bright source"
+
+
+def test_shift_alignment_traces():
+    """The alignment traces are shifted by the spatial flexure, linearly
+    interpolated between the left and right slit edges."""
+    nspec, ntrace, nslits = 10, 3, 2
+    traces = np.tile(np.array([10., 15., 20.])[None, :, None], (nspec, 1, nslits))
+    locations = [0.0, 0.5, 1.0]
+    spat_flexure = np.array([[1.0, 3.0], [-2.0, -2.0]])
+    shifted = SlicerIFUCoAdd3D.shift_alignment_traces(traces, locations, spat_flexure)
+    assert np.allclose(shifted[:, :, 0] - traces[:, :, 0], [1.0, 2.0, 3.0]), \
+        'Alignment traces not shifted by the interpolated left/right edge flexure'
+    assert np.allclose(shifted[:, :, 1] - traces[:, :, 1], -2.0), \
+        'Alignment traces not shifted by a uniform flexure'
+    # No flexure means no shift
+    assert SlicerIFUCoAdd3D.shift_alignment_traces(traces, locations, None) is traces
+    # Inconsistent shapes raise an error
+    with pytest.raises(PypeItError):
+        SlicerIFUCoAdd3D.shift_alignment_traces(traces, locations, spat_flexure[:1])
+
+
+def test_generate_cube_subpixel_spatial_flexure():
+    """A datacube built from a frame with a known spatial flexure must match the
+    datacube built from the same data without flexure, provided the spatial
+    flexure is passed to `generate_cube_subpixel` (see `subpixellate`)."""
+    slits, tilts, astrom_trans, sciImg, ivarImg, wghtImg, waveImg, wave0, dwv, bright, faint = \
+        _make_synthetic_three_slit_detector()
+    frame_wcs = _make_synthetic_frame_wcs(150.0, 10.0, wave0, dwv)
+    # Common sub-pixel sampling, so that the RA/Dec interpolation is exercised
+    subpix = dict(spec_subpixel=2, spat_subpixel=3, slice_subpixel=1, skip_subpix_weights=True,
+                  correct_dar=False)
+
+    # Reference cube, without any spatial flexure
+    gpm = slits.slit_img(pad=0)
+    gpm[gpm < 0] = 0
+    raimg, decimg, _ = slits.get_radec_image(frame_wcs, astrom_trans, tilts)
+    onslit = gpm > 0
+    dspat_cube = 0.15 / 3600.0
+    pad = 3 * dspat_cube
+    cube_wcs, voxedges, _ = datacube.create_wcs(
+        raimg, decimg, waveImg, gpm, dspat_cube, dwv,
+        ra_min=raimg[onslit].min() - pad/np.cos(np.radians(10.0)),
+        ra_max=raimg[onslit].max() + pad/np.cos(np.radians(10.0)),
+        dec_min=decimg[onslit].min() - pad, dec_max=decimg[onslit].max() + pad)
+    flx_ref = datacube.generate_cube_subpixel(
+        cube_wcs, voxedges, sciImg, ivarImg, waveImg, gpm, wghtImg, frame_wcs, tilts, slits,
+        astrom_trans, None, 0.0, 0.0, **subpix)[0]
+    assert np.sum(flx_ref) > 0, 'Reference cube is empty'
+
+    # The same frame, shifted spatially by an integer number of pixels.  The
+    # slits object is unchanged (as for a spec2d file); the shift is provided as
+    # the spatial flexure.
+    dx = 2
+    spat_flexure = np.full((slits.nslits, 2), float(dx))
+    shift = lambda img: np.roll(img, dx, axis=1)
+    gpm_flex = slits.slit_img(pad=0, spat_flexure=spat_flexure)
+    gpm_flex[gpm_flex < 0] = 0
+    assert np.array_equal(gpm_flex, shift(gpm)), 'Slit image not shifted by the spatial flexure'
+    # Alignment splines built from the (flexure-shifted) traces of this frame
+    traces = np.stack(slits.select_edges(initial=True)[:2], axis=1)
+    astrom_flex = alignframe.AlignmentSplines(
+        SlicerIFUCoAdd3D.shift_alignment_traces(traces, [0.0, 1.0], spat_flexure),
+        np.array([0.0, 1.0]), shift(tilts))
+    args = (cube_wcs, voxedges, shift(sciImg), shift(ivarImg), shift(waveImg), gpm_flex,
+            shift(wghtImg), frame_wcs, shift(tilts), slits, astrom_flex, None, 0.0, 0.0)
+    flx_flex = datacube.generate_cube_subpixel(*args, spat_flexure=spat_flexure, initial=True,
+                                               **subpix)[0]
+    assert np.allclose(flx_flex, flx_ref, rtol=1e-6, atol=1e-10 * np.max(flx_ref)), \
+        'Datacube built with spatial flexure does not match the unshifted datacube'
+
+    # Ignoring the spatial flexure when computing the RA/Dec of each pixel
+    # (the previous behavior) assigns RA=Dec=0 to the pixels at the edge of
+    # each shifted slit, which either leads to non-finite voxel coordinates
+    # (raising an error) or loses/misplaces the flux at the slit edges.
+    try:
+        flx_noflex = datacube.generate_cube_subpixel(*args, **subpix)[0]
+    except PypeItError:
+        pass
+    else:
+        assert not np.allclose(flx_noflex, flx_ref, rtol=1e-6, atol=1e-10 * np.max(flx_ref)), \
+            'Test is not sensitive to the spatial flexure'
 
 
 def test_generate_cube_subpixel_combines_offset_frames_correctly():

@@ -162,16 +162,13 @@ class FindObjects:
         #   WARNING -- It is best to unpack here then pass around self.slits
         #      Otherwise you have to keep in mind flexure, tweaking, etc.
 
-        # TODO: The spatial flexure is not copied to the PypeItImage object if
-        # the image (science or otherwise) is from a combination of multiple
-        # frames.  Is that okay for this usage?
-        # Flexure
-        self.spat_flexure = None
-        if (objtype == 'science' and self.par['scienceframe']['process']['spat_flexure_method'] != "skip") or \
-           (objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_method'] != "skip"):
-            self.spat_flexure = self.sciImg.spat_flexure
-        elif objtype == 'science_coadd2d':
-            self.spat_flexure = None
+        # Spatial flexure of the image relative to the slits.  This is None if
+        # no spatial flexure was computed (spat_flexure_method = skip) and no
+        # manual value was provided in the pypeit file.  NOTE: Do *not* check
+        # spat_flexure_method here; a manual value is applied even if the
+        # method is 'skip'.  The 2D coadded images are rectified, so there is
+        # no spatial flexure.
+        self.spat_flexure = None if objtype == 'science_coadd2d' else self.sciImg.spat_flexure
 
         # Initialise the slits
         log.info("Initializing slits")
@@ -235,12 +232,10 @@ class FindObjects:
         elif waveTilts is not None and tilts is None:
             self.waveTilts = waveTilts
             self.waveTilts.is_synced(self.slits)
-            # Deal with Flexure
-            _spat_flexure = self.spat_flexure
-            if self.par['calibrations']['tiltframe']['process']['spat_flexure_method'] != "skip" and self.spat_flexure is None:
-                _spat_flexure = np.zeros((slits.nslits, 2))
+            # NOTE: fit2tiltimg accounts for the spatial flexure of the tilts
+            # frame, and treats a spat_flexure of None as no flexure.
             log.info("Generating tilts image from fit in waveTilts")
-            self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, spat_flexure=_spat_flexure)
+            self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, spat_flexure=self.spat_flexure)
         elif waveTilts is None and tilts is not None:
             log.info("Using user input tilts image")
             self.tilts = tilts

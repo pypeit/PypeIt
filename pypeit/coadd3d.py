@@ -681,6 +681,11 @@ class CoAdd3D:
         self.all_sci, self.all_ivar, self.all_wave, self.all_slitid, self.all_wghts = [], [], [], [], []
         self.all_tilts, self.all_slits, self.all_align, self.all_header = [], [], [], []
         self.all_wcs, self.all_ra, self.all_dec, self.all_deltapix, self.all_dar = [], [], [], [], []
+        # - The spatial flexure of each frame (None if no spatial flexure)
+        self.all_spat_flexure = []
+        # - Use the initial (instead of tweaked) slit edges?  This must be the
+        #   same for all steps of the datacube construction.
+        self.initial_slits = False
         # - Weights to use when combining cubes
         self.weights = np.ones(self.numfiles)
 
@@ -1220,6 +1225,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                          ra_offsets=ra_offsets, dec_offsets=dec_offsets, spectrograph=spectrograph, det=det,
                          overwrite=overwrite, show=show, debug=debug)
         self.mnmx_wv = None  # Will be used to store the minimum and maximum wavelengths of every slit and frame.
+        # Always use initial slits for SlicerIFU. Initial slits are relative to maximum flux gradient
+        self.initial_slits = True
         self._spatscale = np.zeros((self.numfiles, 2))  # index 0, 1 = pixel scale, slicer scale
         self._specscale = np.zeros(self.numfiles)
 
@@ -1271,9 +1278,57 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             traces = np.append(left[:, None, :], right[:, None, :], axis=1)
         else:
             locations = self.par['calibrations']['alignment']['locations']
-            traces = alignments.traces
+            traces = self.shift_alignment_traces(alignments.traces, locations, spat_flexure)
         log.info("Generating alignment splines")
         return alignframe.AlignmentSplines(traces, locations, spec2DObj.tilts)
+
+    @staticmethod
+    def shift_alignment_traces(traces, locations, spat_flexure):
+        """
+        Shift the alignment traces to account for the spatial flexure of a
+        frame.
+
+        The alignment traces are measured on the alignment frame.  To use them
+        for a frame with a different spatial flexure, each trace is shifted by
+        the spatial flexure linearly interpolated between the left and right
+        slit edges, using the fractional location of the trace along the slit.
+
+        .. note::
+
+            The spatial flexure of the alignment frame itself is not currently
+            stored, and the alignment frame is processed without the slits (so
+            its spatial flexure cannot be computed).  The alignment traces are
+            therefore assumed to have no spatial flexure relative to the slits.
+
+        Parameters
+        ----------
+        traces : `numpy.ndarray`_
+            The alignment traces, with shape (nspec, ntrace, nslits).
+        locations : `numpy.ndarray`_, list
+            The fractional location of each alignment trace along the slit
+            (0 is the left edge, 1 is the right edge), with length ntrace.
+        spat_flexure : `numpy.ndarray`_
+            The spatial flexure of the frame relative to the slits, with
+            shape (nslits, 2); see
+            :func:`~pypeit.slittrace.SlitTraceSet.select_edges`.  If None, the
+            traces are returned unchanged.
+
+        Returns
+        -------
+        `numpy.ndarray`_
+            The shifted alignment traces, with shape (nspec, ntrace, nslits).
+        """
+        if spat_flexure is None:
+            return traces
+        _locations = np.atleast_1d(locations).astype(float)
+        if spat_flexure.shape != (traces.shape[2], 2) or _locations.size != traces.shape[1]:
+            raise PypeItError(f'Spatial flexure shape {spat_flexure.shape} and/or number of alignment '
+                              f'locations ({_locations.size}) is inconsistent with the alignment '
+                              f'traces shape {traces.shape}.')
+        # Shift of each trace in each slit, with shape (ntrace, nslits)
+        shift = spat_flexure[None, :, 0] \
+                    + _locations[:, None] * (spat_flexure[None, :, 1] - spat_flexure[None, :, 0])
+        return traces + shift[None, :, :]
 
     def load_data(self):
         """
@@ -1302,6 +1357,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         * self.all_wghts
         * self.all_tilts
         * self.all_slits
+        * self.all_spat_flexure
         * self.all_align
         * self.all_wcs
         * self.all_ra
@@ -1316,7 +1372,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                                       chk_version=self.chk_version)
             detector = spec2DObj.detector
             spat_flexure = spec2DObj.sci_spat_flexure
-            initial = True  # Always use initial slits for SlicerIFU. Initial slits are relative to maximum flux gradient
+            initial = self.initial_slits
 
             # Load the header
             hdr0 = spec2DObj.head0
@@ -1604,6 +1660,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             self.all_wghts.append(wghts.copy())
             self.all_tilts.append(spec2DObj.tilts)
             self.all_slits.append(slits)
+            self.all_spat_flexure.append(spat_flexure)
             self.all_align.append(alignSplines)
             self.all_dar.append(darcorr)
 
@@ -1667,7 +1724,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 slitid_img_gpm, self.all_wghts, self.all_wcs,
                 self.all_tilts, self.all_slits, self.all_align, self.all_dar,
                 ra_offsets, dec_offsets, spec_subpixel=self.spec_subpixel,
-                spat_subpixel=self.spat_subpixel, slice_subpixel=self.slice_subpixel)
+                spat_subpixel=self.spat_subpixel, slice_subpixel=self.slice_subpixel,
+                spat_flexure=self.all_spat_flexure, initial=self.initial_slits)
             if reference_image is None:
                 # ref_idx will be the index of the cube with the highest S/N
                 ref_idx = np.argmax(self.weights)
@@ -1761,7 +1819,9 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                                     spat_subpixel=self.spat_subpixel,
                                                     slice_subpixel=self.slice_subpixel,
                                                     skip_subpix_weights=self.skip_subpix_weights,
-                                                    correct_dar=self.correct_dar)
+                                                    correct_dar=self.correct_dar,
+                                                    spat_flexure=self.all_spat_flexure[ff],
+                                                    initial=self.initial_slits)
                 # Prepare the header
                 hdr = self.all_wcs[ff].to_header()
                 if self.fluxcal:
@@ -1830,7 +1890,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 reference_image=self.cubepar['reference_image'],
                 correct_dar=self.correct_dar,
                 specname=self.specname, init_obj_position=init_obj_position,
-                show_qa=show_qa)
+                show_qa=show_qa, spat_flexure=self.all_spat_flexure,
+                initial=self.initial_slits)
 
     def make_datacubes(self):
         """
@@ -1918,7 +1979,9 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                                 spat_subpixel=self.spat_subpixel,
                                                 slice_subpixel=self.slice_subpixel,
                                                 skip_subpix_weights=self.skip_subpix_weights,
-                                                correct_dar=self.correct_dar)
+                                                correct_dar=self.correct_dar,
+                                                spat_flexure=self.all_spat_flexure[ff],
+                                                initial=self.initial_slits)
             if self.combine:
                 # If we are combining cubes, then we need to save these for the final combination
                 # with sigma clipping below, otherwise no need to store these and use more memory

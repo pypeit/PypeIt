@@ -161,16 +161,13 @@ class Extract:
         #   WARNING -- It is best to unpack here then pass around self.slits
         #      Otherwise you have to keep in mind flexure, tweaking, etc.
 
-        # TODO: The spatial flexure is not copied to the PypeItImage object if
-        # the image (science or otherwise) is from a combination of multiple
-        # frames.  Is that okay for this usage?
-        # Flexure
-        self.spat_flexure = None
-        if (objtype == 'science' and self.par['scienceframe']['process']['spat_flexure_method'] != "skip") or \
-           (objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_method'] != "skip"):
-            self.spat_flexure = self.sciImg.spat_flexure
-        elif objtype == 'science_coadd2d':
-            self.spat_flexure = None
+        # Spatial flexure of the image relative to the slits.  This is None if
+        # no spatial flexure was computed (spat_flexure_method = skip) and no
+        # manual value was provided in the pypeit file.  NOTE: Do *not* check
+        # spat_flexure_method here; a manual value is applied even if the
+        # method is 'skip'.  The 2D coadded images are rectified, so there is
+        # no spatial flexure.
+        self.spat_flexure = None if objtype == 'science_coadd2d' else self.sciImg.spat_flexure
 
         # Initialize the slits
         log.info("Initializing slits")

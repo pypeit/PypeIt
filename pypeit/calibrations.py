@@ -579,10 +579,10 @@ class Calibrations:
                                                  setup=setup, calib_id=calib_id,
                                                  manual_spat_flexure=manual_spat_flexure)
 
-        # Get flexure
-        _spat_flexure = msalign.spat_flexure \
-            if self.par['alignframe']['process']['spat_flexure_method'] != "skip" \
-            else None
+        # Get flexure.  NOTE: This is None if no spatial flexure was computed
+        # and no manual value was provided; a manual value is used even if
+        # spat_flexure_method is 'skip'.
+        _spat_flexure = msalign.spat_flexure
 
         # Instantiate
         # TODO: From JFH: Do we need the bpm here?  Check that this was in the previous code.
@@ -822,10 +822,10 @@ class Calibrations:
                                                          setup=setup, calib_id=calib_id,
                                                          manual_spat_flexure=manual_spat_flexure)
 
-        # Get flexure
-        _spat_flexure = scattlightImage.spat_flexure \
-            if self.par['scattlightframe']['process']['spat_flexure_method'] != "skip" \
-            else None
+        # Get flexure.  NOTE: This is None if no spatial flexure was computed
+        # and no manual value was provided; a manual value is used even if
+        # spat_flexure_method is 'skip'.
+        _spat_flexure = scattlightImage.spat_flexure
 
 
         spatbin = parse.parse_binning(binning)[1]
@@ -1546,10 +1546,10 @@ class Calibrations:
                     if self.spectrograph.pypeline == 'Echelle' \
                         and not self.spectrograph.ech_fixed_format else None
 
-        # Get flexure
-        _spat_flexure = self.msarc.spat_flexure \
-            if self.par['arcframe']['process']['spat_flexure_method'] != "skip" \
-            else None
+        # Get flexure.  NOTE: This is None if no spatial flexure was computed
+        # and no manual value was provided; a manual value is used even if
+        # spat_flexure_method is 'skip'.
+        _spat_flexure = self.msarc.spat_flexure
 
         # Instantiate
         # TODO: Pull out and pass only the necessary parts of meta_dict to
@@ -1646,10 +1646,10 @@ class Calibrations:
             self.slits.mask_wavetilts(self.wavetilts)
             return self.wavetilts
 
-        # Get flexure
-        _spat_flexure = self.mstilt.spat_flexure \
-            if self.par['tiltframe']['process']['spat_flexure_method'] != "skip" \
-            else None
+        # Get flexure.  NOTE: This is None if no spatial flexure was computed
+        # and no manual value was provided; a manual value is used even if
+        # spat_flexure_method is 'skip'.
+        _spat_flexure = self.mstilt.spat_flexure
 
         # get measured fwhm from wv_calib
         measured_fwhms = [wvfit.fwhm for wvfit in self.wv_calib.wv_fits]

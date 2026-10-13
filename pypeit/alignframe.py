@@ -337,7 +337,10 @@ class AlignmentSplines:
             3D array containing the alignments (traces) of the slits. This allows different
             slices to be aligned correctly. Ideally, this variable will be assigned the
             value of alignments.traces. However, this can also be assigned the
-            left and right slit edges:
+            left and right slit edges.  In either case, the traces must be in the
+            detector coordinates of the frame being transformed (i.e., including
+            its spatial flexure; see
+            :func:`~pypeit.coadd3d.SlicerIFUCoAdd3D.shift_alignment_traces`):
 
             .. code-block:: python
 
@@ -353,7 +356,6 @@ class AlignmentSplines:
             Spectral tilts.
         """
         # Perform some checks
-        log.debug("Spatial flexure is not currently implemented for the astrometric alignment")
         if type(locations) is list:
             locations = np.array(locations)
         if locations.size != traces.shape[1]:
