@@ -1,0 +1,51 @@
+# Keck/OSIRIS K-band OH sky lines from the OSIRIS DRP
+# (OsirisDRP data/ohlines_kbb_all.dat).  Wavelengths are in vacuum
+# (Angstrom).  Relative intensities as listed there; lines with an
+# unknown intensity (NaN in the DRP file) are blend components and
+# have amplitude 0.0 and NIST = 0.
+# Created by JXP and Claude on 2026-10-12 (Keck/OSIRIS M4).
+|    wave | ion | NIST | Instr | amplitude |    Source |
+| 19699.0 |  OH |    1 |     0 |      0.15 | OsirisDRP |
+| 19702.9 |  OH |    1 |     0 |      0.35 | OsirisDRP |
+| 19736.2 |  OH |    1 |     0 |      0.05 | OsirisDRP |
+| 19751.5 |  OH |    1 |     0 |      0.20 | OsirisDRP |
+| 19771.8 |  OH |    1 |     0 |      0.52 | OsirisDRP |
+| 19839.7 |  OH |    1 |     0 |      0.22 | OsirisDRP |
+| 20008.2 |  OH |    1 |     0 |      1.05 | OsirisDRP |
+| 20033.2 |  OH |    1 |     0 |      0.35 | OsirisDRP |
+| 20193.3 |  OH |    1 |     0 |      0.15 | OsirisDRP |
+| 20275.9 |  OH |    1 |     0 |      1.00 | OsirisDRP |
+| 20339.5 |  OH |    1 |     0 |      0.55 | OsirisDRP |
+| 20412.7 |  OH |    1 |     0 |      1.28 | OsirisDRP |
+| 20499.3 |  OH |    1 |     0 |      0.27 | OsirisDRP |
+| 20563.6 |  OH |    1 |     0 |      1.05 | OsirisDRP |
+| 20672.9 |  OH |    1 |     0 |      0.03 | OsirisDRP |
+| 20729.0 |  OH |    1 |     0 |      0.77 | OsirisDRP |
+| 20860.3 |  OH |    1 |     0 |      0.20 | OsirisDRP |
+| 20909.6 |  OH |    1 |     0 |      0.33 | OsirisDRP |
+| 21068.0 |  OH |    1 |     0 |      0.22 | OsirisDRP |
+| 21096.6 |  OH |    0 |     0 |      0.00 | OsirisDRP |
+| 21105.7 |  OH |    0 |     0 |      0.00 | OsirisDRP |
+| 21115.9 |  OH |    1 |     0 |      0.24 | OsirisDRP |
+| 21156.1 |  OH |    1 |     0 |      0.12 | OsirisDRP |
+| 21176.6 |  OH |    1 |     0 |      0.38 | OsirisDRP |
+| 21232.5 |  OH |    1 |     0 |      0.15 | OsirisDRP |
+| 21249.7 |  OH |    1 |     0 |      0.41 | OsirisDRP |
+| 21279.1 |  OH |    1 |     0 |      0.05 | OsirisDRP |
+| 21318.0 |  OH |    0 |     0 |      0.00 | OsirisDRP |
+| 21326.0 |  OH |    1 |     0 |      0.16 | OsirisDRP |
+| 21505.0 |  OH |    0 |     0 |      0.00 | OsirisDRP |
+| 21507.3 |  OH |    1 |     0 |      1.20 | OsirisDRP |
+| 21512.1 |  OH |    0 |     0 |      0.00 | OsirisDRP |
+| 21537.6 |  OH |    1 |     0 |      0.30 | OsirisDRP |
+| 21580.7 |  OH |    1 |     0 |      0.15 | OsirisDRP |
+| 21711.1 |  OH |    1 |     0 |      0.25 | OsirisDRP |
+| 21802.2 |  OH |    1 |     0 |      0.70 | OsirisDRP |
+| 21873.5 |  OH |    1 |     0 |      0.35 | OsirisDRP |
+| 21955.6 |  OH |    1 |     0 |      0.90 | OsirisDRP |
+| 22125.5 |  OH |    1 |     0 |      0.80 | OsirisDRP |
+| 22247.9 |  OH |    1 |     0 |      0.28 | OsirisDRP |
+| 22312.7 |  OH |    1 |     0 |      0.50 | OsirisDRP |
+| 22460.3 |  OH |    1 |     0 |      0.10 | OsirisDRP |
+| 22518.0 |  OH |    1 |     0 |      0.25 | OsirisDRP |
+| 22742.0 |  OH |    1 |     0 |      0.15 | OsirisDRP |

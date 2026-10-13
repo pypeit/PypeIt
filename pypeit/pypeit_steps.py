@@ -387,7 +387,8 @@ def process_one_det(spectrograph, fitstbl, par, frames:list,
 
 def findobj_on_det(sciImg, spectrograph, fitstbl, par, frames:list, calib_ID:str, 
                    det, calibrations_path:str, std_outfile:str=None, 
-                   bkg_redux=False, find_negative=False, show:bool=False):
+                   bkg_redux=False, find_negative=False, show:bool=False,
+                   bkg_redux_sciimg=None):
     """
     Perform object finding on a specific detector.
 
@@ -426,6 +427,11 @@ def findobj_on_det(sciImg, spectrograph, fitstbl, par, frames:list, calib_ID:str
             Default is False.
         show (:obj:`bool`, optional):
             Show the QA during processing. Default is False.
+        bkg_redux_sciimg (:class:`~pypeit.images.pypeitimage.PypeItImage`, optional):
+            The science image *before* the background frame was subtracted
+            (A of an A-B reduction).  Made available to the object-finding
+            class as ``bkg_redux_sciimg`` (used by the Fiber pypeline's
+            sky-line refinement and OH-line scaling).
 
     Returns:
         tuple: A tuple containing:
@@ -460,6 +466,8 @@ def findobj_on_det(sciImg, spectrograph, fitstbl, par, frames:list, calib_ID:str
                                   par, frames, det, caliBrate,
                                   bkg_redux,
                                   find_negative, show=show)
+    # The un-subtracted frame of an A-B reduction (or None)
+    objFind.bkg_redux_sciimg = bkg_redux_sciimg
     # Do it
     initial_sky, sobjs_obj = objFind.run(std_trace=std_trace, 
                                          show_peaks=show)

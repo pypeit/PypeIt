@@ -2,9 +2,9 @@
 
     $ pypeit_binospec_ifu_cube -h
     usage: pypeit_binospec_ifu_cube [-h] [-v VERBOSITY] [--log_file LOG_FILE]
-                                    [--log_level LOG_LEVEL] [-o OUTPUT]
-                                    [--spatial_scale SPATIAL_SCALE] [--boxcar]
+                                    [--log_level LOG_LEVEL] [-o OUTPUT] [--boxcar]
                                     [--method {nearest,linear,cubic}]
+                                    [--spatial_scale SPATIAL_SCALE]
                                     files [files ...]
     
     Build a datacube from Binospec IFU spec1d files.
@@ -29,12 +29,14 @@
                             console stream log. (default: None)
       -o, --output OUTPUT   Output FITS filename (only valid for a single input
                             file; default: auto-generated) (default: None)
-      --spatial_scale SPATIAL_SCALE
-                            Output spatial pixel scale in arcsec (default: 0.27)
-                            (default: 0.27)
       --boxcar              Use boxcar (BOX) extraction columns instead of the
-                            default optimal (OPT) columns (default: False)
+                            default optimal (OPT) columns (the boxcar is used anyway
+                            when the file has no optimal extraction) (default:
+                            False)
       --method {nearest,linear,cubic}
                             Spatial interpolation method (default: linear) (default:
                             linear)
+      --spatial_scale SPATIAL_SCALE
+                            Output spatial pixel scale in arcsec (default: 0.27)
+                            (default: 0.27)
     

@@ -296,7 +296,9 @@ general-purpose ``pypeit_coadd_datacube`` script (designed for slicer
 IFUs like KCWI) does not produce correct results.  Instead, use the
 dedicated ``pypeit_binospec_ifu_cube`` script that reads
 extracted 1D fiber spectra from spec1d files and
-builds a datacube.
+builds a datacube.  ``pypeit_binospec_ifu_cube`` is an alias of the
+generic fiber-IFU script ``pypeit_fiber_cube`` (restricted to Binospec and
+with a 0.27 arcsec default spatial scale).
 
 By default, optimal (``OPT``) extraction columns are used; pass
 ``--boxcar`` to use boxcar (``BOX``) extraction columns instead.  Sky

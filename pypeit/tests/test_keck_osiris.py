@@ -283,6 +283,17 @@ def test_default_par(spec):
     # Boxcar radius of half a lenslet
     cpar = spec.config_specific_par(make_header(HDR_2024))
     assert np.isclose(cpar['reduce']['extraction']['boxcar_radius'], 0.025)
+    # M4: per-lenslet OH refinement, OH list per band, no DTMP7 term,
+    # Davies OH scaling of A-B residuals
+    assert par['calibrations']['wavelengths']['fiber_sky_refine'] \
+        == 'zeropoint'
+    assert cpar['calibrations']['wavelengths']['lamps'] == ['OH_OSIRIS']
+    cpar = spec.config_specific_par(make_header(HDR_2016_FULL))
+    assert cpar['calibrations']['wavelengths']['lamps'] == ['OH_NIRES']
+    assert not par['calibrations']['osiris_grating_temp']
+    assert par['reduce']['skysub']['osiris_oh_scaling'] == 'global'
+    assert spec.frame_expansion(make_header(HDR_2024)) == 1.0
+    assert spec.frame_expansion(make_header(HDR_2024), apply=True) > 1.0
 
 
 # ---------------------------------------------------------------------------
@@ -323,7 +334,10 @@ def test_lenslet_layout_broadband(spec):
     assert np.array_equal(lay['crow'], lay['slice'] % 64 + 1)
     assert np.array_equal(lay['ccol'], lay['slice'] // 64 + 16)
     assert np.array_equal(lay['lens_id'], lay['crow'] * 51 + lay['ccol'])
-    assert np.all(lay['xlo'] == 0) and np.all(lay['xhi'] == 2047)
+    # Broadband: the window is the filter band (DRP cube range)
+    width = lay['xhi'] - lay['xlo'] + 1
+    assert np.all(lay['xhi'] - lay['xlo'] < 2047)
+    assert 1400 < np.median(width) < 1700
     assert len(lay) > 1150
 
 
@@ -380,7 +394,8 @@ def test_fiber_hooks(spec):
     left, right = spec.get_block_slit_edges(np.zeros((10, 64 * 51)), 1)
     assert left.shape == (10, 51)
     assert np.allclose(right[0, :-1] + 1, left[0, 1:] + 1)
-    assert np.isclose(right[0, 0] - left[0, 0], 63.5)
+    assert np.isclose(right[0, 0] - left[0, 0], 64.)
+    assert left[0, 0] == -0.5
     with pytest.raises(PypeItError):
         spec.get_block_slit_edges(np.zeros((10, 100)), 1)
 
@@ -396,19 +411,50 @@ def _block_slits(spec, nspec=2048):
 
 
 def test_fixed_tilts(spec):
-    # Identity tilts: tilt = spec / (nspec - 1) everywhere in the slits
+    # Keck-derived tilts: one 2D Legendre per block, finite and close to
+    # the identity (the lenslet stagger is a few tens of pixels at most)
     spec.set_lenslet_state('Kbb', MJD_2024, scale=0.05)
-    slits = _block_slits(spec, nspec=128)
-    tilts = spec.get_fixed_tilts(slits)
+    slits = _block_slits(spec)
+    tilts = spec.get_fixed_tilts(slits, raw_header=make_header(HDR_2024))
     assert tilts.nslit == slits.nslits
-    assert np.all(tilts.coeffs[:, 1:, :] == 0)
+    assert tilts.coeffs.shape == (spec.TILT_ORDER[0] + 1,
+                                  spec.TILT_ORDER[1] + 1, slits.nslits)
+    assert np.any(tilts.coeffs[:, 1:, :] != 0)
     slitmask = slits.slit_img()
     img = tilts.fit2tiltimg(slitmask)
     on = slitmask > -1
-    expect = np.tile(np.arange(128)[:, None] / 127., (1, slitmask.shape[1]))
-    assert np.allclose(img[on], expect[on], atol=1e-10)
+    ident = np.tile(np.arange(2048)[:, None] / 2047., (1, slitmask.shape[1]))
+    assert np.all(np.isfinite(img[on]))
+    assert np.max(np.abs(img[on] - ident[on])) * 2047 < 80.
     # The base class provides no fixed tilts
     assert load_spectrograph('shane_kast_blue').get_fixed_tilts(slits) is None
+
+
+@pytest.mark.parametrize('cards,scale', [(HDR_2024, 0.05),
+                                         (HDR_2016_FULL, 0.1)])
+def test_tilt_waveimg_vs_keck(spec, cards, scale):
+    # The wavelength image built from the Keck-derived tilts and the block
+    # solutions reproduces every lenslet's Keck solution inside the band
+    # to < 0.05 pixel rms (M4 task 8)
+    from pypeit.core import lenslet_rectify as lr
+    hdr = make_header(cards)
+    spec.set_lenslet_state(hdr['SFILTER'], hdr['MJD-OBS'], scale=scale)
+    slits = _block_slits(spec)
+    par = spec.default_pypeit_par()['calibrations']['wavelengths']
+    wv = spec.get_fixed_wavecalib(slits, hdr, par)
+    tilts = spec.get_fixed_tilts(slits, raw_header=hdr)
+    slitmask = slits.slit_img()
+    waveimg = wv.build_waveimg(tilts.fit2tiltimg(slitmask), slits)
+    lay = spec.lenslet_layout()
+    lam = spec.lenslet_wavelengths(spec.frame_expansion(hdr))
+    band = lr.lenslet_band_mask(lam, lay)[:, ::-1]
+    exact = lam[:, ::-1] * 10.
+    model = waveimg[:, np.asarray(lay['pos'])].T
+    disp = np.abs(np.gradient(exact, axis=1))
+    dpix = ((model - exact) / disp)[band]
+    rms = np.sqrt(np.mean(dpix**2))
+    assert rms < 0.05
+    assert 1.4826 * np.median(np.abs(dpix)) < 0.03
 
 
 def test_fixed_wavecalib(spec):
@@ -473,3 +519,59 @@ def test_rectify_step(spec, tmp_path, monkeypatch):
     # Two raw pixels of 2 ADU/s x 240 s x 2.15 e-/ADU, minus the tabulated
     # dark current (90 e-/hr)
     assert np.allclose(img.image, 2 * (2.0 * 240. * 2.15 - 90. * 240 / 3600))
+    # Darks (and biases) are not rectified: they are subtracted from the
+    # raw frames before the rectification (M4 task 2)
+    img = rawimage.RawImage(str(raw), spec, 1).process(par, rectify=False)
+    assert 'rectify' not in img.process_steps
+    assert img.image.shape == (64, 64)
+
+
+# ---------------------------------------------------------------------------
+# Milestone M4: fiber cube hooks (Generated by JXP and Claude)
+# ---------------------------------------------------------------------------
+def test_fiber_cube_setup(spec):
+    # The cube hook sets the lenslet state from a spec1d-like header
+    hdr = fits.Header({'SFILTER': 'Kbb', 'MJD': MJD_2024, 'SSCALE': '0.050',
+                       'DECKER': '0.05'})
+    out = spec.fiber_cube_setup(hdr)
+    assert out['wcs_ref'] == 'origin'
+    assert np.isclose(out['spatial_scale'], 0.05)
+    assert spec.dispname == 'Kbb'
+    assert spec.lenslet_layout().meta['nblock'] == 19
+    # Base class: no state, no defaults
+    assert load_spectrograph('shane_kast_blue').fiber_cube_setup(hdr) == {}
+
+
+def test_fiber_cube_grid(spec, tmp_path):
+    # A cube built from lenslet spectra on the regular lenslet grid holds
+    # each lenslet's spectrum at its own spaxel, and the WCS reference pixel
+    # (wcs_ref='origin') is the DRP reference spaxel (layout origin)
+    from pypeit.core import datacube
+    hdr = fits.Header({'SFILTER': 'Kbb', 'MJD': MJD_2024, 'SSCALE': '0.050',
+                       'RA': 150., 'DEC': 20., 'ROTPOSN': 312.,
+                       'INSTANGL': 312.})
+    spec.fiber_cube_setup(hdr)
+    x, y = spec.load_sky_layout()
+    lay = spec.lenslet_layout()
+    ids = np.asarray(lay['lens_id'])
+    nspec = 50
+    wave = np.tile(20000. + 2.5 * np.arange(nspec), (ids.size, 1))
+    flux = np.tile(ids[:, None].astype(float), (1, nspec))
+    meta = dict(fiber_id=ids, fiber_name=np.asarray(lay['name']),
+                fiber_type=np.full(ids.size, 'SCI'))
+    data = {'DET01': dict(flux=flux, ivar=np.ones_like(flux), wave=wave,
+                          fiber_meta=meta)}
+    out = tmp_path / 'cube.fits'
+    datacube.build_cube_common(data, spec, x, y, hdr, 'spec1d_test.fits',
+                               spatial_scale=0.05, method='nearest',
+                               output=str(out), wcs_ref='origin')
+    with fits.open(out) as hdu:
+        cube = hdu['FLUX'].data
+        h = hdu['FLUX'].header
+    # 19 lenslet columns + 2 padding pixels, 64 rows + 2
+    assert cube.shape[1:] == (66, 21)
+    # Lenslet id at the reference pixel: column 24, flipped row 31
+    ix, iy = int(round(h['CRPIX1'])) - 1, int(round(h['CRPIX2'])) - 1
+    assert np.isclose(h['CRPIX1'] - 1 - ix, 0.) and h['WCSREF'] == 'origin'
+    crow = 66 - 1 - 31
+    assert np.allclose(cube[:, iy, ix], crow * 51 + 24)

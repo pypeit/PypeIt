@@ -1616,9 +1616,24 @@ class Calibrations:
             wavelength tilt calibration.
         """
         # Tilts fixed by the spectrograph (e.g. spectra that are straight by
-        # construction): no tilt image is traced.
-        fixed = None if self.slits is None \
-                    else self.spectrograph.get_fixed_tilts(self.slits)
+        # construction, or tilts from an instrument model): no tilt image is
+        # traced.  The header of a raw frame of the calibration group is
+        # passed for date/configuration-dependent models.
+        fixed = None
+        overridden = type(self.spectrograph).get_fixed_tilts \
+                        is not Spectrograph.get_fixed_tilts
+        if self.slits is not None and overridden:
+            raw_header = None
+            if self.fitstbl is not None and self.calib_ID is not None:
+                for ftype in ['tilt', 'arc', 'trace']:
+                    files = self.fitstbl.find_frame_files(
+                        ftype, calib_ID=self.calib_ID)
+                    if len(files) > 0:
+                        raw_header = \
+                            self.spectrograph.get_headarr(files[0])[0]
+                        break
+            fixed = self.spectrograph.get_fixed_tilts(
+                self.slits, raw_header=raw_header)
         if fixed is not None:
             log.info('Adopting the fixed tilts provided by '
                      f'{self.spectrograph.name}.')

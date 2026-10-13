@@ -211,7 +211,8 @@ def findobj_on_exposure(sciImg_dict:dict, bkg_redux_sciimg_dict:dict,
                 sciImg, spectrograph, fitstbl, par, frames, calib_ID, det, 
                 calibrations_path, 
                 bkg_redux=bkg_redux, find_negative=find_negative, show=show, 
-                std_outfile=std_outfile)
+                std_outfile=std_outfile,
+                bkg_redux_sciimg=bkg_redux_sciimg_dict.get(det))
 
         # Slits
         all_slits.append(objFind.slits)

@@ -131,6 +131,12 @@ def set_qa_filename(
         case 'detector_structure':
             outfile = 'PNGs/{:s}_{:s}_detector_structure.png'.format(root, det)
 
+        case 'fiber_sky_refine':
+            outfile = 'PNGs/{:s}_{:s}_fiber_sky_refine.png'.format(root, det)
+
+        case 'fiber_oh_scaling':
+            outfile = 'PNGs/{:s}_{:s}_fiber_oh_scaling.png'.format(root, det)
+
         case _:
             raise IOError("NOT READY FOR THIS QA: {:s}".format(method))
 

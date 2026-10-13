@@ -29,6 +29,7 @@ __all__ = [
     'dashboard',
     'edge_inspector',
     'extract_datacube',
+    'fiber_cube',
     'flux_calib',
     'flux_setup',
     'identify',

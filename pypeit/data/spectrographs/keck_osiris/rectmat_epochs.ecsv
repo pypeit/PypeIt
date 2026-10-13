@@ -1,0 +1,32 @@
+# %ECSV 1.0
+# ---
+# datatype:
+# - {name: begin, datatype: string}
+# - {name: end, datatype: string}
+# - {name: mjd_begin, datatype: float64}
+# - {name: mjd_end, datatype: float64}
+# - {name: subdir, datatype: string}
+# meta: !!omap
+# - comments: [Keck/OSIRIS rectification-matrix validity epochs., 'Source: http://tkserver.keck.hawaii.edu/osiris/ (plain HTTP; matrices
+#       are served gzipped', 'under data/<subdir>/), copied 2026-10-12.', begin/end are UT dates YYMMDD (end inclusive; 'open' = no end);
+#       mjd_begin is 00:00 UT of the begin date, mjd_end 00:00 UT of the day after the end date (inf when open)., 'Note the gaps between
+#       some epochs (no valid matrix: e.g. 081208-091003).']
+# schema: astropy-2.0
+begin end mjd_begin mjd_end subdir
+050530 060207 53520.0 53774.0 050530-060207
+060208 081207 53774.0 54808.0 060208-081207
+091004 120102 55108.0 55929.0 091004-120102
+120103 121108 55929.0 56240.0 120103-121108
+121109 151231 56240.0 57388.0 121109-151231
+160101 170131 57388.0 57785.0 160101-170131
+170201 171105 57785.0 58063.0 170201-171105
+171106 180106 58063.0 58125.0 171106-180106
+180107 180920 58125.0 58382.0 180107-180920
+181021 200110 58412.0 58859.0 181021-200110
+200111 201106 58859.0 59160.0 200111-201106
+201217 220904 59200.0 59827.0 201217-220904
+221010 230520 59862.0 60085.0 221010-230520
+230701 250310 60126.0 60745.0 230701-250310
+250414 260421 60779.0 61152.0 250414-260421
+260422 260603 61152.0 61195.0 260422-260603
+260604 open 61195.0 inf 260604-open

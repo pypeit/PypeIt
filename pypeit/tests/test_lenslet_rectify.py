@@ -77,9 +77,16 @@ def test_select_matrix(tmp_path):
                  's160101_c001___infl_Kbb_050.fits',
                  'notes.txt']:
         (tmp_path / name).touch()
-    # Latest on or before the date; sequence number breaks the tie
+    # Latest matrix inside the validity epoch (160101-170131), even when
+    # dated after the observation
+    f = lr.select_matrix(tmp_path, 'Hn3', '0.100', 57468.4)
+    assert f.name == 's170101_c001___infl_Hn3_100.fits'
+    (tmp_path / 's170101_c001___infl_Hn3_100.fits').unlink()
+    # Sequence number breaks the tie
     f = lr.select_matrix(tmp_path, 'Hn3', '0.100', 57468.4)
     assert f.name == 's160318_c007___infl_Hn3_100.fits'
+    (tmp_path / 's170101_c001___infl_Hn3_100.fits').touch()
+    # No matrix in the epoch (170201-171105): latest on or before
     f = lr.select_matrix(tmp_path, 'Hn3', 0.1, 58000.)
     assert f.name == 's170101_c001___infl_Hn3_100.fits'
     f = lr.select_matrix(tmp_path, 'Kbb', '0.050', 60000.)
@@ -91,6 +98,58 @@ def test_select_matrix(tmp_path):
         lr.select_matrix(tmp_path, 'Hn3', '0.035', 60000.)
     with pytest.raises(PypeItError):
         lr.select_matrix(tmp_path / 'nope', 'Hn3', '0.100', 60000.)
+
+
+def test_matrix_epochs():
+    tbl = lr.load_matrix_epochs()
+    assert len(tbl) == 17
+    assert tbl['end'][-1] == 'open' and np.isinf(tbl['mjd_end'][-1])
+    # 2024-02-03 (MJD 60343.5) lies in 230701-250310
+    ep, inside = lr.matrix_epoch(60343.5, epochs=tbl)
+    assert inside and ep['begin'] == '230701' and ep['end'] == '250310'
+    # 2008-12-31 falls in the gap 081208-091003: nearest epoch, flagged
+    ep, inside = lr.matrix_epoch(54831., epochs=tbl)
+    assert not inside and ep['end'] == '081207'
+    # Epoch boundaries are inclusive of the whole end date
+    ep, inside = lr.matrix_epoch(57784.99, epochs=tbl)
+    assert inside and ep['begin'] == '160101'
+
+
+def test_select_matrix_epoch(tmp_path):
+    # The Kbb/050 matrix of the 230701-250310 epoch is dated *after* the
+    # 2024-02-03 observation; it must still be selected (gzipped too)
+    for name in ['s240524_c006___infl_Kbb_050.fits.gz',
+                 's221101_c003___infl_Kbb_050.fits',
+                 's250501_c001___infl_Kbb_050.fits',
+                 's160318_c005___infl_Hn3_100.fits']:
+        (tmp_path / name).touch()
+    f = lr.select_matrix(tmp_path, 'Kbb', '0.050', 60343.49)
+    assert f.name == 's240524_c006___infl_Kbb_050.fits.gz'
+    # 2016 Hn3 frame: same-epoch matrix
+    f = lr.select_matrix(tmp_path, 'Hn3', '0.100', 57468.4)
+    assert f.name == 's160318_c005___infl_Hn3_100.fits'
+    # No matrix inside the epoch (2017-09-04): latest-before fallback
+    f = lr.select_matrix(tmp_path, 'Hn3', '0.100', 58000.)
+    assert f.name == 's160318_c005___infl_Hn3_100.fits'
+    # A plain .fits file in the epoch wins over an older one
+    f = lr.select_matrix(tmp_path, 'Kbb', '0.050', 59900.)
+    assert f.name == 's221101_c003___infl_Kbb_050.fits'
+    # Nothing in the epoch and nothing before: the error names the epoch
+    with pytest.raises(PypeItError, match='230701-250310'):
+        lr.select_matrix(tmp_path, 'Kbb', '0.035', 60343.49)
+
+
+def test_matrix_from_gzip(tmp_path):
+    matrix, _, _ = synthetic_band()
+    f = tmp_path / 's240524_c006___infl_Kbb_050.fits.gz'
+    fits.HDUList([fits.PrimaryHDU(matrix.hilo.astype(np.int16)),
+                  fits.ImageHDU(matrix.effective.astype(np.int16)),
+                  fits.ImageHDU(matrix.influence)]).writeto(f)
+    info = lr.parse_matrix_filename(f)
+    assert info['filter'] == 'Kbb' and info['scale'] == pytest.approx(0.05)
+    m2 = lr.RectMatrix.from_file(f)
+    assert m2.info['date'] == '2024-05-24'
+    assert np.allclose(m2.influence, matrix.influence)
 
 
 def test_matrix_from_file(tmp_path):

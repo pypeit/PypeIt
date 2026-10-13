@@ -409,7 +409,7 @@ class RawImage:
         return np.array(rn2)
 
     def process(self, par, bpm=None, scattlight=None, flatimages=None, bias=None, slits=None, dark=None,
-                mosaic=False, debug=False):
+                mosaic=False, debug=False, rectify=None):
         """
         Process the data.
 
@@ -535,6 +535,12 @@ class RawImage:
                 frame.
             debug (:obj:`bool`, optional):
                 Run in debug mode.
+            rectify (:obj:`bool`, optional):
+                Apply the spectrograph-provided rectification (see
+                :func:`rectify`).  If None, it is applied when the
+                spectrograph has one (``has_rectification``); False keeps
+                the image in the detector frame (e.g. darks, which are
+                subtracted *before* the rectification of other frames).
 
         Returns:
             :class:`~pypeit.images.pypeitimage.PypeItImage`: The processed
@@ -681,7 +687,8 @@ class RawImage:
         #     must follow the dark subtraction and precede the cosmic-ray
         #     masking.  Off for all spectrographs but those that set
         #     has_rectification.
-        if self.spectrograph.has_rectification:
+        if self.spectrograph.has_rectification \
+                and (rectify is None or rectify):
             self.rectify()
 
         # Create the mosaic images.  This *must* come after trimming and

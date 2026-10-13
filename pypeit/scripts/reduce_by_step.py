@@ -198,7 +198,8 @@ class ReducebyStep(scriptbase.ScriptBase):
                 frames, calib_ID, det, pypeIt.calibrations_path,
                 bkg_redux=bkg_redux,
                 find_negative=find_negative,
-                std_outfile=std_outfile, show=args.show)
+                std_outfile=std_outfile, show=args.show,
+                bkg_redux_sciimg=bkg_redux_sciimg)
 
             # #####################################
             # slitmask stuff

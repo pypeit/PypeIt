@@ -253,6 +253,10 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
     if mosaic is None:
         mosaic = isinstance(det, tuple) and frame_par['frametype'] not in ['bias', 'dark']
 
+    # Bias and dark frames stay in the detector frame: they are subtracted
+    # before any spectrograph-provided rectification of the other frames
+    rectify = frame_par['frametype'] not in ['bias', 'dark']
+
     rawImage_list = []
     # Loop on the files
     for ifile in file_list:
@@ -261,7 +265,8 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
         # Process
         rawImage_list.append(rawImage.process(
             frame_par['process'], scattlight=scattlight, bias=bias,
-            bpm=bpm, dark=dark, flatimages=flatimages, slits=slits, mosaic=mosaic))
+            bpm=bpm, dark=dark, flatimages=flatimages, slits=slits, mosaic=mosaic,
+            rectify=rectify))
 
     # Do it
     combineImage = combineimage.CombineImage(rawImage_list, frame_par['process'])
