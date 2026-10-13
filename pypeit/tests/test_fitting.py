@@ -109,8 +109,18 @@ def test_polyfit2d_chunked(function, deg):
     w = rng.uniform(0.5, 2.0, npts)
     c_full, c_chunk = _polyfit2d_both_paths(x, y, z, deg, w=w, function=function)
     assert c_chunk.shape == c_full.shape, 'Chunked fit has the wrong shape'
-    assert np.allclose(c_chunk, c_full, rtol=0, atol=1e-10*np.max(np.abs(c_full))), \
-        'Chunked fit differs from the full fit'
+    if function == 'polynomial':
+        # The unscaled power basis is so poorly conditioned (cond ~ 1e23, with
+        # half the singular values below the lstsq cutoff) that the
+        # coefficients are only determined up to BLAS-dependent round-off, so
+        # compare the fitted models instead.
+        m_full = np.polynomial.polynomial.polyval2d(x, y, c_full)
+        m_chunk = np.polynomial.polynomial.polyval2d(x, y, c_chunk)
+        assert np.allclose(m_chunk, m_full, rtol=0, atol=1e-8), \
+            'Chunked fit differs from the full fit'
+    else:
+        assert np.allclose(c_chunk, c_full, rtol=0, atol=1e-10*np.max(np.abs(c_full))), \
+            'Chunked fit differs from the full fit'
 
 
 def test_polyfit2d_chunked_rank_deficient():
