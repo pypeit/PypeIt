@@ -221,6 +221,13 @@ Under-the-hood Improvements
 Bug Fixes
 ---------
 
+- Fix the sign of the spatial flexure correction applied when evaluating the
+  wavelength tilts of a frame (e.g. a science frame) whose spatial flexure
+  differs from that of the tilt frame.  The tilts were evaluated at a spatial
+  position shifted in the wrong direction (i.e., twice the relative flexure
+  away from the correct position).  The tilts are now evaluated at the same
+  fractional position along the slit in the tilt frame, which also accounts
+  for a different flexure of the left and right slit edges.
 - Restore the manual spatial flexure correction (Issue #2180): a value in the
   pypeit-file ``shift`` column again overrides the automatically computed
   spatial flexure for that frame.  This applies to any frame type that is

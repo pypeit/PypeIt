@@ -124,3 +124,72 @@ def test_fit2tilts():
     thismask = (slitmask == slits.spat_id[0])
     _spec_eval, _spat_eval = tracewave.fit2tilts_prepareSlit(slits_left, slits_right, thismask, relative_spat_flexure=spat_flexure[0, :])
 
+    # The spectral coordinate is unchanged by the spatial flexure
+    spec_pix, spat_pix = np.where(thismask)
+    assert np.allclose(_spec_eval, spec_pix / (nspec - 1)), 'Spectral coordinate changed'
+    # Each pixel of the shifted slit must be evaluated at the same fractional position along
+    # the slit in the tilts frame; i.e., the left/right edges of the shifted slit map onto the
+    # left/right edges of the tilts slit.
+    frac = (spat_pix - left[spec_pix, 0]) / (right[spec_pix, 0] - left[spec_pix, 0])
+    expected = left_init + frac * (right_init - left_init)
+    assert np.allclose(_spat_eval * (nspat - 1), expected), \
+        'Spatial coordinate not mapped to the same fractional position along the slit'
+
+    # A uniform flexure of +dx pixels means that a pixel at x must be evaluated at x - dx
+    dx = 1.5
+    slitmask = slits.slit_img(initial=True, spat_flexure=np.full((1, 2), dx))
+    thismask = slitmask == slits.spat_id[0]
+    _, _spat_eval = tracewave.fit2tilts_prepareSlit(slits_left, slits_right, thismask,
+                                                    relative_spat_flexure=np.full(2, dx))
+    assert np.allclose(_spat_eval * (nspat - 1), np.where(thismask)[1] - dx), \
+        'Uniform spatial flexure applied with the wrong sign'
+
+    # No flexure means no change of the spatial coordinate
+    _, _spat_eval = tracewave.fit2tilts_prepareSlit(slits_left, slits_right, thismask)
+    assert np.allclose(_spat_eval * (nspat - 1), np.where(thismask)[1]), \
+        'Spatial coordinate changed without spatial flexure'
+
+
+def test_fit2tiltimg_spat_flexure_shift(tmp_path):
+    """
+    A frame whose spatial flexure is dx pixels larger than that of the tilts frame
+    is the tilts frame shifted by dx pixels (the slits and the tilts move together),
+    so its tilts image must be the tilts image of the tilts frame, rolled by dx pixels.
+    """
+    nspec, nspat = 100, 60
+    left = np.tile([10., 35.], (nspec, 1))
+    right = left + 15.
+    slits = SlitTraceSet(left_init=left, right_init=right, pypeline='MultiSlit', nspat=nspat,
+                         PYP_SPEC='dummy')
+    slits.set_paths(tmp_path, 'A', '1', 'DET01')
+    slits.to_file()
+
+    # Tilts that vary with spatial position, measured on a tilts frame with its own flexure
+    coeffs = np.zeros((4, 4, 2))
+    coeffs[0, 0, :] = 0.5
+    coeffs[1, 0, :] = 0.4
+    coeffs[0, 1, :] = 0.05
+    coeffs[1, 1, :] = 0.05
+    coeffs[0, 2, :] = 0.03
+    tilts_flex = np.full((slits.nslits, 2), 0.5)
+    wvtilts = wavetilts.WaveTilts(coeffs=coeffs, nslit=slits.nslits, spat_id=slits.spat_id,
+                                  spat_order=np.array([3, 3]), spec_order=np.array([3, 3]),
+                                  func2d='legendre2d', spat_flexure=tilts_flex,
+                                  slits_filename=Path(slits.get_path()).name)
+    wvtilts.set_paths(tmp_path, 'A', '1', 'DET01')
+
+    # Tilts image of the tilts frame
+    mask0 = slits.slit_img(initial=True, spat_flexure=tilts_flex)
+    t0 = wvtilts.fit2tiltimg(mask0, spat_flexure=tilts_flex)
+    # Tilts image of a frame shifted by dx pixels relative to the tilts frame
+    dx = 3
+    mask1 = slits.slit_img(initial=True, spat_flexure=tilts_flex + dx)
+    t1 = wvtilts.fit2tiltimg(mask1, spat_flexure=tilts_flex + dx)
+
+    on = mask1 != -1
+    assert np.array_equal(on, np.roll(mask0, dx, axis=1) != -1), 'Slit images inconsistent'
+    expected = np.roll(t0, dx, axis=1)
+    assert np.allclose(t1[on], expected[on]), 'The tilts must move with the slits'
+    # The test is only meaningful if the tilts vary across the slits
+    assert not np.allclose(t1[on], np.roll(t0, -dx, axis=1)[on]), 'Test is not sensitive'
+

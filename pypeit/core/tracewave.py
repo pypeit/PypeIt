@@ -863,13 +863,23 @@ def fit2tilts_prepareSlit(slit_left, slit_right, thismask_science, relative_spat
         flexure is applied. NOTE : The coeff_out coefficients are evaluated at the tilts spat_flexure location, and
         the tilts spat_flexure is the spatial flexure of the tilts relative to the initial slits. To prepare the
         tilt coordinates for a frame other than the tilts frame, this variable must be the *relative* spatial
-        flexure between the frame of interest and the tilts frame.
+        flexure between the frame of interest and the tilts frame (i.e. the spatial flexure of the frame of
+        interest minus the spatial flexure of the tilts frame).
 
     Returns
     -------
     :obj:`tuple` of two `numpy.ndarray`_
         Tuple containing the spectral and spatial coordinates of the slit, including spatial flexure.
         These variables are to be used in the fit2tilts function.
+
+    Notes
+    -----
+    The tilts are fit as a function of the detector pixel coordinates of the tilts frame. A spatial flexure
+    shifts the slit (and the tilts) on the detector, so the slit edges of the frame of interest are at
+    ``slit_left + relative_spat_flexure[0]`` and ``slit_right + relative_spat_flexure[1]``.  Each pixel of the
+    frame of interest is therefore evaluated at the position in the tilts frame that has the same fractional
+    position along the slit; e.g., for a uniform relative flexure of :math:`\Delta` pixels, a pixel at spatial
+    position :math:`x` is evaluated at :math:`x - \Delta` in the tilts frame.
     """
     # Get the image shape
     img_shape = thismask_science.shape
@@ -890,16 +900,20 @@ def fit2tilts_prepareSlit(slit_left, slit_right, thismask_science, relative_spat
     spat_img, spec_img = np.meshgrid(spat_vec, spec_vec)
     # Evaluate the slit coordinates
     _spec_eval = spec_img[thismask_science] / (nspec - 1)
-    flex_coord = (spat_img - slit_left[:, None]) / (slit_right - slit_left)[:, None]
-    # Linearly interpolate the spatial flexure over the slit coordinates
+    # Slit edges of the frame of interest (e.g. a science frame)
+    frame_left = slit_left + _spat_flexure[0]
+    frame_right = slit_right + _spat_flexure[1]
+    # Fractional position of each pixel along the slit of the frame of interest
+    frac_coord = (spat_img - frame_left[:, None]) / (frame_right - frame_left)[:, None]
+    # The spatial position in the tilts frame with the same fractional position along the slit.
     # Note that the spatial coordinate of the tilts is fit and evaluated over the interval 0-1
     # (where 0 represents the left edge of the detector and 1 represents the right edge of the
     # detector, even when there are multiple slits). Therefore, if the relative spatial flexure
     # between the tilts frame and the frame being currently investigated is 0.0, the following
-    # line for spat_eval evaluates to spat_img, as expected. The spat_flexure and flex_coord
-    # terms linearly interpolate the *relative* spat_flexure between the tilts frame, and the
-    # frame (e.g. science) that you wish to infer the tilts for.
-    spat_eval = spat_img + _spat_flexure[0] + flex_coord * (_spat_flexure[1] - _spat_flexure[0])
+    # line for spat_eval evaluates to spat_img, as expected. Otherwise, the *relative* spatial
+    # flexure between the tilts frame and the frame (e.g. science) that you wish to infer the
+    # tilts for is linearly interpolated between the two slit edges, and subtracted.
+    spat_eval = slit_left[:, None] + frac_coord * (slit_right - slit_left)[:, None]
     _spat_eval = spat_eval[thismask_science] / (nspat - 1)
     return _spec_eval, _spat_eval
 
