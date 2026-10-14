@@ -6,7 +6,6 @@
 """
 import copy
 
-from astropy.stats import sigma_clipped_stats
 from IPython import embed
 from matplotlib import gridspec
 from matplotlib import pyplot as plt
@@ -123,16 +122,33 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, slitprof=None
     xcorr = np.sum(corr, axis=0)
     lags = signal.correlation_lags(sci_edges.shape[1], slits_edges.shape[1], mode='same')
     lag0 = np.where(lags == 0)[0][0]
-    xcorr_max = xcorr[lag0 - maxlag:lag0 + maxlag]
-    lags_max = lags[lag0 - maxlag:lag0 + maxlag]
+    # Search window: +/- maxlag, padded on either side so that a peak close to +/- maxlag can
+    # still be detected and fitted (see below)
+    pad = 5
+    _lo, _hi = max(lag0 - maxlag - pad, 0), min(lag0 + maxlag + pad + 1, xcorr.size)
+    xcorr_max = xcorr[_lo:_hi]
+    lags_max = lags[_lo:_hi]
 
     # detect the highest peak in the cross-correlation
-    _, pix_ampl, pix_max, _, _, _, _, _ = arc.detect_lines(xcorr_max, cont_subtract=False, input_thresh=0., nfind=1, debug=debug)
-    # No significantly detected peak? e.g. data fills the entire detector or slit edge failed for faint science object
-    _, cc_med, cc_disp = sigma_clipped_stats(xcorr_max)
-    if (len(pix_max) == 0) or pix_max[0] == -999.0 or (pix_ampl[0]-cc_med)/cc_disp < 5:
+    _, _, pix_max, _, _, _, _, _ = arc.detect_lines(xcorr_max, cont_subtract=False, input_thresh=0., nfind=1, debug=debug)
+    # No peak? e.g. data fills the entire detector or slit edge failed for faint science object.
+    # NOTE: A peak beyond the search window (+/- maxlag) is also rejected, because the
+    # cross-correlation has then most likely failed (or the flexure exceeds maxlag).  In this
+    # case, the line detection may not be able to fit the (truncated) peak and instead return a
+    # secondary peak, so the location of the maximum of the cross-correlation itself is checked,
+    # and the detected peak must coincide with this maximum.
+    imax = np.argmax(xcorr_max)
+    peak_beyond_maxlag = np.abs(lags_max[imax]) > maxlag
+    peak_found = len(pix_max) > 0 and pix_max[0] != -999.0 and np.abs(pix_max[0] - imax) <= 1
+    if peak_found:
+        lag0_max = np.where(lags_max == 0)[0][0]
+        det_spat_flexure = round(pix_max[0] - lag0_max, 3)
+        peak_beyond_maxlag |= np.abs(det_spat_flexure) > maxlag
+    if not peak_found or peak_beyond_maxlag:
+        reason = 'The peak of the x-correlation is beyond the search window (+/- maxlag)' \
+                    if peak_beyond_maxlag else 'No peak found in the x-correlation'
         log.warning(
-            'No peak found in the x-correlation between the traced slits and the science/calibration image.\n'
+            f'{reason} between the traced slits and the science/calibration image.\n'
             'Assuming there is NO GLOBAL SPATIAL FLEXURE.\nIf a flexure is expected, consider either changing:\n'
             '  (1) The maximum lag for the cross-correlation\n'
             '  (2) change the "spat_flexure_sigdetect" parameter\n'
@@ -141,8 +157,6 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, slitprof=None
         )
         total_flexure = np.zeros((slits.nslits, 2), dtype=float)
     else:
-        lag0_max = np.where(lags_max == 0)[0][0]
-        det_spat_flexure = round(pix_max[0] - lag0_max, 3)
         log.info('Detector spatial flexure measured: {0:5.3f} pixels'.format(det_spat_flexure))
 
         # So far we have calculated the global flexure (method = detector)
@@ -158,7 +172,7 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, slitprof=None
         _xcorr_max = xcorr[lag0 - (maxlag+pad):lag0 + (maxlag+pad)]
         _lags_max = lags[lag0 - (maxlag+pad):lag0 + (maxlag+pad)]
         plt.plot(_lags_max, _xcorr_max, 'k-', lw=1)
-        plt.axvline(det_spat_flexure, color='r', linestyle='--', label=f'Measured average (detector) shift = {det_spat_flexure:.1f} pixels')
+        plt.axvline(total_flexure[0, 0], color='r', linestyle='--', label=f'Measured average (detector) shift = {total_flexure[0, 0]:.1f} pixels')
         plt.axvline(maxlag, color='g', linestyle='--', label='Max lag')
         plt.axvline(-maxlag, color='g', linestyle='--')
         plt.xlabel('Lag (pixels)')

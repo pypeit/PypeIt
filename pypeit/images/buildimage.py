@@ -25,7 +25,7 @@ class ArcImage(pypeitimage.PypeItCalibrationImage):
     # version is inherited from PypeItImage
 
     # I/O
-    output_to_disk = ('ARC_IMAGE', 'ARC_FULLMASK', 'ARC_DETECTOR',
+    output_to_disk = ('ARC_IMAGE', 'ARC_FULLMASK', 'ARC_DETECTOR', 'ARC_SPAT_FLEXURE',
                       'ARC_DET_IMG', # For echelle multi-detector wavelengths
                       )
     hdu_prefix = 'ARC_'
@@ -39,7 +39,7 @@ class AlignImage(pypeitimage.PypeItCalibrationImage):
     # version is inherited from PypeItImage
 
     # I/O
-    output_to_disk = ('ALIGN_IMAGE', 'ALIGN_FULLMASK', 'ALIGN_DETECTOR')
+    output_to_disk = ('ALIGN_IMAGE', 'ALIGN_FULLMASK', 'ALIGN_DETECTOR', 'ALIGN_SPAT_FLEXURE')
     hdu_prefix = 'ALIGN_'
     calib_type = 'Align'
 
@@ -75,7 +75,7 @@ class TiltImage(pypeitimage.PypeItCalibrationImage):
     # version is inherited from PypeItImage
 
     # I/O
-    output_to_disk = ('TILT_IMAGE', 'TILT_FULLMASK', 'TILT_DETECTOR')
+    output_to_disk = ('TILT_IMAGE', 'TILT_FULLMASK', 'TILT_DETECTOR', 'TILT_SPAT_FLEXURE')
     hdu_prefix = 'TILT_'
     calib_type = 'Tiltimg'
 
@@ -87,7 +87,8 @@ class ScatteredLightImage(pypeitimage.PypeItCalibrationImage):
     # version is inherited from PypeItImage
 
     # I/O
-    output_to_disk = ('SCATTLIGHT_IMAGE', 'SCATTLIGHT_FULLMASK', 'SCATTLIGHT_DETECTOR')
+    output_to_disk = ('SCATTLIGHT_IMAGE', 'SCATTLIGHT_FULLMASK', 'SCATTLIGHT_DETECTOR',
+                      'SCATTLIGHT_SPAT_FLEXURE')
     hdu_prefix = 'SCATTLIGHT_'
     calib_type = 'ScattLight'
 
@@ -99,7 +100,7 @@ class TraceImage(pypeitimage.PypeItCalibrationImage):
     # version is inherited from PypeItImage
 
     # I/O
-    output_to_disk = ('TRACE_IMAGE', 'TRACE_FULLMASK', 'TRACE_DETECTOR')
+    output_to_disk = ('TRACE_IMAGE', 'TRACE_FULLMASK', 'TRACE_DETECTOR', 'TRACE_SPAT_FLEXURE')
     hdu_prefix = 'TRACE_'
     calib_type = 'Trace'
 
