@@ -37,8 +37,9 @@ pypeline on the rectified frame, in which every lenslet is one "fiber":
    (vacuum), refined on the OH sky lines of every science frame.  The tilts
    are derived from the same coefficients; no arc or flat frames are used.
 #. Background (sky) frames are subtracted frame-by-frame (A-B), the residual
-   OH lines are scaled with the Davies (2007) method, and every lenslet is
-   extracted to a spec1d spectrum.
+   OH lines are scaled with the Davies (2007) method (see
+   :ref:`keck_osiris_ohscaling` for its trade-offs and how to turn it off),
+   and every lenslet is extracted to a spec1d spectrum.
 #. :ref:`pypeit_fiber_cube <keck_osiris_cube>` turns the spec1d files into
    datacubes, or sums the lenslets of a point source into a single spectrum
    for the sensitivity function and the telluric correction.
@@ -240,23 +241,103 @@ The DRP grating-temperature term (``DTMP7``) moves the OH lines away from
 their vacuum wavelengths by +0.4 A on the 2016 and 2024 test data and is off
 by default (``[calibrations] osiris_grating_temp = False``).
 
-OH-line scaling
----------------
+.. _keck_osiris_ohscaling:
 
-The OH lines vary between the A and B exposures.  With
-``[reduce][skysub] osiris_oh_scaling = global`` (the default) the residual
-lines of every A-B frame are corrected as in Davies (2007) and the DRP
-(``scaledskysub_000.pro``): the lines of the sky frame are grouped by
-vibrational transition and one scale factor per group, pooled over all
-lenslets (``block``: per block; ``fiber``: per lenslet), is fit between the
-A-B and the sky spectra; the rescaled lines (not the continuum) form the
-sky model of the A-B frame (spec2d ``SKYMODEL``).  Of the significant
-factors, the combination that most lowers the median integrated residual of
-the isolated OH lines (relative to their sky flux) is kept, and none if the
-median does not decrease; this keeps short exposures with weak lines from
-being degraded.  ``osiris_oh_min_exptime`` (seconds)
-skips the scaling for shorter frames altogether.  Standard stars are not
-scaled.
+OH-line scaling (Davies 2007)
+-----------------------------
+
+**What it does.**  The OH lines vary in intensity, on time scales of
+minutes and differently for each vibrational transition, so the A-B
+difference of two exposures taken 10 minutes apart keeps positive or
+negative residuals at the OH wavelengths.  With ``[reduce][skysub]
+osiris_oh_scaling = global`` (the OSIRIS default) the residual lines of every
+A-B *science* frame are corrected as in Davies (2007) and the DRP
+(``scaledskysub_000.pro``): the OH lines of the sky (B) spectrum are grouped
+by vibrational transition (e.g. 8-6 and 9-7 in K), and one scale factor per
+group, ``r - 1``, is fit between the A-B and the sky spectra by weighted
+least squares with outlier rejection (pixels where the residual exceeds
+half the sky line, e.g. object emission lines, are excluded).  The factors
+are pooled over all lenslets (``global``), over the lenslets of each block
+(``block``) or fit per lenslet (``fiber``).  Only the line spectrum of the
+sky frame is rescaled, not its continuum; the rescaled lines form the sky
+model of the A-B frame (spec2d ``SKYMODEL``) and are subtracted before
+extraction.
+
+**The guard and its metric.**  A scale factor is only kept if it is
+significant (larger than three times its error) *and* if it improves the
+quantity that matters for the extracted spectra: the residual of each
+isolated OH line integrated over +-3 pixels and summed over the lenslets,
+relative to the flux of that line in the sky frame.  Of the significant
+group factors, the combination (subset) that most lowers the median of this
+integrated residual over the isolated lines is kept; if no combination
+lowers it, no factor is applied and the frame keeps the plain A-B
+subtraction.  An earlier rule, which judged each factor on the rms of the
+line pixels, accepted factors that redistribute the residual between line
+core and wings without reducing the integrated residual, and degraded short
+exposures.  The log reports the factors and both metrics for every frame,
+e.g.::
+
+    OH scaling (global) group      9-7: r - 1 = -0.0314 (median of 1 pools; ...)
+    OH-line residual rms 46.15 -> 45.31 counts on 151520 line pixels ...;
+    median |integrated line residual| / sky flux 0.0479 -> ...
+
+A factor of ``+0.0000`` means that the group was not corrected.
+
+**When it helps.**  On the development-suite data the scaling reduces the
+median integrated OH residual of the 13 600-s NGC 3245 A-B frames from
+0.053 to 0.037 (10 frames improve, 3 are unchanged), of a sky-sky pair from
+0.082 to 0.030, and removes most of the line residual of the 2016 Hn3 pair
+(factors of +26 and +27 %; integrated residual 0.29 -> 0.05).  The gain is largest for long exposures with bright,
+variable OH lines and a faint or smooth object.
+
+**When it is neutral or harmful.**
+
+- *Short exposures*: with weak sky lines the factors are noisy.  Without the
+  guard the two 44-s NGC 3245 frames got worse (0.040 -> 0.068 and 0.074 ->
+  0.081); with the guard they are unchanged (no factor kept).
+- *Small sky variations*: when the OH lines barely changed between A and B
+  the guard keeps no factor (3 of the 13 600-s frames) or only some groups;
+  the result is then identical, or close, to the plain A-B subtraction.
+- *Bright line emitters on OH lines*: object emission is rejected from the
+  fit, but with ``fiber`` pooling a lenslet dominated by a strong line can
+  still bias its own factors; ``global`` (default) is the most robust.
+- *Spatially variable sky*: ``global`` applies one factor per group to the
+  whole field; ``block`` and ``fiber`` follow spatial variations but are
+  noisier.
+- Only background-subtracted (A-B) frames with ``joint_fit = False`` are
+  scaled; standard stars are never scaled (short exposures dominated by the
+  star).  The spec1d sky columns stay zero for A-B frames; the scaled model
+  is in the spec2d ``SKYMODEL`` only.
+
+**Exposure-time floor.**  ``[reduce][skysub] osiris_oh_min_exptime`` (in
+seconds; default None) skips the scaling for frames shorter than this
+value, which avoids fitting noisy factors in short exposures altogether
+(the log says ``OH-line scaling skipped: exposure time ...``).  It is not
+needed with the guard but can be used, e.g. ``osiris_oh_min_exptime = 100``.
+
+.. _keck_osiris_ohscaling_off:
+
+**How to turn it off.**  To keep the plain A-B subtraction for all frames
+(e.g. to compare with the DRP without scaled sky subtraction, or when the
+target fills the field with emission lines at the OH wavelengths), set the
+pooling option to ``None`` in the :ref:`pypeit_file`:
+
+.. code-block:: ini
+
+    [reduce]
+        [[skysub]]
+            osiris_oh_scaling = None
+
+(``None`` is case sensitive; ``none`` is rejected.)  The log then shows no
+``OH scaling`` lines and the spec2d ``SKYMODEL`` of the A-B frames is zero.
+To turn it off only for short frames, keep the default and set
+``osiris_oh_min_exptime`` instead:
+
+.. code-block:: ini
+
+    [reduce]
+        [[skysub]]
+            osiris_oh_min_exptime = 100
 
 Parameters
 ----------
@@ -276,7 +357,7 @@ Parameter                                              OSIRIS default   Purpose
 ``[calibrations] osiris_grating_temp``                 False            DRP ``DTMP7`` expansion term
 ``[calibrations][wavelengths] method``                 ``fixed``        Keck wavelength coefficients
 ``[calibrations][wavelengths] fiber_sky_refine``       ``zeropoint``    per-lenslet OH refinement (``block``)
-``[reduce][skysub] osiris_oh_scaling``                 ``global``       Davies OH scaling pooling
+``[reduce][skysub] osiris_oh_scaling``                 ``global``       Davies OH scaling pooling (None: off)
 ``[reduce][skysub] osiris_oh_min_exptime``             None             no OH scaling below this exposure time
 ``[reduce][skysub] fiber_cr_nsig``                     8.0              second cosmic-ray pass on A-B spectra
 ``[sensfunc] polyorder``, ``[telluric] polyorder``     7                instrument response (filter ripples)

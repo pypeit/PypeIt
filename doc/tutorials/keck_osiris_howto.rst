@@ -103,6 +103,13 @@ the Davies OH scaling of A-B frames (``OH scaling (global) group 8-6: r - 1
 1.5-s HD89239 frames have no measurable sky line; they adopt the shifts of
 the arc frame, with a warning.
 
+The Davies OH scaling is applied only where it lowers the integrated OH
+residual (a factor of ``+0.0000`` means a group was left uncorrected; the
+44-s NGC 3245 frames keep the plain A-B subtraction).  Its trade-offs, and
+how to turn it off (``osiris_oh_scaling = None`` in the ``[reduce]
+[[skysub]]`` block of the pypeit file), are described in
+:ref:`keck_osiris_ohscaling`.
+
 Inspect the outputs
 ===================
 
