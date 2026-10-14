@@ -428,7 +428,27 @@ POLYFIT2D_CHUNK = 2**15
 Maximum number of data points for which :func:`polyfit2d_general` builds the
 full design matrix; larger fits are solved in chunks of this many points by
 :func:`_chunked_lstsq2d`.  Also the chunk size used by :func:`_chunked_val2d`.
+Set from the ``[rdx] fit2d_chunk`` parameter using :func:`set_polyfit2d_chunk`.
 """
+
+
+def set_polyfit2d_chunk(chunk):
+    """
+    Set the number of data points processed at a time by 2D polynomial fits
+    and evaluations.
+
+    This sets :data:`POLYFIT2D_CHUNK` for the whole process; see the
+    ``[rdx] fit2d_chunk`` parameter.  The fit results do not depend on it
+    beyond round-off; only the peak memory and speed do.
+
+    Args:
+        chunk (:obj:`int`):
+            Number of data points.  Must be positive.
+    """
+    global POLYFIT2D_CHUNK
+    if int(chunk) < 1:
+        raise PypeItError(f'2D fit chunk size must be a positive integer, not {chunk}.')
+    POLYFIT2D_CHUNK = int(chunk)
 
 
 def _chunked_val2d(val2d, x, y, c, chunk=None):

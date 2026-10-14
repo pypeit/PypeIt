@@ -110,6 +110,14 @@ def test_ncpu_assignment_revalidates():
     par.validate()
     assert par['ncpu'] == 1, 'validate() must reset ncpu < 1 to 1'
 
+def test_fit2d_chunk():
+    par = pypeitpar.ReduxPar()
+    assert par['fit2d_chunk'] == 2**15, 'Wrong default 2D fit chunk size'
+    par = pypeitpar.ReduxPar.from_dict({'spectrograph': 'shane_kast_blue', 'fit2d_chunk': 1000})
+    assert par['fit2d_chunk'] == 1000, 'fit2d_chunk must be set by the configuration'
+    with pytest.raises(ValueError):
+        pypeitpar.ReduxPar(fit2d_chunk=0)
+
 def test_wavelengthsolution():
     pypeitpar.WavelengthSolutionPar()
 

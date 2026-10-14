@@ -10,6 +10,7 @@ import pytest
 import numpy as np
 
 from pypeit import dataPaths
+from pypeit import PypeItError
 from pypeit.core import fitting
 from pypeit.tests.tstutils import data_output_path
 
@@ -89,13 +90,25 @@ def _polyfit2d_both_paths(x, y, z, deg, **kwargs):
     # Solve once with the full design matrix and once in chunks
     full_chunk = fitting.POLYFIT2D_CHUNK
     try:
-        fitting.POLYFIT2D_CHUNK = x.size
+        fitting.set_polyfit2d_chunk(x.size)
         c_full = fitting.polyfit2d_general(x, y, z, deg, **kwargs)[0]
-        fitting.POLYFIT2D_CHUNK = 1000
+        fitting.set_polyfit2d_chunk(1000)
         c_chunk = fitting.polyfit2d_general(x, y, z, deg, **kwargs)[0]
     finally:
-        fitting.POLYFIT2D_CHUNK = full_chunk
+        fitting.set_polyfit2d_chunk(full_chunk)
     return c_full, c_chunk
+
+
+def test_set_polyfit2d_chunk():
+    full_chunk = fitting.POLYFIT2D_CHUNK
+    try:
+        fitting.set_polyfit2d_chunk(1000)
+        assert fitting.POLYFIT2D_CHUNK == 1000, 'Chunk size not set'
+        with pytest.raises(PypeItError):
+            fitting.set_polyfit2d_chunk(0)
+        assert fitting.POLYFIT2D_CHUNK == 1000, 'Invalid chunk size changed the setting'
+    finally:
+        fitting.set_polyfit2d_chunk(full_chunk)
 
 
 @pytest.mark.parametrize('function, deg', [('legendre', (5, 6)), ('chebyshev', (3, 4)),

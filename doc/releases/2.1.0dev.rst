@@ -101,7 +101,7 @@ Functionality/Performance Improvements and Additions
   rather than copying them on every rejection iteration, reducing memory use
   for large fits (e.g., the flat-field fine spatial-illumination correction).
 - ``fitting.polyfit2d_general`` now solves fits with more than
-  ``POLYFIT2D_CHUNK`` (32768) points in chunks, using a sequential QR
+  ``[rdx] fit2d_chunk`` (default 32768) points in chunks, using a sequential QR
   decomposition, instead of building the full design matrix.  For fits over a
   whole detector (e.g., the wavelength tilts and the flat-field fine
   correction), this removes several GB of temporary arrays: the tilts stage of
@@ -121,6 +121,10 @@ Functionality/Performance Improvements and Additions
   results are identical, but numpy's 2D evaluation functions no longer
   allocate temporaries over all points at once (~2 GiB for the flat-field
   fine correction of a Binospec detector), and the evaluation is faster.
+- Added the expert ``[rdx] fit2d_chunk`` parameter, which sets the number of
+  points processed at a time by the chunked 2D polynomial fits and
+  evaluations above.  It trades peak memory for speed and does not change the
+  results beyond round-off.
 
 Instrument-specific Updates
 ---------------------------
