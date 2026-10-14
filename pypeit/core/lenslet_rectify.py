@@ -225,13 +225,17 @@ def select_matrix(directory, filt, scale, mjd, epochs=None):
     _dir = Path(directory).expanduser()
     if not _dir.is_dir():
         raise PypeItError(f'Rectification-matrix directory {_dir} does not '
-                          'exist.')
+                          'exist; set [calibrations] osiris_rectmat_dir to '
+                          'the directory holding the Keck matrices '
+                          f'(available from {RECTMAT_URL}).')
     _scale = float(scale)
-    found = []
+    found, other = [], []
     for f in sorted(_dir.iterdir()):
         info = parse_matrix_filename(f)
         if info is not None:
             found.append((f, info))
+        elif not f.name.startswith('.'):
+            other.append(f.name)
     # Matrices of the requested mode
     mode = [(f, i) for f, i in found
             if i['filter'] == filt and abs(i['scale'] - _scale) < 1e-4]
@@ -266,12 +270,20 @@ def select_matrix(directory, filt, scale, mjd, epochs=None):
     listing = '\n'.join(
         [f'    {f.name}: {i["filter"]} {i["scale"]:.3f}" {i["date"]}'
          for f, i in found]) if len(found) > 0 else '    (none)'
+    # Other files, e.g. matrices renamed or compressed differently (only
+    # sYYMMDD_cNNN___infl_<filter>_<scale>.fits[.gz] names are recognised)
+    nshow = 20
+    others = '\n'.join([f'    {n}' for n in other[:nshow]]) \
+        if len(other) > 0 else '    (none)'
+    if len(other) > nshow:
+        others += f'\n    ... and {len(other) - nshow} more'
     raise PypeItError(
         f'No Keck/OSIRIS rectification matrix for filter {filt}, scale '
         f'{_scale:.3f} arcsec and MJD {mjd:.2f} ({date}; validity epoch '
-        f'{ep_str}) in {_dir}.  Matrices found:\n{listing}\nDownload the '
-        f'matrix of epoch {ep_str} from {RECTMAT_URL} (data/{epoch["subdir"]}'
-        '/).')
+        f'{ep_str}) in {_dir}.  Matrices found:\n{listing}\nOther files '
+        f'(names must follow sYYMMDD_cNNN___infl_<filter>_<scale>.fits'
+        f'[.gz]):\n{others}\nDownload the matrix of epoch {ep_str} from '
+        f'{RECTMAT_URL} (data/{epoch["subdir"]}/).')
 
 
 class RectMatrix:

@@ -8,11 +8,13 @@ rectification matrices before the ``Fiber`` pypeline takes over (see the
 design document in the PypeIt development suite,
 ``pypeitdev/keck_osiris/keck_osiris_design.md``).
 
-This module currently implements the spectrograph skeleton: metadata,
-frame typing, detector parameters, raw-image reading, the bad-pixel mask,
-the default parameters, and loaders for the static Keck calibration files
-shipped with PypeIt.  Only data taken with the H2RG spectrograph detector
-(on or after 2016-01-01) are supported.
+This module implements the metadata, frame typing, detector parameters,
+raw-image reading, the bad-pixel mask, the default parameters, the loaders
+for the static Keck calibration files shipped with PypeIt, the
+rectification step and the ``Fiber``-pypeline hooks (block-slits, lenslet
+identities, Keck-derived tilts and wavelengths, cube setup).  Only data
+taken with the H2RG spectrograph detector (on or after 2016-01-01) are
+supported.  User documentation: ``doc/spectrographs/keck_osiris.rst``.
 
 .. include:: ../include/links.rst
 """
@@ -63,10 +65,10 @@ class KeckOSIRISSpectrograph(spectrograph.Spectrograph):
     header_name = 'OSIRIS'
     url = 'https://www2.keck.hawaii.edu/inst/osiris/'
     pypeline = 'Fiber'
-    # Not supported until a dev-suite reduction test passes
-    supported = False
+    # Dev-suite reduce/afterburn/vet tests: Hn3/100, Kbb/050, Kn3/035 (M5)
+    supported = True
     comment = ('Lenslet IFU; H2RG era (>= 2016) only; requires Keck '
-               'rectification matrices')
+               'rectification matrices; see :doc:`keck_osiris`')
 
     # Geometry constants (OSIRIS manual App. E; verified on data in
     # Report 01 of the development suite)
@@ -86,6 +88,10 @@ class KeckOSIRISSpectrograph(spectrograph.Spectrograph):
     # Raw frames are rectified (lenslet spectra extracted with the Keck
     # matrix) inside RawImage.process; see rectify()
     has_rectification = True
+
+    _tilt_cache = {}
+    """Keck-derived tilt coefficients per configuration (see
+    :func:`get_fixed_tilts`), shared by all instances."""
 
     # Read noise (e-) of the H2RG versus the number of MCDS read pairs,
     # from the Keck OSIRIS specifications page; NUMREADS=1 is plain CDS.
@@ -932,6 +938,14 @@ class KeckOSIRISSpectrograph(spectrograph.Spectrograph):
             hdr (`astropy.io.fits.Header`_):
                 Primary header of a raw frame.
         """
+        # Truncated headers: name the missing cards instead of a KeyError
+        missing = [k for k in ['SFILTER', 'MJD-OBS'] if k not in hdr]
+        if len(missing) > 0:
+            fname = hdr.get('DATAFILE', hdr.get('FILENAME', 'the frame'))
+            raise PypeItError(f'Header of {fname} lacks {", ".join(missing)}'
+                              '; the Keck/OSIRIS filter and date are needed '
+                              'to select the lenslet layout, wavelength '
+                              'coefficients and rectification matrix.')
         self.set_lenslet_state(hdr['SFILTER'], hdr['MJD-OBS'],
                                scale=self.platescale_from_header(hdr))
 
@@ -1137,8 +1151,12 @@ class KeckOSIRISSpectrograph(spectrograph.Spectrograph):
             except PypeItError as e:
                 err = e
         if mfile is None:
+            searched = ', '.join([str(d) for d in dirs])
             raise err if err is not None else PypeItError(
-                f'No rectification-matrix directory found among {dirs}.')
+                f'Rectification-matrix directory not found ({searched}); set '
+                '[calibrations] osiris_rectmat_dir to the directory holding '
+                'the Keck matrices (available from '
+                f'{lenslet_rectify.RECTMAT_URL}).')
         cached = getattr(self, '_rect_matrix', None)
         if cached is None or cached.filename != mfile:
             self._rect_matrix = lenslet_rectify.RectMatrix.from_file(mfile)
@@ -1663,15 +1681,29 @@ class KeckOSIRISSpectrograph(spectrograph.Spectrograph):
         if slits.nslits != lay.meta['nblock']:
             raise PypeItError(f'{slits.nslits} block-slits but '
                               f'{lay.meta["nblock"]} lenslet blocks.')
-        lam = self.lenslet_wavelengths(frac)
-        coeffs, resid = lenslet_rectify.lenslet_block_tilts(
-            lam, lay, order=self.TILT_ORDER)
-        good = np.isfinite(resid)
-        rms = float(np.sqrt(np.mean(resid[good]**2)))
-        mad = float(1.4826 * np.median(np.abs(resid[good])))
-        log.info(f'Keck-derived tilts: {slits.nslits} blocks; residual to '
-                 f'the per-lenslet solutions rms = {rms:.3f} px (robust '
-                 f'{mad:.3f} px).')
+        # The fit depends only on the filter, the coefficient epoch and the
+        # grating expansion: cache it (shared by all instances), so that it
+        # is computed once per configuration instead of for every frame
+        # (M5 task 10; it was recomputed 168 times in the Kbb/050 run)
+        cfile = Path(self.wave_coeff_file(self.lenslet_mjd)).name
+        key = (self.dispname, cfile, round(float(frac), 10), slits.nslits,
+               tuple(self.TILT_ORDER))
+        cache = KeckOSIRISSpectrograph._tilt_cache
+        if key not in cache:
+            lam = self.lenslet_wavelengths(frac)
+            coeffs, resid = lenslet_rectify.lenslet_block_tilts(
+                lam, lay, order=self.TILT_ORDER)
+            good = np.isfinite(resid)
+            rms = float(np.sqrt(np.mean(resid[good]**2)))
+            mad = float(1.4826 * np.median(np.abs(resid[good])))
+            log.info(f'Keck-derived tilts: {slits.nslits} blocks; residual '
+                     f'to the per-lenslet solutions rms = {rms:.3f} px '
+                     f'(robust {mad:.3f} px).')
+            cache[key] = coeffs
+        else:
+            log.info(f'Keck-derived tilts for {self.dispname} ({cfile}) '
+                     'taken from the cache.')
+        coeffs = cache[key].copy()
         n = slits.nslits
         return wavetilts.WaveTilts(
             coeffs, n, slits.spat_id,
@@ -1897,6 +1929,9 @@ class KeckOSIRISSpectrograph(spectrograph.Spectrograph):
         # Davies (2007) scaling of the residual OH lines of A-B pairs, one
         # factor per OH group pooled over all lenslets (as the DRP)
         par['reduce']['skysub']['osiris_oh_scaling'] = 'global'
+        # Second cosmic-ray pass on the A-B lenslet spectra for the hits
+        # that L.A.Cosmic misses on the raw frames (M5 task 10)
+        par['reduce']['skysub']['fiber_cr_nsig'] = 8.0
         par['reduce']['trim_edge'] = [0, 0]
         par['calibrations']['slitedges']['pad'] = 0
         par['reduce']['cube']['slit_spec'] = False

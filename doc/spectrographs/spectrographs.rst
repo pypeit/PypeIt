@@ -42,6 +42,7 @@ instrument-specific details for running PypeIt.
    deimos
    keck_hires
    keck_kcwi
+   keck_osiris
    lris
    keck_nires
    mosfire

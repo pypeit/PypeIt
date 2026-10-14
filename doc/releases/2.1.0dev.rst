@@ -20,6 +20,10 @@ Documentation Updates
   :ref:`tutorial <soar_triplespec_howto>` for SOAR/TripleSpec.
 - Added new documentation that allows PypeIt to trace the echelle orders with
   a pinhole decker or standard star trace (and pad the trace to the full slit length).
+- Added a :ref:`spectrograph page <keck_osiris>` and a worked-example
+  :ref:`tutorial <keck_osiris_howto>` for Keck/OSIRIS (rectification
+  matrices and their validity epochs, the ``bkg_id`` convention, darks,
+  parameters, ``pypeit_fiber_cube`` and the telluric recipe).
 
 Dependency Changes
 ------------------
@@ -38,6 +42,27 @@ Functionality/Performance Improvements and Additions
   is treated as a distinct object without peak-detection object finding.  The
   pypeline dispatch system (``FiberFindObjects``, ``FiberExtract``) follows the
   existing class-name convention.
+
+- Generic additions for spectrographs whose raw frames must be transformed
+  before the standard processing, developed for Keck/OSIRIS (all inactive
+  unless a spectrograph hook or parameter enables them): a ``rectify`` step
+  of :class:`~pypeit.images.rawimage.RawImage` (run when
+  ``Spectrograph.has_rectification`` is True; not for bias and dark frames),
+  the ``Spectrograph.get_fixed_tilts`` and ``get_fixed_wavecalib`` hooks with
+  the new wavelength ``method = 'fixed'``, per-fiber wavelengths
+  (``get_fiber_wavelengths``) and a cube-setup hook (``fiber_cube_setup``)
+  for the ``Fiber`` pypeline, and ``Spectrograph.set_runtime_par``, which
+  gives the spectrograph access to the run parameters.
+
+- New ``Fiber``-pypeline sky tools:
+  ``[calibrations][wavelengths] fiber_sky_refine`` refines the per-fiber
+  wavelengths on the sky lines of every science frame (frames without any
+  measurable line adopt the shifts measured on the arc frame of their
+  calibration group); ``[reduce][skysub] osiris_oh_scaling`` applies the
+  Davies (2007) OH-line scaling to A-B frames, keeping a group factor only if
+  it lowers the integrated line residual, with ``osiris_oh_min_exptime`` as
+  an optional exposure-time floor; ``[reduce][skysub] fiber_cr_nsig`` adds a
+  second cosmic-ray pass on the sky-subtracted A-B fiber spectra.
 
 - Added the PypeIt Dashboard (``pypeit_dashboard``): a Qt GUI that launches,
   monitors, and inspects a reduction — calibration and science-frame status,
@@ -100,6 +125,22 @@ Functionality/Performance Improvements and Additions
 
 Instrument-specific Updates
 ---------------------------
+
+- Added support for Keck/OSIRIS (``keck_osiris``), the Keck I adaptive-optics
+  lenslet integral-field spectrograph (H2RG detector era, 2016 onwards).  The
+  raw frames are rectified with the Keck rectification matrices (a numpy port
+  of the OSIRIS DRP solver, :mod:`~pypeit.core.lenslet_rectify`, plus an
+  exact least-squares solver used by default) into a lenslet image that the
+  ``Fiber`` pypeline reduces with one spectrum per lenslet.  Wavelengths come
+  from the Keck per-lenslet coefficients (vacuum) refined on the OH lines of
+  every frame; A-B sky subtraction with Davies (2007) OH scaling; datacubes
+  and point-source spectra with ``pypeit_fiber_cube``; telluric correction
+  with the IR sensitivity-function and telluric tools.  The matrices are
+  selected by Keck validity epoch from a user directory
+  (``[calibrations] osiris_rectmat_dir``).  Tested on Kbb/0.050" (2024),
+  Hn3/0.100" (2016) and Kn3/0.035" (2024) data.  The rectification and OH
+  scaling follow the Keck OSIRIS DRP (Lyke et al. 2017; Lockhart et al.
+  2019).  See :ref:`keck_osiris`.
 
 - P200/NGPS ``u`` channel: support He dome-lamp frames (``IMGTYPE=DOMEHE``) as a
   second arc lamp.  The internal ThAr lamp has no detectable lines below
@@ -217,6 +258,16 @@ Script Changes
   spec1d files.  Combines both detector sides and produces FITS datacubes
   with 3-axis WCS.
 
+- Added ``pypeit_fiber_cube``, a generic script that builds datacubes (and,
+  with ``--point_source``, single-object point-source spectra for
+  ``pypeit_sensfunc``/``pypeit_tellfit``) from the spec1d files of any
+  ``Fiber``-pypeline spectrograph; ``pypeit_binospec_ifu_cube`` is now a thin
+  alias of it.
+
+- Added ``pypeit_osiris_rectify``, a development script that rectifies a raw
+  Keck/OSIRIS frame (optionally minus a background frame) with a Keck
+  rectification matrix.
+
 - Removed -G/--gui option from pypeit_obslog.
 
 - Added ``pypeit_binospec_ifu_extract`` for interactive selection of
@@ -232,6 +283,11 @@ Testing
 - Added tests for MMT/Binospec setup grouping and INCAN-based flat/trace frame
   typing.
 - Added new tests for :mod:`~pypeit.core.datacube`.
+- Added tests for Keck/OSIRIS (header eras and truncated headers, frame
+  typing, matrix selection and error messages, rectification solvers, the
+  lenslet layout, fixed tilts and wavelengths) and for the ``Fiber``-pypeline
+  sky tools (sky-line refinement, Davies OH scaling and its guard, residual
+  cosmic rays).
 - Added tests for the deferred QA figure-writing machinery
   (:func:`~pypeit.qa.save_figure` / :func:`~pypeit.qa.flush_qa`): threaded
   writes are pixel-identical to serial writes, queued figures are isolated

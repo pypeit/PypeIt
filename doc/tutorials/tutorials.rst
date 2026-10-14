@@ -24,6 +24,8 @@ following starting points:
 
     - **Echelle data**: :doc:`Gemini GNIRS<gnirs_howto>`
 
+    - **Lenslet IFU data** (Fiber pypeline): :doc:`Keck OSIRIS<keck_osiris_howto>`
+
 For additional instrument-specific recommendations, please see the links at the
 bottom of the :doc:`../spectrographs/spectrographs` page.
 
@@ -43,6 +45,7 @@ bottom of the :doc:`../spectrographs/spectrographs` page.
    Keck MOSFIRE <mosfire_howto>
    Keck NIRES <nires_howto>
    Keck NIRSPEC <nirspec_high_howto>
+   Keck OSIRIS <keck_osiris_howto>
    LBT MODS <mods_howto>
    LDT DeVeny <deveny_howto>
    Shane Kast <kast_howto>

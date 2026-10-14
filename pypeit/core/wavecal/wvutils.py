@@ -7,10 +7,12 @@
 """
 import numpy as np
 import os
+import warnings
 
 from matplotlib import pyplot as plt
 
 import scipy
+import scipy.optimize
 
 from astropy.table import Table
 from astropy import convolution
@@ -452,9 +454,15 @@ def fiber_sky_line_shifts(spectra, waves, gpm, line_wave, fwhm=2.0,
         if inr.size < nmin:
             continue
         spec = np.where(good, spectra[:, k], 0.)
-        _, _, tcent, _, _, wgood, _, nsig = arc.detect_lines(
-            spec, sigdetect=sigdetect, fwhm=fwhm, fit_frac_fwhm=1.5,
-            bpm=np.logical_not(good))
+        # The Gaussian fits of faint lines raise thousands of harmless
+        # covariance/division warnings per frame (one fit per line and
+        # fiber); they are silenced here (M5)
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', scipy.optimize.OptimizeWarning)
+            warnings.simplefilter('ignore', RuntimeWarning)
+            _, _, tcent, _, _, wgood, _, nsig = arc.detect_lines(
+                spec, sigdetect=sigdetect, fwhm=fwhm, fit_frac_fwhm=1.5,
+                bpm=np.logical_not(good))
         tc = tcent[wgood][nsig[wgood] > sigdetect]
         if tc.size == 0:
             continue
