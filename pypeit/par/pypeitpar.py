@@ -72,6 +72,7 @@ from pypeit.par.parset import ParSet
 from pypeit.par import util
 from pypeit.core.framematch import FrameTypeBitMask
 from pypeit.core import parse
+from pypeit.core.fitting import DEFAULT_POLYFIT2D_CHUNK
 from pypeit import log
 from pypeit import utils
 from pypeit import PypeItError
@@ -3158,7 +3159,7 @@ class ReduxPar(ParSet):
                                'preprocessed up-the-ramp count-rate images are written and ' \
                                'then reused by the reduction (currently only MMT/MMIRS).'
 
-        defaults['fit2d_chunk'] = 2**15
+        defaults['fit2d_chunk'] = DEFAULT_POLYFIT2D_CHUNK
         dtypes['fit2d_chunk'] = int
         descr['fit2d_chunk'] = 'Maximum number of data points for which 2D polynomial ' \
                                '(Legendre, Chebyshev, or power-series) fits build their full ' \

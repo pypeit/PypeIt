@@ -11,6 +11,7 @@ from configobj import ConfigObj
 from pypeit.par import pypeitpar
 from pypeit.par import parset
 from pypeit.par import util
+from pypeit.core import fitting
 from pypeit.spectrographs.util import load_spectrograph
 
 
@@ -112,7 +113,7 @@ def test_ncpu_assignment_revalidates():
 
 def test_fit2d_chunk():
     par = pypeitpar.ReduxPar()
-    assert par['fit2d_chunk'] == 2**15, 'Wrong default 2D fit chunk size'
+    assert par['fit2d_chunk'] == fitting.DEFAULT_POLYFIT2D_CHUNK, 'Wrong default 2D fit chunk size'
     par = pypeitpar.ReduxPar.from_dict({'spectrograph': 'shane_kast_blue', 'fit2d_chunk': 1000})
     assert par['fit2d_chunk'] == 1000, 'fit2d_chunk must be set by the configuration'
     with pytest.raises(ValueError):

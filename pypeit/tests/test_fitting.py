@@ -169,3 +169,15 @@ def test_evaluate_fit_2d_chunked(function):
         fitting.evaluate_fit(c, function, x, x2=y, minx=-1., maxx=1., minx2=-1., maxx2=1.),
         fitting.evaluate_fit(c, function, x.ravel(), x2=y.ravel(), minx=-1., maxx=1., minx2=-1.,
                              maxx2=1.).reshape(x.shape))
+
+
+def test_evaluate_fit_2d_chunked_dtype():
+    # Chunked evaluation must return the same type as numpy, e.g. float32
+    rng = np.random.default_rng(42)
+    c = rng.standard_normal((4, 5)).astype(np.float32)
+    x, y = np.meshgrid(np.linspace(-1, 1, 101, dtype=np.float32),
+                       np.linspace(-1, 1, 99, dtype=np.float32))
+    full = np.polynomial.legendre.legval2d(x, y, c)
+    chunked = fitting._chunked_val2d(np.polynomial.legendre.legval2d, x, y, c, chunk=1000)
+    assert chunked.dtype == full.dtype, 'Chunked evaluation changed the output type'
+    assert np.array_equal(chunked, full), 'Chunked evaluation changed the result'

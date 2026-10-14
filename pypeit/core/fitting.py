@@ -423,12 +423,20 @@ class PypeItFit(DataContainer):
         return np.sqrt(np.sum(weights * (yval - values) ** 2))
 
 
-POLYFIT2D_CHUNK = 2**15
+DEFAULT_POLYFIT2D_CHUNK = 2**15
+"""
+Default value of :data:`POLYFIT2D_CHUNK`, and of the ``[rdx] fit2d_chunk``
+parameter.
+"""
+
+POLYFIT2D_CHUNK = DEFAULT_POLYFIT2D_CHUNK
 """
 Maximum number of data points for which :func:`polyfit2d_general` builds the
 full design matrix; larger fits are solved in chunks of this many points by
 :func:`_chunked_lstsq2d`.  Also the chunk size used by :func:`_chunked_val2d`.
-Set from the ``[rdx] fit2d_chunk`` parameter using :func:`set_polyfit2d_chunk`.
+:class:`~pypeit.pypeit.PypeIt` sets it from the ``[rdx] fit2d_chunk`` parameter
+using :func:`set_polyfit2d_chunk`; code that calls these functions outside of
+:class:`~pypeit.pypeit.PypeIt` uses :data:`DEFAULT_POLYFIT2D_CHUNK`.
 """
 
 
@@ -484,8 +492,12 @@ def _chunked_val2d(val2d, x, y, c, chunk=None):
     if x.size <= _chunk:
         return val2d(x, y, c)
     xr, yr = x.ravel(), y.ravel()
-    out = np.empty(xr.size, dtype=np.result_type(xr, yr, c, float))
-    for start in range(0, xr.size, _chunk):
+    # Take the output type from the first chunk, so that it matches the type
+    # returned by a single call to val2d (e.g., float32 for float32 input)
+    first = val2d(xr[:_chunk], yr[:_chunk], c)
+    out = np.empty(xr.size, dtype=first.dtype)
+    out[:_chunk] = first
+    for start in range(_chunk, xr.size, _chunk):
         sl = slice(start, start + _chunk)
         out[sl] = val2d(xr[sl], yr[sl], c)
     return out.reshape(x.shape)
