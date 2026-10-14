@@ -7809,8 +7809,8 @@ Alterations to the default parameters are:
 
 .. _instr_par-magellan_ldss3:
 
-MMT LDSS3 (``magellan_ldss3``)
-------------------------------
+MAGELLAN LDSS3-C (``magellan_ldss3``)
+-------------------------------------
 Alterations to the default parameters are:
 
 .. code-block:: ini
@@ -7826,20 +7826,21 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
-          exprng = 0, None,
+          exprng = 1, None,
           [[[process]]]
+              combine = median
               mask_cr = True
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
-          exprng = 0, 10,
+          exprng = None, 60,
           [[[process]]]
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
-          exprng = 0, 10,
+          exprng = None, 60,
           [[[process]]]
               use_biasimage = False
               use_pixelflat = False
@@ -7895,11 +7896,13 @@ Alterations to the default parameters are:
               use_biasimage = False
               noise_floor = 0.01
       [[standardframe]]
-          exprng = 10, 500,
+          exprng = None, 100,
           [[[process]]]
               mask_cr = True
               use_biasimage = False
               noise_floor = 0.01
+      [[flatfield]]
+          saturated_slits = mask
       [[wavelengths]]
           sigdetect = 6.0
           fwhm = 5.0
@@ -7908,12 +7911,13 @@ Alterations to the default parameters are:
           n_first = 3
           n_final = 5
       [[slitedges]]
+          minimum_slit_length = 2.0
           pad = 0.0, 0.0,
       [[tilts]]
           spat_order = 6
           spec_order = 6
   [scienceframe]
-      exprng = 200, None,
+      exprng = 100, None,
       [[process]]
           mask_cr = True
           sigclip = 5.0
