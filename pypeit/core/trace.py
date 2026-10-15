@@ -1543,24 +1543,33 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
     return fit, cen, err, msk, npeak
 
 
-def refine_edge(trcimg, bpm, edge, l_or_r):
+def refine_edge(trcimg, bpm, edge, l_or_r, min_rows=10):
     """
     Refine the edge position to be the point of maximum gradient. This is assumed to be
     the edge of the slit. To determine the maximum gradient, construct a histogram near
     each edge at the sub-pixel level, then calculate the gradient and fit a quadratic to
     the peak of the gradient. The maximum of the quadratic is the refined edge position.
 
+    Only the spectral rows where the full search window (+/-2 pixels around the edge) is
+    on the detector are used.  This allows edges that are close to, or beyond, the edge
+    of the detector (e.g. echelle orders at the edge of the detector).
+
     Parameters
     ----------
     trcimg : numpy.ndarray
         The image to use for defining the maximum flux gradient (usually a traceframe).
     bpm : numpy.ndarray
-        The bad pixel mask for the image. True = bad
+        The bad pixel mask for the image. True = bad. If None, all pixels are
+        assumed to be good.
     edge : numpy.ndarray
         The edge positions to refine. This should be the spatial positions of a single edge
     l_or_r : str
         Which edge to refine. Must be one of 'left', 'right', 'l', or 'r'. This is used to
         determine the sign of the gradient.
+    min_rows : int, optional
+        The minimum number of spectral rows where the search window is on the detector.
+        If fewer rows are available, the edge cannot be refined, and a shift of 0 is
+        returned.
 
     Returns
     -------
@@ -1576,18 +1585,28 @@ def refine_edge(trcimg, bpm, edge, l_or_r):
     trc_bins = np.linspace(-delpix, delpix, 2 * delpix * subpix + 1)
     bin_cen = 0.5 * (trc_bins[1:] + trc_bins[:-1])
     bin_halfwid = 0.5 * (trc_bins[1] - trc_bins[0])
+    # Only use the spectral rows where the full search window is on the detector
+    nspec, nspat = trcimg.shape
+    _edge = np.asarray(edge, dtype=float)
+    valid = np.isfinite(_edge) & (_edge - delpix >= 0) & (_edge + delpix <= nspat - 1)
+    if np.sum(valid) < min_rows:
+        log.warning(f'The {l_or_r} edge is on the detector for only {np.sum(valid)} spectral rows '
+                    f'(at least {min_rows} are required). The edge cannot be refined; '
+                    'returning a shift of 0.')
+        return 0.0
+    _bpm = np.zeros(trcimg.shape, dtype=bool) if bpm is None else bpm
     # Linearly interpolate the input trace image and the BPM to subpixel scales
-    spec_arr = np.arange(trcimg.shape[0])
-    spat_arr = np.arange(trcimg.shape[1])
+    spec_arr = np.arange(nspec)
+    spat_arr = np.arange(nspat)
     trcimg_interp = interpolate.RegularGridInterpolator((spec_arr, spat_arr), trcimg)
-    trcbpm_interp = interpolate.RegularGridInterpolator((spec_arr, spat_arr), bpm.astype(float))
+    trcbpm_interp = interpolate.RegularGridInterpolator((spec_arr, spat_arr), _bpm.astype(float))
     # Set up the coordinates to evaluate the subpixellated trace image
-    spat_eval = np.add.outer(edge, trc_bins)
-    spec_eval = np.repeat(np.arange(trcimg.shape[0])[:,None], trc_bins.size, axis=1)
+    spat_eval = np.add.outer(_edge[valid], trc_bins)
+    spec_eval = np.repeat(spec_arr[valid][:,None], trc_bins.size, axis=1)
     # Construct subpixellated trace image, and coordinates
     new_img = trcimg_interp((spec_eval, spat_eval))
     new_bpm = trcbpm_interp((spec_eval, spat_eval))
-    this_coo = (spat_eval - edge[:, None]) + bin_halfwid
+    this_coo = (spat_eval - _edge[valid][:, None]) + bin_halfwid
     gpm = (new_bpm == 0.0)
     # Make the edge profile
     edge_prof, _ = np.histogram(this_coo[gpm], bins=trc_bins, weights=new_img[gpm])

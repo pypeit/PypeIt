@@ -122,3 +122,31 @@ def test_spat_flexure_shift_beyond_maxlag(shift):
                                               bpm=np.zeros(sciimg.shape, dtype=bool),
                                               maxlag=10, sigdetect=5.)
     assert np.all(spat_flexure == 0.), 'Flexure beyond maxlag should be rejected'
+
+
+@pytest.mark.parametrize('method', ['slit', 'edge', 'leftedge'])
+def test_spat_flexure_shift_edge_near_detector(method):
+    # The first slit starts close to the detector boundary, and the detector-level
+    # flexure moves its left edge to within 2 pixels of the boundary for part of
+    # the spectral range.  The edge refinement must not fail.
+    # NOTE: An integer shift is used, because the cross-correlation of the (one
+    # pixel wide) synthetic edge images is then at least 3 samples wide, which is
+    # required to fit the detector-level peak.
+    nspec, nspat, sig, dx = 200, 100, 1.2, -3.0
+    drift = np.linspace(0., 3., nspec)
+    left = np.stack([3. + drift, 50. + drift], axis=1)
+    right = left + 30.
+    slits = SlitTraceSet(left_init=left, right_init=right, pypeline='MultiSlit', nspat=nspat,
+                         PYP_SPEC='dummy')
+    xx = np.arange(nspat, dtype=float)[None, :]
+    img = np.zeros((nspec, nspat))
+    for slit in range(2):
+        img += 0.5 * (erf((xx - left[:, slit, None] - dx) / (np.sqrt(2) * sig))
+                      - erf((xx - right[:, slit, None] - dx) / (np.sqrt(2) * sig)))
+    sciimg = 1000. * img + np.random.default_rng(42).normal(0, 1, img.shape)
+    spat_flexure = flexure.spat_flexure_shift(sciimg, slits, method=method,
+                                              bpm=np.zeros(sciimg.shape, dtype=bool),
+                                              maxlag=10, sigdetect=5.)
+    assert np.all(np.isfinite(spat_flexure)), 'Spatial flexure should be finite'
+    assert np.allclose(spat_flexure, dx, atol=0.2), \
+        f'Incorrect spatial flexure for method={method} with an edge near the detector boundary'
