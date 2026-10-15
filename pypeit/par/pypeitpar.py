@@ -199,10 +199,7 @@ class FrameGroupPar(ParSet):
         determined, because they are processed before the slit edges are
         defined, or without the slit edges.
         """
-        # TODO: Remove align and scattlight once these frames are processed with
-        # the slit edges.
-        return ['bias', 'dark', 'trace', 'pinhole', 'slitless_pixflat', 'lampoffflats',
-                'align', 'scattlight']
+        return ['bias', 'dark', 'trace', 'pinhole', 'slitless_pixflat', 'lampoffflats']
 
     def validate(self):
         if len(self.data['exprng']) != 2:
@@ -5306,6 +5303,9 @@ class CalibrationsPar(ParSet):
         dtypes['pinholeframe'] = [ ParSet, dict ]
         descr['pinholeframe'] = 'The frames and combination rules for the pinholes'
 
+        # NOTE: The spatial flexure of the alignment frames is difficult to
+        # determine, so it is not determined by default (spat_flexure_method =
+        # skip).  It can be requested by the user, if needed.
         defaults['alignframe'] = FrameGroupPar(frametype='align',
                                                process=ProcessImagesPar(satpix='nothing',
                                                                         use_pixelflat=False,

@@ -28,7 +28,7 @@ class Alignments(calibframe.CalibFrame):
 
     .. include:: ../include/class_datamodel_alignments.rst
     """
-    version = '1.1.0'
+    version = '1.2.0'
 
     # Calibration frame attributes
     calib_type = 'Alignment'
@@ -44,10 +44,18 @@ class Alignments(calibframe.CalibFrame):
                  'nslits': dict(otype=int, descr='The number of slits'),
                  'traces': dict(otype=np.ndarray, atype=np.floating,
                                 descr='Traces of the alignment frame'),
-                 'spat_id': dict(otype=np.ndarray, atype=np.integer, descr='Slit spat_id ')}
+                 'spat_id': dict(otype=np.ndarray, atype=np.integer, descr='Slit spat_id '),
+                 'spat_flexure': dict(otype=np.ndarray, atype=np.floating,
+                                      descr='Spatial flexure shift, in spatial pixels, between '
+                                            'the alignment frame and SlitTrace. Shape is '
+                                            '(nslits, 2), where spat_flexure[i,0] is the spatial '
+                                            'shift of the left edge of slit i and '
+                                            'spat_flexure[i,1] is the spatial shift of the right '
+                                            'edge of slit i.  None if the spatial flexure was not '
+                                            'determined.')}
 
     def __init__(self, alignframe=None, nspec=None, nalign=None, nslits=None,
-                 traces=None, PYP_SPEC=None, spat_id=None):
+                 traces=None, PYP_SPEC=None, spat_id=None, spat_flexure=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k,values[k]) for k in args[1:]])
@@ -278,7 +286,8 @@ class TraceAlignment:
         # Build the alignment calibration frame
         align = Alignments(alignframe=self.rawalignimg.image, nspec=self.nspec,
                            nalign=align_traces.shape[1], nslits=self.nslits, traces=align_traces,
-                           PYP_SPEC=self.PYP_SPEC, spat_id=self.slits.spat_id)
+                           PYP_SPEC=self.PYP_SPEC, spat_id=self.slits.spat_id,
+                           spat_flexure=self.spat_flexure)
         # Copy the internals from the processed alignment image
         align.copy_calib_internals(self.rawalignimg)
         # Return

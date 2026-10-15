@@ -899,6 +899,19 @@ def test_shift_alignment_traces():
     # Inconsistent shapes raise an error
     with pytest.raises(PypeItError):
         SlicerIFUCoAdd3D.shift_alignment_traces(traces, locations, spat_flexure[:1])
+    # The traces are shifted by the flexure relative to that of the alignment frame
+    align_flexure = np.array([[0.5, 0.5], [-1.0, 1.0]])
+    shifted = SlicerIFUCoAdd3D.shift_alignment_traces(traces, locations, spat_flexure,
+                                                      align_spat_flexure=align_flexure)
+    assert np.allclose(shifted[:, :, 0] - traces[:, :, 0], [0.5, 1.5, 2.5]), \
+        'Alignment traces not shifted by the relative flexure'
+    assert np.allclose(shifted[:, :, 1] - traces[:, :, 1], [-1.0, -2.0, -3.0]), \
+        'Alignment traces not shifted by the relative flexure'
+    # Only the alignment frame has a spatial flexure
+    shifted = SlicerIFUCoAdd3D.shift_alignment_traces(traces, locations, None,
+                                                      align_spat_flexure=align_flexure)
+    assert np.allclose(shifted[:, :, 1] - traces[:, :, 1], [1.0, 0.0, -1.0]), \
+        'Alignment traces not shifted by the alignment frame flexure'
 
 
 def test_generate_cube_subpixel_spatial_flexure():

@@ -317,7 +317,8 @@ def test_spat_flexure_frame_types():
         # The default (skip) is fine
         pypeitpar.FrameGroupPar(frametype=frametype)
     # Frames processed with the slit edges are fine
-    for frametype in ['science', 'standard', 'arc', 'tilt', 'pixelflat', 'illumflat']:
+    for frametype in ['science', 'standard', 'arc', 'tilt', 'pixelflat', 'illumflat', 'align',
+                      'scattlight']:
         pypeitpar.FrameGroupPar(frametype=frametype,
                                 process=pypeitpar.ProcessImagesPar(spat_flexure_method='edge'))
 

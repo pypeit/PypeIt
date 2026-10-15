@@ -14,8 +14,10 @@ Breaking Changes
 - The spatial flexure is now stored for each slit edge, as an array with shape
   :math:`(N_{\rm slits}, 2)`, instead of a single value: e.g., the
   ``sci_spat_flexure`` of the spec2d files, and the ``spat_flexure`` of the
-  processed images, the processed calibration frames, and the tilts.
-  Processed files from previous versions should be regenerated.
+  processed images, the processed calibration frames, and the tilts.  The
+  alignment calibration frames now also store their spatial flexure (datamodel
+  version 1.2.0).  Processed files from previous versions should be
+  regenerated.
 
 Documentation Updates
 ---------------------
@@ -59,7 +61,10 @@ Functionality/Performance Improvements and Additions
 - The spatial flexure of each frame is accounted for when constructing
   datacubes (``pypeit_coadd_datacube``): the RA and Dec of each detector pixel,
   and the astrometric alignment traces, are now evaluated using the spatial
-  flexure of the frame.
+  flexure of the frame (relative to that of the alignment frame).  The
+  alignment and scattered-light calibration frames are now processed with the
+  slit edges, so that their spatial flexure can be determined if requested
+  (this is not done by default for the alignment frames).
 - Added the ``lamps_wvrng`` wavelength-calibration parameter, which restricts
   the lines used from each entry in ``lamps`` to a wavelength range.  This
   allows a subset of a shipped line list to be used without copying the file.

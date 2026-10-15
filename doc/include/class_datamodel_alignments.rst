@@ -1,14 +1,15 @@
 
-**Version**: 1.1.0
+**Version**: 1.2.0
 
-==============  ================  =================  =======================================
-Attribute       Type              Array Type         Description                            
-==============  ================  =================  =======================================
-``PYP_SPEC``    str                                  PypeIt spectrograph name               
-``alignframe``  `numpy.ndarray`_  `numpy.floating`_  Processed, combined alignment frames   
-``nalign``      int                                  Number of alignment traces in each slit
-``nslits``      int                                  The number of slits                    
-``nspec``       int                                  The number of spectral elements        
-``spat_id``     `numpy.ndarray`_  `numpy.integer`_   Slit spat_id                           
-``traces``      `numpy.ndarray`_  `numpy.floating`_  Traces of the alignment frame          
-==============  ================  =================  =======================================
+================  ================  =================  ===========================================================================================================================================================================================================================================================================================================
+Attribute         Type              Array Type         Description                                                                                                                                                                                                                                                                                                
+================  ================  =================  ===========================================================================================================================================================================================================================================================================================================
+``PYP_SPEC``      str                                  PypeIt spectrograph name                                                                                                                                                                                                                                                                                   
+``alignframe``    `numpy.ndarray`_  `numpy.floating`_  Processed, combined alignment frames                                                                                                                                                                                                                                                                       
+``nalign``        int                                  Number of alignment traces in each slit                                                                                                                                                                                                                                                                    
+``nslits``        int                                  The number of slits                                                                                                                                                                                                                                                                                        
+``nspec``         int                                  The number of spectral elements                                                                                                                                                                                                                                                                            
+``spat_flexure``  `numpy.ndarray`_  `numpy.floating`_  Spatial flexure shift, in spatial pixels, between the alignment frame and SlitTrace. Shape is (nslits, 2), where spat_flexure[i,0] is the spatial shift of the left edge of slit i and spat_flexure[i,1] is the spatial shift of the right edge of slit i.  None if the spatial flexure was not determined.
+``spat_id``       `numpy.ndarray`_  `numpy.integer`_   Slit spat_id                                                                                                                                                                                                                                                                                               
+``traces``        `numpy.ndarray`_  `numpy.floating`_  Traces of the alignment frame                                                                                                                                                                                                                                                                              
+================  ================  =================  ===========================================================================================================================================================================================================================================================================================================

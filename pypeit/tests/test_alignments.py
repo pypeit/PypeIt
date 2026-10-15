@@ -46,3 +46,22 @@ def test_alignments():
     # Clean-up
     ofile.unlink()
 
+
+
+def test_alignments_spat_flexure(tmp_path):
+    # The spatial flexure of the alignment frame is written and read
+    nspat, nspec, nslits, nalign = 100, 200, 3, 5
+    spat_flexure = np.array([[0.5, 0.7], [1.2, 1.3], [-0.4, 0.1]])
+    alignments = alignframe.Alignments(alignframe=np.ones((nspec, nspat)), nspec=nspec,
+                                       nalign=nalign, nslits=nslits,
+                                       traces=np.zeros((nspec, nalign, nslits)),
+                                       PYP_SPEC='keck_kcwi', spat_id=np.arange(nslits),
+                                       spat_flexure=spat_flexure)
+    alignments.set_paths(tmp_path, 'A', '1', 'DET01')
+    alignments.to_file(overwrite=True)
+    _alignments = alignframe.Alignments.from_file(alignments.get_path())
+    assert np.allclose(_alignments.spat_flexure, spat_flexure), 'Spatial flexure changed on I/O'
+    # The spatial flexure is optional
+    alignments.spat_flexure = None
+    alignments.to_file(overwrite=True)
+    assert alignframe.Alignments.from_file(alignments.get_path()).spat_flexure is None

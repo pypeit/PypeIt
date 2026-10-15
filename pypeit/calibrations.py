@@ -572,10 +572,15 @@ class Calibrations:
 
         # Otherwise, create the processed file.
         log.info(f'Preparing a {frame["class"].calib_type} calibration frame.')
+        # NOTE: The slits are provided so that the spatial flexure of the
+        # alignment frames can be determined, if requested.  This is not done
+        # by default (spat_flexure_method = skip), because the spatial flexure
+        # of the alignment frames is difficult to determine.
         msalign = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                  self.par['alignframe'], self.raw_files,
                                                  bias=self.msbias, bpm=self.msbpm,
-                                                 dark=self.msdark, calib_dir=self.calib_dir,
+                                                 dark=self.msdark, slits=self.slits,
+                                                 calib_dir=self.calib_dir,
                                                  setup=setup, calib_id=calib_id,
                                                  manual_spat_flexure=manual_spat_flexure)
 
@@ -815,10 +820,13 @@ class Calibrations:
 
         binning = self.fitstbl[scatt_idx[0]]['binning']
         dispname = self.fitstbl[scatt_idx[0]]['dispname']
+        # NOTE: The slits are provided so that the spatial flexure of the
+        # scattered light frames can be determined, if requested.
         scattlightImage = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                          self.par['scattlightframe'], self.raw_files,
                                                          bias=self.msbias, bpm=self.msbpm,
-                                                         dark=self.msdark, calib_dir=self.calib_dir,
+                                                         dark=self.msdark, slits=self.slits,
+                                                         calib_dir=self.calib_dir,
                                                          setup=setup, calib_id=calib_id,
                                                          manual_spat_flexure=manual_spat_flexure)
 

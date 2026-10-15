@@ -88,9 +88,17 @@ files.
 
 The spatial flexure can only be determined for frames that are processed using
 the slit edges.  It cannot be determined for the ``bias``, ``dark``, ``trace``,
-``pinhole``, ``slitless_pixflat``, ``lampoffflats``, ``align``, and
-``scattlight`` frames; setting ``spat_flexure_method`` to anything other than
-``skip`` for these frame types raises an error.
+``pinhole``, ``slitless_pixflat``, and ``lampoffflats`` frames; setting
+``spat_flexure_method`` to anything other than ``skip`` for these frame types
+raises an error.
+
+The spatial flexure of the alignment (``align``) frames, used to construct
+datacubes for slicer IFUs, is difficult to determine, so it is not determined
+by default.  If it is requested (by setting ``spat_flexure_method`` in the
+``alignframe`` block), it is stored with the alignment traces, and the traces
+are shifted by the spatial flexure of each science frame *relative* to that of
+the alignment frame when constructing datacubes.  Otherwise, the alignment
+frame is assumed to have no spatial flexure relative to the slits.
 
 .. note::
 

@@ -1278,27 +1278,22 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             traces = np.append(left[:, None, :], right[:, None, :], axis=1)
         else:
             locations = self.par['calibrations']['alignment']['locations']
-            traces = self.shift_alignment_traces(alignments.traces, locations, spat_flexure)
+            traces = self.shift_alignment_traces(alignments.traces, locations, spat_flexure,
+                                                 align_spat_flexure=alignments.spat_flexure)
         log.info("Generating alignment splines")
         return alignframe.AlignmentSplines(traces, locations, spec2DObj.tilts)
 
     @staticmethod
-    def shift_alignment_traces(traces, locations, spat_flexure):
+    def shift_alignment_traces(traces, locations, spat_flexure, align_spat_flexure=None):
         """
         Shift the alignment traces to account for the spatial flexure of a
         frame.
 
         The alignment traces are measured on the alignment frame.  To use them
         for a frame with a different spatial flexure, each trace is shifted by
-        the spatial flexure linearly interpolated between the left and right
-        slit edges, using the fractional location of the trace along the slit.
-
-        .. note::
-
-            The spatial flexure of the alignment frame itself is not currently
-            stored, and the alignment frame is processed without the slits (so
-            its spatial flexure cannot be computed).  The alignment traces are
-            therefore assumed to have no spatial flexure relative to the slits.
+        the *relative* spatial flexure between the frame and the alignment frame,
+        linearly interpolated between the left and right slit edges, using the
+        fractional location of the trace along the slit.
 
         Parameters
         ----------
@@ -1311,23 +1306,35 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             The spatial flexure of the frame relative to the slits, with
             shape (nslits, 2); see
             :func:`~pypeit.slittrace.SlitTraceSet.select_edges`.  If None, the
-            traces are returned unchanged.
+            frame is assumed to have no spatial flexure.
+        align_spat_flexure : `numpy.ndarray`_, optional
+            The spatial flexure of the alignment frame relative to the slits,
+            with shape (nslits, 2).  If None, the alignment frame is assumed to
+            have no spatial flexure (e.g., if the spatial flexure of the
+            alignment frames was not determined, which is the default).
 
         Returns
         -------
         `numpy.ndarray`_
             The shifted alignment traces, with shape (nspec, ntrace, nslits).
         """
-        if spat_flexure is None:
+        if spat_flexure is None and align_spat_flexure is None:
             return traces
+        nslits = traces.shape[2]
+        _spat_flexure = np.zeros((nslits, 2)) if spat_flexure is None else spat_flexure
+        _align_flexure = np.zeros((nslits, 2)) if align_spat_flexure is None else align_spat_flexure
         _locations = np.atleast_1d(locations).astype(float)
-        if spat_flexure.shape != (traces.shape[2], 2) or _locations.size != traces.shape[1]:
-            raise PypeItError(f'Spatial flexure shape {spat_flexure.shape} and/or number of alignment '
-                              f'locations ({_locations.size}) is inconsistent with the alignment '
-                              f'traces shape {traces.shape}.')
+        if _spat_flexure.shape != (nslits, 2) or _align_flexure.shape != (nslits, 2) \
+                or _locations.size != traces.shape[1]:
+            raise PypeItError(f'Spatial flexure shapes {_spat_flexure.shape} and '
+                              f'{_align_flexure.shape}, and/or number of alignment locations '
+                              f'({_locations.size}) are inconsistent with the alignment traces '
+                              f'shape {traces.shape}.')
+        # Relative spatial flexure between the frame and the alignment frame
+        rel_flexure = _spat_flexure - _align_flexure
         # Shift of each trace in each slit, with shape (ntrace, nslits)
-        shift = spat_flexure[None, :, 0] \
-                    + _locations[:, None] * (spat_flexure[None, :, 1] - spat_flexure[None, :, 0])
+        shift = rel_flexure[None, :, 0] \
+                    + _locations[:, None] * (rel_flexure[None, :, 1] - rel_flexure[None, :, 0])
         return traces + shift[None, :, :]
 
     def load_data(self):
