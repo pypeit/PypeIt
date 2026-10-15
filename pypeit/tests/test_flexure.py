@@ -150,3 +150,23 @@ def test_spat_flexure_shift_edge_near_detector(method):
     assert np.all(np.isfinite(spat_flexure)), 'Spatial flexure should be finite'
     assert np.allclose(spat_flexure, dx, atol=0.2), \
         f'Incorrect spatial flexure for method={method} with an edge near the detector boundary'
+
+
+@pytest.mark.parametrize('method', ['detector', 'edge'])
+def test_spat_flexure_shift_ignores_tweaked_edges(method):
+    # The spatial flexure is measured relative to the initial (traced) slit
+    # edges, which are the edges of the slits in the image.  Tweaked edges
+    # (e.g., inset by a few pixels, based on the slit illumination profile)
+    # must not change the result.
+    dx = 3.
+    sciimg, slits = _synthetic_slit_image(dx, dx)
+    bpm = np.zeros(sciimg.shape, dtype=bool)
+    reference = flexure.spat_flexure_shift(sciimg, slits, method=method, bpm=bpm, maxlag=10,
+                                           sigdetect=5.)
+    slits.left_tweak = slits.left_init + 3.2
+    slits.right_tweak = slits.right_init - 1.0
+    spat_flexure = flexure.spat_flexure_shift(sciimg, slits, method=method, bpm=bpm, maxlag=10,
+                                              sigdetect=5.)
+    assert np.allclose(spat_flexure, dx, atol=0.15), \
+        f'Incorrect spatial flexure for method={method} with tweaked slit edges'
+    assert np.array_equal(spat_flexure, reference), 'Tweaked slit edges changed the spatial flexure'

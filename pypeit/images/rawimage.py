@@ -689,10 +689,9 @@ class RawImage:
         # None and masked both mean that no manual spatial flexure is set
         _manual_spat_flexure = np.ma.masked if manual_spat_flexure is None else manual_spat_flexure
         if self.par['spat_flexure_method'] != "skip" or not np.ma.is_masked(_manual_spat_flexure):
-            self.spat_flexure_shift = self.spatial_flexure_shift(slits, flatimages=flatimages,
+            self.spat_flexure_shift = self.spatial_flexure_shift(slits,
                                                                  manual_spat_flexure=_manual_spat_flexure,
-                                                                 debug=debug
-                                                                 )
+                                                                 debug=debug)
 
         #   - Subtract scattered light... this needs to be done before flatfielding.
         if self.par['subtract_scattlight']:
@@ -785,19 +784,17 @@ class RawImage:
         return _det, self.image, self.ivar, self.datasec_img, self.det_img, self.rn2img, \
                 self.base_var, self.img_scale, self.bpm
 
-    def spatial_flexure_shift(self, slits, flatimages=None, force=False, manual_spat_flexure=np.ma.masked, debug=False):
+    def spatial_flexure_shift(self, slits, force=False, manual_spat_flexure=np.ma.masked, debug=False):
         """
         Calculate a spatial shift in the edge traces due to flexure.
 
         This is a simple wrapper for
-        :func:`~pypeit.core.flexure.spat_flexure_shift`.
+        :func:`~pypeit.core.flexure.spat_flexure_shift`.  The shift is measured
+        relative to the initial (traced) slit edges.
 
         Args:
             slits (:class:`~pypeit.slittrace.SlitTraceSet`):
                 Slit edge traces
-            flatimages (:class:`~pypeit.flatfield.FlatImages`, optional):
-                Flat field images DataContainer. This must be provided if you wish to use
-                the slit profile for the spatial flexure.
             force (:obj:`bool`, optional):
                 Force the image to be field flattened, even if the step log
                 (:attr:`steps`) indicates that it already has been.
@@ -843,26 +840,13 @@ class RawImage:
             basename = f'{root}_{self.spectrograph.get_det_name(self.det)}'
             outdir = str(Path(slits.calib_dir).parent) if slits.calib_dir is not None else None
             qa_outfile = qa.set_qa_filename(basename, 'spat_flexure_qa_corr', out_dir=outdir)
-            # Prepare the slit illumination profile to be used in the flexure correction
-            slitprof = None
-            initial = True
-            if self.par['use_illumflat']:
-                if flatimages is None:
-                    log.warning("Spatial flexure correction requested but no flat images provided.  "
-                                "A flexure correction will still be performed, but the slit illumination "
-                                "profile will not be utilised.")
-                else:
-                    # Need to use the slit illumination profile based on the tweaked edges, if available.
-                    # This is because the spatial illumination profile is calculated from the tweaked
-                    # edges.
-                    initial = False
-                    slitprof = flatimages.fit2illumflat(slits, initial=initial, finecorr=False)
-                    slitprof *= flatimages.fit2illumflat(slits, initial=initial, finecorr=True)
-            # Now compute the spatial flexure shift
+            # Now compute the spatial flexure shift.  NOTE: This is relative to
+            # the initial (traced) slit edges, which are the edges of the slits
+            # in the image; the tweaked edges are defined by the slit
+            # illumination profile, and can be inset by a few pixels.
             spat_flexure = flexure.spat_flexure_shift(self.image[0], slits, bpm=self._bpm[0],
                                                       method=self.par['spat_flexure_method'],
-                                                      slitprof=slitprof, maxlag=self.par['spat_flexure_maxlag'],
-                                                      initial=initial,
+                                                      maxlag=self.par['spat_flexure_maxlag'],
                                                       sigdetect=self.par['spat_flexure_sigdetect'],
                                                       debug=debug)
 

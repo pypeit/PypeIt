@@ -28,15 +28,19 @@ from pypeit.core import trace
 from pypeit.core.wavecal import autoid
 
 
-def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, slitprof=None,
-                       initial=True, maxlag=20, sigdetect=10., debug=False):
+def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, sigdetect=10.,
+                       debug=False):
     """
     Calculate the flexure shift (in detector pixels) in the spatial dimension
     between the slitmask and the science image.
 
-    When defining the slitmask, it is *important* to use initial=True, so that
-    everything is relative to the initial slits. Otherwise, the WaveTilts could
-    get out of sync with science images.
+    The spatial flexure is always measured relative to the *initial* (traced)
+    slit edges, so that everything is relative to the initial slits (otherwise,
+    e.g., the WaveTilts could get out of sync with science images).  The edges
+    of the slits in the image are at the positions of the traced edges (shifted
+    by the flexure), so the tweaked edges (which are defined by the slit
+    illumination profile, and can be inset from the traced edges by a few
+    pixels) are not used.
 
     Args:
         sciimg (`numpy.ndarray`_):
@@ -57,20 +61,8 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, slitprof=None
             slit and applies the same shift to the other edge.
         bpm (`numpy.ndarray`_, optional):
             Bad pixel mask (True = Bad)
-        slitprof (`numpy.ndarray`_, optional):
-            Slit spatial profile image. Ideally, this should be about 1 when
-            a pixel is on a slit, and 0 when a pixel is off a slit. The actual
-            value depends on the spatial illumination. This is particularly
-            helpful if the slit suffers from vignetting. If None, the slitmask
-            is used instead, where a value of 1 represents on a slit, and a value
-            of 0 represents off a slit.
         maxlag (:obj:`int`, optional):
             Maximum flexure searched for
-        initial (:obj:`bool`, optional):
-            If True, the initial slit edges will be used to define the slitmask.
-            Otherwise, the tweaked edges will be used if they are available. If
-            slitprof is provided, then you should make sure that initial is set
-            to the same value that was used for the slitprof (probably tweaked).
         sigdetect (:obj:`float`, optional):
             Sigma threshold above fluctuations for the slit detection
             in the collapsed sobel image
@@ -91,11 +83,11 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, slitprof=None
                           f'{", ".join(valid_methods)}')
     log.info("Measuring spatial flexure")
     # Mask -- Includes short slits and those excluded by the user (e.g. ['rdx']['slitspatnum'])
-    slitmask = slits.slit_img(initial=initial, exclude_flag=slits.bitmask.exclude_for_flexure)
+    slitmask = slits.slit_img(initial=True, exclude_flag=slits.bitmask.exclude_for_flexure)
     onslits = slitmask != -1
 
     # The factor of 1000 is for the significance of detection below (sigdetect=1).
-    corr_slits = 1000*(slitprof*onslits) if slitprof is not None else 1000*onslits.astype(float)
+    corr_slits = 1000*onslits.astype(float)
 
     _sciimg = sciimg if slitmask.shape == sciimg.shape \
                 else arc.resize_mask2arc(slitmask.shape, sciimg)
@@ -191,7 +183,7 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, slitprof=None
     # Store an array of the small correction to the flexure for each slit
     delta_flexure = np.zeros((slits.nslits, 2))
     # Set up the slits and image properties
-    left, right, _ = slits.select_edges(initial=initial, spat_flexure=total_flexure)
+    left, right, _ = slits.select_edges(initial=True, spat_flexure=total_flexure)
     # Only refine the edges that are needed
     refine_left = method != 'rightedge'
     refine_right = method != 'leftedge'
