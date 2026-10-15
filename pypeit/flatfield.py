@@ -398,8 +398,8 @@ class FlatImages(calibframe.CalibFrame):
         # Check the spatial flexure input
         _spat_flexure = np.zeros((slits.nslits, 2)) if spat_flexure is None else spat_flexure
         if _spat_flexure.shape != (slits.nslits, 2):
-            log.error(f'Input spat_flexure has shape {_spat_flexure.shape}, but should be '
-                      f'({slits.nslits}, 2).  Cannot generate tilts image.')
+            raise PypeItError(f'Input spat_flexure has shape {_spat_flexure.shape}, but should be '
+                              f'({slits.nslits}, 2).  Cannot generate the illumination flat.')
         # Initialise the returned array
         illumflat = np.ones(self.shape, dtype=float)
         # Load spatial bsplines

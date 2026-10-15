@@ -5,8 +5,24 @@ Version 2.1.0dev
 Breaking Changes
 ---------------------
 
+- The ``spat_flexure_correct`` image-processing parameter has been replaced by
+  ``spat_flexure_method``; see :ref:`flexure-spatial`.  Use
+  ``spat_flexure_method = detector`` instead of ``spat_flexure_correct = True``
+  and ``spat_flexure_method = skip`` instead of ``spat_flexure_correct = False``.
+  PypeIt files that still use ``spat_flexure_correct`` raise an error with
+  these instructions.
+- The spatial flexure is now stored for each slit edge, as an array with shape
+  :math:`(N_{\rm slits}, 2)`, instead of a single value: e.g., the
+  ``sci_spat_flexure`` of the spec2d files, and the ``spat_flexure`` of the
+  processed images, the processed calibration frames, and the tilts.
+  Processed files from previous versions should be regenerated.
+
 Documentation Updates
 ---------------------
+
+- Expanded the spatial flexure documentation (:ref:`flexure-spatial`) with a
+  description of the algorithm, the available methods, and the frame types for
+  which the spatial flexure can be determined.
 
 - Updated the documentation about the use of the mask design file for Gemini/GMOS.
   See the :ref:`gemini_gmos` documentation for details.
@@ -30,6 +46,18 @@ Dependency Changes
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
+- Added several methods to determine the spatial flexure, set by the new
+  ``spat_flexure_method`` parameter: a single shift for the detector
+  (``detector``), a shift for each slit (``slit``), for each slit edge
+  (``edge``), or for the left (``leftedge``) or right (``rightedge``) edge of
+  each slit.  The per-slit and per-edge values can be fit with a polynomial
+  across the slits, using the new ``spat_flexure_polyord`` parameter.  The
+  spatial flexure can only be determined for frame types that are processed
+  with the slit edges; requesting it for other frame types now raises an error.
+- The spatial flexure of each frame is accounted for when constructing
+  datacubes (``pypeit_coadd_datacube``): the RA and Dec of each detector pixel,
+  and the astrometric alignment traces, are now evaluated using the spatial
+  flexure of the frame.
 - Added the ``lamps_wvrng`` wavelength-calibration parameter, which restricts
   the lines used from each entry in ``lamps`` to a wavelength range.  This
   allows a subset of a shipped line list to be used without copying the file.

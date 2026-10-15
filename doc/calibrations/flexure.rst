@@ -23,9 +23,14 @@ We discuss each in turn.
 Spatial Flexure
 ===============
 
-The code has a simple yet relatively robust method to cross-correlate
-the slits against any input image to determine a rigid, spatial offset.
-This algorithm is performed for any frame type by setting
+The spatial flexure of a frame is the shift, in spatial pixels, of the slits
+in that frame relative to the slit edges traced from the ``trace`` frames.  The
+spatial flexure is stored for each slit edge, i.e., as an array with shape
+:math:`(N_{\rm slits}, 2)`, where the first (second) column is the shift of the
+left (right) edge of each slit.  A positive value means that the slit edges are
+shifted towards larger spatial pixel values.
+
+The spatial flexure is determined for a given frame type by setting
 ``spat_flexure_method = <method>`` in the ``process`` block
 of :ref:`processimagespar`, where you should replace ``<method>`` with one of the
 following valid methods:
@@ -38,6 +43,54 @@ following valid methods:
       slit, and assign the same value to the right edge
     - ``rightedge`` - this will calculate the spatial flexure of the right edge of each
       slit, and assign the same value to the left edge
+
+The algorithm proceeds as follows:
+
+    #. The slit edges detected in the frame (using a Sobel filter, with a
+       detection threshold set by ``spat_flexure_sigdetect``) are
+       cross-correlated with the traced slit edges, within a maximum shift of
+       ``spat_flexure_maxlag`` pixels.  This provides a single spatial shift for
+       the detector (the ``detector`` method).  If no peak is found in the
+       cross-correlation, or if the peak is beyond the maximum shift, the code
+       assumes there is no spatial flexure and prints a warning.
+
+    #. For all other methods, each slit edge is refined, starting from the
+       ``detector`` value, by locating the maximum flux gradient within
+       :math:`\pm 2` pixels of the edge.  The ``slit`` method uses the average
+       of the left and right edges of each slit, and the ``leftedge``
+       (``rightedge``) method uses the left (right) edge for both edges.  Only
+       the spectral rows where the edge is on the detector are used; if an edge
+       cannot be refined, the ``detector`` value is adopted for that edge.
+
+    #. Optionally, the spatial flexure values of all slits can be fit with a
+       polynomial, with an order set by ``spat_flexure_polyord`` (this is only
+       relevant for the ``slit``, ``edge``, ``leftedge`` and ``rightedge``
+       methods).
+
+The spatial flexure is measured relative to the traced (initial) slit edges,
+and it is applied wherever the slit edges are used: to construct the slit
+images, to evaluate the illumination flat, the wavelength tilts (which are
+evaluated at the same relative position along the slit in the frame used to
+determine the tilts), and the wavelength image, for sky subtraction and
+extraction, and to construct datacubes (see :doc:`../coadd3d`).  The spatial
+flexure of each science frame is stored in the ``sci_spat_flexure`` extension
+of its :doc:`../out_spec2D` file, and that of the processed calibration frames
+(e.g., the arc, tilt, and flat-field images) is stored in their calibration
+files.
+
+The spatial flexure can only be determined for frames that are processed using
+the slit edges.  It cannot be determined for the ``bias``, ``dark``, ``trace``,
+``pinhole``, ``slitless_pixflat``, ``lampoffflats``, ``align``, and
+``scattlight`` frames; setting ``spat_flexure_method`` to anything other than
+``skip`` for these frame types raises an error.
+
+.. note::
+
+    The ``spat_flexure_method`` parameter replaces the ``spat_flexure_correct``
+    parameter used by previous versions of PypeIt.  Use
+    ``spat_flexure_method = detector`` instead of ``spat_flexure_correct =
+    True``, and ``spat_flexure_method = skip`` instead of
+    ``spat_flexure_correct = False``.
 
 We have made our own determinations for which instruments to enable this as the
 default. Inspect the :ref:`instr_par` list to see if your instrument is included

@@ -1577,7 +1577,7 @@ def refine_edge(trcimg, bpm, edge, l_or_r, min_rows=10):
         The sub-pixel shift to apply to the edge position to refine it.
     """
     if l_or_r not in ["left", "right", "l", "r"]:
-        log.error("l_or_r must be one of 'left', 'right', 'l', or 'r'")
+        raise PypeItError("l_or_r must be one of 'left', 'right', 'l', or 'r'")
     # Set the sign for the gradient method
     lr_sign = 1 if l_or_r in ["l", "left"] else -1
     # Search +/-2 pixels, and subpixellate by 10 pixels

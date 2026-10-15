@@ -5,8 +5,10 @@ Requires files in Development suite and an Environmental variable
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from pypeit.tests.tstutils import data_output_path
+from pypeit import PypeItError
 from pypeit import wavetilts
 from pypeit.slittrace import SlitTraceSet
 from pypeit.core import tracewave
@@ -193,3 +195,16 @@ def test_fit2tiltimg_spat_flexure_shift(tmp_path):
     # The test is only meaningful if the tilts vary across the slits
     assert not np.allclose(t1[on], np.roll(t0, -dx, axis=1)[on]), 'Test is not sensitive'
 
+
+
+def test_fit2tilts_prepareSlit_bad_input():
+    nspec, nspat = 20, 10
+    thismask = np.zeros((nspec, nspat), dtype=bool)
+    thismask[:, 3:6] = True
+    left, right = np.full(nspec, 2.), np.full(nspec, 7.)
+    with pytest.raises(PypeItError):
+        tracewave.fit2tilts_prepareSlit(left, right, thismask, relative_spat_flexure=np.zeros(3))
+    with pytest.raises(PypeItError):
+        tracewave.fit2tilts_prepareSlit(left[:-1], right, thismask)
+    with pytest.raises(PypeItError):
+        tracewave.fit2tilts_prepareSlit(left[:-1], right[:-1], thismask)

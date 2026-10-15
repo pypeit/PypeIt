@@ -1,8 +1,10 @@
 from IPython import embed
 import numpy as np
+import pytest
 from scipy.special import erf
 
 from pypeit.core.fitting import robust_fit
+from pypeit import PypeItError
 from pypeit.core import trace
 
 # Left and right edges uses for testing
@@ -119,3 +121,9 @@ def test_refine_edge_detector_boundary():
     img = _edge_image(edge + 0.4, nspec=nspec, nspat=nspat)
     shift = trace.refine_edge(img, bpm, edge, 'left')
     assert np.isclose(shift, 0.4, atol=0.15), 'Partially off-detector edge not refined correctly'
+
+
+def test_refine_edge_bad_side():
+    img = _edge_image(20.)
+    with pytest.raises(PypeItError):
+        trace.refine_edge(img, None, np.full(img.shape[0], 20.), 'middle')

@@ -12,6 +12,7 @@ from IPython import embed
 from astropy.stats import sigma_clipped_stats
 
 from pypeit import log
+from pypeit import PypeItError
 from pypeit import utils
 from pypeit import tracepca
 
@@ -885,13 +886,13 @@ def fit2tilts_prepareSlit(slit_left, slit_right, thismask_science, relative_spat
     img_shape = thismask_science.shape
     # Check the spatial flexure input
     if relative_spat_flexure is not None and len(relative_spat_flexure) != 2:
-        log.error('Spatial flexure must be a two element array')
+        raise PypeItError('Spatial flexure must be a two element array')
     _spat_flexure = np.zeros(2) if relative_spat_flexure is None else relative_spat_flexure
     # Check dimensions
     if len(slit_left) != len(slit_right):
-        log.error('Slit left and right edges must have the same length')
+        raise PypeItError('Slit left and right edges must have the same length')
     if len(slit_left) != img_shape[0]:
-        log.error('Slit edges must have the same length as the spectral dimension of the image')
+        raise PypeItError('Slit edges must have the same length as the spectral dimension of the image')
 
     # Prepare the spatial and spectral coordinates
     nspec, nspat = img_shape
@@ -963,8 +964,8 @@ def fit2tilts(coeff2, func2d, shape=None, spec_eval=None, spat_eval=None):
                         'be generated with no spatial flexure.')
         # Print a warning is shape is not provided
         if shape is None:
-            log.error('No shape provided for the image. You must provide either '
-                      '`shape` or both `spat_eval` and `spec_eval`.')
+            raise PypeItError('No shape provided for the image. You must provide either '
+                              '`shape` or both `spat_eval` and `spec_eval`.')
         log.warning("Assuming no spatial flexure.")
         _spat_shift = 0.0
         # Set up the evaluation grid

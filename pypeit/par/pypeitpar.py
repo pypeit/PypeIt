@@ -192,9 +192,31 @@ class FrameGroupPar(ParSet):
         """
         return FrameTypeBitMask().keys()
 
+    @staticmethod
+    def no_spatial_flexure_frame_types():
+        """
+        Return the list of frame types for which the spatial flexure cannot be
+        determined, because they are processed before the slit edges are
+        defined, or without the slit edges.
+        """
+        # TODO: Remove align and scattlight once these frames are processed with
+        # the slit edges.
+        return ['bias', 'dark', 'trace', 'pinhole', 'slitless_pixflat', 'lampoffflats',
+                'align', 'scattlight']
+
     def validate(self):
         if len(self.data['exprng']) != 2:
             raise ValueError('exprng must be a list with two items.')
+        # Spatial flexure can only be determined for frames that are processed
+        # with the slit edges
+        process = self.data['process']
+        if self.data['frametype'] in FrameGroupPar.no_spatial_flexure_frame_types() \
+                and process is not None and 'spat_flexure_method' in process.keys() \
+                and process['spat_flexure_method'] not in [None, 'skip']:
+            raise ValueError(f'The spatial flexure cannot be determined for {self.data["frametype"]} '
+                             'frames, because they are processed before the slit edges are '
+                             'defined, or without the slit edges.  Set spat_flexure_method = skip '
+                             f'for the {self.data["frametype"]} frames.')
 
 
 class ProcessImagesPar(ParSet):
@@ -518,6 +540,14 @@ class ProcessImagesPar(ParSet):
                    'n_lohi', 'mask_cr', 'lamaxiter', 'grow', 'clip', 'comb_sigrej', 'rmcompact',
                    'sigclip', 'sigfrac', 'objlim', 'cr_median_width']
 
+        # Provide a helpful message for the deprecated spat_flexure_correct parameter
+        if 'spat_flexure_correct' in k:
+            raise ValueError('The spat_flexure_correct parameter has been replaced by '
+                             'spat_flexure_method.  Use spat_flexure_method = detector instead of '
+                             'spat_flexure_correct = True, or spat_flexure_method = skip instead '
+                             'of spat_flexure_correct = False.  See the spatial flexure '
+                             'documentation for the other options.')
+
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for ProcessImagesPar.'.format(k[badkeys]))
@@ -573,6 +603,11 @@ class ProcessImagesPar(ParSet):
         if self.data['n_lohi'] is not None and len(self.data['n_lohi']) != 2:
             raise ValueError('n_lohi must be a list of two numbers.')
 
+        # Check polynomial order is greater than or equal to zero
+        if isinstance(self.data['spat_flexure_polyord'], int):
+            if self.data['spat_flexure_polyord'] < 0:
+                raise ValueError('spat_flexure_polyord must be greater than or equal to zero.')
+
         if not self.data['use_overscan']:
             return
         if self.data['overscan_par'] is None:
@@ -581,11 +616,6 @@ class ProcessImagesPar(ParSet):
         # Convert param to list
         if isinstance(self.data['overscan_par'], int):
             self.data['overscan_par'] = [self.data['overscan_par']]
-
-        # Check polynomial order is greater than or equal to zero
-        if isinstance(self.data['spat_flexure_polyord'], int):
-            if self.data['spat_flexure_polyord'] < 0:
-                raise ValueError('spat_flexure_polyord must be greater than or equal to zero.')
 
         if self.data['overscan_method'] in ['polynomial', 'chebyshev'] and len(self.data['overscan_par']) != 1:
             raise ValueError('For chebyshev/polynomial overscan method, set overscan_par = order')
