@@ -10,6 +10,7 @@ from scipy.special import erf
 from pypeit import PypeItError
 from pypeit.core import flexure
 from pypeit.slittrace import SlitTraceSet
+from pypeit.spectrographs.util import load_spectrograph
 from pypeit import dataPaths
 from pypeit.core.wavecal import autoid
 from pypeit import onespec
@@ -170,3 +171,65 @@ def test_spat_flexure_shift_ignores_tweaked_edges(method):
     assert np.allclose(spat_flexure, dx, atol=0.15), \
         f'Incorrect spatial flexure for method={method} with tweaked slit edges'
     assert np.array_equal(spat_flexure, reference), 'Tweaked slit edges changed the spatial flexure'
+
+
+def test_spat_flexure_shift_non_integer():
+    # A non-integer detector-level shift must be measured (the cross-correlation
+    # of the single-pixel edge images is then only 2 samples wide)
+    dx = -2.6
+    sciimg, slits = _synthetic_slit_image(dx, dx)
+    bpm = np.zeros(sciimg.shape, dtype=bool)
+    spat_flexure = flexure.spat_flexure_shift(sciimg, slits, method='detector', bpm=bpm, maxlag=10,
+                                              sigdetect=5.)
+    assert np.allclose(spat_flexure, dx, atol=0.1), 'Incorrect non-integer detector flexure'
+
+
+def test_spat_flexure_shift_vertical_edges():
+    # The refined flexure of each edge must be accurate, even if the slit edges
+    # are aligned with the detector columns
+    dl, dr = 3.4, 2.6
+    sciimg, slits = _synthetic_slit_image(dl, dr, drift=0.)
+    spat_flexure = flexure.spat_flexure_shift(sciimg, slits, method='edge',
+                                              bpm=np.zeros(sciimg.shape, dtype=bool),
+                                              maxlag=10, sigdetect=5.)
+    assert np.allclose(spat_flexure, np.array([dl, dr])[None, :], atol=0.02), \
+        'Incorrect flexure for slit edges aligned with the detector columns'
+
+
+def test_spat_flexure_shift_masked_slit():
+    # A slit excluded from the flexure calculation is not refined; it is
+    # assigned the detector level flexure, and flagged in the returned mask
+    dx = 3.
+    sciimg, slits = _synthetic_slit_image(dx + 0.3, dx + 0.3, nslit=3)
+    slits.mask[1] = slits.bitmask.turn_on(slits.mask[1], 'BADREDUCE')
+    bpm = np.zeros(sciimg.shape, dtype=bool)
+    spat_flexure, gpm = flexure.spat_flexure_shift(sciimg, slits, method='edge', bpm=bpm,
+                                                   maxlag=10, sigdetect=5., return_gpm=True)
+    assert np.array_equal(gpm, np.array([[True, True], [False, False], [True, True]])), \
+        'Incorrect good-pixel mask for the slit edges'
+    assert np.allclose(spat_flexure[[0, 2]], dx + 0.3, atol=0.02), 'Incorrect refined flexure'
+    det_flexure = flexure.spat_flexure_shift(sciimg, slits, method='detector', bpm=bpm,
+                                             maxlag=10, sigdetect=5.)
+    assert np.array_equal(spat_flexure[1], det_flexure[1]), \
+        'Excluded slit should be assigned the detector level flexure'
+
+
+def test_fit_spat_flexure():
+    # A linear trend of the flexure with slit position, with one outlier and
+    # one edge without a measured flexure
+    slit_cen = np.array([10., 50., 90., 130., 170., 210.])
+    true = np.stack([1. + 0.01 * slit_cen, 2. - 0.005 * slit_cen], axis=1)
+    spat_flexure = true.copy()
+    spat_flexure[3, 0] += 5.    # Outlier
+    spat_flexure[4, 1] = 0.     # Not measured
+    gpm = np.ones(spat_flexure.shape, dtype=bool)
+    gpm[4, 1] = False
+    fit = flexure.fit_spat_flexure(spat_flexure, slit_cen, 1, gpm=gpm)
+    assert np.allclose(fit, true), 'Incorrect polynomial fit to the spatial flexure'
+    # The spectrograph method uses the same fit
+    spec = load_spectrograph('shane_kast_blue')
+    assert np.allclose(spec.spatial_flexure(spat_flexure, polyord=1, slit_cen=slit_cen, gpm=gpm), true)
+    # Too few edges to fit: the measured values are returned
+    gpm[:, 0] = False
+    fit = flexure.fit_spat_flexure(spat_flexure, slit_cen, 1, gpm=gpm)
+    assert np.array_equal(fit[:, 0], spat_flexure[:, 0]), 'Unfit edges should not be changed'

@@ -844,17 +844,25 @@ class RawImage:
             # the initial (traced) slit edges, which are the edges of the slits
             # in the image; the tweaked edges are defined by the slit
             # illumination profile, and can be inset by a few pixels.
-            spat_flexure = flexure.spat_flexure_shift(self.image[0], slits, bpm=self._bpm[0],
-                                                      method=self.par['spat_flexure_method'],
-                                                      maxlag=self.par['spat_flexure_maxlag'],
-                                                      sigdetect=self.par['spat_flexure_sigdetect'],
-                                                      debug=debug)
+            spat_flexure, flexure_gpm \
+                    = flexure.spat_flexure_shift(self.image[0], slits, bpm=self._bpm[0],
+                                                 method=self.par['spat_flexure_method'],
+                                                 maxlag=self.par['spat_flexure_maxlag'],
+                                                 sigdetect=self.par['spat_flexure_sigdetect'],
+                                                 return_gpm=True, debug=debug)
 
         # Each spectrograph can optionally post-process the (measured) spatial
-        # flexure values in their own way.  A manual value is used as is.
-        _spat_flexure = spat_flexure \
-            if self.par['spat_flexure_polyord'] is None or not np.ma.is_masked(manual_spat_flexure) \
-            else self.spectrograph.spatial_flexure(spat_flexure, polyord=self.par['spat_flexure_polyord'])
+        # flexure values in their own way (by default, a polynomial fit as a
+        # function of the slit position, using only the slit edges with a
+        # measured spatial flexure).  A manual value is used as is.
+        if self.par['spat_flexure_polyord'] is None or not np.ma.is_masked(manual_spat_flexure):
+            _spat_flexure = spat_flexure
+        else:
+            left, right, _ = slits.select_edges(initial=True)
+            slit_cen = 0.5 * (left + right)[left.shape[0] // 2, :]
+            _spat_flexure = self.spectrograph.spatial_flexure(spat_flexure,
+                                                              polyord=self.par['spat_flexure_polyord'],
+                                                              slit_cen=slit_cen, gpm=flexure_gpm)
 
         # Print the flexure values
         if np.all(_spat_flexure == _spat_flexure[0, 0]):

@@ -16,7 +16,7 @@ from collections import Counter
 from IPython import embed
 
 import numpy as np
-from scipy import ndimage, signal, optimize, interpolate
+from scipy import ndimage, signal, optimize, special
 from matplotlib import pyplot as plt
 
 from astropy.stats import sigma_clipped_stats, sigma_clip
@@ -1543,21 +1543,64 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
     return fit, cen, err, msk, npeak
 
 
-def refine_edge(trcimg, bpm, edge, l_or_r, min_rows=10):
+def _edge_model(u, cen, sig, side):
     """
-    Refine the edge position to be the point of maximum gradient. This is assumed to be
-    the edge of the slit. To determine the maximum gradient, construct a histogram near
-    each edge at the sub-pixel level, then calculate the gradient and fit a quadratic to
-    the peak of the gradient. The maximum of the quadratic is the refined edge position.
+    Pixel-integrated model of a slit edge.
 
-    Only the spectral rows where the full search window (+/-2 pixels around the edge) is
-    on the detector are used.  This allows edges that are close to, or beyond, the edge
-    of the detector (e.g. echelle orders at the edge of the detector).
+    The edge is a step function convolved with a Gaussian (i.e. an error
+    function), averaged over each pixel.
+
+    Parameters
+    ----------
+    u : `numpy.ndarray`_
+        Pixel centres, relative to the nominal position of the edge.
+    cen : float
+        Offset of the edge relative to its nominal position.
+    sig : float
+        Gaussian width of the edge, in pixels.
+    side : int
+        +1 for a left edge (the flux increases with ``u``), -1 for a right edge
+        (the flux decreases with ``u``).
+
+    Returns
+    -------
+    `numpy.ndarray`_
+        The model (between 0 and 1) evaluated for each pixel.
+    """
+    def _antideriv(t):
+        # Antiderivative of the standard normal cumulative distribution function
+        return t * special.ndtr(t) + np.exp(-0.5 * t * t) / np.sqrt(2 * np.pi)
+    return side * sig * (_antideriv(side * (u + 0.5 - cen) / sig)
+                         - _antideriv(side * (u - 0.5 - cen) / sig))
+
+
+def refine_edge(trcimg, bpm, edge, l_or_r, min_rows=10, search=2.0, rows=None, max_rows=1000):
+    """
+    Refine the position of a slit edge.
+
+    In each spectral row, the flux near the edge is modelled as an error
+    function (i.e. a step function convolved with a Gaussian, integrated over
+    each pixel; see :func:`_edge_model`), multiplied by a linear function to
+    allow for a gradient of the slit illumination, with a free amplitude and
+    background for each row, and a common offset, width and gradient for all
+    rows.  The model is fit by least squares to all pixels within a few pixels
+    of the edge (with each row weighted by the square of the flux step across
+    the edge), and the best-fitting offset is the (sub-pixel) shift to apply to
+    the edge.  Because the shape of the edge is modelled, the shift is
+    accurately determined even if the edge is aligned with the detector columns
+    (i.e. if all spectral rows sample the same pixel phases).  The edge is only
+    considered to be detected if the model accounts for at least half of the
+    variance of the flux around the edge (compared to a constant flux in each
+    row).
+
+    Only the spectral rows where the full window around the edge is on the
+    detector are used.  This allows edges that are close to, or beyond, the
+    edge of the detector (e.g. echelle orders at the edge of the detector).
 
     Parameters
     ----------
     trcimg : numpy.ndarray
-        The image to use for defining the maximum flux gradient (usually a traceframe).
+        The image to use for defining the edge (e.g. a science or calibration frame).
     bpm : numpy.ndarray
         The bad pixel mask for the image. True = bad. If None, all pixels are
         assumed to be good.
@@ -1565,63 +1608,129 @@ def refine_edge(trcimg, bpm, edge, l_or_r, min_rows=10):
         The edge positions to refine. This should be the spatial positions of a single edge
     l_or_r : str
         Which edge to refine. Must be one of 'left', 'right', 'l', or 'r'. This is used to
-        determine the sign of the gradient.
+        determine the sign of the flux step across the edge.
     min_rows : int, optional
-        The minimum number of spectral rows where the search window is on the detector.
-        If fewer rows are available, the edge cannot be refined, and a shift of 0 is
-        returned.
+        The minimum number of spectral rows that can be used to refine the edge.
+        If fewer rows are available, the edge cannot be refined.
+    search : float, optional
+        The maximum shift (in pixels) of the edge.  If the best-fitting shift is
+        larger, the edge cannot be refined.
+    rows : numpy.ndarray, optional
+        Boolean array, with one element per spectral row, selecting the rows to
+        use (e.g. the spectral extent of the slit).  If None, all rows are used.
+    max_rows : int, optional
+        The maximum number of spectral rows to use.  If more rows are
+        available, an evenly spaced subset is used, to limit the computation
+        time.
 
     Returns
     -------
     shift : float
-        The sub-pixel shift to apply to the edge position to refine it.
+        The sub-pixel shift to apply to the edge position to refine it.  This is
+        NaN if the edge cannot be refined.
     """
     if l_or_r not in ["left", "right", "l", "r"]:
         raise PypeItError("l_or_r must be one of 'left', 'right', 'l', or 'r'")
-    # Set the sign for the gradient method
-    lr_sign = 1 if l_or_r in ["l", "left"] else -1
-    # Search +/-2 pixels, and subpixellate by 10 pixels
-    delpix, subpix = 2, 10
-    trc_bins = np.linspace(-delpix, delpix, 2 * delpix * subpix + 1)
-    bin_cen = 0.5 * (trc_bins[1:] + trc_bins[:-1])
-    bin_halfwid = 0.5 * (trc_bins[1] - trc_bins[0])
-    # Only use the spectral rows where the full search window is on the detector
+    # The flux increases (decreases) across a left (right) edge
+    side = 1 if l_or_r in ["l", "left"] else -1
     nspec, nspat = trcimg.shape
     _edge = np.asarray(edge, dtype=float)
-    valid = np.isfinite(_edge) & (_edge - delpix >= 0) & (_edge + delpix <= nspat - 1)
-    if np.sum(valid) < min_rows:
-        log.warning(f'The {l_or_r} edge is on the detector for only {np.sum(valid)} spectral rows '
-                    f'(at least {min_rows} are required). The edge cannot be refined; '
-                    'returning a shift of 0.')
-        return 0.0
-    _bpm = np.zeros(trcimg.shape, dtype=bool) if bpm is None else bpm
-    # Linearly interpolate the input trace image and the BPM to subpixel scales
-    spec_arr = np.arange(nspec)
-    spat_arr = np.arange(nspat)
-    trcimg_interp = interpolate.RegularGridInterpolator((spec_arr, spat_arr), trcimg)
-    trcbpm_interp = interpolate.RegularGridInterpolator((spec_arr, spat_arr), _bpm.astype(float))
-    # Set up the coordinates to evaluate the subpixellated trace image
-    spat_eval = np.add.outer(_edge[valid], trc_bins)
-    spec_eval = np.repeat(spec_arr[valid][:,None], trc_bins.size, axis=1)
-    # Construct subpixellated trace image, and coordinates
-    new_img = trcimg_interp((spec_eval, spat_eval))
-    new_bpm = trcbpm_interp((spec_eval, spat_eval))
-    this_coo = (spat_eval - _edge[valid][:, None]) + bin_halfwid
-    gpm = (new_bpm == 0.0)
-    # Make the edge profile
-    edge_prof, _ = np.histogram(this_coo[gpm], bins=trc_bins, weights=new_img[gpm])
-    edge_norm, _ = np.histogram(this_coo[gpm], bins=trc_bins)
-    edge_prof *= utils.inverse(edge_norm)
-    grad = np.gradient(edge_prof) * lr_sign
-    amax = np.argmax(grad)
-    # Fit a quadratic function to the peak
-    try:
-        coeff = np.polyfit(bin_cen[amax - 3:amax + 3 + 1], grad[amax - 3:amax + 3 + 1], 2)
-        shift = -coeff[1] / (2 * coeff[0])
-    except TypeError:
-        log.warning("Refining the spatial flexure of the edge failed. Returning a shift of 0.")
-        shift = 0.0
-    return shift
+    # Half-width of the pixel window around the edge: the search range, plus a
+    # few pixels to define the flux levels on either side of the edge
+    hw = int(np.ceil(search)) + 3
+    # Only use the spectral rows where the full window is on the detector
+    rnd_edge = np.round(np.where(np.isfinite(_edge), _edge, -1e10))
+    valid = np.isfinite(_edge) & (rnd_edge - hw >= 0) & (rnd_edge + hw <= nspat - 1)
+    if rows is not None:
+        valid &= np.asarray(rows, dtype=bool)
+    spec_idx = np.where(valid)[0]
+    if spec_idx.size < min_rows:
+        log.warning(f'The {l_or_r} edge is on the detector for only {spec_idx.size} spectral rows '
+                    f'(at least {min_rows} are required). The edge cannot be refined.')
+        return np.nan
+    if spec_idx.size > max_rows:
+        spec_idx = spec_idx[np.linspace(0, spec_idx.size - 1, max_rows).astype(int)]
+
+    # Extract the pixels around the edge
+    spat_idx = rnd_edge[spec_idx].astype(int)[:, None] + np.arange(-hw, hw + 1)[None, :]
+    flux = trcimg[spec_idx[:, None], spat_idx].astype(float)
+    gpm = np.isfinite(flux)
+    if bpm is not None:
+        gpm &= np.logical_not(bpm[spec_idx[:, None], spat_idx])
+    # Pixel centres relative to the edge
+    u = spat_idx - _edge[spec_idx, None]
+
+    # Normalise each row by the step in flux across the edge, using the mean of
+    # the outermost pixels on either side of the edge
+    nout = 2
+    _flux = np.where(gpm, flux, 0.)
+    with np.errstate(invalid='ignore', divide='ignore'):
+        left_mean = np.sum(_flux[:, :nout], axis=1) / np.sum(gpm[:, :nout], axis=1)
+        right_mean = np.sum(_flux[:, -nout:], axis=1) / np.sum(gpm[:, -nout:], axis=1)
+    off, on = (left_mean, right_mean) if side == 1 else (right_mean, left_mean)
+    step = on - off
+    use = np.isfinite(step) & (step > 0)
+    if np.sum(use) < min_rows:
+        log.warning(f'No flux step was found across the {l_or_r} edge. The edge cannot be refined.')
+        return np.nan
+    fnorm = (flux[use] - off[use, None]) / step[use, None]
+    gpm, u = gpm[use], u[use]
+    # Weight each row by the square of the flux step across the edge, so that
+    # the rows with little flux (e.g. between arc lines) do not affect the fit
+    row_wgt = step[use] ** 2 / np.median(step[use] ** 2)
+    wgt = gpm.astype(float)
+    fnorm = np.where(gpm, fnorm, 0.)
+    nwgt = np.sum(wgt, axis=1)
+    sy = np.sum(wgt * fnorm, axis=1)
+    syy = np.sum(wgt * fnorm ** 2, axis=1)
+    # Residual sum of squares for a constant flux in each row
+    ok_rows = nwgt >= 4
+    rss_const = np.sum(row_wgt[ok_rows] * (syy[ok_rows] - sy[ok_rows] ** 2 / nwgt[ok_rows]))
+
+    def _chisq(cen, sig, grad):
+        # Fit a linear function of the model to each row (i.e. a free amplitude
+        # and background), and return the total residual sum of squares, and
+        # the amplitude of each row
+        model = _edge_model(u, cen, sig, side) * (1 + grad * side * (u - cen))
+        sx = np.sum(wgt * model, axis=1)
+        sxx = np.sum(wgt * model ** 2, axis=1)
+        sxy = np.sum(wgt * model * fnorm, axis=1)
+        det = nwgt * sxx - sx ** 2
+        ok = (det > 1e-10) & (nwgt >= 4)
+        amp = np.zeros(det.size)
+        amp[ok] = (nwgt[ok] * sxy[ok] - sx[ok] * sy[ok]) / det[ok]
+        bkg = np.zeros(det.size)
+        bkg[ok] = (sy[ok] - amp[ok] * sx[ok]) / nwgt[ok]
+        rss = syy - amp * sxy - bkg * sy
+        return np.sum(row_wgt[ok] * rss[ok]), amp[ok]
+
+    # Coarse grid search for the offset and width of the edge
+    min_sig, max_sig, max_grad = 0.2, 5.0, 0.2
+    best = (np.inf, 0., 1.)
+    for cen in np.arange(-search, search + 1e-6, 0.25):
+        for sig in [0.5, 1.0, 2.0]:
+            chisq = _chisq(cen, sig, 0.)[0]
+            if chisq < best[0]:
+                best = (chisq, cen, sig)
+
+    # Refine the fit, including the gradient of the slit illumination
+    def _merit(par):
+        sig = np.exp(par[1])
+        if np.abs(par[0]) > search + 0.5 or sig < min_sig or sig > max_sig \
+                or np.abs(par[2]) > max_grad:
+            return 1e3 * (best[0] + 1.)
+        return _chisq(par[0], sig, par[2])[0]
+    res = optimize.minimize(_merit, x0=[best[1], np.log(best[2]), 0.], method='Nelder-Mead',
+                            options=dict(xatol=1e-4, fatol=1e-10 * (best[0] + 1.)))
+    shift, sig, grad = res.x[0], np.exp(res.x[1]), res.x[2]
+    chisq, amp = _chisq(shift, sig, grad)
+    # Check the edge was detected, and the fit is reasonable
+    detected = rss_const > 0 and chisq < 0.5 * rss_const
+    if not np.isfinite(shift) or np.abs(shift) > search or amp.size == 0 or np.median(amp) <= 0 \
+            or not detected:
+        log.warning(f'Refining the {l_or_r} edge failed (best-fitting shift = {shift:.2f} pixels).')
+        return np.nan
+    return float(shift)
 
 
 def parse_user_slits(add_slits, this_det, rm=False):

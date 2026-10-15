@@ -50,8 +50,10 @@ Functionality/Performance Improvements and Additions
   ``spat_flexure_method`` parameter: a single shift for the detector
   (``detector``), a shift for each slit (``slit``), for each slit edge
   (``edge``), or for the left (``leftedge``) or right (``rightedge``) edge of
-  each slit.  The per-slit and per-edge values can be fit with a polynomial
-  across the slits, using the new ``spat_flexure_polyord`` parameter.  The
+  each slit.  The per-slit and per-edge values are determined by fitting a
+  model of the slit edge to the data, and they can be fit with a polynomial as
+  a function of slit position (with outlier rejection), using the new
+  ``spat_flexure_polyord`` parameter.  The
   spatial flexure can only be determined for frame types that are processed
   with the slit edges; requesting it for other frame types now raises an error.
 - The spatial flexure of each frame is accounted for when constructing

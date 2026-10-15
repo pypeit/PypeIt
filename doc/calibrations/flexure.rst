@@ -49,23 +49,31 @@ The algorithm proceeds as follows:
     #. The slit edges detected in the frame (using a Sobel filter, with a
        detection threshold set by ``spat_flexure_sigdetect``) are
        cross-correlated with the traced slit edges, within a maximum shift of
-       ``spat_flexure_maxlag`` pixels.  This provides a single spatial shift for
-       the detector (the ``detector`` method).  If no peak is found in the
+       ``spat_flexure_maxlag`` pixels.  The centroid of the peak of the
+       cross-correlation provides a single (sub-pixel) spatial shift for the
+       detector (the ``detector`` method).  If no peak is found in the
        cross-correlation, or if the peak is beyond the maximum shift, the code
        assumes there is no spatial flexure and prints a warning.
 
     #. For all other methods, each slit edge is refined, starting from the
-       ``detector`` value, by locating the maximum flux gradient within
-       :math:`\pm 2` pixels of the edge.  The ``slit`` method uses the average
-       of the left and right edges of each slit, and the ``leftedge``
-       (``rightedge``) method uses the left (right) edge for both edges.  Only
-       the spectral rows where the edge is on the detector are used; if an edge
-       cannot be refined, the ``detector`` value is adopted for that edge.
+       ``detector`` value.  The flux near the edge is modeled in each spectral
+       row as a step function convolved with a Gaussian (allowing for a
+       gradient of the slit illumination), with a common sub-pixel offset for
+       all rows, which is constrained to be within :math:`\pm 2` pixels.  The
+       ``slit`` method uses the average of the left and right edges of each
+       slit, and the ``leftedge`` (``rightedge``) method uses the left (right)
+       edge for both edges.  Only the spectral rows within the spectral extent
+       of the slit and where the edge is on the detector are used.  If an edge
+       cannot be refined (e.g., if no edge is detected, or if the slit is
+       excluded from the reduction), the ``detector`` value is adopted for that
+       edge.
 
-    #. Optionally, the spatial flexure values of all slits can be fit with a
-       polynomial, with an order set by ``spat_flexure_polyord`` (this is only
+    #. Optionally, the spatial flexure of the left and right slit edges can be
+       fit with a polynomial as a function of the spatial position of the
+       slits, with an order set by ``spat_flexure_polyord`` (this is only
        relevant for the ``slit``, ``edge``, ``leftedge`` and ``rightedge``
-       methods).
+       methods).  Only the edges that were refined are used in the fit, and
+       outliers are rejected.
 
 The spatial flexure is measured relative to the traced (initial) slit edges,
 and it is applied wherever the slit edges are used: to construct the slit

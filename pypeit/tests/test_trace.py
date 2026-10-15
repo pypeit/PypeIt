@@ -110,10 +110,10 @@ def test_refine_edge():
 def test_refine_edge_detector_boundary():
     nspec, nspat = 200, 60
     bpm = np.zeros((nspec, nspat), dtype=bool)
-    # Edges within 2 pixels of, or beyond, the detector boundary cannot be refined
+    # Edges close to, or beyond, the detector boundary cannot be refined
     for edge in [1., -5., nspat - 2.]:
         img = _edge_image(edge + 0.4, nspec=nspec, nspat=nspat)
-        assert trace.refine_edge(img, bpm, np.full(nspec, edge), 'left') == 0., \
+        assert np.isnan(trace.refine_edge(img, bpm, np.full(nspec, edge), 'left')), \
             f'An edge at {edge} should not be refined'
     # An edge that is only partially on the detector is refined using the
     # spectral rows where it is on the detector
