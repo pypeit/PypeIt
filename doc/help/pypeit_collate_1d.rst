@@ -11,7 +11,7 @@
                              [--exclude_slit_trace_bm EXCLUDE_SLIT_TRACE_BM]
                              [--exclude_serendip] [--wv_rms_thresh WV_RMS_THRESH]
                              [--refframe {observed,heliocentric,barycentric}]
-                             [--chk_version]
+                             [--outfile_from OUTFILE_FROM] [--chk_version]
                              [input_file]
     
     Flux/Coadd multiple 1d spectra from multiple nights and prepare a directory for
@@ -30,6 +30,8 @@
                               exclude_serendip      If set serendipitous objects are skipped.
                               match_using           Whether to match using "pixel" or
                                                     "ra/dec"
+                              outfile_from          Whether to name coadd files from the
+                                                    source "coord" or "maskdef_objname"
                               dry_run               If set the matches are displayed
                                                     without any processing
                               flux                  Flux calibrate using archived sensfuncs.
@@ -100,6 +102,15 @@
       --refframe {observed,heliocentric,barycentric}
                             Perform reference frame correction prior to coadding.
                             Options are: observed, heliocentric, barycentric
+      --outfile_from OUTFILE_FROM
+                            Determines how the coadded output files are named.
+                            'coord' (the default) names each file after the sky
+                            coordinate of the source (when match_using is 'ra/dec')
+                            or its spatial pixel position (when match_using is
+                            'pixel'). 'maskdef_objname' names each file after the
+                            slitmask-design object name (MASKDEF_OBJNAME); sources
+                            without a mask-design name (e.g. serendips) fall back to
+                            the 'coord' naming.
       --chk_version         If True enforce strict PypeIt version checking to ensure
                             that all files were created with the current version of
                             PypeIt. If set to False, the code will attempt to read
