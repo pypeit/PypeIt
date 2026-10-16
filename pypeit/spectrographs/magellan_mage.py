@@ -56,9 +56,11 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
             gain = np.atleast_1d(1.02)
             ronoise = np.atleast_1d(2.9)
         else:
-            binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
-            gain = self.get_meta_value(self.get_headarr(hdu), 'EGAIN')
-            ronoise = self.get_meta_value(self.get_headarr(hdu), 'ENOISE')
+            headarr = self.get_headarr(hdu)
+            binning = self.get_meta_value(headarr, 'binning')
+            # these are not meta values
+            gain = np.atleast_1d(headarr[0]['EGAIN'])
+            ronoise = np.atleast_1d(headarr[0]['ENOISE'])
 
         # Detector 1
         detector_dict = dict(
