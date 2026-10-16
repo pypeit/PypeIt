@@ -399,6 +399,11 @@ Bug Fixes
   measured spatial flexure.  The docstrings of
   :func:`~pypeit.slittrace.SlitTraceSet.select_edges` and related methods now
   state that their ``pad`` argument is added to the global padding.
+- Fix the RA and Dec assigned to serendipitous sources (``SERENDIP``) in
+  slitmask observations when the spatial flexure is determined.  Their offset
+  from the slit center was measured relative to the slit center without the
+  spatial flexure of the frame, so their coordinates were shifted by the
+  spatial flexure along the slit.
 - ``pypeit_coadd_2dspec``: the reference traces about which the frames are
   coadded now include the spatial flexure of each frame.  Frames with
   different spatial flexure were misregistered by the difference in flexure

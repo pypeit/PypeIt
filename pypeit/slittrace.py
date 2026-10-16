@@ -1248,8 +1248,14 @@ class SlitTraceSet(calibframe.CalibFrame):
             # Fill in the rest
             for ss in idx:
                 sobj = cut_sobjs[ss]
+                this_slit = self.spat_id == sobj.SLITID
+                # The measured object position includes the spatial flexure,
+                # but the slit center predicted by the slitmask design does not.
+                # Shift the slit center by the spatial flexure of the slit.
+                slitcen_flexure = 0. if spat_flexure is None else np.mean(spat_flexure[this_slit])
                 # Measured coordinates
-                offset = measured[ss] - (self.maskdef_slitcen + self.maskdef_offset - left_init)[specmid, self.spat_id == sobj.SLITID][0]
+                offset = measured[ss] - (self.maskdef_slitcen + self.maskdef_offset - left_init)[specmid, this_slit][0] \
+                            - slitcen_flexure
                 new_obj_coord = obj_slit_coords[sidx].directional_offset_by(
                     np.radians(obj_slit_pa[sidx]), (offset*plate_scale)*units.arcsec)
                 # Assign
