@@ -1059,24 +1059,60 @@ class CoAdd2D:
             msg_string += '---------------------------------------------------------------------------------'
             log.info(msg_string)
 
+    @staticmethod
+    def slit_centers(slits, spat_flexure=None):
+        """
+        Return the slit center traces of an exposure, including its spatial
+        flexure.
+
+        The slit centers are defined by the initial (traced) slit edges, as for
+        :attr:`~pypeit.slittrace.SlitTraceSet.center`, shifted by the spatial
+        flexure of the exposure, such that they follow the slits in the
+        exposure.
+
+        Parameters
+        ----------
+        slits : :class:`~pypeit.slittrace.SlitTraceSet`
+            Slits of the exposure.
+        spat_flexure : numpy.ndarray, optional
+            Spatial flexure of the exposure, with shape (nslits, 2).  If None,
+            no flexure is applied.
+
+        Returns
+        -------
+        numpy.ndarray
+            Slit center traces, with shape (nspec, nslits).
+        """
+        # NOTE: The global padding is removed (it can differ for the left and
+        # right edges)
+        left, right, _ = slits.select_edges(initial=True, spat_flexure=spat_flexure,
+                                            pad=-slits.get_pad())
+        return (left + right) / 2
+
     def offset_slit_cen(self, slitid, offsets):
         """
         Return the slit center traces shifted by the exposure offsets.
 
+        The slit centers include the spatial flexure of each exposure (see
+        :func:`slit_centers`), such that the offsets only need to account for
+        the relative positions (e.g., dithers) of the objects in the slits.
+
         Parameters
         ----------
         slitid : int
-            Slit or order identifier.
+            Slit or order index.
         offsets : array-like
             Offsets, in pixels, to apply to the slit centers for each exposure.
 
         Returns
         -------
-        numpy.ndarray
-            Stack of shifted slit-center traces with one column per exposure.
+        list
+            Shifted slit-center traces, one per exposure.
         """
-        return [slits.center[:,slitid] - offsets[iexp]
-                    for iexp, slits in enumerate(self.coadd2d_stack.slits_list)]
+        return [self.slit_centers(slits, spat_flexure)[:, slitid] - offsets[iexp]
+                for iexp, (slits, spat_flexure)
+                in enumerate(zip(self.coadd2d_stack.slits_list,
+                                 self.coadd2d_stack.spat_flexure_list))]
 
     def get_wave_grid(self):
         """
@@ -1112,7 +1148,9 @@ class CoAdd2D:
             for iexp, (waveimg, slitmask, slits) in enumerate(zip(self.coadd2d_stack.waveimg_stack,
                                                 self.coadd2d_stack.slitmask_stack,
                                                 self.coadd2d_stack.slits_list)):
-                slits_left, slits_righ, _ = slits.select_edges()
+                # NOTE: The slit edges include the spatial flexure, to match slitmask
+                slits_left, slits_righ, _ = slits.select_edges(
+                    spat_flexure=self.coadd2d_stack.spat_flexure_list[iexp])
                 row = np.arange(slits_left.shape[0])
                 # Loop on the slits
                 for kk, spat_id in enumerate(slits.spat_id):
@@ -1707,8 +1745,13 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
         slitidx_bri = np.where(np.abs(self.spat_ids - self.spatid_bri) <= self.par['coadd2d']['spat_toler'])[0][0]
         # TODO Need to think abbout whether we have multiple tslits_dict for each exposure or a single one
-        trace_stack_bri = [slits.center[:, slitidx_bri]
-                                for slits in self.coadd2d_stack.slits_list]
+        # NOTE: The slit centers include the spatial flexure of each exposure,
+        # so that the offsets do not include the spatial flexure; the reference
+        # traces constructed from these offsets (see offset_slit_cen) include
+        # the spatial flexure.
+        trace_stack_bri = [self.slit_centers(slits, spat_flexure)[:, slitidx_bri]
+                           for slits, spat_flexure in zip(self.coadd2d_stack.slits_list,
+                                                          self.coadd2d_stack.spat_flexure_list)]
 
         # Determine the wavelength grid that we will use for the current slit/order
         ## TODO: Should the spatial and spectral samp_facts here match those of the final coadded data, or she would
@@ -2050,6 +2093,12 @@ class MultiSlitCoAdd2D(CoAdd2D):
                 if mslitcen_pixpos.ndim < 2:
                     mslitcen_pixpos = mslitcen_pixpos[:, None]
                 maskdef_slitcen_pixpos = mslitcen_pixpos[self.nspec_array[0]//2, slit_idx] + self.maskdef_offset[iexp]
+                # include the spatial flexure of the slit center (the
+                # reference traces include the spatial flexure; see
+                # offset_slit_cen)
+                spat_flexure = self.coadd2d_stack.spat_flexure_list[iexp]
+                if spat_flexure is not None:
+                    maskdef_slitcen_pixpos += np.mean(spat_flexure[slit_idx])
 
                 # get maskdef_objpos
                 # find left edge

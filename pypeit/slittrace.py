@@ -608,13 +608,15 @@ class SlitTraceSet(calibframe.CalibFrame):
         Args:
             pad (:obj:`float`, :obj:`int`, :obj:`numpy.ndarray`, optional):
                 The number of pixels used to pad (extend) the edge of
-                each slit. This can be a single scale to pad both
+                each slit, *in addition to* the global padding
+                (:attr:`pad`).  This can be a single scale to pad both
                 left and right edges equally or a 2-element array that
                 provides separate padding for the left (first
                 element) and right (2nd element) edges separately. If
-                not None, this overrides the value in :attr:`par`.
-                The value can be negative, which means that the
-                widths are **trimmed** instead of padded.
+                None, only the global padding is applied.  The value
+                can be negative, which means that the widths are
+                **trimmed** instead of padded; e.g., use
+                ``pad=-self.get_pad()`` to remove the global padding.
 
         Returns:
             `numpy.ndarray`: Returns the padding as a 2-element numpy array. The first element is the
@@ -658,13 +660,15 @@ class SlitTraceSet(calibframe.CalibFrame):
                 shift to apply to the right edge of each slit.
             pad (:obj:`float`, :obj:`int`, :obj:`np.ndarray`, optional):
                 The number of pixels used to pad (extend) the edge of
-                each slit. This can be a single scale to pad both
+                each slit, *in addition to* the global padding
+                (:attr:`pad`).  This can be a single scale to pad both
                 left and right edges equally or a 2-element array that
                 provides separate padding for the left (first
                 element) and right (2nd element) edges separately. If
-                not None, this overrides the value in :attr:`par`.
-                The value can be negative, which means that the
-                widths are **trimmed** instead of padded.
+                None, only the global padding is applied.  The value
+                can be negative, which means that the widths are
+                **trimmed** instead of padded; e.g., use
+                ``pad=-self.get_pad()`` to remove the global padding.
 
         Returns:
             tuple: Returns the full arrays containing the left and right
@@ -719,13 +723,15 @@ class SlitTraceSet(calibframe.CalibFrame):
         Args:
             pad (:obj:`float`, :obj:`int`, :obj:`np.ndarray`, optional):
                 The number of pixels used to pad (extend) the edge of
-                each slit. This can be a single scale to pad both
+                each slit, *in addition to* the global padding
+                (:attr:`pad`).  This can be a single scale to pad both
                 left and right edges equally or a 2-element numpy array that
                 provides separate padding for the left (first
                 element) and right (2nd element) edges separately. If
-                not None, this overrides the value in :attr:`par`.
-                The value can be negative, which means that the
-                widths are **trimmed** instead of padded.
+                None, only the global padding is applied.  The value
+                can be negative, which means that the widths are
+                **trimmed** instead of padded; e.g., use
+                ``pad=-self.get_pad()`` to remove the global padding.
             slitidx (:obj:`int`, array_like, optional):
                 List of indexes (zero-based) to include in the image.
                 If None, all slits not flagged are included.
@@ -816,10 +822,11 @@ class SlitTraceSet(calibframe.CalibFrame):
                 directly instead of having to repeat the operation. A
                 slit ID image is only required if ``full`` is False.
             pad (:obj:`float`, :obj:`int`, optional):
-                When constructing the slit ID image, use this value
-                to override the value of `pad` in :attr:`par`. Only
-                used if ``slitid_img`` is not provided directly and
-                ``full`` is False.
+                When constructing the slit ID image, pad the slits by
+                this value in addition to the global padding
+                (:attr:`pad`); see :func:`select_edges`. Only used if
+                ``slitid_img`` is not provided directly and ``full`` is
+                False.
             initial (:obj:`bool`, optional):
                 By default, the method will use the tweaked slit
                 edges if they have been defined. If they haven't
@@ -905,13 +912,15 @@ class SlitTraceSet(calibframe.CalibFrame):
                 shift to apply to the right edge of each slit.
             pad (:obj:`float`, :obj:`int`, :obj:`numpy.ndarray`, optional):
                 The number of pixels used to pad (extend) the edge of
-                each slit. This can be a single scale to pad both
+                each slit, *in addition to* the global padding
+                (:attr:`pad`).  This can be a single scale to pad both
                 left and right edges equally or a 2-element numpy array that
                 provides separate padding for the left (first
                 element) and right (2nd element) edges separately. If
-                not None, this overrides the value in :attr:`par`.
-                The value can be negative, which means that the
-                widths are **trimmed** instead of padded.
+                None, only the global padding is applied.  The value
+                can be negative, which means that the widths are
+                **trimmed** instead of padded; e.g., use
+                ``pad=-self.get_pad()`` to remove the global padding.
 
         Returns:
             `numpy.ndarray`_: Vector with the list of floating point

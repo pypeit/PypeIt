@@ -970,8 +970,12 @@ def spat_flexure_qa(img, slits, spat_flexure, gpm=None, vrange=None, outfile=Non
 
     # Spatial flexure is *always* relative to the initial slits, otherwise it pushes the tilts
     # to be out of sync with the slit edges.
-    left_slits, right_slits, mask_slits = slits.select_edges(initial=True, spat_flexure=None)
-    left_flex, right_flex, mask = slits.select_edges(initial=True, spat_flexure=spat_flexure)
+    # NOTE: The global padding is removed, so that the traced edges are shown
+    nopad = -slits.get_pad()
+    left_slits, right_slits, mask_slits = slits.select_edges(initial=True, spat_flexure=None,
+                                                             pad=nopad)
+    left_flex, right_flex, mask = slits.select_edges(initial=True, spat_flexure=spat_flexure,
+                                                     pad=nopad)
 
     if debug:
         # where to start and end the plot in the spatial&spectral direction

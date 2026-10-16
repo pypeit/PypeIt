@@ -1910,6 +1910,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                                        False, native=True, idx=ff+1)
             # Get the coordinate bounds
             wave0 = self.all_wave[ff][self.all_wave[ff] != 0.0].min()
+            # NOTE: As for the WCS (see the get_wcs method of the spectrograph),
+            # the slit length does not include the spatial flexure of the frame
             slitlength = int(np.round(np.median(self.all_slits[ff].get_slitlengths(median=True))))
             numwav = int((np.max(self.all_wave[ff]) - wave0) / self._specscale[ff])
             bins = self.spectrograph.get_datacube_bins(slitlength, self.all_deltapix[ff], numwav)
@@ -1940,6 +1942,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     hdr['FLUXUNIT'] = (flux_calib.PYPEIT_FLUX_SCALE, "Flux units -- erg/s/cm^2/Angstrom/arcsec^2")
                 else:
                     hdr['FLUXUNIT'] = (1, "Flux units -- counts/s/Angstrom/arcsec^2")
+                # Record the spatial flexure of the input frame
+                datacube.spat_flexure_header(hdr, self.all_spat_flexure[ff], ff+1)
                 # Write out the datacube
                 specname = self.specname.replace("_", " ")
                 log.info(f"Saving datacube at the native sampling of {specname}: {outfile}")
@@ -2119,10 +2123,13 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     self.blaze_wave, self.blaze_spec, whitelight_range=np.asarray(wl_wvrng),
                     sensfunc=sensfunc, fluxed=self.fluxcal
                 )
+                # Record the spatial flexure of the input frame
+                hdr = cubehdr.copy()
+                datacube.spat_flexure_header(hdr, self.all_spat_flexure[ff], ff+1)
                 # Write the cube to file
                 final_cube.to_file(
                     str(self.scidir / outfile), primary_hdr=self.all_header[ff],
-                    hdr=cubehdr, overwrite=self.overwrite
+                    hdr=hdr, overwrite=self.overwrite
                 )
                 if self.cubepar['save_whitelight']:
                     ivarcube = final_cube.ivar
@@ -2155,10 +2162,14 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 self.specname, self.blaze_wave, self.blaze_spec, sensfunc=sensfunc,
                 whitelight_range=np.asarray(wl_wvrng), fluxed=self.fluxcal
             )
+            # Record the spatial flexure of all input frames
+            hdr = cubehdr.copy()
+            for ii in range(self.numfiles):
+                datacube.spat_flexure_header(hdr, self.all_spat_flexure[ii], ii+1)
             # Write out the cube to file
             final_combined_cube.to_file(
                 str(self.scidir / combined_outfile), primary_hdr=self.all_header[ff],
-                hdr=cubehdr, overwrite=self.overwrite
+                hdr=hdr, overwrite=self.overwrite
             )
             # Make combined white light image if whitelight is requested
             if self.cubepar['save_whitelight']:

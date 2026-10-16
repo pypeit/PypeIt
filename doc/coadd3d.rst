@@ -465,6 +465,13 @@ of each frame is accounted for, and no additional input is required:
       correction derived from each Flat calibration file does not depend on
       the science frame.
 
+The spatial flexure of each input frame is recorded in the header of the
+datacube, using the ``SPFLXnnn`` keywords, where ``nnn`` is the (1-based) index
+of the frame in the ``spec2d`` block of the ``coadd3d`` file.  The value is the
+mean spatial flexure (in pixels) of all slit edges, and the comment gives the
+range of the spatial flexure of the slit edges.  A value of zero is recorded if
+the spatial flexure was not determined.
+
 White light image
 =================
 

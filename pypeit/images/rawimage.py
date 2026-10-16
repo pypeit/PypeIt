@@ -862,7 +862,7 @@ class RawImage:
                 or not np.any(flexure_gpm):
             _spat_flexure = spat_flexure
         else:
-            left, right, _ = slits.select_edges(initial=True)
+            left, right, _ = slits.select_edges(initial=True, pad=-slits.get_pad())
             slit_cen = 0.5 * (left + right)[left.shape[0] // 2, :]
             _spat_flexure = self.spectrograph.spatial_flexure(spat_flexure,
                                                               polyord=self.par['spat_flexure_polyord'],

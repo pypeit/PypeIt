@@ -157,7 +157,12 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
                           f'{", ".join(valid_methods)}')
     log.info("Measuring spatial flexure")
     # Mask -- Includes short slits and those excluded by the user (e.g. ['rdx']['slitspatnum'])
-    slitmask = slits.slit_img(initial=True, exclude_flag=slits.bitmask.exclude_for_flexure)
+    # NOTE: The global padding of the slit edges (see the ``pad`` parameter of
+    # EdgeTracePar) is removed, so that the template edges are at the traced
+    # edges.
+    nopad = -slits.get_pad()
+    slitmask = slits.slit_img(pad=nopad, initial=True,
+                              exclude_flag=slits.bitmask.exclude_for_flexure)
     onslits = slitmask != -1
 
     # The factor of 1000 is for the significance of detection below (sigdetect=1).
@@ -288,7 +293,8 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
     # NaN means that the edge was not (or could not be) refined.
     delta_flexure = np.full((slits.nslits, 2), np.nan)
     # Set up the slits and image properties
-    left, right, _ = slits.select_edges(initial=True, spat_flexure=total_flexure)
+    # NOTE: The global padding is removed, so that the edges are at the traced edges
+    left, right, _ = slits.select_edges(initial=True, spat_flexure=total_flexure, pad=nopad)
     spec = np.arange(_sciimg.shape[0])
     # Only refine the edges that are needed
     refine_left = method != 'rightedge'
@@ -448,7 +454,8 @@ def spat_flexure_remap(img, slits, spat_flexure=None, src_slits=None, src_spat_f
         raise PypeItError(f'Spatial flexure shapes {_flexure.shape} and {_src_flexure.shape} '
                           f'should both be ({slits.nslits}, 2).')
 
-    # The (unpadded) slit edges of both frames
+    # The slit edges of both frames, including the global padding (as used to
+    # construct the slit images)
     left, right, _ = slits.select_edges(initial=initial, spat_flexure=_flexure, pad=0)
     src_left, src_right, _ = _src_slits.select_edges(initial=initial, spat_flexure=_src_flexure,
                                                      pad=0)

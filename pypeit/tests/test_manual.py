@@ -142,3 +142,35 @@ def test_get_shifts():
     # No shift column means no manual flexure for any frame
     fitstbl.table.remove_column('shift')
     assert np.all(fitstbl.get_shifts([0, 1]).mask), 'Missing shift column should mask all shifts'
+
+
+@pytest.mark.remote_data
+def test_process_manual_flexure_with_skip():
+    # A manual spatial flexure is applied when processing a frame, even if the
+    # spatial flexure method is 'skip'
+    from pypeit import dataPaths
+    from pypeit.images.rawimage import RawImage
+    from pypeit.slittrace import SlitTraceSet
+    from pypeit.spectrographs.util import load_spectrograph
+    spectrograph = load_spectrograph('shane_kast_blue')
+    par = spectrograph.default_pypeit_par()['scienceframe']['process']
+    for key in ['use_biasimage', 'use_darkimage', 'use_pixelflat', 'use_illumflat',
+                'use_specillum', 'subtract_scattlight']:
+        par[key] = False
+    par['spat_flexure_method'] = 'skip'
+    raw_file = str(dataPaths.tests.get_file_path('b24.fits.gz'))
+    # Without a manual value, no spatial flexure is determined
+    image = RawImage(raw_file, spectrograph, 1).process(par)
+    assert image.spat_flexure is None, 'No spatial flexure should be determined'
+    # A single slit covering the middle of the detector
+    nspec, nspat = image.shape
+    left = np.full((nspec, 1), 0.3 * nspat)
+    slits = SlitTraceSet(left_init=left, right_init=left + 0.4 * nspat, pypeline='MultiSlit',
+                         nspat=nspat, PYP_SPEC=spectrograph.name)
+    image = RawImage(raw_file, spectrograph, 1).process(par, slits=slits)
+    assert image.spat_flexure is None, 'No spatial flexure should be determined'
+    for manual in [1.5, 0.0]:
+        image = RawImage(raw_file, spectrograph, 1).process(par, slits=slits,
+                                                            manual_spat_flexure=manual)
+        assert np.array_equal(image.spat_flexure, np.full((1, 2), manual)), \
+            f'The manual spatial flexure ({manual}) should be applied with method=skip'

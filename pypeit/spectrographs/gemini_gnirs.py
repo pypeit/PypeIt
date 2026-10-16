@@ -763,6 +763,10 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
             pxscl = spatial_scale / 3600.0  # 3600 is to convert arcsec to degrees
 
         # Get the typical slit length (this changes by ~0.3% over all slits, so a constant is fine for now)
+        # NOTE: The slit length does not include the spatial flexure of the frame,
+        # so that the WCS reference pixel is the same for all frames reduced with
+        # the same slits.  The spatial flexure is accounted for when calculating
+        # the RA and Dec of each pixel (see SlitTraceSet.get_radec_image).
         slitlength = int(np.round(np.median(slits.get_slitlengths(median=True))))
 
         # Get RA/DEC

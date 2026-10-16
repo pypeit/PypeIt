@@ -93,7 +93,8 @@ The algorithm proceeds as follows:
        outliers are rejected.
 
 The spatial flexure is measured relative to the traced (initial) slit edges,
-and it is applied wherever the slit edges are used: to construct the slit
+without the padding of the slit edges set by the ``pad`` parameter of
+:ref:`edgetracepar`, and it is applied wherever the slit edges are used: to construct the slit
 images, to evaluate the illumination flat, the wavelength tilts (which are
 evaluated at the same relative position along the slit in the frame used to
 determine the tilts), and the wavelength image, for sky subtraction and

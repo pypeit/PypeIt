@@ -58,6 +58,9 @@ Functionality/Performance Improvements and Additions
   ``spat_flexure_polyord`` parameter.  The
   spatial flexure can only be determined for frame types that are processed
   with the slit edges; requesting it for other frame types now raises an error.
+- The spatial flexure of each input frame is recorded in the header of the
+  datacubes constructed by ``pypeit_coadd_datacube`` (``SPFLXnnn`` keywords);
+  see :ref:`coadd3d_spatflex`.
 - Added the ``spat_flexure_minfrac`` image-processing parameter: if less than
   this fraction (10% by default) of the traced slit-edge pixels coincide with
   an edge detected in the frame at the measured spatial flexure, the slit edges
@@ -389,6 +392,21 @@ Bug Fixes
   wavelength image of the pixel flat, so it no longer depends on which
   science frame first used the Flat calibration file.  See
   :ref:`coadd3d_spatflex`.
+- The spatial flexure is now measured relative to the unpadded traced slit
+  edges.  For spectrographs that pad the slit edges (the ``pad`` parameter of
+  :ref:`edgetracepar`; e.g., APF/Levy and ARC/ARCES), the cross-correlation
+  template and the edge refinement used the padded edges, which biased the
+  measured spatial flexure.  The docstrings of
+  :func:`~pypeit.slittrace.SlitTraceSet.select_edges` and related methods now
+  state that their ``pad`` argument is added to the global padding.
+- ``pypeit_coadd_2dspec``: the reference traces about which the frames are
+  coadded now include the spatial flexure of each frame.  Frames with
+  different spatial flexure were misregistered by the difference in flexure
+  when the offsets were provided by the user, or taken from the file headers
+  or the slitmask design (the automatically determined offsets absorbed the
+  flexure).  The wavelength grid built from the slits
+  (``use_slits4wvgrid``) also uses the slit edges shifted by the spatial
+  flexure of each frame.
 - ``pypeit_coadd_datacube``: fix the relative scale of the default sky frame
   when ``skysub_frame = default`` is given for a frame in the ``spec2d`` block
   of the ``coadd3d`` file; the relative scale was multiplied by the exposure

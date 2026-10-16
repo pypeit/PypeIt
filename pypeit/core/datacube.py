@@ -2715,6 +2715,35 @@ def spat_flexure_per_frame(spat_flexure, numframes):
     return [spat_flexure] * numframes
 
 
+def spat_flexure_header(hdr, spat_flexure, index):
+    """
+    Record the spatial flexure of an input frame in a datacube header.
+
+    The mean spatial flexure (in pixels) of all slit edges of the frame is
+    written to the ``SPFLXnnn`` keyword, where ``nnn`` is the (1-based) index
+    of the frame in the list of input frames.  The range of the spatial flexure
+    of the slit edges is given in the comment.
+
+    Parameters
+    ----------
+    hdr : `astropy.io.fits.Header`_
+        The header to update (in place).
+    spat_flexure : `numpy.ndarray`_, None
+        The spatial flexure of the frame, with shape (nslits, 2).  None means
+        that the spatial flexure was not determined (i.e., it is zero).
+    index : int
+        The (1-based) index of the frame.
+    """
+    key = f'SPFLX{index:03d}'
+    if spat_flexure is None:
+        hdr[key] = (0.0, f'Spat. flexure (pix) of frame {index}: none')
+        return
+    _spat_flexure = np.asarray(spat_flexure, dtype=float)
+    hdr[key] = (float(np.round(np.mean(_spat_flexure), 3)),
+                f'Mean spat. flexure (pix) of frame {index}; range '
+                f'{np.min(_spat_flexure):.2f} to {np.max(_spat_flexure):.2f}')
+
+
 def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg,
                             all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
                             spec_subpixel=5, spat_subpixel=5, slice_subpixel=5, combine=False, correct_dar=True,

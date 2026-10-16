@@ -214,6 +214,22 @@ def test_spat_flexure_shift_masked_slit():
         'Excluded slit should be assigned the detector level flexure'
 
 
+
+@pytest.mark.parametrize('method', ['detector', 'edge'])
+def test_spat_flexure_shift_padded_slits(method):
+    # The spatial flexure is measured relative to the traced slit edges, even
+    # if the slit edges are padded (see the ``pad`` parameter of EdgeTracePar)
+    dl, dr = 3.4, 2.6
+    sciimg, slits = _synthetic_slit_image(dl, dr)
+    bpm = np.zeros(sciimg.shape, dtype=bool)
+    reference = flexure.spat_flexure_shift(sciimg, slits, method=method, bpm=bpm, maxlag=10,
+                                           sigdetect=5.)
+    slits.pad = np.array([5., 3.])
+    spat_flexure = flexure.spat_flexure_shift(sciimg, slits, method=method, bpm=bpm, maxlag=10,
+                                              sigdetect=5.)
+    assert np.array_equal(spat_flexure, reference), 'Padding changed the spatial flexure'
+
+
 def test_spat_flexure_edge_match():
     # Traced edges (left = -1, right = 1) in all rows; the image shows the
     # edges shifted by 3 pixels, but only in the first 30 of 100 rows
