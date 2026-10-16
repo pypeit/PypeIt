@@ -515,3 +515,6 @@ Bug Fixes
   reference point (``CRVAL``) rather than the sky position of the source
   actually used for the extraction (the fitted or manually-specified
   position). Affects any SlicerIFU-pypeline point-source extraction.
+- Spectral flexure was not previously included when generating a wavelength
+  image for a spec2d file during ``global_skysub``. This caused a multiple
+  correction to the spectral flexure, and only affected IFU data reduction.

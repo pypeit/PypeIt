@@ -1047,7 +1047,8 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
             raise PypeItError("A wavelength calibration is needed (wv_calib) if a joint sky fit is requested.")
         log.info("Generating wavelength image")
         # Generate the waveimg which is needed if flexure is being computed
-        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure)
+        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spec_flexure=self.spec_flexure,
+                                                   spat_flexure=self.spat_flexure)
 
         # Calculate spectral flexure, so that we can align all slices of the IFU. We need to do this on the model
         # sky spectrum. It must be performed in this class if the joint sky fit is requested, because all of
