@@ -18,7 +18,7 @@ from pypeit import log
 from pypeit import PypeItError, PypeItDataModelError
 from pypeit import alignframe, datamodel, flatfield, io, sensfunc, spec2dobj, utils
 from pypeit.core.flexure import calculate_image_phase
-from pypeit.core import datacube, extract, flux_calib, parse, combine
+from pypeit.core import datacube, extract, flexure, flux_calib, parse, combine
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.manual_extract import ManualCubeExtractionObj
 
@@ -748,12 +748,16 @@ class CoAdd3D:
         # Load the default scaleimg frame for the scale correction
         self.scalecorr_default = "none"
         self.relScaleImgDef = np.array([1])
+        # The slits and spatial flexure of the default scale correction frame
+        self.relScaleSlitsDef, self.relScaleFlexDef = None, None
         self.set_default_scalecorr()
 
         # Load the default sky frame to be used for sky subtraction
         self.skysub_default = "image"
         # This is the default behaviour (i.e. to use the "image" for the sky subtraction)
         self.skyImgDef, self.skySclDef = None, None
+        # The slits and spatial flexure of the default sky frame
+        self.skySlitsDef, self.skyFlexDef = None, None
         self.set_default_skysub()
 
     @staticmethod
@@ -943,7 +947,50 @@ class CoAdd3D:
                     self.scalecorr_default = "none"
                 else:
                     self.relScaleImgDef = spec2DObj.scaleimg
+                    self.relScaleSlitsDef = spec2DObj.slits
+                    self.relScaleFlexDef = spec2DObj.sci_spat_flexure
                     self.scalecorr_default = self.cubepar['scale_corr']
+
+    def remap_frame_image(self, img, spec2DObj, src_slits, src_spat_flexure, label):
+        """
+        Remap an image derived from another frame (e.g. a sky frame) to the
+        slits of a science frame, accounting for the spatial flexure of both
+        frames.
+
+        See :func:`~pypeit.core.flexure.spat_flexure_remap`.
+
+        Args:
+            img (`numpy.ndarray`_):
+                The image to remap, derived from another frame.  If this is
+                not a 2D image (e.g. a single value that is applied to all
+                pixels), it is returned unchanged.
+            spec2DObj (:class:`~pypeit.spec2dobj.Spec2DObj`):
+                2D PypeIt spectra object of the science frame.
+            src_slits (:class:`~pypeit.slittrace.SlitTraceSet`):
+                The slits of the frame from which ``img`` was derived.
+            src_spat_flexure (`numpy.ndarray`_):
+                The spatial flexure of the frame from which ``img`` was
+                derived, with shape (nslits, 2).  Can be None, if no spatial
+                flexure was determined.
+            label (:obj:`str`):
+                A description of the image, used in the log messages.
+
+        Returns:
+            `numpy.ndarray`_: The remapped image.
+        """
+        if img.ndim != 2:
+            return img
+        slits = spec2DObj.slits
+        if src_slits is None or src_slits.nslits != slits.nslits \
+                or (src_slits.nspec, src_slits.nspat) != (slits.nspec, slits.nspat) \
+                or img.shape != (slits.nspec, slits.nspat):
+            log.warning(f'The slits of the {label} frame do not match the slits of the science '
+                        'frame.  The difference in spatial flexure between the two frames '
+                        'cannot be accounted for.')
+            return img
+        return flexure.spat_flexure_remap(img, slits, spat_flexure=spec2DObj.sci_spat_flexure,
+                                          src_slits=src_slits, src_spat_flexure=src_spat_flexure,
+                                          initial=self.initial_slits)
 
     def get_current_scalecorr(self, spec2DObj, scalecorr=None):
         """
@@ -971,22 +1018,31 @@ class CoAdd3D:
             this_scalecorr is a :obj:`str` that describes the scale correction
             mode to be used (see scalecorr description) and relScaleImg is a
             `numpy.ndarray`_ (2D, same shape as science frame) containing the
-            relative spectral scaling to apply to the science frame.
+            relative spectral scaling to apply to the science frame.  If the
+            relative scaling is derived from a different frame, it is remapped
+            to the slits of the science frame, accounting for the spatial
+            flexure of both frames (see :func:`remap_frame_image`).
         """
         this_scalecorr = self.scalecorr_default
         relScaleImg = self.relScaleImgDef.copy()
+        # The slits and spatial flexure of the frame used for the scale
+        # correction (None if no remapping is needed)
+        src_slits, src_flexure = self.relScaleSlitsDef, self.relScaleFlexDef
         if scalecorr is not None:
             if scalecorr.lower() == 'default':
                 if self.scalecorr_default == "image":
                     relScaleImg = spec2DObj.scaleimg
+                    src_slits, src_flexure = None, None
                     this_scalecorr = "image"  # Use the current spec2d for the relative spectral illumination scaling
                 else:
                     this_scalecorr = self.scalecorr_default  # Use the default value for the scale correction
             elif scalecorr.lower() == 'image':
                 relScaleImg = spec2DObj.scaleimg
+                src_slits, src_flexure = None, None
                 this_scalecorr = "image"  # Use the current spec2d for the relative spectral illumination scaling
             elif scalecorr.lower() == 'none':
                 relScaleImg = np.array([1])
+                src_slits, src_flexure = None, None
                 this_scalecorr = "none"  # Don't do relative spectral illumination scaling
             else:
                 # Load a user specified frame for sky subtraction
@@ -1002,6 +1058,7 @@ class CoAdd3D:
                     raise PypeItError("Could not load skysub image from spec2d file:\n" + scalecorr)
                 else:
                     relScaleImg = spec2DObj_scl.scaleimg
+                    src_slits, src_flexure = spec2DObj_scl.slits, spec2DObj_scl.sci_spat_flexure
                     this_scalecorr = scalecorr
         if this_scalecorr == "none":
             log.info("Relative spectral illumination correction will not be performed.")
@@ -1010,6 +1067,10 @@ class CoAdd3D:
                 "Using the following frame for the relative spectral illumination correction:\n"
                 + this_scalecorr
             )
+        if src_slits is not None:
+            # Account for the spatial flexure of both frames
+            relScaleImg = self.remap_frame_image(relScaleImg, spec2DObj, src_slits, src_flexure,
+                                                 'scale correction')
         # Return the scaling correction for this frame
         return this_scalecorr, relScaleImg
 
@@ -1041,6 +1102,8 @@ class CoAdd3D:
                 self.skyImgDef = spec2DObj.sciimg / skysub_exptime  # Sky counts/second
                 # self.skyImgDef = spec2DObj.skymodel/skysub_exptime  # Sky counts/second
                 self.skySclDef = spec2DObj.scaleimg
+                self.skySlitsDef = spec2DObj.slits
+                self.skyFlexDef = spec2DObj.sci_spat_flexure
 
     def get_current_skysub(self, spec2DObj, exptime, opts_skysub=None):
         """
@@ -1070,33 +1133,43 @@ class CoAdd3D:
             sky frame to be subtracted from the science frame, and skyScl is a
             `numpy.ndarray`_ (2D, same shape as science frame) containing the
             relative spectral scaling that has been applied to the returned sky
-            frame.
+            frame.  If the sky frame is a different frame, the returned images
+            are remapped to the slits of the science frame, accounting for the
+            spatial flexure of both frames (see :func:`remap_frame_image`).
         """
         this_skysub = self.skysub_default
+        # The slits and spatial flexure of the sky frame (None if no remapping
+        # is needed)
+        src_slits, src_flexure = None, None
         if self.skysub_default == "image":
             skyImg = spec2DObj.skymodel
             skyScl = spec2DObj.scaleimg
         else:
             skyImg = self.skyImgDef.copy() * exptime
             skyScl = self.skySclDef.copy()
+            src_slits, src_flexure = self.skySlitsDef, self.skyFlexDef
         # See if there's any changes from the default behaviour
         if opts_skysub is not None:
             if opts_skysub.lower() == 'default':
                 if self.skysub_default == "image":
                     skyImg = spec2DObj.skymodel
                     skyScl = spec2DObj.scaleimg
+                    src_slits, src_flexure = None, None
                     this_skysub = "image"  # Use the current spec2d for sky subtraction
                 else:
                     skyImg = self.skyImgDef.copy() * exptime
-                    skyScl = self.skySclDef.copy() * exptime
+                    skyScl = self.skySclDef.copy()
+                    src_slits, src_flexure = self.skySlitsDef, self.skyFlexDef
                     this_skysub = self.skysub_default  # Use the global value for sky subtraction
             elif opts_skysub.lower() == 'image':
                 skyImg = spec2DObj.skymodel
                 skyScl = spec2DObj.scaleimg
+                src_slits, src_flexure = None, None
                 this_skysub = "image"  # Use the current spec2d for sky subtraction
             elif opts_skysub.lower() == 'none':
                 skyImg = np.array([0.0])
                 skyScl = np.array([1.0])
+                src_slits, src_flexure = None, None
                 this_skysub = "none"  # Don't do sky subtraction
             else:
                 # Load a user specified frame for sky subtraction
@@ -1111,11 +1184,16 @@ class CoAdd3D:
                     )
                 skyImg = spec2DObj_sky.sciimg * exptime / skysub_exptime  # Sky counts
                 skyScl = spec2DObj_sky.scaleimg
+                src_slits, src_flexure = spec2DObj_sky.slits, spec2DObj_sky.sci_spat_flexure
                 this_skysub = opts_skysub  # User specified spec2d for sky subtraction
         if this_skysub == "none":
             log.info("Sky subtraction will not be performed.")
         else:
             log.info("Using the following frame for sky subtraction:\n" + this_skysub)
+        if src_slits is not None:
+            # Account for the spatial flexure of both frames
+            skyImg = self.remap_frame_image(skyImg, spec2DObj, src_slits, src_flexure, 'sky')
+            skyScl = self.remap_frame_image(skyScl, spec2DObj, src_slits, src_flexure, 'sky')
         # Return the skysub params for this frame
         return this_skysub, skyImg, skyScl
 
@@ -1124,6 +1202,11 @@ class CoAdd3D:
         Calculate the relative spectral sensitivity correction due to grating
         shifts with the input frames.
 
+        The relative spectral sensitivity is calculated in the frame of the
+        pixel flat, using its own spatial flexure and wavelength image, so that
+        the result (which is calculated once for each flatfield frame) does not
+        depend on the science frame.
+
         Parameters
         ----------
         flatfile : :obj:`str`
@@ -1131,17 +1214,20 @@ class CoAdd3D:
             spectral sensitivity of the corresponding science frame.
         waveimg : `numpy.ndarray`_
             2D image (same shape as the science frame) indicating the wavelength
-            of each detector pixel.
+            of each detector pixel.  This is only used if the flatfield frame
+            does not contain a wavelength image, in which case it is remapped
+            to the spatial flexure of the pixel flat.
         slits : :class:`~pypeit.slittrace.SlitTraceSet`
             Class containing information about the slits
         initial : bool, optional
             If True, the initial slits will be used.
         spat_flexure: `numpy.ndarray`_, optional
-            If provided, this is the shift, in spatial pixels, to apply to each slit.
-            This is used to correct for spatial flexure. The shape of the array should
-            be (nslits, 2), where the first column is the shift to apply to the left edge
-            of each slit and the second column is the shift to apply to the right edge of
-            each slit.
+            The spatial flexure of the science frame (corresponding to
+            ``waveimg``).  This is only used to remap ``waveimg`` to the
+            spatial flexure of the pixel flat (see ``waveimg``).  The shape of
+            the array should be (nslits, 2), where the first column is the shift
+            of the left edge of each slit and the second column is the shift of
+            the right edge of each slit.
 
         """
         # Check if the Flat file exists
@@ -1153,22 +1239,41 @@ class CoAdd3D:
             log.info("Calculating relative sensitivity for grating correction")
             # Load the Flat file
             flatimages = flatfield.FlatImages.from_file(flatfile, chk_version=self.chk_version)
-            total_illum = flatimages.fit2illumflat(slits, finecorr=False, frametype='illum', spat_flexure=spat_flexure) * \
-                          flatimages.fit2illumflat(slits, finecorr=True, frametype='illum', spat_flexure=spat_flexure)
+            # The spatial flexure and wavelength image of the pixel flat
+            flat_spat_flexure = flatimages.pixelflat_spat_flexure
+            flat_waveimg = flatimages.pixelflat_waveimg
+            if flat_waveimg is None:
+                log.warning(f"The flatfield frame {flatfile} does not contain a wavelength image. "
+                            "The wavelength image of the science frame will be used for the "
+                            "grating correction.")
+                # Evaluate the wavelength image of the science frame at the
+                # spatial flexure of the pixel flat, and only keep the pixels
+                # on the slits of the pixel flat.
+                flat_waveimg = flexure.spat_flexure_remap(waveimg, slits,
+                                                          spat_flexure=flat_spat_flexure,
+                                                          src_spat_flexure=spat_flexure,
+                                                          initial=initial)
+                flat_slitimg = slits.slit_img(pad=0, initial=initial,
+                                              spat_flexure=flat_spat_flexure)
+                flat_waveimg[flat_slitimg == -1] = 0.0
+            total_illum = flatimages.fit2illumflat(slits, finecorr=False, frametype='illum',
+                                                   spat_flexure=flat_spat_flexure) * \
+                          flatimages.fit2illumflat(slits, finecorr=True, frametype='illum',
+                                                   spat_flexure=flat_spat_flexure)
             flatframe = flatimages.pixelflat_raw / total_illum
             if flatimages.pixelflat_spec_illum is None:
                 # Calculate the relative scale
-                scale_model = flatfield.illum_profile_spectral(flatframe, waveimg, slits,
+                scale_model = flatfield.illum_profile_spectral(flatframe, flat_waveimg, slits,
                                                                slit_illum_ref_idx=self.flatpar['slit_illum_ref_idx'],
                                                                model=None, trim=self.flatpar['slit_trim'],
-                                                               initial=initial, spat_flexure=spat_flexure,
+                                                               initial=initial, spat_flexure=flat_spat_flexure,
                                                                smooth_npix=self.flatpar['slit_illum_smooth_npix'])
             else:
                 log.info("Using relative spectral illumination from FlatImages")
                 scale_model = flatimages.pixelflat_spec_illum
             # Extract a quick spectrum of the flatfield
-            wave_spl, spec_spl = extract.extract_hist_spectrum(waveimg, flatframe*utils.inverse(scale_model),
-                                                               gpm=waveimg != 0, bins=slits.nspec)
+            wave_spl, spec_spl = extract.extract_hist_spectrum(flat_waveimg, flatframe*utils.inverse(scale_model),
+                                                               gpm=flat_waveimg != 0, bins=slits.nspec)
             # Store the result
             self.flat_splines[flatfile] = interp1d(wave_spl, spec_spl, kind='linear', bounds_error=False, fill_value="extrapolate")
             self.flat_splines[flatfile + "_wave"] = wave_spl.copy()

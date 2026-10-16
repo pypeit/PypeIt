@@ -97,7 +97,13 @@ and it is applied wherever the slit edges are used: to construct the slit
 images, to evaluate the illumination flat, the wavelength tilts (which are
 evaluated at the same relative position along the slit in the frame used to
 determine the tilts), and the wavelength image, for sky subtraction and
-extraction, and to construct datacubes (see :doc:`../coadd3d`).  The spatial
+extraction, and to construct datacubes (see :ref:`coadd3d_spatflex`).  Images
+that are measured in one frame and applied to another frame with a different
+spatial flexure are remapped by the fractional position across each slit; this
+includes the relative spectral illumination of the pixel flat (see
+``use_specillum``), which is remapped to the spatial flexure of each frame that
+is flat-fielded, and the dedicated sky and scale-correction frames used to
+construct datacubes.  The spatial
 flexure of each science frame is stored in the ``sci_spat_flexure`` extension
 of its :doc:`../out_spec2D` file, and that of the processed calibration frames
 (e.g., the arc, tilt, and flat-field images) is stored in their calibration

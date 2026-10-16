@@ -263,6 +263,72 @@ def test_spat_flexure_shift_undetected_edges(method):
     assert np.allclose(spat_flexure, dx, atol=0.3), 'Incorrect spatial flexure with minfrac=0'
 
 
+
+def _fractional_slit_image(slits, spat_flexure, offslit=1e6):
+    """
+    Image with a value that depends linearly on the fractional position across
+    each slit (and on the slit index), for the given spatial flexure.
+    Off-slit pixels are set to ``offslit``.
+    """
+    left, right, _ = slits.select_edges(initial=True, spat_flexure=spat_flexure, pad=0)
+    slitidx_img = slits.slit_img(pad=0, initial=True, spat_flexure=spat_flexure,
+                                 use_spatial=False)
+    img = np.full((slits.nspec, slits.nspat), offslit)
+    for slit_idx in range(slits.nslits):
+        spec, spat = np.where(slitidx_img == slit_idx)
+        frac = (spat - left[spec, slit_idx]) / (right[spec, slit_idx] - left[spec, slit_idx])
+        img[spec, spat] = 10. * slit_idx + 1. + frac
+    return img
+
+
+def test_spat_flexure_remap():
+    _, slits = _synthetic_slit_image(0., 0., nslit=2)
+    src_flexure = np.array([[1.3, 0.8], [1.3, 0.8]])
+    flexure_ = np.array([[-0.6, -0.2], [2.1, 2.4]])
+    src_img = _fractional_slit_image(slits, src_flexure)
+    expected = _fractional_slit_image(slits, flexure_, offslit=0.)
+    remap = flexure.spat_flexure_remap(src_img, slits, spat_flexure=flexure_,
+                                       src_spat_flexure=src_flexure)
+    onslit = slits.slit_img(pad=0, initial=True, spat_flexure=flexure_) != -1
+    # Off-slit pixels of the source image are never used for on-slit pixels
+    assert np.all(remap[onslit] < 100.), 'Off-slit source pixels used in the remapped image'
+    # Each pixel is mapped to the same fractional position across the slit,
+    # except for the pixels at the slit edges, where the source image is
+    # limited to the pixels on the slit (i.e., the nearest source pixel on the
+    # slit is used, which is less than one pixel, or ~0.035 in fractional
+    # position, away)
+    err = np.abs(remap - expected)
+    exact = onslit & (err < 1e-10)
+    assert np.sum(exact) > 0.85 * np.sum(onslit), 'Pixels should be remapped by fractional position'
+    assert np.all(err[onslit] < 0.05), 'Incorrect remapped values at the slit edges'
+    left, right, _ = slits.select_edges(initial=True, spat_flexure=flexure_, pad=0)
+    spec, spat = np.where(onslit & ~exact)
+    dist = np.min(np.abs(np.concatenate([left[spec], right[spec]], axis=1) - spat[:, None]), axis=1)
+    assert np.all(dist < 2.), 'Only the pixels at the slit edges should be approximate'
+    # Off-slit pixels keep the input values
+    assert np.array_equal(remap[~onslit], src_img[~onslit]), 'Off-slit pixels should not change'
+    # Identical slits and flexure: nothing to remap
+    assert np.array_equal(flexure.spat_flexure_remap(src_img, slits, spat_flexure=src_flexure,
+                                                     src_spat_flexure=src_flexure), src_img)
+    # The flexure can also be included in the slit edges of the source frame
+    src_slits = SlitTraceSet(left_init=slits.left_init + src_flexure[None, :, 0],
+                             right_init=slits.right_init + src_flexure[None, :, 1],
+                             pypeline='MultiSlit', nspat=slits.nspat, PYP_SPEC='dummy')
+    assert np.allclose(flexure.spat_flexure_remap(src_img, slits, spat_flexure=flexure_,
+                                                  src_slits=src_slits), remap)
+
+
+def test_spat_flexure_remap_bad_input():
+    sciimg, slits = _synthetic_slit_image(0., 0., nslit=2)
+    _, slits3 = _synthetic_slit_image(0., 0., nslit=3)
+    with pytest.raises(PypeItError):
+        flexure.spat_flexure_remap(sciimg, slits, src_slits=slits3)
+    with pytest.raises(PypeItError):
+        flexure.spat_flexure_remap(sciimg, slits, spat_flexure=np.zeros((3, 2)))
+    with pytest.raises(PypeItError):
+        flexure.spat_flexure_remap(sciimg[:, :-1], slits)
+
+
 def test_fit_spat_flexure():
     # A linear trend of the flexure with slit position, with one outlier and
     # one edge without a measured flexure

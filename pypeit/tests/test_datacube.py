@@ -1544,3 +1544,37 @@ def test_resample_spec_to_grid_masked_native_pixels_drop_out():
     # utils.inverse semantics: zero ivar -> zero variance contribution
     assert np.all(utils.inverse(ig) == 0.0), \
         "utils.inverse of zero ivar should be zero"
+
+
+def test_remap_frame_image():
+    # A sky (or scale-correction) image from another frame is remapped to the
+    # slits of the science frame, accounting for the spatial flexure of both
+    from types import SimpleNamespace
+    from pypeit.core import flexure
+    nspec, nspat = 50, 100
+    left = np.full((nspec, 2), 10.) + np.array([0., 45.])[None, :]
+    right = left + 35.
+    slits = slittrace.SlitTraceSet(left_init=left, right_init=right, pypeline='SlicerIFU',
+                                   nspat=nspat, PYP_SPEC='dummy')
+    sci_flexure = np.full((2, 2), 1.5)
+    sky_flexure = np.full((2, 2), -0.5)
+    spec2DObj = SimpleNamespace(slits=slits, sci_spat_flexure=sci_flexure)
+    coadd = SimpleNamespace(initial_slits=True)
+    sky = np.tile(np.arange(nspat, dtype=float), (nspec, 1))
+    remap = SlicerIFUCoAdd3D.remap_frame_image(coadd, sky, spec2DObj, slits, sky_flexure, 'sky')
+    assert np.array_equal(remap, flexure.spat_flexure_remap(sky, slits, spat_flexure=sci_flexure,
+                                                            src_spat_flexure=sky_flexure)), \
+        'Incorrect remapping'
+    # A uniform shift of the slits: the pixels in the interior of the slits are
+    # shifted by the relative flexure (sky - science = -2 pixels)
+    onslit = slits.slit_img(pad=0, initial=True, spat_flexure=sci_flexure) != -1
+    onslit &= np.roll(onslit, 2, axis=1) & np.roll(onslit, -2, axis=1)
+    assert np.allclose((remap - sky)[onslit], -2.), 'Incorrect remapping for a uniform shift'
+    # Single values (e.g. no sky subtraction) are not changed
+    assert np.array_equal(SlicerIFUCoAdd3D.remap_frame_image(coadd, np.array([0.]), spec2DObj,
+                                                             slits, sky_flexure, 'sky'), [0.])
+    # Frames with different slits cannot be remapped, and the image is returned unchanged
+    slits3 = slittrace.SlitTraceSet(left_init=np.tile(left[:, :1], (1, 3)) + [0., 30., 60.],
+                                    right_init=np.tile(left[:, :1], (1, 3)) + [25., 55., 85.],
+                                    pypeline='SlicerIFU', nspat=nspat, PYP_SPEC='dummy')
+    assert SlicerIFUCoAdd3D.remap_frame_image(coadd, sky, spec2DObj, slits3, None, 'sky') is sky

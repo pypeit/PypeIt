@@ -971,7 +971,25 @@ class RawImage:
                 display.show_slits(viewer, ch, left, right)  # , slits.id)
 
         # Retrieve the relative spectral illumination profile
-        spec_illum = flatimages.pixelflat_spec_illum if self.par['use_specillum'] else 1.
+        spec_illum = 1.
+        if self.par['use_specillum']:
+            spec_illum = flatimages.pixelflat_spec_illum
+            # The relative spectral illumination is defined on the slits of the
+            # pixel flat (i.e., at the spatial flexure of the pixel flat).
+            # Remap it to the slits of this frame (i.e., at the spatial flexure
+            # of this frame), so that each slit is corrected by its own
+            # spectral illumination, including the pixels near the slit edges.
+            if slits is not None:
+                spec_illum = flexure.spat_flexure_remap(
+                    spec_illum, slits, spat_flexure=self.spat_flexure_shift,
+                    src_spat_flexure=flatimages.pixelflat_spat_flexure, initial=True)
+            elif np.any(np.asarray(0. if self.spat_flexure_shift is None
+                                   else self.spat_flexure_shift)
+                        != np.asarray(0. if flatimages.pixelflat_spat_flexure is None
+                                      else flatimages.pixelflat_spat_flexure)):
+                log.warning('Slits not provided; the relative spectral illumination cannot be '
+                            'corrected for the difference in spatial flexure between this frame '
+                            'and the pixel flat.')
 
         # Apply flat-field correction
         # NOTE: Using flat.flatfield to effectively multiply image*img_scale is

@@ -377,6 +377,22 @@ Bug Fixes
   :ref:`flexure-spatial-manual`.  The frame's spatial
   flexure is also passed to the user sky-regions mask again, which the same
   refactor had dropped.
+- The relative spectral illumination correction (``use_specillum``) is now
+  applied at the spatial flexure of each flat-fielded frame.  It was applied
+  at the spatial flexure of the pixel flat, which gave the wrong correction
+  near the slit edges when the two flexures differed.
+- ``pypeit_coadd_datacube``: dedicated sky frames (``skysub_frame``) and
+  relative scale-correction frames (``scale_corr``) are now remapped to the
+  slits of each science frame, accounting for the spatial flexure of both
+  frames; they were applied pixel by pixel.  The grating correction
+  (``grating_corr``) is now calculated using the spatial flexure and
+  wavelength image of the pixel flat, so it no longer depends on which
+  science frame first used the Flat calibration file.  See
+  :ref:`coadd3d_spatflex`.
+- ``pypeit_coadd_datacube``: fix the relative scale of the default sky frame
+  when ``skysub_frame = default`` is given for a frame in the ``spec2d`` block
+  of the ``coadd3d`` file; the relative scale was multiplied by the exposure
+  time of the science frame.
 - Avoid a circular import by moving
   :func:`~pypeit.core.wavecal.autoid.arc_fit_qa` out of
   :mod:`~pypeit.core.wavecal.wv_fitting`.

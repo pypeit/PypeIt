@@ -382,6 +382,109 @@ def fit_spat_flexure(spat_flexure, slit_cen, polyord, gpm=None, lower=3., upper=
     return fit_flexure
 
 
+def spat_flexure_remap(img, slits, spat_flexure=None, src_slits=None, src_spat_flexure=None,
+                       initial=True):
+    """
+    Remap an image from the slits of one frame to the slits of another frame,
+    accounting for the spatial flexure of both frames.
+
+    This is used to apply an image that was measured in one frame (e.g. the
+    relative spectral illumination of a pixel flat, or a sky frame) to
+    another frame (e.g. a science frame) with a different spatial flexure.
+    Each pixel on a slit of the target frame is assigned the value of the
+    source image at the same fractional position across the slit (in the same
+    spectral row), using linear interpolation along the spatial direction.
+    Since the wavelength tilts are evaluated at the same fractional slit
+    position (see :func:`~pypeit.core.tracewave.fit2tilts_prepareSlit`), the
+    remapped pixels sample the same wavelength in both frames.  The
+    interpolation only uses source pixels on the same slit (the source value
+    of the nearest pixel on the slit is used beyond the slit edges), so
+    off-slit pixels never contribute.  Pixels that are not on a slit of the
+    target frame keep the values of the input image.
+
+    Args:
+        img (`numpy.ndarray`_):
+            The image to remap, defined in the source frame, with shape
+            (nspec, nspat).
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`):
+            The slits of the target frame.
+        spat_flexure (`numpy.ndarray`_, optional):
+            The spatial flexure of the target frame, with shape (nslits, 2);
+            see :func:`spat_flexure_shift`.  If None, no flexure is assumed.
+        src_slits (:class:`~pypeit.slittrace.SlitTraceSet`, optional):
+            The slits of the source frame.  If None, the source frame has the
+            same slits as the target frame.  The slits of the two frames are
+            matched by their index, so both must have the same number of
+            slits.
+        src_spat_flexure (`numpy.ndarray`_, optional):
+            The spatial flexure of the source frame, with shape (nslits, 2).
+            If None, no flexure is assumed.
+        initial (:obj:`bool`, optional):
+            Use the initial slit edges (instead of the tweaked edges) of both
+            frames.  See :func:`~pypeit.slittrace.SlitTraceSet.select_edges`.
+
+    Returns:
+        `numpy.ndarray`_: The remapped image, with the same shape as ``img``.
+        If the slit edges of the two frames (including the spatial flexure)
+        are identical, this is a copy of ``img``.
+
+    Raises:
+        PypeItError: Raised if the image shape does not match the slits, or if
+            the number of slits of the two frames, or the shape of the spatial
+            flexure arrays, are not consistent.
+    """
+    _src_slits = slits if src_slits is None else src_slits
+    if img.shape != (slits.nspec, slits.nspat) \
+            or img.shape != (_src_slits.nspec, _src_slits.nspat):
+        raise PypeItError(f'The image shape {img.shape} does not match the slits.')
+    if _src_slits.nslits != slits.nslits:
+        raise PypeItError(f'Cannot remap an image between frames with different numbers of slits '
+                          f'({_src_slits.nslits} and {slits.nslits}).')
+    _flexure = np.zeros((slits.nslits, 2)) if spat_flexure is None \
+                    else np.asarray(spat_flexure, dtype=float)
+    _src_flexure = np.zeros((slits.nslits, 2)) if src_spat_flexure is None \
+                    else np.asarray(src_spat_flexure, dtype=float)
+    if _flexure.shape != (slits.nslits, 2) or _src_flexure.shape != (slits.nslits, 2):
+        raise PypeItError(f'Spatial flexure shapes {_flexure.shape} and {_src_flexure.shape} '
+                          f'should both be ({slits.nslits}, 2).')
+
+    # The (unpadded) slit edges of both frames
+    left, right, _ = slits.select_edges(initial=initial, spat_flexure=_flexure, pad=0)
+    src_left, src_right, _ = _src_slits.select_edges(initial=initial, spat_flexure=_src_flexure,
+                                                     pad=0)
+    remap = img.copy()
+    if np.array_equal(left, src_left) and np.array_equal(right, src_right):
+        # Nothing to remap
+        return remap
+
+    # Image with the (0-based) slit index of each pixel in the target frame
+    slitidx_img = slits.slit_img(pad=0, slitidx=np.arange(slits.nslits), initial=initial,
+                                 spat_flexure=_flexure, use_spatial=False)
+    for slit_idx in range(slits.nslits):
+        spec, spat = np.where(slitidx_img == slit_idx)
+        if spec.size == 0:
+            continue
+        # Fractional position of each pixel across the slit of the target frame
+        width = right[spec, slit_idx] - left[spec, slit_idx]
+        frac = (spat - left[spec, slit_idx]) / width
+        # Position at the same fractional position in the source frame
+        src_l, src_r = src_left[spec, slit_idx], src_right[spec, slit_idx]
+        src_spat = src_l + frac * (src_r - src_l)
+        # First and last pixels on the slit of the source frame (using the
+        # same convention as SlitTraceSet.slit_img)
+        lo = np.floor(src_l).astype(int) + 1
+        hi = np.ceil(src_r).astype(int) - 1
+        lo, hi = np.clip(lo, 0, img.shape[1] - 1), np.clip(hi, 0, img.shape[1] - 1)
+        good = hi >= lo
+        # Linear interpolation, limited to the pixels on the source slit
+        i0 = np.floor(src_spat).astype(int)
+        wgt = src_spat - i0
+        i1 = np.clip(i0 + 1, lo, hi)
+        i0 = np.clip(i0, lo, hi)
+        remap[spec[good], spat[good]] = ((1 - wgt) * img[spec, i0] + wgt * img[spec, i1])[good]
+    return remap
+
+
 def spec_flexure_shift(obj_skyspec, sky_file=None, arx_skyspec=None, arx_fwhm_pix=None,
                     spec_fwhm_pix=None, mxshft=20, excess_shft="crash",
                     method="boxcar", minwave=None, maxwave=None):
