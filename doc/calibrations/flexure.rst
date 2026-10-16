@@ -55,6 +55,23 @@ The algorithm proceeds as follows:
        cross-correlation, or if the peak is beyond the maximum shift, the code
        assumes there is no spatial flexure and prints a warning.
 
+    #. The code then checks that the slit edges are detected in the frame:
+       after shifting the traced slit edges by the measured shift, it
+       calculates the fraction of the traced slit-edge pixels that coincide
+       (within 2 pixels) with an edge of the same type (left or right) detected
+       in the frame.  This fraction is printed in the log.  If it is less than
+       ``spat_flexure_minfrac`` (10% by default), the slit edges are deemed to
+       be undetected (e.g., in a short exposure of a standard star, where the
+       sky is too faint to show the slit edges), and the peak of the
+       cross-correlation is not trusted.  In this case, no spatial flexure is
+       applied to the frame for *any* method (the following steps are
+       skipped), and a warning is printed.  The slit edges only appear in the
+       spectral rows where the frame is illuminated, so frames with sparse
+       emission lines (e.g., arc frames with few lines) can have a small
+       fraction, even if the shift is well measured.  If needed, decrease
+       ``spat_flexure_minfrac`` for these frames, or set it to 0 to disable
+       this check.
+
     #. For all other methods, each slit edge is refined, starting from the
        ``detector`` value.  The flux near the edge is modeled in each spectral
        row as a step function convolved with a Gaussian (allowing for a

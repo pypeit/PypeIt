@@ -214,6 +214,55 @@ def test_spat_flexure_shift_masked_slit():
         'Excluded slit should be assigned the detector level flexure'
 
 
+def test_spat_flexure_edge_match():
+    # Traced edges (left = -1, right = 1) in all rows; the image shows the
+    # edges shifted by 3 pixels, but only in the first 30 of 100 rows
+    nspec, nspat = 100, 60
+    slits_edges = np.zeros((nspec, nspat), dtype=int)
+    slits_edges[:, 10] = -1
+    slits_edges[:, 40] = 1
+    sci_edges = np.zeros_like(slits_edges)
+    sci_edges[:30, 13] = -1
+    sci_edges[:30, 43] = 1
+    assert np.isclose(flexure.spat_flexure_edge_match(sci_edges, slits_edges, 3.), 0.3)
+    # Matched within the tolerance of 2 pixels
+    assert np.isclose(flexure.spat_flexure_edge_match(sci_edges, slits_edges, 1.6), 0.3)
+    assert flexure.spat_flexure_edge_match(sci_edges, slits_edges, 0.) == 0.
+    # Edges of the wrong type (left vs. right) are not matched
+    assert flexure.spat_flexure_edge_match(-sci_edges, slits_edges, 3.) == 0.
+    # Traced edges shifted off the detector are not matched
+    assert flexure.spat_flexure_edge_match(sci_edges, slits_edges, 100.) == 0.
+    # No traced edges
+    assert flexure.spat_flexure_edge_match(sci_edges, np.zeros_like(slits_edges), 3.) == 0.
+
+
+@pytest.mark.parametrize('method', ['detector', 'edge'])
+def test_spat_flexure_shift_undetected_edges(method):
+    # The slits are only visible in the first nvis spectral rows (e.g. a faint
+    # exposure), so few of the traced slit-edge pixels are matched
+    dx = 3.
+    sciimg, slits = _synthetic_slit_image(dx, dx, nslit=3)
+    bpm = np.zeros(sciimg.shape, dtype=bool)
+    rng = np.random.default_rng(1)
+    for nvis, detected in [(10, False), (40, True)]:
+        _sciimg = sciimg.copy()
+        _sciimg[nvis:] = rng.normal(0, 1, _sciimg[nvis:].shape)
+        spat_flexure, gpm = flexure.spat_flexure_shift(_sciimg, slits, method=method, bpm=bpm,
+                                                       maxlag=10, sigdetect=5., minfrac=0.1,
+                                                       return_gpm=True)
+        if detected:
+            # NOTE: The tolerance is larger than for the other tests, because
+            # the slit edges drift by less than a pixel in the visible rows
+            assert np.allclose(spat_flexure, dx, atol=0.3), 'Incorrect spatial flexure'
+        else:
+            assert np.all(spat_flexure == 0.), 'Undetected slit edges should give no flexure'
+            assert not np.any(gpm), 'Undetected slit edges should be flagged'
+    # The check can be disabled
+    spat_flexure = flexure.spat_flexure_shift(_sciimg, slits, method='detector', bpm=bpm,
+                                              maxlag=10, sigdetect=5., minfrac=0.)
+    assert np.allclose(spat_flexure, dx, atol=0.3), 'Incorrect spatial flexure with minfrac=0'
+
+
 def test_fit_spat_flexure():
     # A linear trend of the flexure with slit position, with one outlier and
     # one edge without a measured flexure

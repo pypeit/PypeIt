@@ -13,6 +13,7 @@ from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
 import numpy as np
 from scipy import interpolate
+from scipy import ndimage
 from scipy import optimize
 from scipy import signal
 
@@ -29,8 +30,58 @@ from pypeit.core import trace
 from pypeit.core.wavecal import autoid
 
 
+def spat_flexure_edge_match(sci_edges, slits_edges, shift, tol=2):
+    """
+    Calculate the fraction of the traced slit-edge pixels that coincide with
+    an edge detected in an image, after shifting the traced edges by the
+    measured spatial flexure.
+
+    A traced edge pixel is matched if the image has a detected edge of the
+    same type (left or right) in the same spectral row, within ``tol``
+    pixels of the shifted traced edge.
+
+    Args:
+        sci_edges (`numpy.ndarray`_):
+            Image of the edges detected in the science (or calibration)
+            frame, with left edges set to -1, right edges set to 1, and 0
+            elsewhere; see :func:`~pypeit.core.trace.detect_slit_edges`.
+        slits_edges (`numpy.ndarray`_):
+            Image of the traced slit edges, with the same format and shape
+            as ``sci_edges``.
+        shift (:obj:`float`):
+            The spatial flexure (in pixels) of the slits in the image,
+            relative to the traced slits.
+        tol (:obj:`int`, optional):
+            The matching tolerance in pixels.
+
+    Returns:
+        :obj:`float`: The fraction of the traced slit-edge pixels that are
+        matched.  This is 0 if there are no traced slit-edge pixels.
+    """
+    ntrace = np.sum(slits_edges != 0)
+    if ntrace == 0:
+        return 0.
+    ishift = int(np.round(shift))
+    nspat = slits_edges.shape[1]
+    nmatch = 0
+    for side in [-1, 1]:
+        # Detected edges of this type, grown by +/- tol pixels
+        _sci = ndimage.maximum_filter1d((sci_edges == side).astype(np.uint8), size=2*tol+1,
+                                        axis=1) > 0
+        # Traced edges of this type, shifted by the spatial flexure.  Edges
+        # shifted off the detector are not matched.
+        _trace = np.zeros_like(_sci)
+        if abs(ishift) < nspat:
+            if ishift >= 0:
+                _trace[:, ishift:] = slits_edges[:, :nspat-ishift] == side
+            else:
+                _trace[:, :ishift] = slits_edges[:, -ishift:] == side
+        nmatch += np.sum(_sci & _trace)
+    return nmatch / ntrace
+
+
 def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, sigdetect=10.,
-                       return_gpm=False, debug=False):
+                       minfrac=0.1, return_gpm=False, debug=False):
     """
     Calculate the flexure shift (in detector pixels) in the spatial dimension
     between the slitmask and the science image.
@@ -59,7 +110,10 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
             right edge shifts), the 'edge' method calculates the shift for
             each slit edge independently, and the 'leftedge' ('rightedge')
             method calculates the shift of the left (right) edge of each
-            slit and applies the same shift to the other edge.
+            slit and applies the same shift to the other edge.  For all
+            methods, if the slit edges are deemed to be undetected (see
+            ``minfrac``), no spatial flexure is applied (the returned
+            shifts are all zero).
         bpm (`numpy.ndarray`_, optional):
             Bad pixel mask (True = Bad)
         maxlag (:obj:`int`, optional):
@@ -67,6 +121,14 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
         sigdetect (:obj:`float`, optional):
             Sigma threshold above fluctuations for the slit detection
             in the collapsed sobel image
+        minfrac (:obj:`float`, optional):
+            Minimum fraction of the traced slit-edge pixels that must
+            coincide (within 2 pixels) with an edge detected in the image,
+            after shifting the traced edges by the measured detector-level
+            spatial flexure; see :func:`spat_flexure_edge_match`.  If the
+            fraction is smaller, the slit edges are deemed to be undetected
+            in the image (e.g. because the exposure is too faint), and no
+            spatial flexure is applied.  Set to 0 to disable this check.
         return_gpm (:obj:`bool`, optional):
             Also return a boolean array identifying the slit edges for
             which the spatial flexure was measured.
@@ -83,7 +145,8 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
         with the same shape is also returned, which is True for the slit
         edges where the spatial flexure was measured.  For the
         ``detector`` method, this is True for all edges of the slits used
-        to measure the flexure.
+        to measure the flexure.  If the slit edges are deemed to be
+        undetected (see ``minfrac``), this is False for all edges.
 
     Raises:
         PypeItError: Raised if the method is not recognized.
@@ -146,7 +209,30 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
         wgt = np.clip(xcorr_max[ww], 0, None)
         det_spat_flexure = round(np.sum(wgt * lags_max[ww]) / np.sum(wgt), 3)
         peak_beyond_maxlag = np.abs(det_spat_flexure) > maxlag
-    if not peak_found or peak_beyond_maxlag:
+    # Check that the slit edges have been detected in the image, using the
+    # fraction of the traced slit-edge pixels that coincide with a detected
+    # edge at the measured flexure.  If too few edges match (e.g. because the
+    # slit edges are not visible in a faint exposure), the peak of the
+    # cross-correlation is not reliable.
+    edges_detected = True
+    if peak_found and not peak_beyond_maxlag:
+        match_frac = spat_flexure_edge_match(sci_edges, slits_edges, det_spat_flexure)
+        edges_detected = match_frac >= minfrac
+    if not edges_detected:
+        log.warning(
+            f'Only {100*match_frac:.1f}% of the traced slit-edge pixels coincide with an edge '
+            f'detected in the science/calibration image at the measured spatial flexure '
+            f'({det_spat_flexure:.3f} pixels).\nThe minimum is {100*minfrac:.1f}% (set by the '
+            '"spat_flexure_minfrac" parameter), so the slit edges are deemed to be undetected.\n'
+            'Assuming there is NO SPATIAL FLEXURE.\nIf the slit edges are visible in this frame, '
+            'consider either:\n'
+            '  (1) decreasing the "spat_flexure_minfrac" parameter\n'
+            '  (2) decreasing the "spat_flexure_sigdetect" parameter\n'
+            '  (3) using the manual flexure correction'
+        )
+        total_flexure = np.zeros((slits.nslits, 2), dtype=float)
+        det_measured = False
+    elif not peak_found or peak_beyond_maxlag:
         reason = 'The peak of the x-correlation is beyond the search window (+/- maxlag)' \
                     if peak_beyond_maxlag else 'No peak found in the x-correlation'
         log.warning(
@@ -161,7 +247,8 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
         det_measured = False
     else:
         det_measured = True
-        log.info('Detector spatial flexure measured: {0:5.3f} pixels'.format(det_spat_flexure))
+        log.info(f'Detector spatial flexure measured: {det_spat_flexure:5.3f} pixels '
+                 f'({100*match_frac:.1f}% of the traced slit-edge pixels are matched)')
 
         # So far we have calculated the global flexure (method = detector)
         total_flexure = np.full((slits.nslits, 2), det_spat_flexure)
@@ -189,8 +276,9 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
     # Slits excluded from the flexure calculation
     bad_slits = slits.bitmask.flagged(slits.mask, and_not=slits.bitmask.exclude_for_flexure)
 
-    # If we're only calculating the detector flexure, return now
-    if method == "detector":
+    # If we're only calculating the detector flexure, or the slit edges were
+    # not detected, return now
+    if method == "detector" or not edges_detected:
         gpm = np.tile(np.logical_not(bad_slits)[:, None], (1, 2)) & det_measured
         return (total_flexure, gpm) if return_gpm else total_flexure
 

@@ -58,6 +58,12 @@ Functionality/Performance Improvements and Additions
   ``spat_flexure_polyord`` parameter.  The
   spatial flexure can only be determined for frame types that are processed
   with the slit edges; requesting it for other frame types now raises an error.
+- Added the ``spat_flexure_minfrac`` image-processing parameter: if less than
+  this fraction (10% by default) of the traced slit-edge pixels coincide with
+  an edge detected in the frame at the measured spatial flexure, the slit edges
+  are deemed to be undetected, and no spatial flexure is applied to the frame
+  (e.g., for a short exposure of a standard star, where the slit edges are
+  not visible).
 - The spatial flexure of each frame is accounted for when constructing
   datacubes (``pypeit_coadd_datacube``): the RA and Dec of each detector pixel,
   and the astrometric alignment traces, are now evaluated using the spatial

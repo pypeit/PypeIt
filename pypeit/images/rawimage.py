@@ -849,13 +849,17 @@ class RawImage:
                                                  method=self.par['spat_flexure_method'],
                                                  maxlag=self.par['spat_flexure_maxlag'],
                                                  sigdetect=self.par['spat_flexure_sigdetect'],
+                                                 minfrac=self.par['spat_flexure_minfrac'],
                                                  return_gpm=True, debug=debug)
 
         # Each spectrograph can optionally post-process the (measured) spatial
         # flexure values in their own way (by default, a polynomial fit as a
         # function of the slit position, using only the slit edges with a
-        # measured spatial flexure).  A manual value is used as is.
-        if self.par['spat_flexure_polyord'] is None or not np.ma.is_masked(manual_spat_flexure):
+        # measured spatial flexure).  A manual value is used as is, and there
+        # is nothing to fit if the spatial flexure was not measured for any
+        # slit edge (e.g. because the slit edges were not detected).
+        if self.par['spat_flexure_polyord'] is None or not np.ma.is_masked(manual_spat_flexure) \
+                or not np.any(flexure_gpm):
             _spat_flexure = spat_flexure
         else:
             left, right, _ = slits.select_edges(initial=True)

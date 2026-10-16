@@ -246,7 +246,8 @@ class ProcessImagesPar(ParSet):
                  skip_write_2d=None,
                  use_pattern=None, subtract_scattlight=None, scattlight=None, subtract_continuum=None,
                  spat_flexure_method=None, spat_flexure_polyord=None, spat_flexure_maxlag=None,
-                 spat_flexure_sigdetect=None, spat_flexure_vrange=None):
+                 spat_flexure_sigdetect=None, spat_flexure_minfrac=None,
+                 spat_flexure_vrange=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -416,6 +417,21 @@ class ProcessImagesPar(ParSet):
                                           'finding slit edges in the spectral image, '  \
                                           'for which the spatial flexure is computed.'
 
+        defaults['spat_flexure_minfrac'] = 0.1
+        dtypes['spat_flexure_minfrac'] = [int, float]
+        descr['spat_flexure_minfrac'] = 'Minimum fraction of the traced slit-edge pixels that ' \
+                                        'must coincide (within 2 pixels) with an edge detected ' \
+                                        'in the image, after shifting the traced edges by the ' \
+                                        'measured detector-level spatial flexure.  If fewer ' \
+                                        'edge pixels are matched (e.g. because the slit edges ' \
+                                        'are not visible in a faint exposure), the slit edges ' \
+                                        'are deemed to be undetected and no spatial flexure is ' \
+                                        'applied.  For frames where the slit edges are only ' \
+                                        'visible in a few spectral rows (e.g. arc frames with ' \
+                                        'few emission lines), a lower value may be required.  ' \
+                                        'Set to 0 to disable this check.  This value must be ' \
+                                        'between 0 and 1.'
+
         defaults['spat_flexure_vrange'] = None
         dtypes['spat_flexure_vrange'] = tuple
         descr['spat_flexure_vrange'] = 'This parameter is used when generating the QA plot for the spatial flexure. ' \
@@ -531,7 +547,7 @@ class ProcessImagesPar(ParSet):
                    'subtract_scattlight', 'scattlight', 'use_pattern', 'use_overscan',
                    'overscan_method', 'overscan_par', 'use_darkimage', 'dark_expscale',
                    'spat_flexure_method', 'spat_flexure_polyord', 'spat_flexure_maxlag', 'spat_flexure_sigdetect',
-                   'spat_flexure_vrange', 'use_illumflat', 'use_specillum', 'skip_write_2d',
+                   'spat_flexure_minfrac', 'spat_flexure_vrange', 'use_illumflat', 'use_specillum', 'skip_write_2d',
                    'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
                    'scale_to_mean', 'correct_nonlinear', 'satpix', #'calib_setup_and_bit',
                    'n_lohi', 'mask_cr', 'lamaxiter', 'grow', 'clip', 'comb_sigrej', 'rmcompact',
@@ -604,6 +620,11 @@ class ProcessImagesPar(ParSet):
         if isinstance(self.data['spat_flexure_polyord'], int):
             if self.data['spat_flexure_polyord'] < 0:
                 raise ValueError('spat_flexure_polyord must be greater than or equal to zero.')
+
+        # Check the minimum fraction of matched slit-edge pixels
+        if self.data['spat_flexure_minfrac'] is not None \
+                and not 0 <= self.data['spat_flexure_minfrac'] <= 1:
+            raise ValueError('spat_flexure_minfrac must be between 0 and 1.')
 
         if not self.data['use_overscan']:
             return
