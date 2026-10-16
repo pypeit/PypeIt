@@ -11,6 +11,7 @@ import pytest
 from pypeit import PypeItError
 import numpy as np
 from pypeit.spectrographs.spectrograph import Spectrograph
+from pypeit.spectrographs.util import load_spectrograph
 from pypeit.par.pypeitpar import PypeItPar
 
 from pypeit import dataPaths
@@ -419,6 +420,41 @@ def test_parse_setup_lines_colon_and_multi_error():
     # Multiple Setups should raise
     with pytest.raises(PypeItError):
         inputfiles.InputFile._parse_setup_lines(np.array(['Setup A:', 'Setup B:']))
+
+
+def test_write_pypeitfile_setup_with_colon():
+    # Setup values with colons (e.g., the DEIMOS amplifier mode) must survive
+    # a write/read cycle unchanged (Issue #2099)
+    outfile = Path(tstutils.data_output_path('tmp_colon.pypeit')).absolute()
+    confdict, data, file_paths, _ = _pypeitfile_components()
+    setup_dict = {'Setup A': {'amp': 'SINGLE:B', 'dispname': '600ZD'}}
+    inputfiles.PypeItFile(config=confdict, file_paths=file_paths, data_table=data,
+                          setup=setup_dict).write(outfile)
+    assert "'\"SINGLE:B\"'" not in outfile.read_text(), 'Extra quotes written to setup block'
+    # NOTE: from_file strips the indentation, so the setup block is read flat
+    setup = inputfiles.PypeItFile.from_file(outfile).setup
+    assert setup['amp'] == 'SINGLE:B' and setup['dispname'] == '600ZD', \
+        'Setup value with a colon changed after read/write'
+    outfile.unlink()
+
+
+def test_parse_setup_lines_legacy_quotes():
+    # Older versions of PypeIt wrote extra quotes around values with colons;
+    # these should be removed on read so that the setups still match the raw
+    # metadata (Issue #2099)
+    lines = np.array(['Setup A:', '  --:', "    amp: '\"SINGLE:B\"'", '    dispname: 600ZD',
+                      '    decker: mask03', '    binning: 1,1', '    dispangle: 6500.0',
+                      '    filter1: GG400', "    note: '\"no colon\"'"])
+    _, sdict = inputfiles.InputFile._parse_setup_lines(lines)
+    cfg = sdict['Setup A']['--']
+    assert cfg['amp'] == 'SINGLE:B', 'Legacy quotes not removed'
+    # Only quoted values with colons were written by the old code
+    assert cfg['note'] == '"no colon"', 'Quotes removed from a value without a colon'
+
+    raw_cfg = dict(dispname='600ZD', decker='mask03', binning='1,1', dispangle=6500.0,
+                   amp='SINGLE:B', filter1='GG400')
+    spec = load_spectrograph('keck_deimos')
+    assert spec.same_configuration([raw_cfg, cfg]), 'Legacy setup does not match raw metadata'
 
 
 def test_read_data_file_table_paths_and_preserve_comments():
