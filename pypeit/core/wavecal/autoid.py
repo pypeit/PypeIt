@@ -603,6 +603,8 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
                                                    stretch_vec[iarxiv], stretch2_vec[iarxiv], stretch_func=stretch_func)
 
         if debug_xcorr:
+            plt.close('all')
+            plt.switch_backend('TkAgg')
             plt.figure(figsize=(14, 6))
             tampl_slit = np.interp(detections, xrng, use_spec)
             plt.plot(xrng, use_spec, color='red', drawstyle='steps-mid', label='input arc',linewidth=1.0, zorder=10)
@@ -685,6 +687,8 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
     patt_dict_slit['sigdetect'] = sigdetect
 
     if debug_reid:
+        plt.close('all')
+        plt.switch_backend('TkAgg')
         plt.figure(figsize=(14, 6))
         # Plot a summary of the local x-correlation values for each line on each slit
         for iarxiv in range(narxiv):
@@ -703,7 +707,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
         # plt.ylim((0.0, 1.2))
         plt.legend()
         plt.show()
-        # QA Plot ofthe reidentifications
+        # QA Plot of the reidentifications
         match_qa(use_spec, detections, line_list, patt_dict_slit['IDs'], patt_dict_slit['scores'])
 
     # Use only the perfect IDs
@@ -1240,11 +1244,12 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         log.info(f"Shift = {shift_cc:.2f}; cc = {corr_cc:.4f}")
         if debug:
             xvals = np.arange(tspec.size)
-            plt.clf()
-            ax = plt.gca()
-            #
-            ax.plot(xvals, tspec, label='template')  # Template
-            ax.plot(xvals, np.roll(pad_spec, int(shift_cc)), 'k', label='input')  # Input
+            plt.close('all')
+            plt.switch_backend('TkAgg')
+
+            fig, ax = plt.subplots()  # new figure, created under TkAgg
+            ax.plot(xvals, tspec, label='template')
+            ax.plot(xvals, np.roll(pad_spec, int(shift_cc)), 'k', label='input')
             ax.legend()
             plt.show()
         i0 = npad // 2 + int(shift_cc)
