@@ -1,4 +1,6 @@
 """Regression tests for propagation of gain-corrected FITS units."""
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
 from astropy.io import fits
@@ -8,6 +10,33 @@ from pypeit.images import buildimage, pypeitimage, rawimage
 from pypeit.metadata import PypeItMetaData
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.tests import tstutils
+
+
+@pytest.mark.parametrize('nimg', [1, 2])
+def test_gain_headers_synthetic(nimg):
+    detector = tstutils.get_kastb_detector()
+    detector.gain = np.array([2.])
+    shape = (4, 4) if nimg == 1 else (nimg, 4, 4)
+    image = np.ones(shape)
+    hdus = fits.HDUList([fits.PrimaryHDU(), fits.ImageHDU()])
+    hdus[1].header['BUNIT'] = 'ADU'
+    spectrograph = SimpleNamespace(
+        get_rawimage=lambda filename, det: (
+            detector if nimg == 1 else SimpleNamespace(detectors=[detector]*nimg),
+            image, hdus, 1., np.ones(shape, dtype=int), np.zeros(shape, dtype=int)),
+        get_headarr=lambda hdu: [h.header for h in hdu])
+    raw = rawimage.RawImage('unused.fits', spectrograph, 1 if nimg == 1 else (1, 2))
+    assert 'BUNIT' not in raw.headarr[0]
+    assert raw.headarr[1]['BUNIT'] == 'ADU'
+    raw.apply_gain()
+    assert np.all(raw.image == 2.)
+    assert all(header['BUNIT'] == 'electron' for header in raw.headarr)
+    raw.apply_gain()
+    assert np.all(raw.image == 2.)
+    # The original input headers and pixels are not modified.
+    assert 'BUNIT' not in hdus[0].header
+    assert hdus[1].header['BUNIT'] == 'ADU'
+    assert np.all(raw.rawimage == 1.)
 
 
 @pytest.fixture(params=[None, 'ADU'])

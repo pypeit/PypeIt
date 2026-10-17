@@ -240,7 +240,8 @@ class PypeIt:
                                        self.det, calib_ID, self.calibrations_path,
                                        run_state=self.run_state,
                                        status_only=status_only,
-                                       reload_only=reload_only)
+                                       reload_only=reload_only,
+                                       show=self.show)
 
         # Finish
         qaWriter.flush()

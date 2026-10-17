@@ -111,7 +111,14 @@ def test_ncpu_assignment_revalidates():
     assert par['ncpu'] == 1, 'validate() must reset ncpu < 1 to 1'
 
 def test_wavelengthsolution():
-    pypeitpar.WavelengthSolutionPar()
+    par = pypeitpar.WavelengthSolutionPar()
+    assert not par['xcorr_only']
+
+    par = pypeitpar.WavelengthSolutionPar.from_dict({'xcorr_only': True})
+    assert par['xcorr_only']
+
+    with pytest.raises(ValueError, match='not available for echelle'):
+        pypeitpar.WavelengthSolutionPar(echelle=True, xcorr_only=True)
 
 def test_edgetrace():
     pypeitpar.EdgeTracePar()
@@ -303,5 +310,3 @@ def test_lists():
     with pytest.raises(TypeError):
         p['calibrations']['alignment']['locations'] = 0.0
         _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config())  # Once as tuple
-
-
