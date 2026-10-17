@@ -1638,8 +1638,8 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
         par["calibrations"]["slitedges"]["edge_thresh"] = 20.0
         par["calibrations"]["slitedges"]["trace_thresh"] = 20.0
         par["calibrations"]["slitedges"]["sobel_enhance"] = 3
-        par["calibrations"]["slitedges"]["trim_spec"] = [1024, 1024]
-        par["calibrations"]["wavelengths"]["lamps"] = ["XeI"]
+        #par["calibrations"]["slitedges"]["trim_spec"] = [1024, 1024]
+        par["calibrations"]["wavelengths"]["lamps"] = ["Xe_RIMAS_YJ"]
         par["calibrations"]["wavelengths"]["method"] = "holy-grail"
         par["calibrations"]["wavelengths"]["reid_arxiv"] = "ldt_nihts.fits"
         par["calibrations"]["wavelengths"]["fwhm_fromlines"] = True
@@ -1664,6 +1664,7 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
             par["calibrations"]["wavelengths"]["n_first"] = 3
             par["calibrations"]["wavelengths"]["n_final"] = 5
             par["sensfunc"]["IR"]["resln_guess"] = 300
+
 
         else:
             raise ValueError(f"Grating {grating} not recognized for RIMAS VPH modes")
@@ -1718,7 +1719,7 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
             par["reduce"]["findobj"]["find_fwhm"] = 5
             par["reduce"]["findobj"]["snr_thresh"] = 7
             par["reduce"]["findobj"]["find_min_max"] = [65, 103]
-            par["sensfunc"]["IR"]["resln_guess"] = 30
+            par["sensfunc"]["IR"]["resln_guess"] = 50 #Assessed resolution is closer to R=50 than R=30
 
             # par["reduce"]["skysub"]["no_local_sky"] = True
             # par["reduce"]["skysub"]["no_poly"] = True
@@ -1733,7 +1734,8 @@ class LDTRIMASVphSpectrograph(LDTRIMASSpectrograph):
             par["calibrations"]["wavelengths"]["lamps"] = ["OH_RIMAS_HK"]
             par["reduce"]["findobj"]["find_fwhm"] = 7
             par["reduce"]["findobj"]["snr_thresh"] = 10
-            par["sensfunc"]["IR"]["resln_guess"] = 300
+            par["sensfunc"]["IR"]["resln_guess"] = 416 #Assessed resolution has a median of around 416 rather than 300, but it varies from R=271 and R=946 from prior analysis
+
 
         else:
             raise ValueError(f"Grating {grating} not recognized for RIMAS VPH modes")
