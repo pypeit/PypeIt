@@ -1069,7 +1069,16 @@ class PypeItFileModel(QObject):
                 config_to_save = list(configs.keys())[0]
                 setup_dict = {f'Setup {self.name_stem}':configs[config_to_save]}
     
-            pf = PypeItFile(self.params_model.getConfigLines(),self.metadata_model.getPathsModel().getPaths(), metadata_table, setup_dict,vet=False,preserve_comments=True)    
+            paths = self.metadata_model.getPathsModel().getPaths()
+            # Let the spectrograph fold in configuration-specific parameters
+            # derived from the raw data (e.g. a discovered mask-design file),
+            # sharing the exact merge used by pypeit_setup
+            # (PypeItMetaData.write_pypeit) so the GUI and command line produce
+            # the same PypeIt file.
+            config_lines = self._spectrograph.merge_setup_cfg_lines(
+                self.params_model.getConfigLines(), metadata_table, paths)
+
+            pf = PypeItFile(config_lines, paths, metadata_table, setup_dict,vet=False,preserve_comments=True)
 
             log.info(f"Saving filename: {self.filename}")
             if self.save_location is not None:
