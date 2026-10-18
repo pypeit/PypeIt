@@ -1033,7 +1033,12 @@ class BuildWaveCalib:
                     log.warning(f"Order {order} is still not acceptable after attempt to reidentify.")
                     continue
 
-                # Fit me -- RMS may be too high again
+                # Fit me -- RMS may be too high again.  The lines of this
+                # order have been identified using the 2D solution, so they
+                # are reliable even if there are only a few of them.  The fit
+                # is therefore not required to have any degrees of freedom
+                # (min_dof=0), which allows orders with only a few lines to
+                # rejoin the 2D fit.
                 n_final = wvutils.parse_param(self.par, 'n_final', iord)
                 # TODO - Make this cheaper
                 final_fit = wv_fitting.fit_slit(
@@ -1043,7 +1048,8 @@ class BuildWaveCalib:
                     n_first=self.par['n_first'],
                     sigrej_first=self.par['sigrej_first'],
                     n_final=n_final, 
-                    sigrej_final=self.par['sigrej_final'])
+                    sigrej_final=self.par['sigrej_final'],
+                    min_dof=0)
                 if final_fit is None:
                     log.warning(f"Order {order} could not be fit after attempt to reidentify.")
                     continue

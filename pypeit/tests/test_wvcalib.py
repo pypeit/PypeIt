@@ -220,6 +220,35 @@ def test_iterative_fitting_dof():
                                        n_first=2, n_final=4, input_only=True)
     assert fit is None, 'Fit should fail with too few lines'
 
+    # Same lines, without the degrees of freedom requirement: the order is
+    # reduced to nlines-1, as used when re-fitting echelle orders
+    fit = wv_fitting.iterative_fitting(spec, tcent, ifit, llist['wave'].data[ifit], llist, disp,
+                                       n_first=2, n_final=4, input_only=True, min_dof=0)
+    assert fit.pypeitfit.order[0] == 2, 'Order should be reduced to nlines-1'
+
+
+def test_fit_slit_min_dof():
+    # Three identified lines of a cubic wavelength solution
+    nspec = 1000
+    llist = _synthetic_line_list()
+    pix = np.arange(nspec, dtype=float)
+    wave = 5000. + 1.0*pix + 1e-4*pix**2 - 5e-8*pix**3
+    tcent = np.interp(llist['wave'], wave, pix)
+    ids = np.zeros(tcent.size)
+    use = np.array([2, 9, 16])
+    ids[use] = llist['wave'][use]
+    mask = np.zeros(tcent.size, dtype=bool)
+    mask[use] = True
+    patt_dict = dict(mask=mask, IDs=list(ids), bdisp=1.0)
+    spec = np.zeros(nspec)
+    # The default requires 2 degrees of freedom, so the fit fails.  NOTE: The
+    # small match_toler prevents more lines from being added to the fit.
+    fit = wv_fitting.fit_slit(spec, patt_dict, tcent, llist, n_final=4, match_toler=0.01)
+    assert fit is None, 'Fit should fail with too few lines'
+    # Without the requirement, the fit succeeds with a reduced order
+    fit = wv_fitting.fit_slit(spec, patt_dict, tcent, llist, n_final=4, match_toler=0.01, min_dof=0)
+    assert fit is not None and fit.pypeitfit.order[0] == 2
+
 
 def _synthetic_arcs(rng, nspec=1000, shifts=(0., 25., -30., 40.), noise=(0.5, 2., 2., 2.),
                     min_amp=0.2):

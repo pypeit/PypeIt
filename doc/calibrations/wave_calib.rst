@@ -343,7 +343,9 @@ In general, the approach is:
 
     #. Identify the arc lines in each order
 
-    #. Fit the arc lines in each order to a polynomial, individually
+    #. Fit the arc lines in each order to a polynomial, individually; the fit
+       of an order fails if it has too few lines to leave at least two
+       degrees of freedom (i.e., fewer than four lines)
 
     #. Fit a 2D solution to the lines using the order number as a basis
 
@@ -351,7 +353,8 @@ In general, the approach is:
        exceeds a certain threshold set by the user (see :ref:`wvcalib-rms-threshold`)
 
     #. Attempt to recover the missing orders using the 2D fit and a higher RMS
-       threshold
+       threshold; because the arc lines of these orders are identified using
+       the 2D fit, orders with as few as two lines can be recovered
 
     #. Refit the 2D solution
 

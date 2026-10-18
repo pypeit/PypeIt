@@ -228,7 +228,7 @@ class WaveFit(datamodel.DataContainer):
 
 def fit_slit(
     spec, patt_dict, tcent, line_lists, vel_tol=1.0, thar=False, match_toler=3.0, func='legendre',
-    n_first=2, sigrej_first=2.0, n_final=4, sigrej_final=3.0, verbose=False
+    n_first=2, sigrej_first=2.0, n_final=4, sigrej_final=3.0, verbose=False, min_dof=2
 ):
 
     """ Perform a fit to the wavelength solution. Wrapper for iterative fitting code.
@@ -264,6 +264,9 @@ def fit_slit(
         Number of sigma for rejection for the final fit to the wavelength solution.
     verbose : bool
         If True, print out more information.
+    min_dof : int, optional
+        Minimum number of degrees of freedom required for the final fit; see
+        :func:`iterative_fitting`.
     plot_fil:
         Filename for plotting some QA?
 
@@ -295,7 +298,8 @@ def fit_slit(
     return iterative_fitting(
         spec, tcent, ifit, np.array(patt_dict['IDs'])[ifit], line_lists[NIST_lines],
         patt_dict['bdisp'], match_toler=match_toler, func=func, n_first=n_first,
-        sigrej_first=sigrej_first,n_final=n_final, sigrej_final=sigrej_final, verbose=verbose
+        sigrej_first=sigrej_first,n_final=n_final, sigrej_final=sigrej_final, verbose=verbose,
+        min_dof=min_dof
     )
 
 

@@ -384,7 +384,10 @@ Bug Fixes
   order of the final fit is reduced so that at least two degrees of freedom
   remain (with a warning), and the fit fails if fewer than four lines are
   available.  Previously, a handful of misidentified lines could produce an
-  apparently perfect, but incorrect, wavelength solution.
+  apparently perfect, but incorrect, wavelength solution.  The exception is
+  the re-analysis of failed echelle orders after the first 2D fit, where the
+  lines are identified using the 2D solution; there, orders with only a few
+  lines (at least two) are still fit, so that they can rejoin the 2D fit.
 - Fixed a crash (``AttributeError``) in the wavelength calibration when the
   slit given by ``reference_slit`` could not be calibrated; a clear error
   message is now raised instead.  Also fixed a crash in the echelle wavelength
