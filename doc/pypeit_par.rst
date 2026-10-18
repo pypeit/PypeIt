@@ -679,6 +679,7 @@ Key                      Type            Options  Default      Description
 ``calwin``               int, float      ..       0            The window of time in hours to search for calibration frames for a science frame                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
 ``chk_version``          bool            ..       True         If True enforce strict PypeIt version checking to ensure that all files were created with the current version of PypeIt.  If set to False, the code will attempt to read out-of-date files and keep going.  Beware (!!) that this can lead to unforeseen bugs that either cause the code to crash or lead to erroneous results. I.e., you really need to know what you are doing if you set this to False!                                                                                                                                                                                                                                                                                                                            
 ``detnum``               int, list       ..       ..           Restrict reduction to a list of detector indices. In case of mosaic reduction (currently only available for Gemini/GMOS and Keck/DEIMOS) ``detnum`` should be a list of tuples of the detector indices that are mosaiced together. E.g., for Gemini/GMOS ``detnum`` would be ``[(1,2,3)]`` and for Keck/DEIMOS it would be ``[(1, 5), (2, 6), (3, 7), (4, 8)]``                                                                                                                                                                                                                                                                                                                                                                       
+``fit2d_chunk``          int             ..       32768        Maximum number of data points for which 2D polynomial (Legendre, Chebyshev, or power-series) fits build their full design matrix; larger fits, and evaluations of 2D fits, are processed in chunks of this many points to limit peak memory.  The results are the same to within round-off for any value.  This is an expert knob: larger values use more memory for large fits, and much smaller values are slower.                                                                                                                                                                                                                                                                                                                  
 ``ignore_bad_headers``   bool            ..       False        Ignore bad headers (NOT recommended unless you know it is safe).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
 ``maskIDs``              str, int, list  ..       ..           Restrict reduction to a set of slitmask IDs Example syntax -- ``maskIDs = 818006,818015`` This must be used with detnum (for now).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
 ``ncpu``                 int             ..       1            Number of CPUs PypeIt may use.  The default, 1, runs the code fully serially, exactly as in previous versions.  Currently, this sets the number of threads used to write the QA figures (capped at 8) and, for up-the-ramp spectrographs (currently MMT/MMIRS), the threads used for ramp fitting; the reduction itself is otherwise still serial.  Note that MMIRS ramp fitting keeps a parallel default of min(6, os.cpu_count()) even at ncpu=1, since threading does not change the fitted result; set ncpu explicitly to use more (or fewer) threads.  Values less than 1 are reset to 1.  This is used by any script that runs the main reduction (e.g., ``run_pypeit``, ``pypeit_ql``), and ``run_pypeit --ncpu`` overrides it.
@@ -7808,8 +7809,8 @@ Alterations to the default parameters are:
 
 .. _instr_par-magellan_ldss3:
 
-MMT LDSS3 (``magellan_ldss3``)
-------------------------------
+MAGELLAN LDSS3-C (``magellan_ldss3``)
+-------------------------------------
 Alterations to the default parameters are:
 
 .. code-block:: ini
@@ -7825,20 +7826,21 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
-          exprng = 0, None,
+          exprng = 1, None,
           [[[process]]]
+              combine = median
               mask_cr = True
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
-          exprng = 0, 10,
+          exprng = None, 60,
           [[[process]]]
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
-          exprng = 0, 10,
+          exprng = None, 60,
           [[[process]]]
               use_biasimage = False
               use_pixelflat = False
@@ -7894,11 +7896,13 @@ Alterations to the default parameters are:
               use_biasimage = False
               noise_floor = 0.01
       [[standardframe]]
-          exprng = 10, 500,
+          exprng = None, 100,
           [[[process]]]
               mask_cr = True
               use_biasimage = False
               noise_floor = 0.01
+      [[flatfield]]
+          saturated_slits = mask
       [[wavelengths]]
           sigdetect = 6.0
           fwhm = 5.0
@@ -7907,12 +7911,13 @@ Alterations to the default parameters are:
           n_first = 3
           n_final = 5
       [[slitedges]]
+          minimum_slit_length = 2.0
           pad = 0.0, 0.0,
       [[tilts]]
           spat_order = 6
           spec_order = 6
   [scienceframe]
-      exprng = 200, None,
+      exprng = 100, None,
       [[process]]
           mask_cr = True
           sigclip = 5.0

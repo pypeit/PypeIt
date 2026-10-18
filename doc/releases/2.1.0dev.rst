@@ -121,9 +121,63 @@ Functionality/Performance Improvements and Additions
   the QA PNGs through a background thread pool (rendering stays on the main
   thread, which matplotlib requires); the figures are identical to a serial
   run.
+- ``fitting.robust_fit`` now converts its inputs to float once per call
+  rather than copying them on every rejection iteration, reducing memory use
+  for large fits (e.g., the flat-field fine spatial-illumination correction).
+- ``fitting.polyfit2d_general`` now solves fits with more than
+  ``[rdx] fit2d_chunk`` (default 32768) points in chunks, using a sequential QR
+  decomposition, instead of building the full design matrix.  For fits over a
+  whole detector (e.g., the wavelength tilts and the flat-field fine
+  correction), this removes several GB of temporary arrays: the tilts stage of
+  a Binospec long-slit reduction drops from a 16.1 to a 6.9 GiB peak and runs
+  faster.  The coefficients agree with the previous solution to round-off;
+  smaller fits are computed exactly as before.
+- Reduced the memory used by B-spline fits, with no change to the results
+  beyond round-off: the weighted design matrix is formed one B-spline span at
+  a time; for 2D fits (``BSpline2D``), the polynomial basis is only
+  recomputed when the design matrix must be rebuilt, and the cached design
+  matrix stores its B-spline and polynomial factors instead of their product.
+  2D models (including ``BSpline2D.value``) are evaluated directly from these
+  factors, without forming the design matrix, so the fits are as fast as
+  before.  For the 2D flat-field fit of a Binospec long-slit detector, this
+  removes ~5 GiB of temporary arrays.
+- ``fitting.evaluate_fit`` now evaluates 2D fits in chunks of points.  The
+  results are identical, but numpy's 2D evaluation functions no longer
+  allocate temporaries over all points at once (~2 GiB for the flat-field
+  fine correction of a Binospec detector), and the evaluation is faster.
+- Added the expert ``[rdx] fit2d_chunk`` parameter, which sets the number of
+  points processed at a time by the chunked 2D polynomial fits and
+  evaluations above.  It trades peak memory for speed and does not change the
+  results beyond round-off.
 
 Instrument-specific Updates
 ---------------------------
+
+- Magellan/LDSS3: support for the VPH-Blue and VPH-Red grisms, and a rework of
+  how the two amplifier files are handled:
+
+  - pypeit_setup now recognizes the ``c1`` and ``c2`` files as a single
+    exposure without requiring -e c1.fits. The ``c1`` and ``c2`` files of an
+    exposure are paired automatically and checked against ``OPAMP``. 
+    When both are present, only the ``c1`` file is
+    written to the PypeIt file and the amplifiers are internally joined
+    when it is read. A directory with only ``c1`` or only ``c2`` files is reduced as a
+    single-amplifier image.
+  - Gain and read noise are set per readout mode (``SPEED`` and ``GAIN``).
+    Fast/Low uses values measured from LDSS3 flats and biases; Slow/Low and
+    Turbo/Low use the User Manual values.  Other modes fall back on the
+    ``EGAIN`` and ``ENOISE`` header cards.
+  - Pixel values above 95% of the 16-bit ADC limit are flagged as saturated.
+  - Added a bad-column mask measured from bias frames.
+  - Added archived HeI/NeI/ArI wavelength solutions for VPH-Blue and VPH-Red,
+    and rebuilt the VPH-All solution for consistency.  Added an
+    ``OH_LDSS3_vac`` line list with a VPH-Red sky template for optional
+    sky-line calibration.
+  - Frame typing uses ``EXPTYPE`` for biases and darks and ``OBJECT`` keywords
+    to separate arcs, flats and science/standard frames.  Science and standard frames
+    are separated by exposure time.
+  - The filter is now a configuration key, but arcs and flats are assigned
+    independently of the filter.
 
 - P200/NGPS ``u`` channel: support He dome-lamp frames (``IMGTYPE=DOMEHE``) as a
   second arc lamp.  The internal ThAr lamp has no detectable lines below
@@ -326,6 +380,10 @@ Bug Fixes
   attribute set by ``__init__``; because :mod:`pickle` builds an instance
   without calling ``__init__`` and then probes it for ``__setstate__``, the
   lookup re-entered ``__getattr__`` indefinitely.
+- Magellan/LDSS3: fixed the telescope (was MMT), the MJD (was the ``JD`` card,
+  unconverted), ``dataext`` (1 to 0), the binning axis used to scale the
+  wavelength FWHM (spatial to spectral), and ``default_pypeit_par``, which is
+  now a classmethod built on the base-class defaults.
 - Fix setup values that include a colon (e.g., the Keck/DEIMOS amplifier mode,
   ``SINGLE:B``) being written to the setup block of PypeIt files, and to
   ``.calib`` files, with extra quotes (``'"SINGLE:B"'``), which prevented
@@ -441,3 +499,13 @@ Bug Fixes
   reference point (``CRVAL``) rather than the sky position of the source
   actually used for the extraction (the fitted or manually-specified
   position). Affects any SlicerIFU-pypeline point-source extraction.
+- Fix a memory leak on Python 3.13 and later: the
+  ``inspect.getargvalues(inspect.currentframe())`` idiom used by many
+  ``__init__`` methods to collect their arguments created a reference cycle
+  (PEP 667 made ``frame.f_locals`` a proxy that refers back to the frame), so
+  every ``DataContainer`` (e.g., ``PypeItImage``, ``PypeItFit``) and ``ParSet``
+  was kept alive, along with its arrays, until the cyclic garbage collector
+  ran.  The idiom is replaced by the new :func:`~pypeit.utils.init_arg_values`.
+- ``BSpline2D.fit`` now rebuilds its cached design matrix when ``npoly``,
+  ``xmin`` or ``xmax`` change between calls with the same ``x`` and
+  ``basis_x``; previously it reused the matrix built with the old basis.
