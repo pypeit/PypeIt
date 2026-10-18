@@ -155,25 +155,50 @@ of the cost of starting the worker processes.
 
 **In practice the limit is memory, not cores.**  Each worker holds its own
 detector's images, so peak memory scales roughly linearly with the number of
-detectors reduced at once.  A Keck/DEIMOS mosaic needs several GB on its own, so
+detectors reduced at once.  A Keck/DEIMOS mosaic needs several GB on its own,
+and a single MMT/Binospec detector has been measured at close to 9 GB, so
 ``--ncpu 4`` on such data can need tens of GB; on a machine with 32 GB or less,
-``--ncpu 2`` is the safer choice.  If a reduction is killed or the machine
-starts swapping, lower ``ncpu`` first.
+``--ncpu 2`` is the safer choice.  (These figures predate the memory reductions
+of `PR 2211 <https://github.com/pypeit/PypeIt/pull/2211>`__, which lowered the
+peak of a single-detector reduction by roughly 40%.)  If a reduction is killed
+or the machine starts swapping, lower ``ncpu`` first.
 
-.. note::
+How the workers are started
++++++++++++++++++++++++++++
 
-    Concurrency currently requires the ``fork`` start method, which means
-    **Linux**.  On macOS and Windows, where ``fork`` is either unavailable or
-    unsafe, PypeIt issues a warning and reduces the detectors serially; the
-    reduction still completes and its products are unchanged.
+Detector parallelism works on Linux, macOS and Windows.  The workers are
+started with the ``forkserver`` method of :mod:`multiprocessing` on Linux and
+with ``spawn`` elsewhere.  Plain ``fork`` is deliberately not used: by the time
+the detectors are distributed, the main process already has threads running,
+and forking a multi-threaded process is unsafe on every platform.  Each worker
+receives a copy of the inputs that are common to all detectors once, when it
+starts, and the inputs specific to its detector with each job.
+
+For debugging, the start method can be forced by setting the environment
+variable ``PYPEIT_MP_START`` to any method your platform supports, e.g.:
+
+.. code-block:: console
+
+    PYPEIT_MP_START=spawn run_pypeit my.pypeit --ncpu 2
 
 Reproducibility
 +++++++++++++++
 
 Detector parallelism is designed so that the products of a reduction do **not**
-depend on ``ncpu``: running with ``--ncpu 4`` produces ``spec1d`` and ``spec2d``
-files that are identical, bit for bit, to those from ``--ncpu 1``.  This is
-verified on long-slit data, where PypeIt is reproducible.
+depend on ``ncpu``.  How far that holds depends on the platform and the data:
+
+- **On Linux**, where the BLAS/OpenMP thread count can be controlled (see
+  below), running with ``--ncpu 4`` produces ``spec1d`` and ``spec2d`` files
+  that are identical, bit for bit, to those from ``--ncpu 1`` -- provided the
+  reduction is reproducible run-to-run in the first place.  This is verified
+  on long-slit data.
+- **Elsewhere**, the serial and parallel products are scientifically
+  equivalent, but they are not guaranteed to be bit-identical.  In particular,
+  on macOS with numpy linked against Apple's Accelerate library,
+  ``threadpoolctl`` cannot see the BLAS, so the serial path is not pinned to one
+  thread (the workers are, through environment variables they receive when
+  they start), and long-slit reductions there have been seen to differ even
+  between two identical serial runs.
 
 .. warning::
 
@@ -186,7 +211,7 @@ verified on long-slit data, where PypeIt is reproducible.
     ``ncpu`` is changed, and the difference is **not** attributable to the
     parallelism.
 
-Achieving that requires one deliberate trade-off.  PypeIt pins the BLAS/OpenMP
+Making the products independent of ``ncpu`` requires one deliberate trade-off.  PypeIt pins the BLAS/OpenMP
 thread count to one while it reduces a detector, in *both* the serial and the
 parallel paths.  It has to pin both: numerical libraries sum a reduction in a
 different order when they split it across threads, and although the resulting
@@ -196,8 +221,9 @@ the workers would therefore make the output depend on ``ncpu``.
 
 The cost is that a default ``ncpu = 1`` reduction no longer uses multi-threaded
 linear algebra, which makes it a few percent slower than it was in previous
-versions.  In exchange, results are reproducible across runs, across ``ncpu``
-settings, and across machines with different core counts.
+versions.  In exchange, where the pinning takes effect, results are
+reproducible across ``ncpu`` settings and across machines with different core
+counts.
 
 ----
 
