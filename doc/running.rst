@@ -173,12 +173,23 @@ and forking a multi-threaded process is unsafe on every platform.  Each worker
 receives a copy of the inputs that are common to all detectors once, when it
 starts, and the inputs specific to its detector with each job.
 
-For debugging, the start method can be forced by setting the environment
-variable ``PYPEIT_MP_START`` to any method your platform supports, e.g.:
+The start method can be forced by setting the environment variable
+``PYPEIT_MP_START`` to any method your platform supports, e.g.:
 
 .. code-block:: console
 
     PYPEIT_MP_START=spawn run_pypeit my.pypeit --ncpu 2
+
+This is mainly useful for debugging, with one practical exception on macOS.
+Under ``spawn`` each worker starts a fresh Python interpreter and imports
+PypeIt, which costs a second or two every time the workers are started.  That
+happens once for the calibrations and twice per exposure, so for reductions of
+many exposures, or of a single detector, ``--ncpu 2`` can end up slower than a serial run.  On macOS,
+``PYPEIT_MP_START=forkserver`` avoids that cost, because its workers are
+forked from a server that has already imported PypeIt.  It is not the default
+there because Apple's system libraries are not guaranteed to be safe to use
+after a ``fork``; it has worked in our tests, but use it at your own
+discretion.
 
 Reproducibility
 +++++++++++++++
