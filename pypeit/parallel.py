@@ -7,15 +7,26 @@ single detector/mosaic and return a per-detector result
 :func:`~pypeit.pypeit_steps.process_one_det`,
 :func:`~pypeit.pypeit_steps.extract_det`).  :func:`map_over_detectors` maps such
 a function over a list of detectors, either serially (``ncpu<=1``; the literal
-pre-existing code path) or over a ``fork``-based process pool (``ncpu>1``).
+pre-existing code path) or over a process pool (``ncpu>1``).
 
-The two paths are built to produce *bit-identical* products.  Two things make
-that true.  First, results are always assembled in the order of the input
-detector list, never in completion order.  Second, **both** paths pin the
+The pool does not rely on ``fork``.  The arguments common to every detector are
+pickled once per worker and handed to :func:`_worker_init`; each detector's own
+slice of the ``payload`` is pickled with its submission.  Any start method
+therefore works.  By default PypeIt uses ``forkserver`` on Linux and ``spawn``
+elsewhere; see :func:`start_method`.
+
+The serial and parallel paths are built to give the same products.  Two things
+make that possible.  First, results are always assembled in the order of the
+input detector list, never in completion order.  Second, **both** paths pin the
 BLAS/OpenMP thread count to one: the number of threads changes the order in
 which a floating-point reduction is accumulated, and the sigma-clipped iterative
 fits downstream amplify that last-ulp difference into a visibly different sky
 model, so pinning only the workers would make the products depend on ``ncpu``.
+The products are bit-identical only where the pinning actually takes effect
+(:mod:`threadpoolctl` cannot see every BLAS, e.g. Apple's Accelerate, which is
+then pinned in the workers only, through :data:`THREAD_ENV_VARS`) and where the
+reduction is reproducible run-to-run in the first place (see `Issue 2208
+<https://github.com/pypeit/PypeIt/issues/2208>`__).
 
 .. note::
 
@@ -26,17 +37,15 @@ model, so pinning only the workers would make the products depend on ``ncpu``.
 
 .. note::
 
-    This is version 1 of the detector parallelism and it is ``fork``-based,
-    i.e., **Linux-only**; see :func:`can_fork`.  On Windows, where ``fork`` does
-    not exist, and on macOS, where it exists but is unsafe in a process that
-    already has threads, :func:`map_over_detectors` warns and falls back to the
-    serial loop -- the reduction still completes and its products are unchanged.
-    Supporting ``spawn`` is a future goal, which is why ``func`` must be a
-    module-level function: under ``fork`` a closure happens to work, but it must
-    not be relied on.
+    A worker does not see module-level state that was configured in the parent
+    after import (under ``spawn`` and ``forkserver`` it imports PypeIt afresh).
+    Such state must be captured by :func:`_parent_config` and re-applied by
+    :func:`_worker_init`.  For the same reason ``func`` must be a module-level
+    function: it is pickled by reference.
 
 .. include:: ../include/links.rst
 """
+import contextlib
 import logging
 import multiprocessing as mp
 import os
@@ -47,24 +56,30 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from pypeit import log
 from pypeit import PypeItError
 
-__all__ = ['nworkers', 'can_fork', 'map_over_detectors', 'surviving_detectors']
+__all__ = ['nworkers', 'start_method', 'map_over_detectors', 'surviving_detectors']
 
 
 THREAD_ENV_VARS = ('OMP_NUM_THREADS', 'OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS',
                    'NUMEXPR_NUM_THREADS', 'VECLIB_MAXIMUM_THREADS')
 """
 Environment variables honoured by the BLAS/OpenMP runtimes numpy and scipy may
-be linked against.  Pinned to 1 in each worker so that (a) N workers do not each
-spawn N threads, and (b) the floating-point reduction order inside a worker
-matches the serial run bit-for-bit.
+be linked against.  Set to 1 in the parent while the pool exists, so that each
+worker starts with them set *before* numpy loads its BLAS.  That (a) stops N
+workers each spawning N threads, (b) makes the floating-point reduction order
+inside a worker match the serial run, and (c) is the only way to pin a runtime
+that :mod:`threadpoolctl` cannot control, such as Accelerate.
 """
 
-_FORK_PAYLOAD = None
+START_METHOD_ENV_VAR = 'PYPEIT_MP_START'
 """
-Module-global set by :func:`map_over_detectors` immediately *before* the pool is
-created.  Because the workers are forked, they inherit this copy-on-write and
-only the (tiny) detector key has to be pickled on submit.  Never read outside a
-worker.
+Environment variable that, if set, overrides the default start method of the
+worker pool; see :func:`start_method`.  Intended for debugging.
+"""
+
+_WORKER_STATE = None
+"""
+``(func, args, kwargs)`` common to every work item, set in each worker by
+:func:`_worker_init`.  Never set in the parent.
 """
 
 
@@ -89,24 +104,102 @@ def nworkers(ncpu, nitem):
     return max(1, min(int(ncpu), int(nitem), max(1, (os.cpu_count() or 1) - 1)))
 
 
-def can_fork():
+def start_method():
     """
-    Whether this platform can be used to reduce detectors concurrently.
+    The :mod:`multiprocessing` start method used for the worker pool.
 
-    Version 1 of the detector parallelism is ``fork``-based, which restricts it
-    to **Linux**.  Windows has no ``fork`` at all.  macOS does expose one, so
-    testing :func:`multiprocessing.get_all_start_methods` alone is not enough:
-    forking a process that already has threads running is unsafe there (it is
-    why CPython stopped defaulting to it), and the parent of a reduction has
-    both the QA encoder pool and whatever threads the BLAS runtime started.
-    Rather than fork unsafely, both platforms fall back to the serial loop.
+    The default is ``forkserver`` on Linux and ``spawn`` elsewhere.  Plain
+    ``fork`` is avoided: the parent of a reduction already has threads running
+    (the QA encoder pool and the BLAS runtime's threads), and forking a
+    multi-threaded process can deadlock the child on a lock one of those threads
+    held.  ``forkserver`` sidesteps that by forking from a single-threaded
+    server process, which has the pipeline preloaded (so each worker does not
+    pay to import it); ``spawn`` starts a fresh interpreter.
+
+    The default can be overridden by setting :data:`START_METHOD_ENV_VAR`
+    (``PYPEIT_MP_START``) to any method in
+    :func:`multiprocessing.get_all_start_methods`.
 
     Returns
     -------
-    :obj:`bool`
-        True if the ``fork`` start method may be used.
+    :obj:`str`
+        The start method.
+
+    Raises
+    ------
+    PypeItError
+        Raised if :data:`START_METHOD_ENV_VAR` names a method that is not
+        available on this platform.
     """
-    return sys.platform.startswith('linux') and 'fork' in mp.get_all_start_methods()
+    available = mp.get_all_start_methods()
+    method = os.environ.get(START_METHOD_ENV_VAR)
+    if method:
+        if method not in available:
+            raise PypeItError(f'{START_METHOD_ENV_VAR}={method} is not a start method available '
+                              f'on this platform; options are: {", ".join(available)}.')
+        return method
+    return 'forkserver' if sys.platform.startswith('linux') and 'forkserver' in available \
+                else 'spawn'
+
+
+def _get_context(method):
+    """
+    Return the :mod:`multiprocessing` context for ``method``.
+
+    For ``forkserver`` the pipeline is preloaded into the server.  The server is
+    started once per process, on first use, so the preload and the environment
+    it inherits are fixed by the first pool to use it.
+    """
+    ctx = mp.get_context(method)
+    if method == 'forkserver':
+        ctx.set_forkserver_preload(['pypeit.pypeit_steps'])
+    return ctx
+
+
+@contextlib.contextmanager
+def _worker_environment(cfg):
+    """
+    Temporarily set the environment that new worker processes must inherit.
+
+    Sets every :data:`THREAD_ENV_VARS` to ``'1'`` and, if a matplotlib backend
+    has been selected in the parent, ``MPLBACKEND``, so that both take effect in
+    a worker before it imports numpy or matplotlib.  The parent's environment is
+    restored on exit.  Changing these in the parent is harmless: its BLAS and
+    matplotlib are already loaded and do not re-read them.
+    """
+    env = {var: '1' for var in THREAD_ENV_VARS}
+    if cfg.get('mpl_backend') is not None:
+        env['MPLBACKEND'] = cfg['mpl_backend']
+    saved = {var: os.environ.get(var) for var in env}
+    os.environ.update(env)
+    try:
+        yield
+    finally:
+        for var, value in saved.items():
+            if value is None:
+                os.environ.pop(var, None)
+            else:
+                os.environ[var] = value
+
+
+def _parent_config():
+    """
+    Capture the process-global configuration a worker must reproduce.
+
+    Returns
+    -------
+    :obj:`dict`
+        ``polyfit2d_chunk``: :data:`pypeit.core.fitting.POLYFIT2D_CHUNK`, set by
+        :class:`~pypeit.pypeit.PypeIt` from ``[rdx] fit2d_chunk``.
+        ``mpl_backend``: the matplotlib backend, which the scripts force to
+        ``Agg`` unless figures are shown, or None if matplotlib has not been
+        imported.
+    """
+    from pypeit.core import fitting
+    cfg = dict(polyfit2d_chunk=fitting.POLYFIT2D_CHUNK, mpl_backend=None)
+    if 'matplotlib' in sys.modules:
+        cfg['mpl_backend'] = sys.modules['matplotlib'].get_backend()
+    return cfg
 
 
 class _RecordBuffer(logging.Handler):
@@ -145,42 +238,65 @@ class _RecordBuffer(logging.Handler):
         self.records.append(rec)
 
 
-def _worker_init():
+def _worker_init(func, args, kwargs, cfg):
     """
-    Run once in each forked worker process.
+    Run once in each worker process.
 
-    Pins the BLAS/OpenMP thread count, detaches the log handlers inherited from
-    the parent (they point at the parent's log file and stderr), and disables the
-    inherited QA thread pool (its threads do not survive the fork; see
-    :func:`~pypeit.pkg.qawriter.QAWriter.init`).
+    Stores the arguments common to every work item, re-applies the parent's
+    process-global configuration (see :func:`_parent_config`), detaches the log
+    handlers the worker starts with, and makes QA figures be written in line.
+
+    The handlers have to go whatever the start method: a forked worker inherits
+    the parent's (pointing at the parent's log file and stderr), and a freshly
+    imported ``pypeit`` attaches its own stderr handler to both ``pypeit`` and
+    ``py.warnings``.  Left in place, every line would reach the terminal
+    directly, unordered, as well as through the replay in the parent.
+
+    Parameters
+    ----------
+    func : callable
+        Per-detector function.
+    args : :obj:`tuple`
+        Positional arguments common to every detector.
+    kwargs : :obj:`dict`
+        Keyword arguments common to every detector.
+    cfg : :obj:`dict`
+        Configuration returned by :func:`_parent_config`.
     """
+    global _WORKER_STATE
     from pypeit import qaWriter
-    for var in THREAD_ENV_VARS:
-        os.environ[var] = '1'
-    for handler in log.handlers[:]:
-        log.removeHandler(handler)
-    warn_log = logging.getLogger('py.warnings')
-    for handler in warn_log.handlers[:]:
-        warn_log.removeHandler(handler)
-    # QA figures are written in-line inside a worker: the parent's encoding
-    # threads do not exist in the forked child, and a pool per worker would
-    # oversubscribe the machine.  QA threading remains active only in the
+    from pypeit.core import fitting
+    _WORKER_STATE = (func, args, kwargs)
+
+    fitting.set_polyfit2d_chunk(cfg['polyfit2d_chunk'])
+    if cfg.get('mpl_backend') is not None:
+        import matplotlib
+        matplotlib.use(cfg['mpl_backend'], force=True)
+
+    for logger in (log, logging.getLogger('py.warnings')):
+        for handler in logger.handlers[:]:
+            logger.removeHandler(handler)
+    # QA figures are written in-line inside a worker: a pool per worker would
+    # oversubscribe the machine, and under fork the parent's encoding threads do
+    # not exist in the child.  QA threading remains active only in the
     # single-process serial stages of the reduction.
     qaWriter.init(ncpu=1)
 
 
-def _run_one(key):
+def _run_one(key, det_kwargs):
     """
     Execute one work item in a worker process.
 
-    The function to call and its arguments are read from :attr:`_FORK_PAYLOAD`,
-    which the worker inherited from the parent when it was forked, so only
-    ``key`` crosses the process boundary on submit.
+    The function to call and its common arguments are read from
+    :data:`_WORKER_STATE`, set by :func:`_worker_init`.
 
     Parameters
     ----------
     key : :obj:`int`, :obj:`tuple`
         The detector or mosaic to work on.
+    det_kwargs : :obj:`dict`
+        The keyword arguments specific to this detector (its slice of the
+        ``payload`` passed to :func:`map_over_detectors`).
 
     Returns
     -------
@@ -189,21 +305,24 @@ def _run_one(key):
         None if the call raised, ``traceback_or_None`` is the formatted
         traceback (a :obj:`str`) if it did and None otherwise, and
         ``log_records`` is the :obj:`list` of :class:`logging.LogRecord` objects
-        the call emitted.
+        the call emitted, including those of captured Python warnings.
     """
     from threadpoolctl import threadpool_limits
     from pypeit import qaWriter
 
-    func, args, kwargs, payload = _FORK_PAYLOAD
+    func, args, kwargs = _WORKER_STATE
 
     buf = _RecordBuffer()
+    warn_log = logging.getLogger('py.warnings')
     log.addHandler(buf)
+    warn_log.addHandler(buf)
     try:
-        # threadpool_limits handles runtimes that were already initialised in
-        # the parent, which the environment variables set by _worker_init
-        # cannot.
+        # The environment variables set by the parent (see
+        # _worker_environment) are the primary pinning; threadpool_limits
+        # additionally covers any runtime that was initialised before they
+        # could take effect, e.g. under fork.
         with threadpool_limits(limits=1):
-            result = func(key, *args, **kwargs, **payload.get(key, {}))
+            result = func(key, *args, **kwargs, **det_kwargs)
             # Make sure this worker's QA figures are on disk before the process
             # is handed the next work item.
             qaWriter.flush()
@@ -213,6 +332,7 @@ def _run_one(key):
         tb = ''.join(traceback.format_exception(type(e), e, e.__traceback__))
     finally:
         log.removeHandler(buf)
+        warn_log.removeHandler(buf)
     return key, result, tb, buf.records
 
 
@@ -222,8 +342,8 @@ def map_over_detectors(func, detectors, ncpu=1, args=(), kwargs=None, payload=No
     Map a per-detector function over a list of detectors.
 
     ``func`` is called as ``func(det, *args, **kwargs, **payload[det])`` and must
-    be a module-level function (a requirement for the future ``spawn`` support;
-    with ``fork`` a closure happens to work, but do not rely on it).
+    be a module-level function, because it is pickled by reference.  ``args``,
+    ``kwargs`` and every ``payload`` entry must be picklable.
 
     When ``ncpu <= 1`` this is a plain ``for`` loop executed in the calling
     process: no pool, no pickling, no log capture.  That is the default.  The
@@ -231,9 +351,10 @@ def map_over_detectors(func, detectors, ncpu=1, args=(), kwargs=None, payload=No
     do, so that the products do not depend on ``ncpu``; see :func:`_run_one`.
 
     When ``ncpu > 1`` the pool is entered *even for a single detector*, so that
-    the parallel code path is exercised by the single-detector CI reduction.  If
-    the platform cannot ``fork``, a warning is issued and the serial loop is used
-    instead.
+    the parallel code path is exercised by the single-detector CI reduction.
+    The workers are started with :func:`start_method`.  ``args`` and ``kwargs``
+    are pickled once per worker; each ``payload`` entry is pickled only for the
+    worker that processes that detector.
 
     Parameters
     ----------
@@ -265,7 +386,6 @@ def map_over_detectors(func, detectors, ncpu=1, args=(), kwargs=None, payload=No
     PypeItError
         Raised, in detector order, if any worker raised.
     """
-    global _FORK_PAYLOAD
     _kwargs = {} if kwargs is None else kwargs
     _payload = {} if payload is None else payload
 
@@ -287,34 +407,28 @@ def map_over_detectors(func, detectors, ncpu=1, args=(), kwargs=None, payload=No
     if ncpu is None or ncpu <= 1:
         return _serial()
 
-    if not can_fork():
-        # Version 1 of the detector parallelism is fork-based, and therefore
-        # Linux-only; see can_fork and the module docstring.
-        log.warning(f'Concurrent {label} processing requires the "fork" start method, which is '
-                    f'only used on Linux, so ncpu={ncpu} cannot be honoured on this platform '
-                    f'({sys.platform}).  Falling back to processing the {label}s serially.')
-        return _serial()
-
     # ---------------------------- parallel ---------------------------------
     nw = nworkers(ncpu, len(detectors))
-    log.info(f'Processing {len(detectors)} {label}(s) using {nw} worker process(es).')
-    _FORK_PAYLOAD = (func, tuple(args), _kwargs, _payload)
+    method = start_method()
+    log.info(f'Processing {len(detectors)} {label}(s) using {nw} worker process(es) '
+             f'(start method: {method}).')
+    cfg = _parent_config()
     results, errors, records = {}, {}, {}
-    try:
-        # NOTE: a fresh executor per call; the workers are forked here and
-        # inherit _FORK_PAYLOAD copy-on-write.
-        with ProcessPoolExecutor(max_workers=nw, mp_context=mp.get_context('fork'),
-                                 initializer=_worker_init) as ex:
-            futures = {}
-            for det in detectors:
-                futures[ex.submit(_run_one, det)] = det
-                log.info(f'Started {label} {det}')
-            for fut in as_completed(futures):
-                det, result, tb, recs = fut.result()
-                results[det], errors[det], records[det] = result, tb, recs
-                log.info(f'Finished {label} {det}')
-    finally:
-        _FORK_PAYLOAD = None
+    # NOTE: a fresh executor per call.  The environment has to stay set for the
+    # life of the executor, not just its construction, because the workers are
+    # started on demand as work is submitted.
+    with _worker_environment(cfg), \
+            ProcessPoolExecutor(max_workers=nw, mp_context=_get_context(method),
+                                initializer=_worker_init,
+                                initargs=(func, tuple(args), _kwargs, cfg)) as ex:
+        futures = {}
+        for det in detectors:
+            futures[ex.submit(_run_one, det, _payload.get(det, {}))] = det
+            log.info(f'Started {label} {det}')
+        for fut in as_completed(futures):
+            det, result, tb, recs = fut.result()
+            results[det], errors[det], records[det] = result, tb, recs
+            log.info(f'Finished {label} {det}')
 
     # Replay the worker logs grouped in detector order, so each detector's block
     # stays contiguous in the run log.  Formatter timestamps come from

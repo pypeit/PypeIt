@@ -4,6 +4,7 @@ Module to do a full run of PypeIt on good ole Kastb
 import os
 from pathlib import Path
 import shutil
+import sys
 from IPython.terminal.embed import embed
 import numpy as np
 import pytest
@@ -18,7 +19,6 @@ from pypeit.scripts.sensfunc import SensFunc
 from pypeit.scripts.flux_calib import FluxCalib
 from pypeit import specobjs, sensfunc
 from pypeit import log
-from pypeit import parallel
 from pypeit.par import pypeitpar 
 from pypeit.tests import tstutils
 
@@ -124,20 +124,21 @@ def test_run_pypeit():
 
 
 @pytest.mark.remote_data
-@pytest.mark.skipif(not parallel.can_fork(),
-                    reason='detector parallelism is fork-based and therefore Linux-only; '
-                           'elsewhere --ncpu 2 falls back to the serial loop, so this would '
-                           'compare a serial reduction against itself')
 def test_run_pypeit_ncpu():
     """
     Reduce shane_kast_blue twice, serially and with --ncpu 2, into separate
-    output directories and require the products to match to machine precision.
+    output directories and require the products to match.
 
     shane_kast_blue has a single detector, so :func:`~pypeit.parallel.nworkers`
     collapses to one worker; :func:`~pypeit.parallel.map_over_detectors` still
-    enters the process pool because ``ncpu>1``, which is the point.  The fork,
-    the BLAS thread pinning, the buffered worker logging and the result
-    marshalling all get exercised by this reduction.
+    enters the process pool because ``ncpu>1``, which is the point.  Starting
+    the worker, the BLAS thread pinning, the buffered worker logging and the
+    result marshalling all get exercised by this reduction.
+
+    On Linux the products must be bit-identical.  Elsewhere they are only
+    required to agree to within a tolerance: on macOS, threadpoolctl cannot
+    control the Accelerate BLAS, so the serial run is not pinned, and long-slit
+    reductions there have been seen to differ even between two serial runs.
     """
     if os.environ.get('PYPEIT_SKIP_SLOW_TESTS'):
         pytest.skip('slow test')
@@ -177,16 +178,29 @@ def test_run_pypeit_ncpu():
     p = specobjs.SpecObjs.from_fitsfile(str(par_spec1d))
     assert s.nobj == p.nobj, 'serial and parallel runs found a different number of objects'
 
-    # Exact comparison, not allclose: the products must be bit-identical.  Any
-    # difference means the BLAS thread pinning is not doing its job, since the
-    # sigma-clipped iterative fits amplify a last-ulp change into a visibly
-    # different sky model.
+    exact = sys.platform.startswith('linux')
     for key in ('OPT_COUNTS', 'OPT_COUNTS_IVAR', 'OPT_WAVE', 'BOX_COUNTS', 'TRACE_SPAT'):
-        np.testing.assert_array_equal(getattr(s[0], key), getattr(p[0], key),
-                                      err_msg=f'{key} differs between the serial and the '
-                                              f'--ncpu 2 reduction')
-    assert s[0].WAVE_RMS == p[0].WAVE_RMS, \
-            'wavelength solution RMS differs between the serial and the --ncpu 2 reduction'
+        sval, pval = getattr(s[0], key), getattr(p[0], key)
+        msg = f'{key} differs between the serial and the --ncpu 2 reduction'
+        if exact:
+            # Exact comparison, not allclose: any difference means the BLAS
+            # thread pinning is not doing its job, since the sigma-clipped
+            # iterative fits amplify a last-ulp change into a visibly different
+            # sky model.
+            np.testing.assert_array_equal(sval, pval, err_msg=msg)
+        else:
+            # Scientific equivalence: differences relative to the array's
+            # maximum, judged at the 99.9th percentile so that a handful of
+            # pixels at a mask boundary do not dominate.
+            scale = max(float(np.max(np.absolute(sval))), np.finfo(float).tiny)
+            rel = np.absolute(np.asarray(sval, dtype=float) - pval) / scale
+            assert np.quantile(rel, 0.999) < 1e-3, msg
+    if exact:
+        assert s[0].WAVE_RMS == p[0].WAVE_RMS, \
+                'wavelength solution RMS differs between the serial and the --ncpu 2 reduction'
+    else:
+        assert np.isclose(s[0].WAVE_RMS, p[0].WAVE_RMS, rtol=1e-3), \
+                'wavelength solution RMS differs between the serial and the --ncpu 2 reduction'
 
     # Clean-up.  The reduction leaves its log file open, and Windows refuses to
     # remove a file that is still held, so release it before deleting the tree.
