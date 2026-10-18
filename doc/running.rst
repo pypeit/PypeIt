@@ -155,13 +155,12 @@ of the cost of starting the worker processes.
 
 **In practice the limit is memory, not cores.**  Each worker holds its own
 detector's images, so peak memory scales roughly linearly with the number of
-detectors reduced at once.  A Keck/DEIMOS mosaic needs several GB on its own,
-and a single MMT/Binospec detector has been measured at close to 9 GB, so
-``--ncpu 4`` on such data can need tens of GB; on a machine with 32 GB or less,
-``--ncpu 2`` is the safer choice.  (These figures predate the memory reductions
-of `PR 2211 <https://github.com/pypeit/PypeIt/pull/2211>`__, which lowered the
-peak of a single-detector reduction by roughly 40%.)  If a reduction is killed
-or the machine starts swapping, lower ``ncpu`` first.
+detectors reduced at once.  For example, a Keck/DEIMOS reduction of four
+mosaics peaks at about 36 GB at ``--ncpu 4``, against about 12 GB serially, and
+a single MMT/Binospec long-slit detector needs 10-14 GB, so ``--ncpu 2`` on
+Binospec needs 20-28 GB.  On a machine with 32 GB or less, ``--ncpu 2`` is the
+safer choice for such data.  If a reduction is killed or the machine starts
+swapping, lower ``ncpu`` first.
 
 How the workers are started
 +++++++++++++++++++++++++++
