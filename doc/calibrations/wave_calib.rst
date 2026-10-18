@@ -375,6 +375,13 @@ That is, each order must satisfy the following:
 
     RMS < rms_thresh_frac_fwhm * FWHM     # FWHM in binned pixels
 
+The same threshold is applied to the solution of each slit derived with the
+`full template`_ method (unless a 2D echelle solution is fit, in which case
+the orders are treated as described above).  Slits whose solution does not
+satisfy this requirement are masked (flagged as ``BADWVCALIB``).  The
+``Arc_1dfit`` QA plots of these solutions are still produced, so you can
+inspect why they failed.
+
 
 Mosaics
 -------

@@ -2,6 +2,7 @@
 Module to run tests on WaveCalib and WaveFit
 """
 from pathlib import Path
+from types import SimpleNamespace
 from IPython import embed
 
 import pytest
@@ -335,3 +336,29 @@ def test_full_template_stack():
     for i in range(len(shifts)):
         dev = np.abs(wvcalib[str(i)].wave_soln - wave[:, i]) / np.gradient(wave[:, i])
         assert np.max(dev) < 0.3, f'Bad wavelength solution for slit {i}'
+
+
+def test_mask_bad_rms():
+    # Three slits: a good solution, a solution with a poor RMS, and a slit
+    # that is already masked
+    pypeitFit = fitting.PypeItFit(fitc=np.arange(5).astype(float), xval=np.linspace(1, 100., 100))
+    spat_ids = np.array([100, 200, 300])
+    wv_fits = np.asarray([wv_fitting.WaveFit(s, pypeitfit=pypeitFit, pixel_fit=np.arange(10).astype(float),
+                                             wave_fit=np.linspace(1., 10., 10), rms=rms)
+                          for s, rms in zip(spat_ids, [0.1, 2.0, 5.0])])
+    # Build a minimal BuildWaveCalib object
+    bwc = wavecalib.BuildWaveCalib.__new__(wavecalib.BuildWaveCalib)
+    bwc.wv_calib = wavecalib.WaveCalib(wv_fits=wv_fits, nslits=3, spat_ids=spat_ids)
+    bwc.par = pypeitpar.WavelengthSolutionPar(rms_thresh_frac_fwhm=0.15)
+    bwc.measured_fwhms = np.array([4.0, 4.0, 4.0])  # RMS threshold = 0.6 pixels
+    bwc.wvc_bpm = np.array([False, False, True])
+    bwc.slits = SimpleNamespace(slitord_id=spat_ids)
+
+    bad_rms = bwc.mask_bad_rms()
+    assert np.array_equal(bad_rms, [False, True, False]), 'Wrong slits rejected'
+    assert np.array_equal(bwc.wvc_bpm, [False, True, True]), 'Wrong slits masked'
+    # The good solution is kept, the poor one is replaced by an empty WaveFit,
+    # and the masked slit is not changed
+    assert bwc.wv_calib.wv_fits[0].pypeitfit is not None
+    assert bwc.wv_calib.wv_fits[1].pypeitfit is None and bwc.wv_calib.wv_fits[1].spat_id == 200
+    assert bwc.wv_calib.wv_fits[2].pypeitfit is not None

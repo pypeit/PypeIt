@@ -1265,6 +1265,39 @@ class BuildWaveCalib:
                 self.wvc_bpm[kk] = True
 
 
+    def mask_bad_rms(self) -> np.ndarray:
+        """
+        Reject the wavelength solutions with an RMS above the threshold.
+
+        The threshold for each slit is ``rms_thresh_frac_fwhm`` times the FWHM
+        of the arc lines (see :func:`~pypeit.core.wavecal.autoid.set_fwhm`).
+        The solutions of the slits with an RMS above the threshold are
+        replaced by empty :class:`~pypeit.core.wavecal.wv_fitting.WaveFit`
+        objects (as for slits whose calibration failed), so that these slits
+        are also masked when the calibration is reloaded from disk, and the
+        slits are flagged in :attr:`wvc_bpm`.  The QA plots of the rejected
+        solutions are still available if they were made by
+        :func:`build_wv_calib`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array that is True for the slits that were
+            rejected by this function.
+        """
+        bad_rms = np.zeros(self.wv_calib.nslits, dtype=bool)
+        for idx, wvfit in enumerate(self.wv_calib.wv_fits):
+            if self.wvc_bpm[idx] or wvfit is None or wvfit.pypeitfit is None or wvfit.rms is None:
+                continue
+            fwhm = autoid.set_fwhm(self.par, measured_fwhm=self.measured_fwhms[idx])
+            wave_rms_thresh = round(self.par['rms_thresh_frac_fwhm'] * fwhm, 3)
+            if wvfit.rms > wave_rms_thresh:
+                bad_rms[idx] = True
+                log.warning(f'The RMS of the wavelength solution of slit {self.slits.slitord_id[idx]} '
+                            f'({wvfit.rms:.3f} pixels) is above the threshold ({wave_rms_thresh:.3f} '
+                            'pixels); masking this slit.')
+                self.wv_calib.wv_fits[idx] = wv_fitting.WaveFit(wvfit.spat_id, ech_order=wvfit.ech_order)
+        self.wvc_bpm[bad_rms] = True
+        return bad_rms
+
     def run(self, skip_QA=False, debug=False,
             prev_wvcalib=None):
         """
@@ -1335,6 +1368,11 @@ class BuildWaveCalib:
             # Check that we have at least one good 2D fit
             if not np.any([fit2d.success for fit2d in self.wv_calib.wv_fit2d]):
                 raise PypeItError("No successful 2D Wavelength fits.  Cannot proceed.")
+        elif self.par['method'] == 'full_template':
+            # Reject (and mask) the slits whose wavelength solution has an RMS
+            # above the threshold.  The QA plots of these solutions (made by
+            # build_wv_calib) can be used to inspect the failures.
+            self.mask_bad_rms()
 
         # Deal with mask
         self.update_wvmask()

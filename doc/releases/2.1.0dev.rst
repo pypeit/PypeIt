@@ -152,6 +152,12 @@ Functionality/Performance Improvements and Additions
   ``reference_slit`` or, if not set, chosen automatically.  A QA plot of the
   solution of the combined spectrum is written to
   ``QA/PNGs/Arc_1dfit_*_stack.png``.  See :ref:`wvcalib-stack-slits`.
+- The RMS threshold of the wavelength solutions (``rms_thresh_frac_fwhm``) is
+  now applied to the slits calibrated with the ``full_template`` method
+  (unless a 2D echelle solution is fit).  Previously, a ``full_template``
+  solution was accepted regardless of its RMS; slits whose solution has an RMS
+  above the threshold are now masked (``BADWVCALIB``).  See
+  :ref:`wvcalib-rms-threshold`.
 
 Instrument-specific Updates
 ---------------------------

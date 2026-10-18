@@ -3535,8 +3535,10 @@ class WavelengthSolutionPar(ParSet):
                                         'a slit/order solution. If ``fwhm_fromlines`` is True, ' \
                                         'FWHM will be computed from the arc lines in each slits, otherwise ``fwhm`` ' \
                                         'will be used. This parameter is used for the \'holy-grail\', ' \
-                                        '\'reidentify\', and \'echelle\' methods and  when re-analyzing ' \
-                                        'a slit using the ``redo_slits`` parameter. '
+                                        '\'reidentify\', \'full_template\', and \'echelle\' methods and ' \
+                                        'when re-analyzing a slit using the ``redo_slits`` parameter.  For the ' \
+                                        '\'full_template\' method (unless a 2D echelle solution is fit), slits ' \
+                                        'whose solution has an RMS above this threshold are masked. '
 
         defaults['match_toler'] = 2.0
         dtypes['match_toler'] = float
