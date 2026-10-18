@@ -3292,8 +3292,8 @@ class WavelengthSolutionPar(ParSet):
                  n_first=None, n_final=None, sigrej_first=None, sigrej_final=None, numsearch=None,
                  nfitpix=None, boxcar_radius=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
-                 ech_2dfit=None, ech_separate_2d=None, redo_slits=None, reference_slit=None, qa_log=None,
-                 cc_percent_ceil=None, cc_synth_arc=None, echelle_pad=None, ech_angle_fits_file=None,
+                 ech_2dfit=None, ech_separate_2d=None, redo_slits=None, reference_slit=None,
+                 stack_slits=None, qa_log=None, cc_percent_ceil=None, cc_synth_arc=None, echelle_pad=None, ech_angle_fits_file=None,
                  ech_composite_arc_file=None, cc_offset_minmax=None, stretch_func=None):
 
         # Grab the parameter names and values from the function
@@ -3610,7 +3610,26 @@ class WavelengthSolutionPar(ParSet):
                                   '(4) the lowest RMS. ' \
                                   'in that order of priority. ' \
                                   'This parameter is the spatial ID of the slit to use ' \
-                                  'as a reference for this process.'
+                                  'as a reference for this process.  If ``stack_slits`` is True, this slit is ' \
+                                  'used as the reference when aligning the arc spectra of all slits.'
+
+        defaults['stack_slits'] = False
+        dtypes['stack_slits'] = bool
+        descr['stack_slits'] = 'Only used with the ``full_template`` method for multi-slit, IFU, or fiber ' \
+                               'data, where all slits cover a similar wavelength range.  If True, the arc ' \
+                               'spectra of all slits are aligned (with a shift and stretch) to the arc ' \
+                               'spectrum of a reference slit and combined into a single arc spectrum with a ' \
+                               'higher S/N.  The combined spectrum is wavelength calibrated with the template ' \
+                               'given by ``reid_arxiv``.  The arc lines of each slit are then identified using ' \
+                               'the wavelength solution of the combined spectrum and the alignment of the slit ' \
+                               'to the reference slit.  Slits whose cross-correlation with the reference slit ' \
+                               'is below ``cc_thresh`` are not included in the combined spectrum; these are ' \
+                               'calibrated using the combined spectrum as the template.  The reference slit ' \
+                               'is set by ``reference_slit``; if that is not set, the slit with the most ' \
+                               'detected arc lines is used.  This is useful when the arc spectrum of each ' \
+                               'slit has too few lines to be calibrated reliably on its own.  If the ' \
+                               'combined spectrum cannot be calibrated, each slit is calibrated ' \
+                               'independently (i.e. as if ``stack_slits`` were False).'
 
         defaults['qa_log'] = True
         dtypes['qa_log'] = bool
@@ -3684,7 +3703,7 @@ class WavelengthSolutionPar(ParSet):
                    'nlocal_cc', 'rms_thresh_frac_fwhm', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix', 'boxcar_radius',
                    'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 'reference_slit',
-                   'redo_slits', 'qa_log', 'cc_percent_ceil', 'cc_synth_arc', 'echelle_pad', 'ech_angle_fits_file',
+                   'stack_slits', 'redo_slits', 'qa_log', 'cc_percent_ceil', 'cc_synth_arc', 'echelle_pad', 'ech_angle_fits_file',
                    'ech_composite_arc_file', 'cc_offset_minmax', 'stretch_func']
 
         badkeys = np.array([pk not in parkeys for pk in k])

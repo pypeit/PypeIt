@@ -43,6 +43,14 @@ the FeAr spectrum. If you want to use the ThAr spectrum for the
 wavelength calibration, you will need to manually calibrate the
 data using the :ref:`pypeit_identify` task.
 
+By default, the arc spectra of all slices are aligned and combined into a
+single arc spectrum with a higher S/N, which is calibrated against the archived
+template and then used to calibrate each slice (``stack_slits = True``; see
+:ref:`wvcalib-stack-slits`).  This makes the wavelength calibration robust
+for arc frames with weak or few lines (e.g., short exposures at red
+wavelengths).  The QA plot of the wavelength solution of the combined
+spectrum is ``QA/PNGs/Arc_1dfit_*_stack.png``.
+
 Pixel Flat
 ----------
 
