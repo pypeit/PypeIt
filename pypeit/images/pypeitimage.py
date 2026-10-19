@@ -743,6 +743,8 @@ class PypeItImage(datamodel.DataContainer):
             - the detector from the first image (``self``) is used for the
               returned image and the detector for the ``other`` image is
               *ignored*
+            - the processing steps and raw headers from the first image are
+              propagated
             - if the spatial flexure is defined for the first image, it is
               propagated regardless of the value for the 2nd image.  If it is
               also defined for the 2nd image and the flexure is different from
@@ -844,6 +846,10 @@ class PypeItImage(datamodel.DataContainer):
         if self.files is not None and other.files is not None:
             new_pypeitImage.files = self.files + other.files
 
+        new_pypeitImage.process_steps = None if self.process_steps is None \
+            else self.process_steps.copy()
+        new_pypeitImage.rawheadlist = self.rawheadlist
+
         # Return the result using the `from_pypeitimage` instantiation method to
         # ensure the type of the output image is identical to the type of self.
         # It does not matter whether it's done here or above when instantiating
@@ -868,6 +874,13 @@ class PypeItImage(datamodel.DataContainer):
         repr += ' images={}'.format(rdict)
         repr = repr + '>'
         return repr
+
+    def _primary_header(self, hdr=None):
+        """Include the image units in primary and downstream headers."""
+        _hdr = super()._primary_header(hdr=hdr)
+        _hdr['BUNIT'] = ('electron' if self.units == 'e-' else self.units,
+                         'Units of the processed image')
+        return _hdr
 
     def _base_header(self, hdr=None):
         """

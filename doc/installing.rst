@@ -37,7 +37,7 @@ You can set up a new python environment using either `conda`_:
 
 .. code-block:: console
 
-    conda create -n pypeit python=3.11
+    conda create -n pypeit python=3.13
     conda activate pypeit
 
 or `venv`_:

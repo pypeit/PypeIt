@@ -103,28 +103,16 @@ def test_yamlify():
     """ This tests the yamlify method and also the approach to 
     writing and reading the Setup block of PypeIt"""
 
-    obj = dict(a=1., b='acb', datasec='[2:23,:2048]', d=dict(c=3))
+    obj = {'Setup A': dict(a=np.float64(1.), b=np.str_('acb'), amp=np.str_('SINGLE:B'),
+                           datasec='[2:23,:2048]', time='12:30:00', d=dict(c=np.int64(3)))}
 
-    new_obj = utils.yamlify(obj)
+    # Write and read the object as done for the setup block of a PypeIt file
+    sdict = yaml.safe_load(yaml.dump(utils.yamlify(obj)))
 
-    # Write
-    tst_file = data_output_path('tst.yaml')
-    with open(tst_file, 'w') as f:
-        setup_lines = io.dict_to_lines(new_obj, level=1)
-        f.write('\n'.join(setup_lines)+'\n')
-
-    # Read
-    with open(tst_file, 'r') as f:
-        lines = f.readlines()
-
-    # Strip white space
-    lines = [line.strip() for line in lines]
-    # Add back in \n
-    ystr = '\n'.join(lines)
-    sdict = yaml.safe_load(ystr)
-
-    # Clean up
-    os.remove(tst_file)
+    # Values with colons must not gain quotes (Issue #2099)
+    assert sdict == {'Setup A': dict(a=1., b='acb', amp='SINGLE:B', datasec='[2:23,:2048]',
+                                     time='12:30:00', d=dict(c=3))}, \
+        'yamlify + yaml.dump should round-trip exactly'
 
 
 def test_add_sub_dict():
