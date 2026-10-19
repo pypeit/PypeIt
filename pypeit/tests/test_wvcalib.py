@@ -206,6 +206,12 @@ def test_iterative_fitting_dof():
                                        disp, n_first=2, n_final=4, input_only=True)
     assert fit.pypeitfit.order[0] == 4, 'Order should not be reduced'
 
+    # If n_first is larger than n_final, the final fit has order n_first (as
+    # used for some Keck/LRIS gratings)
+    fit = wv_fitting.iterative_fitting(spec, tcent, np.arange(tcent.size), llist['wave'].data, llist,
+                                       disp, n_first=3, n_final=2, input_only=True)
+    assert fit.pypeitfit.order[0] == 3, 'Final fit should have order n_first'
+
     # Only 5 lines: the order is reduced to keep 2 degrees of freedom, so the
     # fit does not pass exactly through all lines
     ifit = np.array([2, 6, 9, 12, 16])

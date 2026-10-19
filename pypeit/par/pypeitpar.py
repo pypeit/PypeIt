@@ -3569,7 +3569,8 @@ class WavelengthSolutionPar(ParSet):
         dtypes['n_final'] = [int, float, list, np.ndarray]
         descr['n_final'] = 'Order of final fit to the wavelength solution (there are n_final+1 ' \
                            'parameters in the fit). This can be a single number or a ' \
-                           'list/array providing the value for each slit'
+                           'list/array providing the value for each slit.  If n_first is ' \
+                           'larger, the final fit has order n_first.'
 
         defaults['sigrej_final'] = 3.0
         dtypes['sigrej_final'] = float

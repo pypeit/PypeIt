@@ -380,10 +380,10 @@ Bug Fixes
 
 - Wavelength solutions that pass exactly through the identified arc lines
   (i.e., with zero degrees of freedom and an RMS of zero) are no longer
-  accepted.  If there are too few lines for the requested ``n_final``, the
-  order of the final fit is reduced so that at least two degrees of freedom
-  remain (with a warning), and the fit fails if fewer than four lines are
-  available.  Previously, a handful of misidentified lines could produce an
+  accepted.  If there are too few lines for the order of the final fit
+  (``n_final``, or ``n_first`` if this is larger), the order is reduced so
+  that at least two degrees of freedom remain (with a warning), and the fit
+  fails if fewer than four lines are available.  Previously, a handful of misidentified lines could produce an
   apparently perfect, but incorrect, wavelength solution.  The exception is
   the re-analysis of failed echelle orders after the first 2D fit, where the
   lines are identified using the 2D solution; there, orders with only a few
