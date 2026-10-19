@@ -721,6 +721,25 @@ def test_fit_design_matrix_cached():
     assert id(spl._cached_design) == cache_id, 'second fit() call must reuse the cached design matrix'
 
 
+@pytest.mark.parametrize('change', [dict(npoly=4), dict(xmin=-1.0), dict(xmax=2.0)])
+def test_fit_2d_basis_change_rebuilds_design(change):
+    """Changing npoly or the normalisation bounds with the same x/basis_x rebuilds the design."""
+    rng = np.random.default_rng(5)
+    x = np.sort(rng.uniform(0, 5, 400))
+    basis_x = rng.uniform(0, 1, 400)
+    y = np.sin(x) * (1 + basis_x)
+    kw = dict(basis='legendre', npoly=3, xmin=0.0, xmax=1.0)
+    spl = BSpline2D(x=x, knots=Knots(count=8), nord=4)
+    spl.fit(x, y, basis_x=basis_x, **kw)
+    kw.update(change)
+    err, yfit = spl.fit(x, y, basis_x=basis_x, **kw)
+    fresh = BSpline2D(x=x, knots=Knots(count=8), nord=4)
+    err_fresh, yfit_fresh = fresh.fit(x, y, basis_x=basis_x, **kw)
+    assert err == err_fresh == 0, 'both fits must succeed'
+    assert np.allclose(yfit, yfit_fresh, rtol=0, atol=1e-12), \
+        'refit with a changed basis must match a fresh fit'
+
+
 def test_fit_zero_invvar_points_ignored():
     """Points with ivar=0 are excluded and fit() still converges."""
     rng = np.random.default_rng(4)
@@ -1145,6 +1164,69 @@ def test_bspline2d_build_design_matrix_P_kwarg_used():
     P_alt = spl._poly_basis(spl._normalize_basis_x(basis_x * 0.5 + 0.1))  # different basis_x
     A_alt, _, _ = spl._build_design_matrix(x, P=P_alt)
     assert not np.allclose(A_stored, A_alt), 'different P kwarg must change the design matrix'
+
+
+def test_bspline2d_lazy_design_matches_dense():
+    """The lazy design matrix returns exactly the rows of the dense one."""
+    rng = np.random.default_rng(122)
+    N = 500
+    x = np.sort(rng.uniform(0, 5, N))
+    basis_x = rng.uniform(0, 1, N)
+    spl = _setup_bspline2d(x, basis_x, npoly=3, xmin=0.0, xmax=1.0,
+                           funcname='legendre', knots=Knots(count=8), nord=4)
+    A, lower, upper = spl._build_design_matrix(x)
+    A_lazy, lower_lazy, upper_lazy = spl._build_design_matrix(x, lazy=True)
+    assert A_lazy.shape == A.shape, 'lazy design matrix has the wrong shape'
+    np.testing.assert_array_equal(lower_lazy, lower)
+    np.testing.assert_array_equal(upper_lazy, upper)
+    for sl in (slice(0, N), slice(17, 140), slice(N-1, N)):
+        np.testing.assert_array_equal(A_lazy[sl, :], A[sl, :])
+        np.testing.assert_array_equal(A_lazy[sl], A[sl])
+    with pytest.raises(IndexError):
+        A_lazy[:, 0]
+
+
+def test_bspline2d_fit_lazy_design_matches_dense():
+    """Fitting with the lazy (cached) design matrix matches the dense matrix."""
+    rng = np.random.default_rng(123)
+    N = 5000
+    x = np.sort(rng.uniform(0, 100, N))
+    basis_x = rng.uniform(0, 1, N)
+    y = 1 + 0.02*np.sin(x/10) + 0.05*np.sin(6*basis_x) + 0.003*rng.standard_normal(N)
+    y[rng.choice(N, 50, replace=False)] += 0.05
+    gpm = rng.uniform(size=N) > 0.02
+    kw = dict(ivar=gpm/0.003**2, basis='poly', basis_x=basis_x, npoly=4, xmin=0.0, xmax=1.0,
+              gpm=gpm, nord=4, upper=3, lower=3, kwargs_knots={'spacing': 2.0}, maxiter=10)
+    _, gpm_lazy, yfit_lazy, _, _ = iterative_bspline_fit(x, y, **kw)
+
+    # Force the dense design matrix and refit
+    build = BSpline2D._build_design_matrix
+    try:
+        BSpline2D._build_design_matrix = \
+            lambda self, x, P=None, npoly=None, lazy=False: build(self, x, P=P, npoly=npoly)
+        _, gpm_dense, yfit_dense, _, _ = iterative_bspline_fit(x, y, **kw)
+    finally:
+        BSpline2D._build_design_matrix = build
+    # The lazy model evaluation sums in a different order, so yfit agrees to
+    # round-off; the rejection must be identical.
+    np.testing.assert_array_equal(gpm_lazy, gpm_dense)
+    np.testing.assert_allclose(yfit_lazy, yfit_dense, rtol=1e-13, atol=0)
+
+
+def test_bspline2d_evaluate_model_lazy_matches_dense():
+    """_evaluate_model gives the same model for the lazy and dense design matrices."""
+    rng = np.random.default_rng(124)
+    N = 500
+    x = np.sort(rng.uniform(0, 5, N))
+    basis_x = rng.uniform(0, 1, N)
+    spl = _setup_bspline2d(x, basis_x, npoly=3, xmin=0.0, xmax=1.0,
+                           funcname='legendre', knots=Knots(count=8), nord=4)
+    spl.reset_coeff()
+    spl.coeff[...] = rng.standard_normal(spl.coeff.shape)
+    A, lower, upper = spl._build_design_matrix(x)
+    A_lazy, _, _ = spl._build_design_matrix(x, lazy=True)
+    np.testing.assert_allclose(spl._evaluate_model(A_lazy, lower, upper),
+                               spl._evaluate_model(A, lower, upper), rtol=1e-13, atol=1e-13)
 
 
 def test_bspline2d_build_design_matrix_P_kwarg_no_mutation():

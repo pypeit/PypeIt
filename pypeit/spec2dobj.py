@@ -7,7 +7,6 @@ Module for the Spec2DObj class
 """
 from pathlib import Path
 import os
-import inspect
 import datetime
 
 from copy import deepcopy
@@ -19,6 +18,7 @@ from astropy.stats import mad_std
 from astropy import table
 
 from pypeit import log
+from pypeit import utils
 from pypeit import PypeItError
 from pypeit import io
 from pypeit import datamodel
@@ -192,7 +192,7 @@ class Spec2DObj(datamodel.DataContainer):
                  scaleimg, waveimg, bpmmask, detector, sci_spat_flexure, sci_spec_flexure,
                  vel_type, vel_corr, slits, wavesol, tilts, maskdef_designtab):
         # Slurp
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         _d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
