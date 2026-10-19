@@ -1283,7 +1283,8 @@ class BuildWaveCalib:
         are also masked when the calibration is reloaded from disk, and the
         slits are flagged in :attr:`wvc_bpm`.  The QA plots of the rejected
         solutions are still available if they were made by
-        :func:`build_wv_calib`.
+        :func:`build_wv_calib`.  :func:`run` only calls this function for the
+        ``full_template`` method if ``mask_bad_rms`` is True.
 
         Returns:
             `numpy.ndarray`_: Boolean array that is True for the slits that were
@@ -1374,7 +1375,7 @@ class BuildWaveCalib:
             # Check that we have at least one good 2D fit
             if not np.any([fit2d.success for fit2d in self.wv_calib.wv_fit2d]):
                 raise PypeItError("No successful 2D Wavelength fits.  Cannot proceed.")
-        elif self.par['method'] == 'full_template':
+        elif self.par['method'] == 'full_template' and self.par['mask_bad_rms']:
             # Reject (and mask) the slits whose wavelength solution has an RMS
             # above the threshold.  The QA plots of these solutions (made by
             # build_wv_calib) can be used to inspect the failures.

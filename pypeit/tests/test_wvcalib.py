@@ -20,6 +20,7 @@ from pypeit import slittrace
 from pypeit.tests.tstutils import data_output_path
 from pypeit.core.wavecal import waveio
 from pypeit.par import pypeitpar
+from pypeit.spectrographs.util import load_spectrograph
 
 
 @pytest.mark.remote_data
@@ -397,3 +398,14 @@ def test_mask_bad_rms():
     assert bwc.wv_calib.wv_fits[0].pypeitfit is not None
     assert bwc.wv_calib.wv_fits[1].pypeitfit is None and bwc.wv_calib.wv_fits[1].spat_id == 200
     assert bwc.wv_calib.wv_fits[2].pypeitfit is not None
+
+
+def test_mask_bad_rms_default():
+    # The RMS threshold is only applied to full_template solutions if
+    # requested, which is the default for KCWI/KCRM only
+    assert not pypeitpar.WavelengthSolutionPar()['mask_bad_rms']
+    for name, expected in [('keck_kcwi', True), ('keck_kcrm', True), ('keck_lris_blue', False),
+                           ('gemini_gmos_south_ham', False)]:
+        par = load_spectrograph(name).default_pypeit_par()
+        assert par['calibrations']['wavelengths']['mask_bad_rms'] == expected, \
+            f'Wrong mask_bad_rms default for {name}'

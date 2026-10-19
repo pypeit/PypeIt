@@ -152,12 +152,13 @@ Functionality/Performance Improvements and Additions
   ``reference_slit`` or, if not set, chosen automatically.  A QA plot of the
   solution of the combined spectrum is written to
   ``QA/PNGs/Arc_1dfit_*_stack.png``.  See :ref:`wvcalib-stack-slits`.
-- The RMS threshold of the wavelength solutions (``rms_thresh_frac_fwhm``) is
-  now applied to the slits calibrated with the ``full_template`` method
-  (unless a 2D echelle solution is fit).  Previously, a ``full_template``
-  solution was accepted regardless of its RMS; slits whose solution has an RMS
-  above the threshold are now masked (``BADWVCALIB``).  See
-  :ref:`wvcalib-rms-threshold`.
+- Added the ``mask_bad_rms`` wavelength-calibration parameter.  If True, the
+  RMS threshold of the wavelength solutions (``rms_thresh_frac_fwhm``) is
+  applied to the slits calibrated with the ``full_template`` method (unless a
+  2D echelle solution is fit), and slits whose solution has an RMS above the
+  threshold are masked (``BADWVCALIB``).  Previously, a ``full_template``
+  solution was accepted regardless of its RMS, which is still the default.
+  See :ref:`wvcalib-rms-threshold`.
 
 Instrument-specific Updates
 ---------------------------
@@ -297,8 +298,9 @@ Instrument-specific Updates
   configuration handling for the ``H3000``/``H`` and ``HK``/``HK3`` grism/filter
   combinations, completing coverage of the observatory-recommended
   configurations.  See :ref:`mmt_mmirs`.
-- Keck/KCWI and Keck/KCRM: ``stack_slits`` is now used by default for the
-  wavelength calibration (see :ref:`wvcalib-stack-slits`).
+- Keck/KCWI and Keck/KCRM: ``stack_slits`` and ``mask_bad_rms`` are now used
+  by default for the wavelength calibration (see :ref:`wvcalib-stack-slits`
+  and :ref:`wvcalib-rms-threshold`).
 - Keck/KCRM: the RH3 and RM1 ``full_template`` templates
   (``keck_kcrm_RH3.fits`` and ``keck_kcrm_RM1.fits``) have been rebuilt.  The
   high S/N coadds used for part of these templates had been resampled onto a
