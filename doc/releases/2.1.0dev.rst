@@ -24,6 +24,9 @@ Functionality/Performance Improvements and Additions
 
 - Setup GUI now uses a standard button bar that can be moved. 
 - Re-enabled the Cancel button on the Setup GUI progress dialog.
+- The ``SlitWavelength`` `ginga`_ plugin can now show the RMS of the wavelength
+  solution, in addition to the wavelength, in the cursor readout; see the new
+  ``rms_img`` argument of :func:`~pypeit.display.display.show_image`.
 - Increased default font size for Setup GUI.
 
 Instrument-specific Updates
@@ -49,6 +52,9 @@ Instrument-specific Updates
 Script Changes
 --------------
 
+- Added the ``--show_wave_rms`` option to ``pypeit_show_2dspec``, which shows the
+  RMS (in pixels) of the wavelength solution for the slit under the cursor; see
+  :ref:`pypeit_show_2dspec`.
 - Removed -G/--gui option from pypeit_obslog.
 
 Testing

@@ -73,8 +73,30 @@ Red/green lines indicate slit edges.  Orange lines (if present)
 indicate traces for detected objects. Light blue lines (if present)
 indicate traces for manually extracted objects.
 
-As you mouse around, the x-values shown at the bottom indicate
-the wavelength.
+As you mouse around, the readout at the bottom of the viewer shows the
+wavelength (:math:`\lambda`) at the location of the cursor in place of the right
+ascension.
+
+If you include the ``--show_wave_rms`` option, the readout also shows, in place
+of the declination, the RMS of the wavelength solution for the slit (or echelle
+order) under the cursor.  This is the RMS of
+the residuals between the known wavelengths of the arc lines used in the fit and
+the wavelengths predicted by the final 1D wavelength solution, converted to
+*pixels* using the dispersion of the slit; it is the same quantity
+reported in the ``RMS`` column of the :ref:`pypeit-chk-wavecalib` output and
+compared against the ``rms_thresh_frac_fwhm`` threshold during
+:doc:`wavelength calibration<calibrations/wave_calib>`.  There is a single value
+per slit, so the readout only changes when the cursor moves to a different slit;
+it does not describe the local accuracy of the solution at the cursor position.
+The readout is left blank outside of the slits, in masked slits, in slits without
+a successful wavelength solution, and for spec2d files that do not include the
+wavelength-calibration diagnostics (e.g., those produced by
+:ref:`pypeit_coadd_2dspec<coadd2d>`).
+
+.. note::
+
+    Due to a limitation in how `ginga`_ renders the readout labels, the RMS is
+    currently labeled ``R`` instead of ``RMS``.
 
 .. warning::
 
