@@ -13,6 +13,10 @@ keck_lris_blue_A/
 Calibrations/
 Science/
 QA/
+/bin/
+/lib/
+/share/
+/etc/
 
 # Compiled source #
 ###################
@@ -93,3 +97,6 @@ AGENTS.md
 
 # Local Claude Code configuration
 .claude/
+
+# added by TEB
+AGENTS.md

@@ -25,35 +25,64 @@ def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sig_neigh=5.0, nfwhm_
                      only_these_lines=None, fwhm=4.0, nonlinear_counts=1e10, fit_frac_fwhm=1.25,
                      cont_frac_fwhm=1.0, max_frac_fwhm=2.0, cont_samp=30, niter_cont=3,
                      bpm=None, debug_lines=False, debug_peaks=False):
-    """
-    I can't believe this method has no docs
+    """Find isolated, significant spectral features for wavelength-tilt tracing.
 
-    FILL THIS IN
+    Peaks are detected in the 1D spectrum extracted along a slit center.  A
+    detected peak is selected for tracing only if its significance is at least
+    ``tracethresh`` and it is not within ``nfwhm_neigh`` line widths of a
+    more-significant neighboring feature.  Optionally, the selected features
+    can be limited to a supplied list of identified line positions.
 
-    Args:
-        arc_spec:
-        slit_cen:
-        tracethresh:
-        sig_neigh:
-        nfwhm_neigh:
-        only_these_lines:
-        fwhm:
-        nonlinear_counts:
-        fit_frac_fwhm:
-        cont_frac_fwhm:
-        max_frac_fwhm:
-        cont_samp:
-        niter_cont:
-        debug_lines:
-        debug_peaks:
+    Parameters
+    ----------
+    arc_spec : :class:`numpy.ndarray`
+        One-dimensional arc or sky spectrum, sampled along the spectral axis.
+    slit_cen : :class:`numpy.ndarray`
+        Spatial coordinate of the slit center as a function of spectral pixel.
+    tracethresh : float, optional
+        Minimum detection significance for a line to be used for tilt tracing.
+    sig_neigh : float, optional
+        Minimum significance for a detected feature to be considered a
+        neighboring line when rejecting blended features.
+    nfwhm_neigh : float, optional
+        Separation, in units of ``fwhm``, below which neighboring features are
+        considered blended.
+    only_these_lines : array-like, optional
+        Spectral pixel positions of identified lines to retain. Detected lines
+        farther than 2 pixels from every supplied position are rejected.
+    fwhm : float, optional
+        Expected full width at half maximum of spectral features, in pixels.
+    nonlinear_counts : float, optional
+        Counts at or above which pixels are treated as nonlinear during line
+        detection.
+    fit_frac_fwhm : float, optional
+        Half-width of the profile-fitting region, in units of ``fwhm``.
+    cont_frac_fwhm : float, optional
+        Separation between the fitted line and continuum windows, in units of
+        ``fwhm``.
+    max_frac_fwhm : float, optional
+        Maximum permitted fitted line width, in units of ``fwhm``.
+    cont_samp : int, optional
+        Number of samples used to estimate the local continuum.
+    niter_cont : int, optional
+        Number of iterations used to estimate the local continuum.
+    bpm : :class:`numpy.ndarray`, optional
+        Boolean mask for invalid spectral pixels; ``True`` values are ignored
+        during line detection.
+    debug_lines : bool, optional
+        If True, display a QA plot of the selected and rejected lines.
+    debug_peaks : bool, optional
+        If True, display debugging output from the peak-detection routine.
 
-    Returns:
-        tuple: Three `numpy.ndarray`_ objects are returned with the (1) spatial
-            and (2) spectral locations for the starting point to trace
-            the line centroids and (3) a good value mask. Locations where
-            the good-value mask is False are locations that were rejected
-            either because the detection wasn't significant enough or the
-            line was too close to a more-significant, neighboring line.
+    Returns
+    -------
+    lines_spec : :class:`numpy.ndarray` or None
+        Spectral pixel positions of all detected lines.
+    lines_spat : :class:`numpy.ndarray` or None
+        Spatial positions of the detected lines, evaluated from ``slit_cen``.
+    use_lines : :class:`numpy.ndarray` of bool or None
+        Boolean mask selecting the detected lines suitable for tilt tracing.
+        ``None`` is returned for all three outputs if no line is suitable.
     """
     # Setup some convenience variables
     npix_neigh = nfwhm_neigh * fwhm
@@ -899,4 +928,3 @@ def fit2tilts(shape, coeff2, func2d, spat_shift=None, slit_mask=None):
     del tilts_vals, spec_pix, spat_pix
 
     return tilts
-
