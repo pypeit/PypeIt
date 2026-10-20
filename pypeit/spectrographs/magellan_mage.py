@@ -51,7 +51,16 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         """
         # Binning
         # TODO: Could this be detector dependent??
-        binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
+        if hdu is None:
+            binning = '1,1'
+            gain = np.atleast_1d(1.02)
+            ronoise = np.atleast_1d(2.9)
+        else:
+            headarr = self.get_headarr(hdu)
+            binning = self.get_meta_value(headarr, 'binning')
+            # these are not meta values
+            gain = np.atleast_1d(headarr[0].get('EGAIN', 1.02))
+            ronoise = np.atleast_1d(headarr[0].get('ENOISE', 2.9))
 
         # Detector 1
         detector_dict = dict(
@@ -70,8 +79,8 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
             nonlinear       = 0.99,
             mincounts       = -1e10,
             numamplifiers   = 1,
-            gain            = np.atleast_1d(1.02), # depends on the readout
-            ronoise         = np.atleast_1d(2.9), # depends on the readout
+            gain            = gain, # depends on the readout
+            ronoise         = ronoise, # depends on the readout
             datasec         = np.atleast_1d('[1:1024, 1:2048]'),
             oscansec        = np.atleast_1d('[1:1024, 2049:2176]'),
             )
