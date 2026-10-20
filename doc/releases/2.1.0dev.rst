@@ -152,6 +152,13 @@ Functionality/Performance Improvements and Additions
   ``reference_slit`` or, if not set, chosen automatically.  A QA plot of the
   solution of the combined spectrum is written to
   ``QA/PNGs/Arc_1dfit_*_stack.png``.  See :ref:`wvcalib-stack-slits`.
+- Added the ``mask_bad_rms`` wavelength-calibration parameter.  If True, the
+  RMS threshold of the wavelength solutions (``rms_thresh_frac_fwhm``) is
+  applied to the slits calibrated with the ``full_template`` method (unless a
+  2D echelle solution is fit), and slits whose solution has an RMS above the
+  threshold are masked (``BADWVCALIB``).  Previously, a ``full_template``
+  solution was accepted regardless of its RMS, which is still the default.
+  See :ref:`wvcalib-rms-threshold`.
 
 Instrument-specific Updates
 ---------------------------
@@ -291,8 +298,9 @@ Instrument-specific Updates
   configuration handling for the ``H3000``/``H`` and ``HK``/``HK3`` grism/filter
   combinations, completing coverage of the observatory-recommended
   configurations.  See :ref:`mmt_mmirs`.
-- Keck/KCWI and Keck/KCRM: ``stack_slits`` is now used by default for the
-  wavelength calibration (see :ref:`wvcalib-stack-slits`).
+- Keck/KCWI and Keck/KCRM: ``stack_slits`` and ``mask_bad_rms`` are now used
+  by default for the wavelength calibration (see :ref:`wvcalib-stack-slits`
+  and :ref:`wvcalib-rms-threshold`).
 - Keck/KCRM: the RH3 and RM1 ``full_template`` templates
   (``keck_kcrm_RH3.fits`` and ``keck_kcrm_RM1.fits``) have been rebuilt.  The
   high S/N coadds used for part of these templates had been resampled onto a
@@ -374,11 +382,14 @@ Bug Fixes
 
 - Wavelength solutions that pass exactly through the identified arc lines
   (i.e., with zero degrees of freedom and an RMS of zero) are no longer
-  accepted.  If there are too few lines for the requested ``n_final``, the
-  order of the final fit is reduced so that at least two degrees of freedom
-  remain (with a warning), and the fit fails if fewer than four lines are
-  available.  Previously, a handful of misidentified lines could produce an
-  apparently perfect, but incorrect, wavelength solution.
+  accepted.  If there are too few lines for the order of the final fit
+  (``n_final``, or ``n_first`` if this is larger), the order is reduced so
+  that at least two degrees of freedom remain (with a warning), and the fit
+  fails if fewer than four lines are available.  Previously, a handful of misidentified lines could produce an
+  apparently perfect, but incorrect, wavelength solution.  The exception is
+  the re-analysis of failed echelle orders after the first 2D fit, where the
+  lines are identified using the 2D solution; there, orders with only a few
+  lines (at least two) are still fit, so that they can rejoin the 2D fit.
 - Fixed a crash (``AttributeError``) in the wavelength calibration when the
   slit given by ``reference_slit`` could not be calibrated; a clear error
   message is now raised instead.  Also fixed a crash in the echelle wavelength

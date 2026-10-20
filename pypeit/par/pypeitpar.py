@@ -3293,7 +3293,7 @@ class WavelengthSolutionPar(ParSet):
                  nfitpix=None, boxcar_radius=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
                  ech_2dfit=None, ech_separate_2d=None, redo_slits=None, reference_slit=None,
-                 stack_slits=None, qa_log=None, cc_percent_ceil=None, cc_synth_arc=None, echelle_pad=None, ech_angle_fits_file=None,
+                 stack_slits=None, mask_bad_rms=None, qa_log=None, cc_percent_ceil=None, cc_synth_arc=None, echelle_pad=None, ech_angle_fits_file=None,
                  ech_composite_arc_file=None, cc_offset_minmax=None, stretch_func=None):
 
         # Grab the parameter names and values from the function
@@ -3535,8 +3535,9 @@ class WavelengthSolutionPar(ParSet):
                                         'a slit/order solution. If ``fwhm_fromlines`` is True, ' \
                                         'FWHM will be computed from the arc lines in each slits, otherwise ``fwhm`` ' \
                                         'will be used. This parameter is used for the \'holy-grail\', ' \
-                                        '\'reidentify\', and \'echelle\' methods and  when re-analyzing ' \
-                                        'a slit using the ``redo_slits`` parameter. '
+                                        '\'reidentify\', and \'echelle\' methods, when re-analyzing ' \
+                                        'a slit using the ``redo_slits`` parameter, and for the ' \
+                                        '\'full_template\' method if ``mask_bad_rms`` is True. '
 
         defaults['match_toler'] = 2.0
         dtypes['match_toler'] = float
@@ -3567,7 +3568,8 @@ class WavelengthSolutionPar(ParSet):
         dtypes['n_final'] = [int, float, list, np.ndarray]
         descr['n_final'] = 'Order of final fit to the wavelength solution (there are n_final+1 ' \
                            'parameters in the fit). This can be a single number or a ' \
-                           'list/array providing the value for each slit'
+                           'list/array providing the value for each slit.  If n_first is ' \
+                           'larger, the final fit has order n_first.'
 
         defaults['sigrej_final'] = 3.0
         dtypes['sigrej_final'] = float
@@ -3630,6 +3632,14 @@ class WavelengthSolutionPar(ParSet):
                                'slit has too few lines to be calibrated reliably on its own.  If the ' \
                                'combined spectrum cannot be calibrated, each slit is calibrated ' \
                                'independently (i.e. as if ``stack_slits`` were False).'
+
+        defaults['mask_bad_rms'] = False
+        dtypes['mask_bad_rms'] = bool
+        descr['mask_bad_rms'] = 'Only used with the ``full_template`` method, unless a 2D echelle ' \
+                                'solution is fit.  If True, slits whose wavelength solution has an RMS ' \
+                                'above the threshold set by ``rms_thresh_frac_fwhm`` are masked.  ' \
+                                'Note that the default ``rms_thresh_frac_fwhm`` of most spectrographs ' \
+                                'has not been tuned for the ``full_template`` method.'
 
         defaults['qa_log'] = True
         dtypes['qa_log'] = bool
@@ -3703,7 +3713,7 @@ class WavelengthSolutionPar(ParSet):
                    'nlocal_cc', 'rms_thresh_frac_fwhm', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix', 'boxcar_radius',
                    'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 'reference_slit',
-                   'stack_slits', 'redo_slits', 'qa_log', 'cc_percent_ceil', 'cc_synth_arc', 'echelle_pad', 'ech_angle_fits_file',
+                   'stack_slits', 'mask_bad_rms', 'redo_slits', 'qa_log', 'cc_percent_ceil', 'cc_synth_arc', 'echelle_pad', 'ech_angle_fits_file',
                    'ech_composite_arc_file', 'cc_offset_minmax', 'stretch_func']
 
         badkeys = np.array([pk not in parkeys for pk in k])
