@@ -4,7 +4,6 @@
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import inspect
 from IPython import embed
 
 import numpy as np
@@ -16,6 +15,7 @@ from pypeit import datamodel
 from pypeit import io
 from pypeit.images.detector_container import DetectorContainer
 from pypeit import log
+from pypeit import utils
 from pypeit import PypeItError
 
 
@@ -64,7 +64,7 @@ class Mosaic(datamodel.DataContainer):
 
     def __init__(self, id, detectors, shape, shift, rot, tform, msc_ord):
 
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         d = dict([(k,values[k]) for k in args[1:]])
 
         # Setup the DataContainer
