@@ -291,6 +291,8 @@ Testing
   writes are pixel-identical to serial writes, queued figures are isolated
   from later pyplot-state plotting, and writer-thread exceptions re-raise on
   the main thread.
+- Added a test that :func:`~pypeit.core.pca.pca_decomposition` is
+  bit-reproducible across repeated calls and input memory alignments.
 
 Under-the-hood Improvements
 ---------------------------
@@ -335,6 +337,16 @@ Under-the-hood Improvements
 Bug Fixes
 ---------
 
+- Make reductions reproducible run to run (Issue #2208).
+  :func:`~pypeit.core.pca.pca_decomposition` now uses the exact
+  (``svd_solver='full'``) SVD solver.  With sklearn's default (``'auto'``), the
+  PCA decompositions used in slit-edge tracing, wide-slit tilt tracing, and
+  echelle object tracing were computed with sklearn's unseeded randomized
+  solver, so repeated reductions of the same data gave slightly different
+  results; the difference was amplified downstream, up to ~100% in low-S/N
+  extracted pixels of multi-slit data.  Results of these PCAs now change
+  at the level of the previous run-to-run scatter (~1e-6 pixels in the edge
+  traces).
 - Magellan/LDSS3: fixed the telescope (was MMT), the MJD (was the ``JD`` card,
   unconverted), ``dataext`` (1 to 0), the binning axis used to scale the
   wavelength FWHM (spatial to spectral), and ``default_pypeit_par``, which is
