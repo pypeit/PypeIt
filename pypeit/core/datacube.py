@@ -1556,7 +1556,8 @@ def make_good_skymask(slitimg, tilts):
     return gpm
 
 
-def get_output_filename(output_dir, fil, par_outfile, combine, native=False, idx=1):
+def get_output_filename(output_dir, fil, par_outfile, combine,
+                        native=False, idx=None):
     """
     Get the output filename of a datacube, given the input
 
@@ -1574,7 +1575,8 @@ def get_output_filename(output_dir, fil, par_outfile, combine, native=False, idx
         If the cube is saved at the native sampling of the spectrograph,
         add 'native' to the filename to indicate this.
     idx : int, optional
-        Index of filename to be saved. Required if combine=False.
+        Index of filename to be saved when combine=False. If idx is None and combine=False,
+        no index is added to the filename (this function then assumes that there is only one file).
 
     Returns
     -------
@@ -1592,8 +1594,9 @@ def get_output_filename(output_dir, fil, par_outfile, combine, native=False, idx
         return par_outfile if '.fits' in par_outfile else f'{par_outfile}.fits'
     if par_outfile == '':
         return fil.replace('spec2d_', f'spec3d{native_txt}_')
-    # Finally, if nothing else, use the output filename as a prefix, and a numerical suffix
-    return os.path.join(output_dir, os.path.splitext(par_outfile)[0] + f'{native_txt}_{idx:03}.fits')
+    # Finally, if nothing else, use the output filename as a prefix, and a numerical suffix if idx is provided
+    idx_txt = f'_{idx:03}' if idx is not None else ''
+    return os.path.join(output_dir, os.path.splitext(par_outfile)[0] + f'{native_txt}{idx_txt}.fits')
 
 
 def get_output_whitelight_filename(output_dir, outfile):

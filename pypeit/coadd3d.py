@@ -589,6 +589,14 @@ class CoAdd3D:
         self._save_separate = self.cubepar['save_separate']
         self.correct_dar = self.cubepar['correct_dar']
 
+        # Quick check to make sure the user wishes to save a datacube.
+        if not self._save_separate and not self.combine and not self._save_native:
+            raise PypeItError("All options to save a datacube are disabled. Please set at "
+                              "least one of 'save_native', 'save_separate', or 'combine' to True:\n"+
+                              "[reduce]\n    [[cube]]\n        " +
+                              "save_native = True\n        save_separate = True\n        combine = True"
+                              )
+
         # TODO: Only need one of show or debug probably
         self.show = show
         self.debug = debug
@@ -1488,11 +1496,11 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             # Load the header
             hdr0 = spec2DObj.head0
             self.all_header.append(hdr0)
-            self.ifu_ra = np.append(self.ifu_ra, self.spectrograph.compound_meta([hdr0], 'ra'))
-            self.ifu_dec = np.append(self.ifu_dec, self.spectrograph.compound_meta([hdr0], 'dec'))
+            self.ifu_ra = np.append(self.ifu_ra, self.spectrograph.get_meta_value([hdr0], 'ra'))
+            self.ifu_dec = np.append(self.ifu_dec, self.spectrograph.get_meta_value([hdr0], 'dec'))
 
             # Get the exposure time
-            exptime = self.spectrograph.compound_meta([hdr0], 'exptime')
+            exptime = self.spectrograph.get_meta_value([hdr0], 'exptime')
 
             # Initialise the slit edges
             log.info("Constructing slit image")
@@ -1903,7 +1911,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             # Get the output filename
             if self.numfiles == 1 and self.cubepar['output_filename'] != "":
                 outfile = datacube.get_output_filename(self.scidir, "", self.cubepar['output_filename'],
-                                                       False, native=True, idx=-1)
+                                                       False, native=True)
             else:
                 outfile = datacube.get_output_filename(self.scidir, fil, self.cubepar['output_filename'],
                                                        False, native=True, idx=ff+1)
@@ -2153,7 +2161,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             combined_ivar = utils.inverse(var_list_out[0])
             combined_bpm = np.logical_not(combined_gpm)
             combined_outfile = datacube.get_output_filename(
-                self.scidir, "", self.cubepar['output_filename'], True, idx=-1
+                self.scidir, "", self.cubepar['output_filename'], True, idx=0
             )
             log.info(f"Saving combined datacube as: {str(combined_outfile)}")
             final_combined_cube = DataCube(
