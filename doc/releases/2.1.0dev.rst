@@ -141,6 +141,34 @@ Functionality/Performance Improvements and Additions
   the QA PNGs through a background thread pool (rendering stays on the main
   thread, which matplotlib requires); the figures are identical to a serial
   run.
+- ``fitting.robust_fit`` now converts its inputs to float once per call
+  rather than copying them on every rejection iteration, reducing memory use
+  for large fits (e.g., the flat-field fine spatial-illumination correction).
+- ``fitting.polyfit2d_general`` now solves fits with more than
+  ``[rdx] fit2d_chunk`` (default 32768) points in chunks, using a sequential QR
+  decomposition, instead of building the full design matrix.  For fits over a
+  whole detector (e.g., the wavelength tilts and the flat-field fine
+  correction), this removes several GB of temporary arrays: the tilts stage of
+  a Binospec long-slit reduction drops from a 16.1 to a 6.9 GiB peak and runs
+  faster.  The coefficients agree with the previous solution to round-off;
+  smaller fits are computed exactly as before.
+- Reduced the memory used by B-spline fits, with no change to the results
+  beyond round-off: the weighted design matrix is formed one B-spline span at
+  a time; for 2D fits (``BSpline2D``), the polynomial basis is only
+  recomputed when the design matrix must be rebuilt, and the cached design
+  matrix stores its B-spline and polynomial factors instead of their product.
+  2D models (including ``BSpline2D.value``) are evaluated directly from these
+  factors, without forming the design matrix, so the fits are as fast as
+  before.  For the 2D flat-field fit of a Binospec long-slit detector, this
+  removes ~5 GiB of temporary arrays.
+- ``fitting.evaluate_fit`` now evaluates 2D fits in chunks of points.  The
+  results are identical, but numpy's 2D evaluation functions no longer
+  allocate temporaries over all points at once (~2 GiB for the flat-field
+  fine correction of a Binospec detector), and the evaluation is faster.
+- Added the expert ``[rdx] fit2d_chunk`` parameter, which sets the number of
+  points processed at a time by the chunked 2D polynomial fits and
+  evaluations above.  It trades peak memory for speed and does not change the
+  results beyond round-off.
 
 Instrument-specific Updates
 ---------------------------
@@ -307,6 +335,8 @@ Testing
   writes are pixel-identical to serial writes, queued figures are isolated
   from later pyplot-state plotting, and writer-thread exceptions re-raise on
   the main thread.
+- Added a test that :func:`~pypeit.core.pca.pca_decomposition` is
+  bit-reproducible across repeated calls and input memory alignments.
 
 Under-the-hood Improvements
 ---------------------------
@@ -351,6 +381,16 @@ Under-the-hood Improvements
 Bug Fixes
 ---------
 
+- Make reductions reproducible run to run (Issue #2208).
+  :func:`~pypeit.core.pca.pca_decomposition` now uses the exact
+  (``svd_solver='full'``) SVD solver.  With sklearn's default (``'auto'``), the
+  PCA decompositions used in slit-edge tracing, wide-slit tilt tracing, and
+  echelle object tracing were computed with sklearn's unseeded randomized
+  solver, so repeated reductions of the same data gave slightly different
+  results; the difference was amplified downstream, up to ~100% in low-S/N
+  extracted pixels of multi-slit data.  Results of these PCAs now change
+  at the level of the previous run-to-run scatter (~1e-6 pixels in the edge
+  traces).
 - Magellan/LDSS3: fixed the telescope (was MMT), the MJD (was the ``JD`` card,
   unconverted), ``dataext`` (1 to 0), the binning axis used to scale the
   wavelength FWHM (spatial to spectral), and ``default_pypeit_par``, which is
@@ -518,3 +558,13 @@ Bug Fixes
 - Spectral flexure was not previously included when generating a wavelength
   image for a spec2d file during ``global_skysub``. This caused a multiple
   correction to the spectral flexure, and only affected IFU data reduction.
+- Fix a memory leak on Python 3.13 and later: the
+  ``inspect.getargvalues(inspect.currentframe())`` idiom used by many
+  ``__init__`` methods to collect their arguments created a reference cycle
+  (PEP 667 made ``frame.f_locals`` a proxy that refers back to the frame), so
+  every ``DataContainer`` (e.g., ``PypeItImage``, ``PypeItFit``) and ``ParSet``
+  was kept alive, along with its arrays, until the cyclic garbage collector
+  ran.  The idiom is replaced by the new :func:`~pypeit.utils.init_arg_values`.
+- ``BSpline2D.fit`` now rebuilds its cached design matrix when ``npoly``,
+  ``xmin`` or ``xmax`` change between calls with the same ``x`` and
+  ``basis_x``; previously it reused the matrix built with the old basis.

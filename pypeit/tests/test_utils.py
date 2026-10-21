@@ -261,3 +261,26 @@ def test_eval_list():
     # a list with a string
     t = ['[1', '2.3]', '[test', '4]']
     assert utils.eval_list(t) == [[1, 2.3], ['test', 4]], 'Bad list evaluation'
+
+
+def test_init_arg_values():
+    class _Holder:
+        def __init__(self, a, b=2, big=None):
+            args, values = utils.init_arg_values()
+            self.d = {k: values[k] for k in args[1:]}
+
+    big = np.zeros(10)
+    h = _Holder(1, big=big)
+    assert h.d == {'a': 1, 'b': 2, 'big': big}, 'Wrong arguments returned'
+
+    # The returned values must not create a frame -> f_locals -> frame
+    # reference cycle (PEP 667), so the instance is freed as soon as its last
+    # reference is dropped, without the cyclic garbage collector.
+    import gc
+    import weakref
+    gc.disable()
+    try:
+        ref = weakref.ref(_Holder(1))
+        assert ref() is None, 'Instance kept alive by a reference cycle'
+    finally:
+        gc.enable()
