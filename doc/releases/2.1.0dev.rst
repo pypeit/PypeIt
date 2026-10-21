@@ -25,6 +25,8 @@ Dependency Changes
 ------------------
 
 - Adds support for python 3.14
+- ``pillow`` (already required by ``matplotlib``) is now an explicit
+  dependency; it is used to write the QA PNGs.
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
@@ -54,6 +56,15 @@ Functionality/Performance Improvements and Additions
 - Adds ability to select the specific archive of standard stars to use when
   searching for a match to an observed standard.  This is particularly import
   for LBT/MODS.
+- Added the ``[collate1d] outfile_from`` parameter, which chooses how coadded
+  output files are named: ``'coord'`` (the previous behavior, from the object
+  sky coordinate) or ``'maskdef_objname'`` (the catalog target name from the
+  mask design).  MMIRS defaults to ``'maskdef_objname'`` so coadds are named
+  after the target.
+- ``pypeit_collate_1d`` now disambiguates coadded output files that would
+  otherwise collide on the same name (e.g. two targets mapping to the same
+  ``maskdef_objname``), appending a coordinate/pixel token so no coadd
+  silently overwrites another.
 - Added the ``ech_angle_fits_file`` and ``ech_composite_arc_file``
   wavelength-calibration parameters: the archive files used by the
   ``echelle`` method, overriding the spectrograph-class defaults
@@ -77,9 +88,72 @@ Functionality/Performance Improvements and Additions
   record no airmass card.
 - Slit edges can now be traced from a pinhole decker or standard star trace, and the trace can be
   padded to the full slit length.
+- ``run_pypeit`` (and ``run_to_calibstep``, ``reduce_by_step``) now force the
+  headless matplotlib ``Agg`` backend (unless ``-s/--show`` is used), removing
+  GUI-toolkit overhead from QA figure generation.
+- Added the ``[rdx] ncpu`` parameter and the matching ``run_pypeit --ncpu``
+  command-line option (the latter takes precedence).  The default, 1, runs
+  PypeIt exactly as before.  Values greater than 1 currently encode and write
+  the QA PNGs through a background thread pool (rendering stays on the main
+  thread, which matplotlib requires); the figures are identical to a serial
+  run.
+- ``fitting.robust_fit`` now converts its inputs to float once per call
+  rather than copying them on every rejection iteration, reducing memory use
+  for large fits (e.g., the flat-field fine spatial-illumination correction).
+- ``fitting.polyfit2d_general`` now solves fits with more than
+  ``[rdx] fit2d_chunk`` (default 32768) points in chunks, using a sequential QR
+  decomposition, instead of building the full design matrix.  For fits over a
+  whole detector (e.g., the wavelength tilts and the flat-field fine
+  correction), this removes several GB of temporary arrays: the tilts stage of
+  a Binospec long-slit reduction drops from a 16.1 to a 6.9 GiB peak and runs
+  faster.  The coefficients agree with the previous solution to round-off;
+  smaller fits are computed exactly as before.
+- Reduced the memory used by B-spline fits, with no change to the results
+  beyond round-off: the weighted design matrix is formed one B-spline span at
+  a time; for 2D fits (``BSpline2D``), the polynomial basis is only
+  recomputed when the design matrix must be rebuilt, and the cached design
+  matrix stores its B-spline and polynomial factors instead of their product.
+  2D models (including ``BSpline2D.value``) are evaluated directly from these
+  factors, without forming the design matrix, so the fits are as fast as
+  before.  For the 2D flat-field fit of a Binospec long-slit detector, this
+  removes ~5 GiB of temporary arrays.
+- ``fitting.evaluate_fit`` now evaluates 2D fits in chunks of points.  The
+  results are identical, but numpy's 2D evaluation functions no longer
+  allocate temporaries over all points at once (~2 GiB for the flat-field
+  fine correction of a Binospec detector), and the evaluation is faster.
+- Added the expert ``[rdx] fit2d_chunk`` parameter, which sets the number of
+  points processed at a time by the chunked 2D polynomial fits and
+  evaluations above.  It trades peak memory for speed and does not change the
+  results beyond round-off.
 
 Instrument-specific Updates
 ---------------------------
+
+- Magellan/LDSS3: support for the VPH-Blue and VPH-Red grisms, and a rework of
+  how the two amplifier files are handled:
+
+  - pypeit_setup now recognizes the ``c1`` and ``c2`` files as a single
+    exposure without requiring -e c1.fits. The ``c1`` and ``c2`` files of an
+    exposure are paired automatically and checked against ``OPAMP``. 
+    When both are present, only the ``c1`` file is
+    written to the PypeIt file and the amplifiers are internally joined
+    when it is read. A directory with only ``c1`` or only ``c2`` files is reduced as a
+    single-amplifier image.
+  - Gain and read noise are set per readout mode (``SPEED`` and ``GAIN``).
+    Fast/Low uses values measured from LDSS3 flats and biases; Slow/Low and
+    Turbo/Low use the User Manual values.  Other modes fall back on the
+    ``EGAIN`` and ``ENOISE`` header cards.
+  - Pixel values above 95% of the 16-bit ADC limit are flagged as saturated.
+  - Added a bad-column mask measured from bias frames.
+  - Added archived HeI/NeI/ArI wavelength solutions for VPH-Blue and VPH-Red,
+    and rebuilt the VPH-All solution for consistency.  Added an
+    ``OH_LDSS3_vac`` line list with a VPH-Red sky template for optional
+    sky-line calibration.
+  - Frame typing uses ``EXPTYPE`` for biases and darks and ``OBJECT`` keywords
+    to separate arcs, flats and science/standard frames.  Science and standard frames
+    are separated by exposure time.
+  - The filter is now a configuration key, but arcs and flats are assigned
+    independently of the filter.
 
 - P200/NGPS ``u`` channel: support He dome-lamp frames (``IMGTYPE=DOMEHE``) as a
   second arc lamp.  The internal ThAr lamp has no detectable lines below
@@ -171,6 +245,26 @@ Instrument-specific Updates
 - Added support for the old Keck/HIRES detector (``keck_hires_orig``) with the original Tektronix CCD.
   See :ref:`keck_hires` for details.
 
+- MMT/MMIRS: raw frames with at least 5 non-destructive reads are now processed
+  with up-the-ramp fitting and jump (cosmic-ray) detection (`Brandt 2024
+  <https://arxiv.org/abs/2404.01326>`__), replacing first-minus-last correlated
+  double sampling.  The effective per-read noise is calibrated at the science
+  exposure time, the per-pixel fit runs in parallel, and the fitted 2D
+  count-rate images are cached in a ``RampFit`` directory; a new
+  ``pypeit_fit_ramp`` script preprocesses and inspects them.  See
+  :ref:`mmt_mmirs`.
+- MMT/MMIRS: science frames taken as an A-B nod sequence are now automatically
+  background-subtracted, with the along-slit dither offset of each frame derived
+  from the telescope pointing.  See :ref:`mmt_mmirs`.
+- MMT/MMIRS multi-object (MOS) masks: ``pypeit_setup`` now ingests the MMIRS
+  ``.msk`` mask-design file when present, enabling slitmask-design tracing,
+  alignment-box registration, and target-identity stamping on each extracted
+  object.  See :ref:`mmt_mmirs`.
+- MMT/MMIRS: added ``full_template`` wavelength-solution templates and
+  configuration handling for the ``H3000``/``H`` and ``HK``/``HK3`` grism/filter
+  combinations, completing coverage of the observatory-recommended
+  configurations.  See :ref:`mmt_mmirs`.
+
 Script Changes
 --------------
 - Added ``pypeit_binospec_ifu_cube`` for building datacubes from Binospec IFU
@@ -192,6 +286,13 @@ Testing
 - Added tests for MMT/Binospec setup grouping and INCAN-based flat/trace frame
   typing.
 - Added new tests for :mod:`~pypeit.core.datacube`.
+- Added tests for the deferred QA figure-writing machinery
+  (:func:`~pypeit.qa.save_figure` / :func:`~pypeit.qa.flush_qa`): threaded
+  writes are pixel-identical to serial writes, queued figures are isolated
+  from later pyplot-state plotting, and writer-thread exceptions re-raise on
+  the main thread.
+- Added a test that :func:`~pypeit.core.pca.pca_decomposition` is
+  bit-reproducible across repeated calls and input memory alignments.
 
 Under-the-hood Improvements
 ---------------------------
@@ -205,6 +306,12 @@ Under-the-hood Improvements
 - Restructure modules used to construct globals for an instance of PypeIt (e.g.,
   ``log`` and ``dataPaths``) into a new ``pkg`` module.  This isolates these
   operations from the rest of PypeIt.
+- Added :class:`~pypeit.pkg.qawriter.QAWriter` and the package-level
+  ``qaWriter`` instance it provides, which centralizes the writing of the QA
+  figures.  This follows the same pattern as ``log`` and ``dataPaths``: the
+  instance is created on import, imported by the modules that produce QA, and
+  configured by ``PypeIt.__init__`` via ``qaWriter.init()`` once the reduction
+  parameters are known.
 - Refactor how script and spectrograph classes are imported.  Instead of
   importing each module in the relevant ``__init__.py`` file, we now define
   ``__all__`` and import all the relevant classes where needed.
@@ -217,10 +324,40 @@ Under-the-hood Improvements
   and faster cube generation.
 - Added weights as an optional parameter in ``weighted_combine()``.
 
+- Added :func:`~pypeit.spectrographs.spectrograph.Spectrograph.cache_metadata`,
+  a hook called whenever a :class:`~pypeit.metadata.PypeItMetaData` object is
+  built, allowing a spectrograph to record information from the full metadata
+  table for later use when reading raw images.
+
+- Vendored the ``fitramp`` up-the-ramp fitting module of Brandt (2024) as
+  :mod:`pypeit.ext.fitramp.fitramp` (MIT license).  The MMIRS integration was
+  inspired by the prototype at
+  https://github.com/zhechenghu/mmt-mmirs-up-the-ramp-pypeit.
 
 Bug Fixes
 ---------
 
+- Make reductions reproducible run to run (Issue #2208).
+  :func:`~pypeit.core.pca.pca_decomposition` now uses the exact
+  (``svd_solver='full'``) SVD solver.  With sklearn's default (``'auto'``), the
+  PCA decompositions used in slit-edge tracing, wide-slit tilt tracing, and
+  echelle object tracing were computed with sklearn's unseeded randomized
+  solver, so repeated reductions of the same data gave slightly different
+  results; the difference was amplified downstream, up to ~100% in low-S/N
+  extracted pixels of multi-slit data.  Results of these PCAs now change
+  at the level of the previous run-to-run scatter (~1e-6 pixels in the edge
+  traces).
+- Magellan/LDSS3: fixed the telescope (was MMT), the MJD (was the ``JD`` card,
+  unconverted), ``dataext`` (1 to 0), the binning axis used to scale the
+  wavelength FWHM (spatial to spectral), and ``default_pypeit_par``, which is
+  now a classmethod built on the base-class defaults.
+- Fix setup values that include a colon (e.g., the Keck/DEIMOS amplifier mode,
+  ``SINGLE:B``) being written to the setup block of PypeIt files, and to
+  ``.calib`` files, with extra quotes (``'"SINGLE:B"'``), which prevented
+  ``pypeit_ql`` from matching raw frames to existing calibrations (Issue
+  #2099).  The extra quotes in PypeIt files written by older versions are
+  removed when the file is read, with a warning; regenerate the file with
+  ``pypeit_setup`` or directly edit it to avoid the warning.
 - Restore the manual spatial flexure correction (Issue #2180): a value in the
   pypeit-file ``shift`` column again overrides the automatically computed
   spatial flexure for that science/standard frame.  The feature was lost in
@@ -286,6 +423,42 @@ Bug Fixes
   (``IMGTYPE`` = ``DOMEFLAT``) and no longer includes the internal continuum
   (``IMGTYPE`` = ``CONT``) lamp flats, whose different illumination contaminated
   the combined pixel/illumination flat when both were present in a night.
+- ``pypeit_setup`` no longer crashes on MMIRS raw files that are missing the
+  expected image extensions; such files are skipped with a warning.
+- Keep the user-supplied metadata rows aligned with the frame table when
+  unreadable files are skipped during ``pypeit_setup``, so metadata is no longer
+  mis-associated with the wrong frames.
+- MMIRS mask-design ingest now retains the ``.msk`` per-slit ``offset`` and
+  ``theta`` fields (previously silently dropped): the slit-design geometry
+  honors the slit tilt, and a target's ``OBJ_TOPDIST``/``OBJ_BOTDIST`` reflect
+  its along-slit offset instead of assuming every target is centered in an
+  axis-aligned slit.  (All masks tested so far have zero offset/tilt, so this
+  is a defensive correction with no effect on current reductions.)
+- MMIRS A-B nod pairing now wraps the RA difference when deriving each frame's
+  along-slit dither offset, so a sequence that straddles 0h RA yields a small
+  offset rather than one near +/-360 deg (which would mis-pair the nods in
+  ``comb_id``/``bkg_id``).
+- MMIRS dither-offset derivation now parses the pointing and catalog
+  coordinates with astropy, handling every header format the instrument has
+  written: the ``RA``/``CAT-RA`` cards appear as decimal hours ('13.70246500',
+  2017-2019 data) or sexagesimal hours ('+02:59:16.62', newer data), and
+  ``CAT-RA`` is additionally sometimes written in sexagesimal degrees
+  ('+260:36:50.55', the old MOS mask tool).  Previously the derivation read the
+  ``RA`` card with ``float()``, which silently returned a zero offset for the
+  sexagesimal coordinates used by all post-2019 data (both longslit and MOS),
+  disabling A-B nod pairing for that data.  ``CAT-RA`` is now interpreted as
+  whichever of degrees or hours lands closest to the actual pointing, and
+  off-sky calibration frames (with sentinel coordinates) yield a zero offset
+  instead of raising.
+- ``pypeit_collate_1d`` now sanitizes the ``MASKDEF_OBJNAME`` used for
+  ``outfile_from = 'maskdef_objname'`` coadd names to a single safe filename
+  component, so a catalog target name containing a path separator or other
+  invalid character can no longer fail the source or write outside the output
+  directory.
+- ``pypeit_collate_1d`` now records the disambiguated coadd file name in
+  ``collate_report.dat``, so the report points each source at the file that was
+  actually written rather than a recomputed base name that could collide with
+  another source.
 - Fixed bugs with the datacube WCS and datacube alignments.
 - Fixed the ``RA``/``DEC`` recorded for a point source extracted from a
   datacube (:func:`~pypeit.core.datacube.extract_point_source`, used by
@@ -293,3 +466,13 @@ Bug Fixes
   reference point (``CRVAL``) rather than the sky position of the source
   actually used for the extraction (the fitted or manually-specified
   position). Affects any SlicerIFU-pypeline point-source extraction.
+- Fix a memory leak on Python 3.13 and later: the
+  ``inspect.getargvalues(inspect.currentframe())`` idiom used by many
+  ``__init__`` methods to collect their arguments created a reference cycle
+  (PEP 667 made ``frame.f_locals`` a proxy that refers back to the frame), so
+  every ``DataContainer`` (e.g., ``PypeItImage``, ``PypeItFit``) and ``ParSet``
+  was kept alive, along with its arrays, until the cyclic garbage collector
+  ran.  The idiom is replaced by the new :func:`~pypeit.utils.init_arg_values`.
+- ``BSpline2D.fit`` now rebuilds its cached design matrix when ``npoly``,
+  ``xmin`` or ``xmax`` change between calls with the same ``x`` and
+  ``basis_x``; previously it reused the matrix built with the old basis.

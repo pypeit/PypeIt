@@ -61,7 +61,6 @@ assuming you want it to be accessed throughout the code.
 from pathlib import Path
 import os
 import warnings
-import inspect
 from IPython import embed
 from collections import OrderedDict
 
@@ -73,7 +72,9 @@ from pypeit.par.parset import ParSet
 from pypeit.par import util
 from pypeit.core.framematch import FrameTypeBitMask
 from pypeit.core import parse
+from pypeit.core.fitting import DEFAULT_POLYFIT2D_CHUNK
 from pypeit import log
+from pypeit import utils
 from pypeit import PypeItError
 from pypeit import dataPaths
 
@@ -123,7 +124,7 @@ class FrameGroupPar(ParSet):
     def __init__(self, frametype=None, useframe=None, exprng=None, process=None):
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
@@ -231,7 +232,7 @@ class ProcessImagesPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
@@ -594,7 +595,7 @@ class FlatFieldPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
@@ -871,7 +872,7 @@ class FlexurePar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
@@ -997,7 +998,7 @@ class AlignPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
@@ -1080,7 +1081,7 @@ class ScatteredLightPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
@@ -1201,7 +1202,7 @@ class Coadd1DPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
@@ -1483,7 +1484,7 @@ class Coadd2DPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
@@ -1660,7 +1661,7 @@ class CubePar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
@@ -1997,7 +1998,7 @@ class CubeExtractionPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
@@ -2161,7 +2162,7 @@ class FluxCalibratePar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
@@ -2245,7 +2246,7 @@ class SensFuncPar(ParSet):
                  IR=None, polyorder=None, star_type=None, star_mag=None, star_ra=None, extr=None,
                  star_dec=None, star_arxiv=None, mask_hydrogen_lines=None, mask_helium_lines=None, hydrogen_mask_wid=None):
         # Grab the parameter names and values from the function arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k, values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter set
@@ -2434,7 +2435,7 @@ class SensfuncUVISPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
@@ -2558,7 +2559,7 @@ class SlitMaskPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
@@ -2684,7 +2685,7 @@ class TelluricPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k, values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
@@ -3034,11 +3035,12 @@ class ReduxPar(ParSet):
     """
     def __init__(self, spectrograph=None, detnum=None, sortroot=None, calwin=None, scidir=None,
                  qadir=None, redux_path=None, ignore_bad_headers=None, slitspatnum=None,
-                 maskIDs=None, quicklook=None, chk_version=None):
+                 maskIDs=None, quicklook=None, chk_version=None, ncpu=None,
+                 ramp_fit_chunk_rows=None, rampfit_dir=None, fit2d_chunk=None):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])      # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
@@ -3065,6 +3067,21 @@ class ReduxPar(ParSet):
         descr['quicklook'] = 'Run a quick look reduction? This is usually good if you want to quickly ' \
                              'reduce the data (usually at the telescope in real time) to get an initial ' \
                              'estimate of the data quality.'
+
+        defaults['ncpu'] = 1
+        dtypes['ncpu'] = int
+        descr['ncpu'] = 'Number of CPUs PypeIt may use.  The default, 1, runs the code ' \
+                        'fully serially, exactly as in previous versions.  Currently, ' \
+                        'this sets the number of threads used to write the QA ' \
+                        'figures (capped at 8) and, for up-the-ramp spectrographs ' \
+                        '(currently MMT/MMIRS), the threads used for ramp fitting; the ' \
+                        'reduction itself is otherwise still serial.  Note that MMIRS ' \
+                        'ramp fitting keeps a parallel default of min(6, os.cpu_count()) ' \
+                        'even at ncpu=1, since threading does not change the fitted ' \
+                        'result; set ncpu explicitly to use more (or fewer) threads.  ' \
+                        'Values less than 1 are reset to 1.  This is used by any script ' \
+                        'that runs the main reduction (e.g., ``run_pypeit``, ' \
+                        '``pypeit_ql``), and ``run_pypeit --ncpu`` overrides it.'
 
         dtypes['detnum'] = [int, list]
         descr['detnum'] = 'Restrict reduction to a list of detector indices. ' \
@@ -3125,6 +3142,33 @@ class ReduxPar(ParSet):
                                'results. I.e., you really need to know what you are doing if ' \
                                'you set this to False!'
 
+        # Up-the-ramp fitting performance (currently only used by MMT/MMIRS).
+        # The worker-thread count is driven by the general ncpu parameter above;
+        # only the per-call chunk size is a dedicated (expert) knob here.
+        dtypes['ramp_fit_chunk_rows'] = int
+        descr['ramp_fit_chunk_rows'] = 'Number of detector rows fit per up-the-ramp fitting ' \
+                                       'call (currently only MMT/MMIRS).  If None, defaults to ' \
+                                       '16, which keeps each thread\'s working set cache-' \
+                                       'resident (empirically near-optimal and largely machine-' \
+                                       'independent).  This is an expert knob; larger values ' \
+                                       'raise peak memory and usually reduce throughput.'
+
+        defaults['rampfit_dir'] = 'RampFit'
+        dtypes['rampfit_dir'] = str
+        descr['rampfit_dir'] = 'Directory, relative to the reduction directory, where ' \
+                               'preprocessed up-the-ramp count-rate images are written and ' \
+                               'then reused by the reduction (currently only MMT/MMIRS).'
+
+        defaults['fit2d_chunk'] = DEFAULT_POLYFIT2D_CHUNK
+        dtypes['fit2d_chunk'] = int
+        descr['fit2d_chunk'] = 'Maximum number of data points for which 2D polynomial ' \
+                               '(Legendre, Chebyshev, or power-series) fits build their full ' \
+                               'design matrix; larger fits, and evaluations of 2D fits, are ' \
+                               'processed in chunks of this many points to limit peak memory.  ' \
+                               'The results are the same to within round-off for any value.  ' \
+                               'This is an expert knob: larger values use more memory for ' \
+                               'large fits, and much smaller values are slower.'
+
         # Instantiate the parameter set
         super(ReduxPar, self).__init__(list(pars.keys()),
                                         values=list(pars.values()),
@@ -3140,7 +3184,8 @@ class ReduxPar(ParSet):
 
         # Basic keywords
         parkeys = [ 'spectrograph', 'quicklook', 'detnum', 'sortroot', 'calwin', 'scidir', 'qadir',
-                    'redux_path', 'ignore_bad_headers', 'slitspatnum', 'maskIDs', 'chk_version']
+                    'redux_path', 'ignore_bad_headers', 'slitspatnum', 'maskIDs', 'chk_version',
+                    'ncpu', 'ramp_fit_chunk_rows', 'rampfit_dir', 'fit2d_chunk']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -3153,6 +3198,12 @@ class ReduxPar(ParSet):
         return cls(**kwargs)
 
     def validate(self):
+        if self.data['ncpu'] is not None and self.data['ncpu'] < 1:
+            log.warning(f"ncpu must be a positive integer; changing {self.data['ncpu']} to 1.")
+            self.data['ncpu'] = 1
+        if self.data['fit2d_chunk'] is not None and self.data['fit2d_chunk'] < 1:
+            raise ValueError(f"fit2d_chunk must be a positive integer, not "
+                             f"{self.data['fit2d_chunk']}.")
         if self.data['slitspatnum'] is not None:
             if self.data['maskIDs'] is not None:
                 raise ValueError("You cannot assign both splitspatnum and maskIDs")
@@ -3187,7 +3238,7 @@ class WavelengthSolutionPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
@@ -3665,7 +3716,7 @@ class EdgeTracePar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])      # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
@@ -4386,7 +4437,7 @@ class WaveTiltsPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])      # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
@@ -4558,7 +4609,7 @@ class ReducePar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
@@ -4650,7 +4701,7 @@ class FindObjPar(ParSet):
                  force_center_obj=None):
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
@@ -4868,7 +4919,7 @@ class SkySubPar(ParSet):
                  joint_fit_use_sci=None, sci_exclude_radius=None):
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
@@ -5002,7 +5053,7 @@ class ExtractionPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
@@ -5118,7 +5169,7 @@ class CalibrationsPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])      # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
@@ -5400,7 +5451,7 @@ class PypeItPar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])      # "1:" to skip 'self'
 
         # Initialize the other used specifications for this parameter
@@ -5836,7 +5887,7 @@ class TelescopePar(ParSet):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
@@ -5944,11 +5995,11 @@ class Collate1DPar(ParSet):
     """
     def __init__(self, tolerance=None, dry_run=None, ignore_flux=None, flux=None, match_using=None,
                  exclude_slit_trace_bm=[], exclude_serendip=False, wv_rms_thresh=None, outdir=None,
-                 spec1d_outdir=None, refframe=None):
+                 spec1d_outdir=None, refframe=None, outfile_from=None):
 
         # Grab the parameter names and values from the function
         # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         pars = OrderedDict([(k,values[k]) for k in args[1:]])
 
         # Initialize the other used specifications for this parameter
@@ -6023,6 +6074,18 @@ class Collate1DPar(ParSet):
         descr['refframe'] = 'Perform reference frame correction prior to coadding. ' \
                          'Options are: {0}'.format(', '.join(options['refframe']))
 
+        # How to name the coadded output files
+        defaults['outfile_from'] = 'coord'
+        options['outfile_from'] = ['coord', 'maskdef_objname']
+        dtypes['outfile_from'] = str
+        descr['outfile_from'] = "Determines how the coadded output files are named. 'coord' " \
+                                "(the default) names each file after the sky coordinate of the " \
+                                "source (when match_using is 'ra/dec') or its spatial pixel " \
+                                "position (when match_using is 'pixel'). 'maskdef_objname' names " \
+                                "each file after the slitmask-design object name (MASKDEF_OBJNAME); " \
+                                "sources without a mask-design name (e.g. serendips) fall back to " \
+                                "the 'coord' naming."
+
         # Instantiate the parameter set
         super(Collate1DPar, self).__init__(list(pars.keys()),
                                            values=list(pars.values()),
@@ -6036,7 +6099,7 @@ class Collate1DPar(ParSet):
         k = [*cfg.keys()]
         parkeys = ['tolerance', 'dry_run', 'ignore_flux', 'flux', 'match_using',
                    'exclude_slit_trace_bm', 'exclude_serendip', 'outdir', 'spec1d_outdir',
-                   'wv_rms_thresh', 'refframe']
+                   'wv_rms_thresh', 'refframe', 'outfile_from']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

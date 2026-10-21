@@ -4,13 +4,13 @@
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import inspect
 
 from IPython import embed
 
 import numpy as np
 
 from pypeit import datamodel
+from pypeit import utils
 from pypeit.core import procimg
 
 
@@ -119,7 +119,7 @@ class DetectorContainer(datamodel.DataContainer):
                  xgap=None, ygap=None, ysize=None, darkcurr=None,
                  datasec=None, oscansec=None):
 
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         d = dict([(k,values[k]) for k in args[1:]])
 
         # Setup the DataContainer

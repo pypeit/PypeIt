@@ -5,6 +5,8 @@ parse module.
 .. include:: ../include/links.rst
 
 """
+import re
+
 from IPython import embed
 
 import numpy as np
@@ -516,4 +518,31 @@ def fix_config_par_image_location(par):
 
 def flip_fits_slice(s: str) -> str:
     return '[' + ','.join(s.strip('[]').split(',')[::-1]) + ']'
+
+
+def safe_name_component(name):
+    """
+    Sanitize a string for use as a single output-filename component.
+
+    Externally supplied names (e.g. a catalog object name) may contain path
+    separators (``/``, ``\\``), a drive/stream colon, or other characters that
+    are invalid or dangerous in a filename.  Any character outside a
+    conservative safe set (letters, digits, ``.``, ``+``, ``-``, ``_``) is
+    replaced with an underscore, so the result is always a single, portable
+    path component that cannot escape a directory.
+
+    Args:
+        name (:obj:`str`):
+            The raw name.
+
+    Returns:
+        :obj:`str`: A filename-safe component.  Never empty: if the input
+        reduces to nothing usable (empty or only dots, e.g. ``''``, ``'.'``,
+        ``'..'``), ``'_'`` is returned.
+    """
+    safe = re.sub(r'[^A-Za-z0-9.+_-]', '_', str(name).strip())
+    # Reject a component that is empty or made only of dots.
+    if len(safe.strip('.')) == 0:
+        return '_'
+    return safe
 
