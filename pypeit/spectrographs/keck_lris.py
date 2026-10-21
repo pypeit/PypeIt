@@ -84,6 +84,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.05  # Might be grism dependent
         par['calibrations']['wavelengths']['n_first'] = 3
         par['calibrations']['wavelengths']['n_final'] = 5
+        par['calibrations']['tilts']['tracethresh'] = 5.0
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
@@ -1424,6 +1425,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
 
         #  Sky Subtraction
         par['reduce']['skysub']['bspline_spacing'] = 0.8
+        par['reduce']['skysub']['no_local_sky'] = True
 
         # Defaults for anything other than 1,1 binning
         #  Rest config_specific_par below if binning is (1,1)
