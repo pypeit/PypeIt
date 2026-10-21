@@ -314,3 +314,41 @@ def test_lists():
         _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config())  # Once as tuple
 
 
+
+
+def test_spat_flexure_frame_types():
+    # The spatial flexure cannot be determined for frames that are processed
+    # without the slit edges
+    for frametype in pypeitpar.FrameGroupPar.no_spatial_flexure_frame_types():
+        with pytest.raises(ValueError):
+            pypeitpar.FrameGroupPar(frametype=frametype,
+                                    process=pypeitpar.ProcessImagesPar(spat_flexure_method='detector'))
+        # The default (skip) is fine
+        pypeitpar.FrameGroupPar(frametype=frametype)
+    # Frames processed with the slit edges are fine
+    for frametype in ['science', 'standard', 'arc', 'tilt', 'pixelflat', 'illumflat', 'align',
+                      'scattlight']:
+        pypeitpar.FrameGroupPar(frametype=frametype,
+                                process=pypeitpar.ProcessImagesPar(spat_flexure_method='edge'))
+
+
+def test_spat_flexure_correct_deprecated():
+    # The old spat_flexure_correct parameter raises a helpful error
+    with pytest.raises(ValueError, match='spat_flexure_method'):
+        pypeitpar.ProcessImagesPar.from_dict({'spat_flexure_correct': True})
+
+
+def test_spat_flexure_polyord():
+    # A negative polynomial order is not allowed, even without overscan subtraction
+    with pytest.raises(ValueError):
+        pypeitpar.ProcessImagesPar(use_overscan=False, spat_flexure_polyord=-1)
+    pypeitpar.ProcessImagesPar(use_overscan=False, spat_flexure_polyord=1)
+
+
+def test_spat_flexure_minfrac():
+    # The minimum fraction of matched slit-edge pixels must be between 0 and 1
+    assert pypeitpar.ProcessImagesPar()['spat_flexure_minfrac'] == 0.1
+    for value in [-0.1, 1.5]:
+        with pytest.raises(ValueError):
+            pypeitpar.ProcessImagesPar(use_overscan=False, spat_flexure_minfrac=value)
+    pypeitpar.ProcessImagesPar(use_overscan=False, spat_flexure_minfrac=0)

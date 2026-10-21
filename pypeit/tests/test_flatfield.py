@@ -14,6 +14,7 @@ from pypeit.core.bspline import Knots
 from pypeit.containers.bspline import BSplineContainer
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.tests.tstutils import data_output_path
+# from pypeitdev.flats.dev_flats import pixelflat
 
 
 def test_flatimages():
@@ -28,8 +29,10 @@ def test_flatimages():
                         pixelflat_model=None,
                         pixelflat_spat_bsplines=np.asarray([spat_bspline1, spat_bspline2]),
                         pixelflat_spec_illum=None,
+                        pixelflat_spat_flexure=None,
                         illumflat_raw=tmp,
                         illumflat_spat_bsplines=np.asarray([spat_bspline1, spat_bspline2]),
+                        illumflat_spat_flexure=None,
                         spat_id=np.asarray([100, 200]),
                         PYP_SPEC="specname")
 
@@ -114,3 +117,42 @@ def test_load_pixflat_preserves_calib_key(tmp_path):
     assert Path(merged.get_path()).name == 'Flat_B_1_DET01.fits'
 
 
+
+
+def test_flatfield_spec_illum_flexure():
+    # The relative spectral illumination is defined on the slits of the pixel
+    # flat, and must be remapped to the spatial flexure of the frame
+    from pypeit.core import flexure
+    from pypeit.images.rawimage import RawImage
+    from pypeit.par.pypeitpar import ProcessImagesPar
+    from pypeit.slittrace import SlitTraceSet
+    nspec, nspat = 40, 80
+    left = np.full((nspec, 2), 8.) + np.array([0., 35.])[None, :]
+    right = left + 28.
+    slits = SlitTraceSet(left_init=left, right_init=right, pypeline='SlicerIFU', nspat=nspat,
+                         PYP_SPEC='dummy')
+    flat_flexure = np.full((2, 2), 0.4)
+    sci_flexure = np.array([[2.2, 2.6], [1.8, 2.0]])
+    # A different spectral illumination for each slit, varying across the slit
+    spec_illum = np.ones((nspec, nspat))
+    slitidx_img = slits.slit_img(pad=0, initial=True, spat_flexure=flat_flexure, use_spatial=False)
+    for slit_idx in range(slits.nslits):
+        spec, spat = np.where(slitidx_img == slit_idx)
+        spec_illum[spec, spat] = 1.2 + 0.3 * slit_idx + 0.002 * spat
+    flatimages = flatfield.FlatImages(pixelflat_norm=np.ones((nspec, nspat)),
+                                      pixelflat_spec_illum=spec_illum,
+                                      pixelflat_spat_flexure=flat_flexure,
+                                      PYP_SPEC='dummy', spat_id=slits.spat_id)
+    # Build a minimal processed image (without reading a raw file)
+    raw = object.__new__(RawImage)
+    raw.par = ProcessImagesPar(use_overscan=False, use_illumflat=False, use_specillum=True)
+    raw.steps = dict(flatfield=False)
+    raw.nimg = 1
+    raw.image = np.ones((1, nspec, nspat))
+    raw.spat_flexure_shift = sci_flexure
+    raw.flatfield(flatimages, slits=slits)
+    expected = flexure.spat_flexure_remap(spec_illum, slits, spat_flexure=sci_flexure,
+                                          src_spat_flexure=flat_flexure, initial=True)
+    assert not np.array_equal(expected, spec_illum), 'Test requires a change of flexure'
+    assert np.allclose(raw.image[0] * expected, 1.), \
+        'The spectral illumination should be applied at the spatial flexure of the frame'

@@ -198,7 +198,7 @@ def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle,
 def identify_ech_orders(arcspec, echangle, xdangle, dispname,
                         angle_fits_file,
                         composite_arc_file, debug=False,
-                        cc_percent_ceil=50.0, pad=3, direct_cc=False):
+                        cc_percent_ceil=50.0, cc_synth_arc=True, pad=3):
     """
     Identify the orders in the echelle spectrum via cross correlation with the best guess predicted arc based
     on echangle, xdangle, and cross-disperser
@@ -223,16 +223,14 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
         Passed to xcorr_shift
     cc_percent_ceil: float, optional
         The percent_ceil value to be used by xcorr_shift to set the percentile to which to normalize the CCF
-    direct_cc : bool, optional
-        If True, cross-correlate the stacked arc spectra directly: skip the
-        synthetic line-arc construction and the continuum subtraction of the
-        correlation function in :func:`~pypeit.core.wavecal.wvutils.xcorr_shift`.
-        This is significantly faster for large spectral formats (e.g., 4k
-        detectors with ~100 orders, such as Shane/Hamspec), but it is less
-        robust: without the synthetic (clipped, line-only) arcs, a few very
-        strong lines, detector artifacts, or continuum/scattered-light
-        structure can dominate the correlation and skew the order
-        registration.  The default (False) preserves the original behavior.
+    cc_synth_arc: bool, optional
+        If this parameter is True, peak finding will be performed and a
+        synthetic arc will be created to be used for the cross-correlations,
+        and the cross-correlation function is continuum subtracted before its
+        peak is found.  If False, the stacked arc spectra are cross-correlated
+        directly and the continuum subtraction is skipped; this is
+        significantly faster for large spectral formats (e.g., 4k detectors
+        with ~100 orders, such as Shane/Hamspec), but less robust.
 
     Returns
     -------
@@ -257,12 +255,14 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
     arccen_pad = np.zeros((nspec, norders_guess))
     arccen_pad[:nspec, :norders] = arcspec
 
-    # Cross correlate the data with the predicted arc spectrum
+    # Cross correlate the data with the predicted arc spectrum.  When
+    # cross-correlating the arcs directly (cc_synth_arc=False), also skip the
+    # (slow for large formats) continuum subtraction of the CCF.
     # TODO Does it make sense for xcorr_shift to continuum subtract here?
     shift_cc, corr_cc = wvutils.xcorr_shift(
         arccen_pad.flatten('F'), arcspec_guess_pad.flatten('F'),
-        percent_ceil=cc_percent_ceil,
-        do_xcorr_arc=not direct_cc, cont_subtract=not direct_cc,
+        cc_synth_arc=cc_synth_arc, percent_ceil=cc_percent_ceil,
+        cont_subtract=cc_synth_arc,
         sigdetect=5.0, sig_ceil=10.0, fwhm=4.0, debug=debug)
 
     if debug:

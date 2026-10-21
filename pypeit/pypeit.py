@@ -116,7 +116,7 @@ class PypeIt:
         log.info('Compiling metadata')
         self.fitstbl = PypeItMetaData(self.spectrograph, self.par, 
                                       files=self.pypeItFile.filenames,
-                                      usrdata=self.pypeItFile.data, 
+                                      usrdata=self.pypeItFile.data,
                                       strict=True)
         #   - Interpret automated or user-provided data from the PypeIt
         #   file
@@ -271,7 +271,7 @@ class PypeIt:
             reduce_calibID(self.spectrograph, self.par, self.fitstbl,
                            calib_ID, self.calibrations_path,
                            reduce_standard=True, overwrite=self.overwrite,
-                           show=self.show, 
+                           show=self.show,
                            run_state=self.run_state,
                            reuse_calibs=self.reuse_calibs)
 
@@ -281,10 +281,10 @@ class PypeIt:
         # Iterate over each calibration group again and reduce the science frames
         for calib_ID in self.fitstbl.calib_groups:
             reduce_calibID(self.spectrograph, self.par, self.fitstbl,
-                                        calib_ID, self.calibrations_path,
-                                        reduce_standard=False, overwrite=self.overwrite,
-                                        show=self.show, run_state=self.run_state,
-                                        reuse_calibs=self.reuse_calibs)
+                           calib_ID, self.calibrations_path,
+                           reduce_standard=False, overwrite=self.overwrite,
+                           show=self.show, run_state=self.run_state,
+                           reuse_calibs=self.reuse_calibs)
             log.info(f'Finished calibration group {calib_ID}')
 
         # Finish
@@ -304,7 +304,7 @@ class PypeIt:
         return '<{:s}: pypeit_file={}>'.format(self.__class__.__name__, self.pypeit_file)
 
 
-def reduce_calibID(spectrograph, par, fitstbl, calib_ID:str, 
+def reduce_calibID(spectrograph, par, fitstbl, calib_ID:str,
                    calibrations_path:str,
                    reduce_standard:bool=False, overwrite:bool=False,
                    show:bool=False,
@@ -404,18 +404,18 @@ def reduce_calibID(spectrograph, par, fitstbl, calib_ID:str,
                                             frames[0], twod=True)
         if not outfile2d.is_file() or overwrite:
 
-            # Build history to document what contributd to the reduced
+            # Build history to document what contributed to the reduced
             # exposure
             history = History(fitstbl.frame_paths(frames[0]))
             history.add_reduce(calib_ID, fitstbl, frames, bg_frames)
 
             # TODO -- Should we reset/regenerate self.slits.mask for a new exposure
             #sci_spec2d, sci_sobjs = self.reduce_exposure(
-            #    frames, calib_ID, bg_frames=bg_frames, 
+            #    frames, calib_ID, bg_frames=bg_frames,
             #    std_outfile=std_outfile)
 
             this_spec2d, this_sobjs = exposure.reduce_exposure(
-                spectrograph, fitstbl, par, frames, calib_ID, 
+                spectrograph, fitstbl, par, frames, calib_ID,
                 calibrations_path, bg_frames=bg_frames,
                 reuse_calibs=reuse_calibs, run_state=run_state,
                 show=show,
@@ -425,7 +425,7 @@ def reduce_calibID(spectrograph, par, fitstbl, calib_ID:str,
             # save_exposure for combined files
             if len(this_spec2d.detectors) > 0:
                 exposure.save_exposure(spectrograph,
-                                    fitstbl, par, frames[0], 
+                                    fitstbl, par, frames[0],
                                     this_spec2d, this_sobjs, calibrations_path,
                                     history=history,
                                     skip_write_2d=par['scienceframe']['process']['skip_write_2d'])

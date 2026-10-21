@@ -99,12 +99,18 @@ class FindObjects:
         slits (:class:`~pypeit.slittrace.SlitTraceSet`):
         sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
             Objects found
-        spat_flexure_shift (:obj:`float`):
+        spat_flexure (`numpy.ndarray`_, optional):
+            If provided, this is the shift, in spatial pixels, to
+            apply to each slit. This is used to correct for spatial
+            flexure. The shape of the array should be (nslits, 2),
+            where the first column is the shift to apply to the
+            left edge of each slit and the second column is the
+            shift to apply to the right edge of each slit.
         tilts (`numpy.ndarray`_):
             WaveTilts images generated on-the-spot
         waveimg (`numpy.ndarray`_):
             WaveImage image generated on-the-spot
-        slitshift (`numpy.ndarray`_):
+        spec_flexure (`numpy.ndarray`_):
             Global spectral flexure correction for each slit (in pixels)
             Currently only used with the IFU
         vel_corr (:obj:`float`):
@@ -156,16 +162,13 @@ class FindObjects:
         #   WARNING -- It is best to unpack here then pass around self.slits
         #      Otherwise you have to keep in mind flexure, tweaking, etc.
 
-        # TODO: The spatial flexure is not copied to the PypeItImage object if
-        # the image (science or otherwise) is from a combination of multiple
-        # frames.  Is that okay for this usage?
-        # Flexure
-        self.spat_flexure_shift = None
-        if (objtype == 'science' and self.par['scienceframe']['process']['spat_flexure_correct']) or \
-           (objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_correct']):
-            self.spat_flexure_shift = self.sciImg.spat_flexure
-        elif objtype == 'science_coadd2d':
-            self.spat_flexure_shift = None
+        # Spatial flexure of the image relative to the slits.  This is None if
+        # no spatial flexure was computed (spat_flexure_method = skip) and no
+        # manual value was provided in the pypeit file.  NOTE: Do *not* check
+        # spat_flexure_method here; a manual value is applied even if the
+        # method is 'skip'.  The 2D coadded images are rectified, so there is
+        # no spatial flexure.
+        self.spat_flexure = None if objtype == 'science_coadd2d' else self.sciImg.spat_flexure
 
         # Initialise the slits
         log.info("Initializing slits")
@@ -218,7 +221,7 @@ class FindObjects:
         self.extractmask = None
         # SpecObjs object
         self.sobjs_obj = None
-        self.slitshift = np.zeros(self.slits.nslits)  # Global spectral flexure slit shifts (in pixels) that are applied to all slits.
+        self.spec_flexure = np.zeros(self.slits.nslits)  # Global spectral flexure slit shifts (in pixels) that are applied to all slits.
         self.vel_corr = None
 
         # Deal with dynamically generated calibrations, i.e. the tilts.
@@ -229,15 +232,10 @@ class FindObjects:
         elif waveTilts is not None and tilts is None:
             self.waveTilts = waveTilts
             self.waveTilts.is_synced(self.slits)
-            #   Deal with Flexure
-            if self.par['calibrations']['tiltframe']['process']['spat_flexure_correct']:
-                _spat_flexure = 0. if self.spat_flexure_shift is None else self.spat_flexure_shift
-                # If they both shifted the same, there will be no reason to shift the tilts
-                tilt_flexure_shift = _spat_flexure - self.waveTilts.spat_flexure
-            else:
-                tilt_flexure_shift = self.spat_flexure_shift
+            # NOTE: fit2tiltimg accounts for the spatial flexure of the tilts
+            # frame, and treats a spat_flexure of None as no flexure.
             log.info("Generating tilts image from fit in waveTilts")
-            self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
+            self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, spat_flexure=self.spat_flexure)
         elif waveTilts is None and tilts is not None:
             log.info("Using user input tilts image")
             self.tilts = tilts
@@ -303,10 +301,10 @@ class FindObjects:
         # Slits
         self.slits = slits
         # Select the edges to use
-        # TODO JFH: his is an ugly hack for the present moment until we get the slits object sorted out
+        # TODO JFH: This is an ugly hack for the present moment until we get the slits object sorted out
         self.slits_left, self.slits_right, _ \
-            = self.slits.select_edges(initial=initial, flexure=self.spat_flexure_shift)
-        # This matches the logic below that is being applied to the slitmask. Better would be to clean up slits to
+            = self.slits.select_edges(initial=initial, spat_flexure=self.spat_flexure)
+        # This matches the logic below that is being applied to the slitmask. Better would be to clean up slits
         # to return a new slits object with the desired selection criteria which would remove the ambiguity
         # about whether the slits and the slitmask are in sync.
         #bpm = self.slits.mask.astype(bool)
@@ -317,14 +315,14 @@ class FindObjects:
 
 
         # Slitmask
-        self.slitmask = self.slits.slit_img(initial=initial, flexure=self.spat_flexure_shift,
+        self.slitmask = self.slits.slit_img(initial=initial, spat_flexure=self.spat_flexure,
                                             exclude_flag=self.slits.bitmask.exclude_for_reducing+['BOXSLIT'])
         # Now add the slitmask to the mask (i.e. post CR rejection in proc)
         # NOTE: this uses the par defined by EdgeTraceSet; this will
         # use the tweaked traces if they exist
         self.sciImg.update_mask_slitmask(self.slitmask)
 #        # For echelle
-#        self.spatial_coo = self.slits.spatial_coordinates(initial=initial, flexure=self.spat_flexure_shift)
+#        self.spatial_coo = self.slits.spatial_coordinates(initial=initial, spat_flexure=self.spat_flexure)
 
     # TODO There are going to be problems with std_trace not being aligned with whatever orders are getting masked in
     # this routine.
@@ -366,7 +364,7 @@ class FindObjects:
         # uses the mask specified by the user.
 
         # TODO: Should we make this no_poly=True to have fewer degrees of freedom in
-        # the with with-object global sky fits??
+        #  the with with-object global sky fits??
         initial_sky0 = self.global_skysub(skymask=self.initial_skymask, update_crmask=False,
                                           objs_not_masked=True, show_fit=show_skysub_fit)
         # First pass object finding
@@ -1049,7 +1047,8 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
             raise PypeItError("A wavelength calibration is needed (wv_calib) if a joint sky fit is requested.")
         log.info("Generating wavelength image")
         # Generate the waveimg which is needed if flexure is being computed
-        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
+        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spec_flexure=self.spec_flexure,
+                                                   spat_flexure=self.spat_flexure)
 
         # Calculate spectral flexure, so that we can align all slices of the IFU. We need to do this on the model
         # sky spectrum. It must be performed in this class if the joint sky fit is requested, because all of
@@ -1058,11 +1057,11 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         # TODO :: Perhaps include a new label for IFU flexure correction - e.g. 'slitcen_relative' or 'slitcenIFU' or 'IFU'
         #      :: If a new label is introduced, change the other instances of 'method' (see below), and in qa.spec_flexure_qa()
         if method in ['slitcen']:
-            self.slitshift = self.calculate_flexure(global_sky_sep)
+            self.spec_flexure = self.calculate_flexure(global_sky_sep)
             # Recalculate the wavelength image, and the global sky taking into account the spectral flexure
             log.info("Generating wavelength image, accounting for spectral flexure")
-            self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spec_flexure=self.slitshift,
-                                                       spat_flexure=self.spat_flexure_shift)
+            self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spec_flexure=self.spec_flexure,
+                                                       spat_flexure=self.spat_flexure)
 
         # If the joint fit or spec/spat sensitivity corrections are not being performed, return the separate slits sky
         if not self.par['reduce']['skysub']['joint_fit'] or bkg_redux_sciimg is not None:
@@ -1103,7 +1102,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
 
         # Use the FWHM map determined from the arc lines to convert the science frame
         # to have the same effective spectral resolution.
-        fwhm_map = self.wv_calib.build_fwhmimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
+        fwhm_map = self.wv_calib.build_fwhmimg(self.tilts, self.slits, spat_flexure=self.spat_flexure)
         thismask = thismask & (fwhm_map != 0.0)
         # Need to include S/N for deconvolution
         sciimg = skysub.convolve_skymodel(self.sciImg.image, fwhm_map, thismask)
@@ -1112,8 +1111,8 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         model_ivar = self.sciImg.ivar
         sl_ref = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
         # Prepare the slitmasks for the relative spectral illumination
-        slitmask = self.slits.slit_img(pad=0, flexure=self.spat_flexure_shift)
-        slitmask_trim = self.slits.slit_img(pad=-3, flexure=self.spat_flexure_shift)
+        slitmask = self.slits.slit_img(pad=0, spat_flexure=self.spat_flexure)
+        slitmask_trim = self.slits.slit_img(pad=-3, spat_flexure=self.spat_flexure)
         for nn in range(numiter):
             log.info("Performing iterative joint sky subtraction - ITERATION {0:d}/{1:d}".format(nn+1, numiter))
             # TODO trim_edg is in the parset so it should be passed in here via trim_edg=tuple(self.par['reduce']['trim_edge']),
@@ -1211,8 +1210,8 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
 
         Returns
         -------
-        new_slitshift: ndarray
-            The flexure in pixels
+        new_spec_flexure: ndarray
+            The spectral flexure in pixels
         """
         sl_ref = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
         box_rad = self.par['reduce']['extraction']['boxcar_radius']/ self.get_platescale()
@@ -1222,45 +1221,45 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         # Extract a spectrum of the sky
         thismask = (self.slitmask == self.slits.spat_id[sl_ref])
         ref_skyspec = flexure.get_sky_spectrum(self.sciImg.image, self.sciImg.ivar, self.waveimg, thismask,
-                                               global_sky, box_rad, self.slits, trace_spat[:, sl_ref],
+                                               global_sky, box_rad, trace_spat[:, sl_ref],
                                                self.pypeline, self.det)
         # Calculate the flexure
-        flex_dict_ref = flexure.spec_flex_shift(ref_skyspec, sky_file=self.par['flexure']['spectrum'], spec_fwhm_pix=ref_fwhm_pix,
-                                            mxshft=self.par['flexure']['spec_maxshift'],
-                                            excess_shft=self.par['flexure']['excessive_shift'],
-                                            method="slitcen",
-                                            minwave=self.par['flexure']['minwave'],
-                                            maxwave=self.par['flexure']['maxwave'])
-        this_slitshift = np.zeros(self.slits.nslits)
+        flex_dict_ref = flexure.spec_flexure_shift(ref_skyspec, sky_file=self.par['flexure']['spectrum'], spec_fwhm_pix=ref_fwhm_pix,
+                                                   mxshft=self.par['flexure']['spec_maxshift'],
+                                                   excess_shft=self.par['flexure']['excessive_shift'],
+                                                   method="slitcen",
+                                                   minwave=self.par['flexure']['minwave'],
+                                                   maxwave=self.par['flexure']['maxwave'])
+        this_spec_flexure = np.zeros(self.slits.nslits)
         if flex_dict_ref is not None:
             log.warning("Only a relative spectral flexure correction will be performed")
-            this_slitshift = np.ones(self.slits.nslits) * flex_dict_ref['shift']
+            this_spec_flexure = np.ones(self.slits.nslits) * flex_dict_ref['spec_flexure']
         # Now loop through all slits to calculate the additional shift relative to the reference slit
         flex_list = []
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
             thismask = (self.slitmask == slit_spat)
             # Extract sky spectrum for this slit
             this_skyspec = flexure.get_sky_spectrum(self.sciImg.image, self.sciImg.ivar, self.waveimg, thismask,
-                                                    global_sky, box_rad, self.slits, trace_spat[:, slit_idx],
+                                                    global_sky, box_rad, trace_spat[:, slit_idx],
                                                     self.pypeline, self.det)
             # Calculate the flexure
-            flex_dict = flexure.spec_flex_shift(this_skyspec, arx_skyspec=ref_skyspec, arx_fwhm_pix=ref_fwhm_pix * 1.01,
-                                                spec_fwhm_pix=ref_fwhm_pix,
-                                                mxshft=self.par['flexure']['spec_maxshift'],
-                                                excess_shft=self.par['flexure']['excessive_shift'],
-                                                method="slitcen",
-                                                minwave=self.par['flexure']['minwave'],
-                                                maxwave=self.par['flexure']['maxwave'])
-            this_slitshift[slit_idx] += flex_dict['shift']
+            flex_dict = flexure.spec_flexure_shift(this_skyspec, arx_skyspec=ref_skyspec, arx_fwhm_pix=ref_fwhm_pix * 1.01,
+                                                   spec_fwhm_pix=ref_fwhm_pix,
+                                                   mxshft=self.par['flexure']['spec_maxshift'],
+                                                   excess_shft=self.par['flexure']['excessive_shift'],
+                                                   method="slitcen",
+                                                   minwave=self.par['flexure']['minwave'],
+                                                   maxwave=self.par['flexure']['maxwave'])
+            this_spec_flexure[slit_idx] += flex_dict['spec_flexure']
             flex_list.append(flex_dict.copy())
-        # Replace the reference slit with the absolute shift
+        # Replace the reference slit with the absolute spectral flexure
         flex_list[sl_ref] = flex_dict_ref.copy()
         # Add this flexure to the previous flexure correction
-        new_slitshift = self.slitshift + this_slitshift
+        new_spec_flexure = self.spec_flexure + this_spec_flexure
         # Now report the flexure values
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
-            log.info("Flexure correction, slit {0:d} (spat id={1:d}): {2:.3f} pixels".format(1+slit_idx, slit_spat,
-                                                                                              self.slitshift[slit_idx]))
+            log.info("Spectral flexure correction, slit {0:d} (spat id={1:d}): {2:.3f} pixels".format(1+slit_idx, slit_spat,
+                                                                                                       new_spec_flexure[slit_idx]))
         # Save QA
         # TODO :: Need to implement QA once the flexure code has been tidied up, and this routine has been moved
         #         out of the find_objects() class.
@@ -1271,7 +1270,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
             out_dir = os.path.join(self.par['rdx']['redux_path'], 'QA')
             slit_bpm = np.zeros(self.slits.nslits, dtype=bool)
             qa.spec_flexure_qa(self.slits.slitord_id, slit_bpm, basename, flex_list, out_dir=out_dir)
-        return new_slitshift
+        return new_spec_flexure
 
     def apply_relative_scale(self, scaleImg):
         """Apply a relative scale to the science frame (and correct the varframe, too)
@@ -1376,7 +1375,7 @@ class FiberFindObjects(FindObjects):
                 raise PypeItError("Wavelength calibration required for "
                                   "fiber sky subtraction")
             self.waveimg = self.wv_calib.build_waveimg(
-                self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
+                self.tilts, self.slits, spat_flexure=self.spat_flexure)
 
         fiber_flatimages = self._load_fiber_flatimages()
 
@@ -1491,7 +1490,7 @@ class FiberFindObjects(FindObjects):
         if self.wv_calib is not None:
             fwhmimg = self.wv_calib.build_fwhmimg(
                 self.tilts, self.slits, initial=True,
-                spat_flexure=self.spat_flexure_shift)
+                spat_flexure=self.spat_flexure)
         fwhm_box = None
 
         wave_box = wave_num / (box_denom + (box_denom == 0.0))
@@ -1550,7 +1549,7 @@ class FiberFindObjects(FindObjects):
         if self.wv_calib is not None:
             fwhmimg = self.wv_calib.build_fwhmimg(
                 self.tilts, self.slits, initial=True,
-                spat_flexure=self.spat_flexure_shift)
+                spat_flexure=self.spat_flexure)
 
         for sobj in sobjs:
             other_slit = (slitmask != sobj.SLITID) & (slitmask != -1)
@@ -2438,7 +2437,7 @@ class FiberFindObjects(FindObjects):
         nspec, nspat = self.sciImg.image.shape
         sky_model = np.zeros_like(self.sciImg.image)
         slitmask = self.slits.slit_img(
-            pad=0, flexure=self.spat_flexure_shift)
+            pad=0, spat_flexure=self.spat_flexure)
         spat_pix = np.arange(nspat)
         for sobj in sobjs:
             sky_spec = sobj.BOX_COUNTS_SKY

@@ -140,3 +140,47 @@ def test_io_single():
     ofile.unlink()
 
 
+
+
+def _maskinfo_objects(slits, positions, spat_flexure):
+    """Detected objects (target and serendipitous source) in the first slit."""
+    from pypeit import specobj, specobjs
+    sobjs = specobjs.SpecObjs()
+    for ii, pos in enumerate(positions):
+        sobj = specobj.SpecObj('MultiSlit', 'DET01', SLITID=slits.spat_id[0])
+        sobj.OBJID = ii + 1
+        sobj.SPAT_PIXPOS = pos + (0. if spat_flexure is None else np.mean(spat_flexure[0]))
+        sobj.smash_peakflux = 100.
+        sobj.FWHM = 3.
+        sobjs.add_sobj(sobj)
+    return sobjs
+
+
+def test_assign_maskinfo_spat_flexure():
+    # The RA and Dec assigned to a serendipitous source must not depend on the
+    # spatial flexure of the frame
+    from astropy.table import Table
+    nspec, platescale = 100, 0.1
+    left = np.tile([50., 150.], (nspec, 1))
+    designtab = Table({'MASKDEF_ID': [1001, 1002], 'SLITRA': [150.0, 150.0],
+                       'SLITDEC': [10.0, 10.001], 'SLITPA': [30.0, 30.0],
+                       'OBJRA': [150.0001, 150.0002], 'OBJDEC': [10.0001, 10.0011],
+                       'OBJNAME': ['targ1', 'targ2'], 'OBJMAG': [20., 21.],
+                       'OBJMAG_BAND': ['r', 'r']})
+    designtab.meta['MASKRMSL'] = 0.
+    slits = SlitTraceSet(left_init=left, right_init=left + 60., pypeline='MultiSlit',
+                         detname='DET01', nspat=250, PYP_SPEC='dummy',
+                         maskdef_id=np.array([1001, 1002]), maskdef_designtab=designtab,
+                         maskdef_objpos=np.array([20., 30.]), maskdef_offset=0.5)
+    slits.maskdef_slitcen = slits.center.copy()
+    # Target (at its expected position) and a serendipitous source, relative
+    # to the slit in the frame
+    positions = left[0, 0] + np.array([20.5, 45.])
+    radec = []
+    for spat_flexure in [None, np.array([[2.5, 2.5], [1., 1.]])]:
+        sobjs = _maskinfo_objects(slits, positions, spat_flexure)
+        sobjs = slits.assign_maskinfo(sobjs, platescale, spat_flexure)
+        assert list(sobjs.MASKDEF_OBJNAME) == ['targ1', 'SERENDIP'], 'Incorrect object matching'
+        radec.append((sobjs[1].RA, sobjs[1].DEC))
+    assert np.allclose(radec[0], radec[1], rtol=0, atol=1e-9), \
+        'The RA/Dec of the serendipitous source depends on the spatial flexure'

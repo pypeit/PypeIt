@@ -193,9 +193,28 @@ class FrameGroupPar(ParSet):
         """
         return FrameTypeBitMask().keys()
 
+    @staticmethod
+    def no_spatial_flexure_frame_types():
+        """
+        Return the list of frame types for which the spatial flexure cannot be
+        determined, because they are processed before the slit edges are
+        defined, or without the slit edges.
+        """
+        return ['bias', 'dark', 'trace', 'pinhole', 'slitless_pixflat', 'lampoffflats']
+
     def validate(self):
         if len(self.data['exprng']) != 2:
             raise ValueError('exprng must be a list with two items.')
+        # Spatial flexure can only be determined for frames that are processed
+        # with the slit edges
+        process = self.data['process']
+        if self.data['frametype'] in FrameGroupPar.no_spatial_flexure_frame_types() \
+                and process is not None and 'spat_flexure_method' in process.keys() \
+                and process['spat_flexure_method'] not in [None, 'skip']:
+            raise ValueError(f'The spatial flexure cannot be determined for {self.data["frametype"]} '
+                             'frames, because they are processed before the slit edges are '
+                             'defined, or without the slit edges.  Set spat_flexure_method = skip '
+                             f'for the {self.data["frametype"]} frames.')
 
 
 class ProcessImagesPar(ParSet):
@@ -227,8 +246,9 @@ class ProcessImagesPar(ParSet):
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
                  skip_write_2d=None,
                  use_pattern=None, subtract_scattlight=None, scattlight=None, subtract_continuum=None,
-                 spat_flexure_correct=None, spat_flexure_maxlag=None,
-                 spat_flexure_sigdetect=None, spat_flexure_vrange=None):
+                 spat_flexure_method=None, spat_flexure_polyord=None, spat_flexure_maxlag=None,
+                 spat_flexure_sigdetect=None, spat_flexure_minfrac=None,
+                 spat_flexure_vrange=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -369,10 +389,24 @@ class ProcessImagesPar(ParSet):
                                  'after ensuring the quality of the resulting reductions.'
 
         # Flexure
-        defaults['spat_flexure_correct'] = False
-        dtypes['spat_flexure_correct'] = bool
-        descr['spat_flexure_correct'] = 'Correct slits, illumination flat, etc. for flexure'
+        defaults['spat_flexure_method'] = 'skip'
+        options['spat_flexure_method'] = ProcessImagesPar.valid_spatial_flexure()
+        dtypes['spat_flexure_method'] = str
+        descr['spat_flexure_method'] = 'Correct slits, illumination flat, etc. for spatial flexure. ' \
+                                       'Options are: {0}'.format(', '.join(options['spat_flexure_method'])) + \
+                                       '"skip" means no correction is performed. ' \
+                                       '"detector" means that a single shift is applied to all slits. ' \
+                                       '"slit" means that each slit is shifted independently. ' \
+                                       '"edge" means that each slit edge is shifted independently. ' \
+                                       '"leftedge" means that the left slit edge will be used to determine ' \
+                                           'the shift, and this value will be assigned to the right edge. ' \
+                                       '"rightedge" means that the right slit edge will be used to determine ' \
+                                           'the shift, and this value will be assigned to the left edge.'
 
+        defaults['spat_flexure_polyord'] = None
+        dtypes['spat_flexure_polyord'] = int
+        descr['spat_flexure_polyord'] = 'Polynomial order to use when fitting the spatial flexure values ' \
+                                        'of each slit edge'
         defaults['spat_flexure_maxlag'] = 20
         dtypes['spat_flexure_maxlag'] = int
         descr['spat_flexure_maxlag'] = 'Maximum of possible spatial flexure correction, in pixels'
@@ -383,6 +417,21 @@ class ProcessImagesPar(ParSet):
                                           'Sobel-filtered significance image, used for '  \
                                           'finding slit edges in the spectral image, '  \
                                           'for which the spatial flexure is computed.'
+
+        defaults['spat_flexure_minfrac'] = 0.1
+        dtypes['spat_flexure_minfrac'] = [int, float]
+        descr['spat_flexure_minfrac'] = 'Minimum fraction of the traced slit-edge pixels that ' \
+                                        'must coincide (within 2 pixels) with an edge detected ' \
+                                        'in the image, after shifting the traced edges by the ' \
+                                        'measured detector-level spatial flexure.  If fewer ' \
+                                        'edge pixels are matched (e.g. because the slit edges ' \
+                                        'are not visible in a faint exposure), the slit edges ' \
+                                        'are deemed to be undetected and no spatial flexure is ' \
+                                        'applied.  For frames where the slit edges are only ' \
+                                        'visible in a few spectral rows (e.g. arc frames with ' \
+                                        'few emission lines), a lower value may be required.  ' \
+                                        'Set to 0 to disable this check.  This value must be ' \
+                                        'between 0 and 1.'
 
         defaults['spat_flexure_vrange'] = None
         dtypes['spat_flexure_vrange'] = tuple
@@ -498,12 +547,20 @@ class ProcessImagesPar(ParSet):
         parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'subtract_continuum',
                    'subtract_scattlight', 'scattlight', 'use_pattern', 'use_overscan',
                    'overscan_method', 'overscan_par', 'use_darkimage', 'dark_expscale',
-                   'spat_flexure_correct', 'spat_flexure_maxlag', 'spat_flexure_sigdetect',
-                   'spat_flexure_vrange', 'use_illumflat', 'use_specillum', 'skip_write_2d',
+                   'spat_flexure_method', 'spat_flexure_polyord', 'spat_flexure_maxlag', 'spat_flexure_sigdetect',
+                   'spat_flexure_minfrac', 'spat_flexure_vrange', 'use_illumflat', 'use_specillum', 'skip_write_2d',
                    'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
                    'scale_to_mean', 'correct_nonlinear', 'satpix', #'calib_setup_and_bit',
                    'n_lohi', 'mask_cr', 'lamaxiter', 'grow', 'clip', 'comb_sigrej', 'rmcompact',
                    'sigclip', 'sigfrac', 'objlim', 'cr_median_width']
+
+        # Provide a helpful message for the deprecated spat_flexure_correct parameter
+        if 'spat_flexure_correct' in k:
+            raise ValueError('The spat_flexure_correct parameter has been replaced by '
+                             'spat_flexure_method.  Use spat_flexure_method = detector instead of '
+                             'spat_flexure_correct = True, or spat_flexure_method = skip instead '
+                             'of spat_flexure_correct = False.  See the spatial flexure '
+                             'documentation for the other options.')
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -532,6 +589,13 @@ class ProcessImagesPar(ParSet):
         return ['median', 'mean' ]
 
     @staticmethod
+    def valid_spatial_flexure():
+        """
+        Return the valid methods for combining frames.
+        """
+        return ['skip', 'detector', 'slit', 'edge', 'leftedge', 'rightedge']
+
+    @staticmethod
     def valid_saturation_handling():
         """
         Return the valid approachs to handling saturated pixels.
@@ -552,6 +616,16 @@ class ProcessImagesPar(ParSet):
 
         if self.data['n_lohi'] is not None and len(self.data['n_lohi']) != 2:
             raise ValueError('n_lohi must be a list of two numbers.')
+
+        # Check polynomial order is greater than or equal to zero
+        if isinstance(self.data['spat_flexure_polyord'], int):
+            if self.data['spat_flexure_polyord'] < 0:
+                raise ValueError('spat_flexure_polyord must be greater than or equal to zero.')
+
+        # Check the minimum fraction of matched slit-edge pixels
+        if self.data['spat_flexure_minfrac'] is not None \
+                and not 0 <= self.data['spat_flexure_minfrac'] <= 1:
+            raise ValueError('spat_flexure_minfrac must be between 0 and 1.')
 
         if not self.data['use_overscan']:
             return
@@ -1030,14 +1104,14 @@ class AlignPar(ParSet):
                               'then only use the N most significant detections, where N is the number ' \
                               'of elements specified in the "locations" keyword argument'
 
-        defaults['grow_slit_edge'] = 0.0  
+        defaults['grow_slit_edge'] = 0.0
         dtypes['grow_slit_edge'] = [int, float]
         descr['grow_slit_edge'] = 'Grow the slit edges by this number of pixels when searching ' \
                                   'for alignnment traces. This parameter should typically be invoked ' \
                                   'when alignment fails because an alignment trace is falling off the edge of the ' \
                                   'slit. Both the left and right edges will be expanded by this number of pixels for ' \
                                   'the purpose of alignment trace finding.'
-        
+
 
         # Instantiate the parameter set
         super(AlignPar, self).__init__(list(pars.keys()),
@@ -1913,7 +1987,7 @@ class CubePar(ParSet):
         descr['sn_smooth_npix'] = 'Number of pixels to median filter by when computing S/N used to decide how to scale ' \
                                   'and weight spectra. If set to None (default), the code will determine the effective ' \
                                   'number of good pixels per spectrum in the stack that is being co-added and use 10% of ' \
-                                  'this neff.'                                
+                                  'this neff.'
 
 
         # Instantiate the parameter set
@@ -1992,7 +2066,7 @@ class CubeExtractionPar(ParSet):
     see :ref:`parameters`.
     """
 
-    def __init__(self, output_filename=None, whitelight_range=None, fwhm=None, 
+    def __init__(self, output_filename=None, whitelight_range=None, fwhm=None,
                  snr_thresh=None,  manual=None, boxcar_radius=None, opt_prof_method=None,
                  skysub_resid=None):
 
@@ -2023,19 +2097,19 @@ class CubeExtractionPar(ParSet):
                                     'white light image. The first (second) element is the minimum (maximum) ' \
                                     'wavelength to use. If either of these elements are None, PypeIt will ' \
                                     'automatically use a wavelength range that ensures all spaxels have the ' \
-                                    'same wavelength coverage.' 
+                                    'same wavelength coverage.'
 
-                              
-        
-        # Object finding parameters 
+
+
+        # Object finding parameters
         defaults['fwhm'] = 1.5
         dtypes['fwhm'] = [int, float]
         descr['fwhm'] = 'FWHM of the PSF in arcseconds. Used to determine the degree of smoothing of the ' \
                         'whitelight image, the kernel size for the initial object finding, and the bounds of ' \
                         'the parameters for the 2D Gaussian fit. Note that if the opt_prof_method is set to ' \
                         '\'user_gauss\', this parameter will also be used as the FWHM of the 2D (symmetric) ' \
-                        'Gaussian spatial profile for optimal extraction. Default is 1.5 arcseconds.'        
-        
+                        'Gaussian spatial profile for optimal extraction. Default is 1.5 arcseconds.'
+
         defaults['snr_thresh'] = 5.0
         dtypes['snr_thresh'] = [int, float]
         descr['snr_thresh'] = 'The signal-to-noise ratio threshold to use when determining the initial ' \
@@ -2061,7 +2135,7 @@ class CubeExtractionPar(ParSet):
             'the whitelight image.'
         )
 
-        #Extraction parameters 
+        #Extraction parameters
         defaults['opt_prof_method'] = 'fit_gauss'
         options['opt_prof_method'] = CubeExtractionPar.valid_opt_prof_methods()
         dtypes['opt_prof_method'] = str
@@ -2100,8 +2174,8 @@ class CubeExtractionPar(ParSet):
         k = np.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = ['output_filename', 'whitelight_range', 'fwhm', 
-                'snr_thresh', 'manual', 'boxcar_radius', 'opt_prof_method', 'skysub_resid']        
+        parkeys = ['output_filename', 'whitelight_range', 'fwhm',
+                'snr_thresh', 'manual', 'boxcar_radius', 'opt_prof_method', 'skysub_resid']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -3233,8 +3307,8 @@ class WavelengthSolutionPar(ParSet):
                  nfitpix=None, boxcar_radius=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
                  ech_2dfit=None, ech_separate_2d=None, redo_slits=None, reference_slit=None, qa_log=None,
-                 cc_percent_ceil=None, echelle_pad=None, ech_angle_fits_file=None,
-                 ech_composite_arc_file=None, ech_direct_cc=None, cc_offset_minmax=None, stretch_func=None):
+                 cc_percent_ceil=None, cc_synth_arc=None, echelle_pad=None, ech_angle_fits_file=None,
+                 ech_composite_arc_file=None, cc_offset_minmax=None, stretch_func=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3456,6 +3530,12 @@ class WavelengthSolutionPar(ParSet):
                                    'reidentified lines to arrive at the final set of good ' \
                                    'reidentifications.'
 
+        defaults['cc_synth_arc'] = True
+        dtypes['cc_synth_arc'] = bool
+        descr['cc_synth_arc'] = 'If True, peak finding will be performed and a synthetic arc will be created ' \
+                                'to be used for the cross-correlations. If False, the raw arc will be ' \
+                                'cross-correlated with the archive spectrum.'
+
         defaults['nlocal_cc'] = 11
         dtypes['nlocal_cc'] = int
         descr['nlocal_cc'] = 'Size of pixel window used for local cross-correlation ' \
@@ -3579,15 +3659,6 @@ class WavelengthSolutionPar(ParSet):
                                           '(``get_echelle_angle_files``).  Must be set together with '  \
                                           '``ech_angle_fits_file``.'
 
-        defaults['ech_direct_cc'] = False
-        dtypes['ech_direct_cc'] = bool
-        descr['ech_direct_cc'] = 'For the echelle method order identification, cross-correlate the '  \
-                                 'stacked arc spectra directly instead of first building synthetic '  \
-                                 'line-only arcs and continuum-subtracting the correlation function. '  \
-                                 'Much faster for large spectral formats (e.g., 4k detectors with '  \
-                                 '~100 orders, such as Shane/Hamspec); the default (False) preserves '  \
-                                 'the original behavior.'
-
         defaults['cc_offset_minmax'] = 1.0
         dtypes['cc_offset_minmax'] = float
         descr['cc_offset_minmax'] = 'Fraction of the total spectral pixels used to determine the range of '  \
@@ -3627,8 +3698,8 @@ class WavelengthSolutionPar(ParSet):
                    'nlocal_cc', 'rms_thresh_frac_fwhm', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix', 'boxcar_radius',
                    'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 'reference_slit',
-                   'redo_slits', 'qa_log', 'cc_percent_ceil', 'echelle_pad', 'ech_angle_fits_file',
-                   'ech_composite_arc_file', 'ech_direct_cc', 'cc_offset_minmax', 'stretch_func']
+                   'redo_slits', 'qa_log', 'cc_percent_ceil', 'cc_synth_arc', 'echelle_pad', 'ech_angle_fits_file',
+                   'ech_composite_arc_file', 'cc_offset_minmax', 'stretch_func']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -3704,7 +3775,7 @@ class EdgeTracePar(ParSet):
                  trace_rms_tol=None, fwhm_uniform=None, niter_uniform=None, fwhm_gaussian=None,
                  niter_gaussian=None, min_edge_side_sep=None, det_buffer=None, max_nudge=None,
                  sync_predict=None, sync_center=None, gap_offset=None, sync_to_edge=None,
-                 bound_detector=None, minimum_slit_dlength=None, dlength_range=None,
+                 refine_edges=None, bound_detector=None, minimum_slit_dlength=None, dlength_range=None,
                  minimum_slit_length=None, minimum_slit_length_sci=None, length_range=None,
                  minimum_slit_gap=None, clip=None, order_match=None, order_offset=None,
                  add_missed_orders=None, order_width_poly=None, order_gap_poly=None,
@@ -4006,6 +4077,11 @@ class EdgeTracePar(ParSet):
         descr['sync_to_edge'] = 'If adding a first left edge or a last right edge, ignore ' \
                                 '`center_mode` for these edges and place them at the edge of ' \
                                 'the detector (with the relevant shape).'
+
+        defaults['refine_edges'] = False  # Maybe set this default to True?
+        dtypes['refine_edges'] = bool
+        descr['refine_edges'] = 'If True, a spatial shift will be applied to the fitted edges to ' \
+                                'ensure the edge is located at the position of steepest flux gradient.' \
 
         defaults['bound_detector'] = False
         dtypes['bound_detector'] = bool
@@ -4336,7 +4412,7 @@ class EdgeTracePar(ParSet):
                    'edge_detect_clip', 'trace_median_frac', 'trace_thresh', 'trace_rms_tol',
                    'fwhm_uniform', 'niter_uniform', 'fwhm_gaussian', 'niter_gaussian',
                    'min_edge_side_sep', 'det_buffer', 'max_nudge', 'sync_predict', 'sync_center',
-                   'gap_offset', 'sync_to_edge', 'bound_detector', 'minimum_slit_dlength',
+                   'gap_offset', 'sync_to_edge', 'refine_edges', 'bound_detector', 'minimum_slit_dlength',
                    'dlength_range', 'minimum_slit_length', 'minimum_slit_length_sci',
                    'length_range', 'minimum_slit_gap', 'clip', 'order_match', 'order_offset',
                    'add_missed_orders', 'order_width_poly', 'order_gap_poly', 'order_fitrej',
@@ -4640,7 +4716,7 @@ class ReducePar(ParSet):
         defaults['cube'] = CubePar()
         dtypes['cube'] = [ ParSet, dict ]
         descr['cube'] = 'Parameters for cube generation algorithms'
-        
+
         defaults['trim_edge'] = [3, 3]
         dtypes['trim_edge'] = list
         descr['trim_edge'] = 'Trim the slit by this number of pixels left/right when performing sky subtraction'
@@ -5262,6 +5338,9 @@ class CalibrationsPar(ParSet):
         dtypes['pinholeframe'] = [ ParSet, dict ]
         descr['pinholeframe'] = 'The frames and combination rules for the pinholes'
 
+        # NOTE: The spatial flexure of the alignment frames is difficult to
+        # determine, so it is not determined by default (spat_flexure_method =
+        # skip).  It can be requested by the user, if needed.
         defaults['alignframe'] = FrameGroupPar(frametype='align',
                                                process=ProcessImagesPar(satpix='nothing',
                                                                         use_pixelflat=False,

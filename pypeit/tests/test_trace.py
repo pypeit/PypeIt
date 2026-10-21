@@ -1,7 +1,10 @@
 from IPython import embed
 import numpy as np
+import pytest
+from scipy.special import erf
 
 from pypeit.core.fitting import robust_fit
+from pypeit import PypeItError
 from pypeit.core import trace
 
 # Left and right edges uses for testing
@@ -77,3 +80,50 @@ def test_extrapolate_orders():
 
 
 
+
+
+def _edge_image(true_edge, nspec=200, nspat=60, sig=1.2):
+    """
+    Synthetic image with a (blurred) left slit edge at the spatial position
+    true_edge (a float, or an array with one value per spectral row).
+    """
+    _true_edge = np.broadcast_to(np.asarray(true_edge, dtype=float), (nspec,))
+    xx = np.arange(nspat, dtype=float)[None, :]
+    img = 500. * (1 + erf((xx - _true_edge[:, None]) / (np.sqrt(2) * sig)))
+    rng = np.random.default_rng(1)
+    return img + rng.normal(0, 1, img.shape)
+
+
+def test_refine_edge():
+    # An edge that drifts along the spectral direction, offset by +0.4 pixels
+    # from the input edge position
+    nspec, nspat = 200, 60
+    edge = np.linspace(20., 25., nspec)
+    img = _edge_image(edge + 0.4, nspec=nspec, nspat=nspat)
+    shift = trace.refine_edge(img, np.zeros(img.shape, dtype=bool), edge, 'left')
+    assert np.isclose(shift, 0.4, atol=0.15), 'Edge not refined correctly'
+    # A bad pixel mask of None means that all pixels are good
+    assert np.isclose(trace.refine_edge(img, None, edge, 'left'), shift), \
+        'A bpm of None should be the same as all good pixels'
+
+
+def test_refine_edge_detector_boundary():
+    nspec, nspat = 200, 60
+    bpm = np.zeros((nspec, nspat), dtype=bool)
+    # Edges close to, or beyond, the detector boundary cannot be refined
+    for edge in [1., -5., nspat - 2.]:
+        img = _edge_image(edge + 0.4, nspec=nspec, nspat=nspat)
+        assert np.isnan(trace.refine_edge(img, bpm, np.full(nspec, edge), 'left')), \
+            f'An edge at {edge} should not be refined'
+    # An edge that is only partially on the detector is refined using the
+    # spectral rows where it is on the detector
+    edge = np.linspace(-10., 20., nspec)
+    img = _edge_image(edge + 0.4, nspec=nspec, nspat=nspat)
+    shift = trace.refine_edge(img, bpm, edge, 'left')
+    assert np.isclose(shift, 0.4, atol=0.15), 'Partially off-detector edge not refined correctly'
+
+
+def test_refine_edge_bad_side():
+    img = _edge_image(20.)
+    with pytest.raises(PypeItError):
+        trace.refine_edge(img, None, np.full(img.shape[0], 20.), 'middle')

@@ -41,7 +41,7 @@ class SkySubGUI:
     """
 
     def __init__(self, canvas, image, frame, outname, det, slits, axes, pypeline, spectrograph, printout=False,
-                 runtime=False, resolution=None, initial=False, flexure=None, overwrite=False):
+                 runtime=False, resolution=None, initial=False, spat_flexure=None, overwrite=False):
         """Controls for the interactive sky regions definition tasks in PypeIt.
 
         The main goal of this routine is to interactively select sky background
@@ -73,8 +73,8 @@ class SkySubGUI:
         initial : bool, optional
             To use the initial edges regardless of the presence of
             the tweaked edges, set this to True.
-        flexure : float, optional
-            If provided, offset each slit by this amount
+        spat_flexure : float, optional
+            If provided, offset each slit in the spatial direction by this amount
         runtime : bool
             Is the GUI being launched during data reduction?
         resolution : int
@@ -137,7 +137,7 @@ class SkySubGUI:
         self._fitr = []  # Matplotlib shaded fit region
         self._fita = None
 
-        self.slits_left, self.slits_right, _ = slits.select_edges(initial=initial, flexure=flexure)
+        self.slits_left, self.slits_right, _ = slits.select_edges(initial=initial, spat_flexure=spat_flexure)
         self.initialize_menu()
         self.reset_regions()
 
@@ -149,7 +149,7 @@ class SkySubGUI:
     @classmethod
     def initialize(cls, det, frame, slits, pypeline, spectrograph, outname="skyregions.fits",
                    overwrite=False, initial=False,
-                   flexure=None, runtime=False, printout=False):
+                   spat_flexure=None, runtime=False, printout=False):
         """
         Initialize the 'ObjFindGUI' window for interactive object tracing
 
@@ -167,6 +167,8 @@ class SkySubGUI:
             Name of the spectrograph
         printout : bool
             Should the results be printed to screen
+        spat_flexure : float, optional
+            If provided, offset each slit in the spatial direction by this amount
         runtime : bool
             Is this GUI being launched during a data reduction?
 
@@ -178,7 +180,7 @@ class SkySubGUI:
         # NOTE: SlitTraceSet objects always store the left and right
         # traces as 2D arrays, even if there's only one slit.
         nslit = slits.nslits
-        lordloc, rordloc, _ = slits.select_edges(initial=initial, flexure=flexure)
+        lordloc, rordloc, _ = slits.select_edges(initial=initial, spat_flexure=spat_flexure)
 
         # Determine the scale of the image
         med = np.median(frame)
@@ -210,7 +212,7 @@ class SkySubGUI:
         # Initialise the object finding window and display to screen
         fig.canvas.manager.set_window_title('PypeIt - Sky regions')
         srgui = SkySubGUI(fig.canvas, image, frame, outname, det, slits, axes, pypeline, spectrograph,
-                          printout=printout, runtime=runtime, initial=initial, flexure=flexure, overwrite=overwrite)
+                          printout=printout, runtime=runtime, initial=initial, spat_flexure=spat_flexure, overwrite=overwrite)
         plt.show()
 
         return srgui

@@ -224,9 +224,13 @@ flexure correction, add the following command to your :ref:`pypeit_file`:
 
 Similarly, there is a slice dependent spatial flexure. Given that the spatial illumination
 profile of KCWI is also slice dependent, this spatial flexure could cause a problem with the
-relative illumination across the KCWI field-of-view in the reconstructed datacube. While the
-spatial flexure correction is partially implemented for KCWI (but is not done by default),
-users should use this option with caution.
+relative illumination across the KCWI field-of-view in the reconstructed datacube. By default,
+the spatial flexure of each slice edge is therefore measured separately
+(``spat_flexure_method = edge``) for the science, arc, tilt, and flat-field frames, and the
+values for the science frames are fit with a linear function across the slices
+(``spat_flexure_polyord = 1``).  The spatial flexure is accounted for when constructing
+datacubes.  See :ref:`flexure-spatial` for more details, and inspect the spatial flexure QA
+plots (:ref:`qa-spat-flex`) to check the correction.
 
 Flux calibration
 ----------------

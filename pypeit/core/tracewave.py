@@ -12,6 +12,7 @@ from IPython import embed
 from astropy.stats import sigma_clipped_stats
 
 from pypeit import log
+from pypeit import PypeItError
 from pypeit import utils
 from pypeit import tracepca
 
@@ -151,9 +152,9 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
         Array containing arc line centroids along the center of the slit for each arc line that will be traced. This is
         in pixels in image coordinates.
     lines_spat: `numpy.ndarray`_ float (nlines,)
-        Array contianing the spatial position of the center of the slit along which the arc was extracted. This is is in
+        Array containing the spatial position of the center of the slit along which the arc was extracted. This is in
         pixels in image coordinates.
-    thismask: `numpy.ndarray`_ boolean (nspec, nsapt)
+    thismask: `numpy.ndarray`_ boolean (nspec, nspat)
         Boolean mask image specifying the pixels which lie on the slit/order to search for objects on.
         The convention is: True = on the slit/order, False  = off the slit/order. This must be the same size as the arcimg.
     inmask: float `numpy.ndarray`_ default = None, optional
@@ -336,7 +337,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
         # Do iterative flux-weighted tracing and polynomial fitting to
         # refine these traces. This must also be done in a loop since
         # the sub image is different for every aperture, i.e. each
-        # aperature has its own image.
+        # aperture has its own image.
         tilts_sub_fit_out, tilts_sub_out, tilts_sub_err_out, tilts_sub_bpm_out, trace_results \
             = trace.fit_trace(sub_img, tilts_guess_now, spat_order,
                               bpm=np.logical_not(sub_inmask.astype(bool)),
@@ -449,6 +450,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
         # spat_fit_now = np.interp(spec_fit_now,spec_vec, slit_cen)
         # tilts_spec[:, iline] = np.full(nspat, spec_fit_now)
 
+        # spat_vec = np.arange(nspat)
         tilts_dspat[:, iline] = (spat_vec - lines_spat[iline])
         imask = tilts_mask[:, iline]
         try:
@@ -631,7 +633,7 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
     iuse = trace_dict0['use_tilt']
     nuse = np.sum(iuse)
     if nuse < 2:
-        # DP: Added this because sometime there are < 2 usable arc lines for tilt tracing, PCA fit does not work
+        # DP: Added this because sometimes there are < 2 usable arc lines for tilt tracing, PCA fit does not work
         # and the reduction crushes
         log.warning('Less than 2 usable arc lines for tilts. NO PCA modeling!')
         return trace_dict0
@@ -660,7 +662,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     Parameters
     ----------
     trc_tilt_dict: dict
-        Diciontary containing tilt info
+        Dictionary containing tilt info
     slitord_id : int
         Slit ID, spatial; only used for QA
     all_tilts:
@@ -790,7 +792,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # JFH What I find confusing is that this last fit was actually what
     # Burles was doing on the raw tilts, so why was that failing?
     tilts_ivar1 = utils.inverse((sigma[thismask_grow] / xnspecmin1) ** 2)
-    # JFH Something appers wrong in this fit for LRIS-red with a
+    # JFH Something appears wrong in this fit for LRIS-red with a
     # science frame as the tilt image. It appears to be rejecting too
     # much in this fit, which is just a simple inversion of the fit
     # above. Perhaps the noise and maxdev need to be cranked up. That
@@ -802,7 +804,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
                                    maxdev=10.0 / xnspecmin1, in_gpm=inmask, function=func2d,
                                    maxiter=20, minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0,
                                    use_mad=False, sticky=False)
-    # JFH changed above to use stick=False, to limit the amount of rejection
+    # JFH changed above to use sticky=False, to limit the amount of rejection
     irej = np.logical_not(pypeitFit.bool_gpm) & inmask
     log.info('Rejected {0}/{1} pixels in final inversion tilts image fit'.format(
         np.sum(irej), np.sum(inmask)))
@@ -813,7 +815,6 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
                          coeff2=pypeitFit.fitc, spec_order=spec_order, spat_order=spat_order,
                          minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0, func=func2d,
                          pypeitFit=pypeitFit)
-
 
     return tilt_fit_dict, trc_tilt_dict_out
 
@@ -843,60 +844,143 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # log.info("RMS/FWHM: {}".format(rms_real/fwhm))
 
 
-def fit2tilts(shape, coeff2, func2d, spat_shift=None, slit_mask=None):
+def fit2tilts_prepareSlit(slit_left, slit_right, thismask_science, relative_spat_flexure=None):
     """
-    Evaluate the wavelength tilt model.
-
-    When ``slit_mask`` is not provided, the model is evaluated over a full
-    meshgrid spanning the image.  When ``slit_mask`` is provided, the model
-    is evaluated only at the ``True`` pixels in the mask, which avoids
-    allocating full-frame meshgrid arrays and significantly reduces memory
-    usage for spectrographs with many slits (e.g., fiber-fed IFUs).
+    Prepare the slit for the fit2tilts function
 
     Parameters
     ----------
-    shape : tuple of ints,
-        shape of image
+    slit_left : `numpy.ndarray`_
+        Left slit edge, including the spatial flexure of the tilts frame relative to the initial slit edges.
+        This should be the same left slit edge that was used initially to fit the tilts.
+    slit_right : `numpy.ndarray`_
+        Right slit edge, including the spatial flexure of the tilts frame relative to the initial slit edges.
+        This should be the same right slit edge that was used initially to fit the tilts.
+    thismask_science : `numpy.ndarray`_
+        Boolean mask for the science pixels in this slit (True = on slit)
+    relative_spat_flexure : `numpy.ndarray`_, optional
+        Spatial flexure in pixels. This should be a two element array with the first element being the flexure at the
+        left edge of the slit and the second element being the flexure at the right edge of the slit. If None, no
+        flexure is applied. NOTE : The coeff_out coefficients are evaluated at the tilts spat_flexure location, and
+        the tilts spat_flexure is the spatial flexure of the tilts relative to the initial slits. To prepare the
+        tilt coordinates for a frame other than the tilts frame, this variable must be the *relative* spatial
+        flexure between the frame of interest and the tilts frame (i.e. the spatial flexure of the frame of
+        interest minus the spatial flexure of the tilts frame).
+
+    Returns
+    -------
+    :obj:`tuple` of two `numpy.ndarray`_
+        Tuple containing the spectral and spatial coordinates of the slit, including spatial flexure.
+        These variables are to be used in the fit2tilts function.
+
+    Notes
+    -----
+    The tilts are fit as a function of the detector pixel coordinates of the tilts frame. A spatial flexure
+    shifts the slit (and the tilts) on the detector, so the slit edges of the frame of interest are at
+    ``slit_left + relative_spat_flexure[0]`` and ``slit_right + relative_spat_flexure[1]``.  Each pixel of the
+    frame of interest is therefore evaluated at the position in the tilts frame that has the same fractional
+    position along the slit; e.g., for a uniform relative flexure of :math:`\Delta` pixels, a pixel at spatial
+    position :math:`x` is evaluated at :math:`x - \Delta` in the tilts frame.
+    """
+    # Get the image shape
+    img_shape = thismask_science.shape
+    # Check the spatial flexure input
+    if relative_spat_flexure is not None and len(relative_spat_flexure) != 2:
+        raise PypeItError('Spatial flexure must be a two element array')
+    _spat_flexure = np.zeros(2) if relative_spat_flexure is None else relative_spat_flexure
+    # Check dimensions
+    if len(slit_left) != len(slit_right):
+        raise PypeItError('Slit left and right edges must have the same length')
+    if len(slit_left) != img_shape[0]:
+        raise PypeItError('Slit edges must have the same length as the spectral dimension of the image')
+
+    # Prepare the spatial and spectral coordinates
+    nspec, nspat = img_shape
+    spec_vec = np.arange(nspec)
+    spat_vec = np.arange(nspat)
+    spat_img, spec_img = np.meshgrid(spat_vec, spec_vec)
+    # Evaluate the slit coordinates
+    _spec_eval = spec_img[thismask_science] / (nspec - 1)
+    # Slit edges of the frame of interest (e.g. a science frame)
+    frame_left = slit_left + _spat_flexure[0]
+    frame_right = slit_right + _spat_flexure[1]
+    # Fractional position of each pixel along the slit of the frame of interest
+    frac_coord = (spat_img - frame_left[:, None]) / (frame_right - frame_left)[:, None]
+    # The spatial position in the tilts frame with the same fractional position along the slit.
+    # Note that the spatial coordinate of the tilts is fit and evaluated over the interval 0-1
+    # (where 0 represents the left edge of the detector and 1 represents the right edge of the
+    # detector, even when there are multiple slits). Therefore, if the relative spatial flexure
+    # between the tilts frame and the frame being currently investigated is 0.0, the following
+    # line for spat_eval evaluates to spat_img, as expected. Otherwise, the *relative* spatial
+    # flexure between the tilts frame and the frame (e.g. science) that you wish to infer the
+    # tilts for is linearly interpolated between the two slit edges, and subtracted.
+    spat_eval = slit_left[:, None] + frac_coord * (slit_right - slit_left)[:, None]
+    _spat_eval = spat_eval[thismask_science] / (nspat - 1)
+    return _spec_eval, _spat_eval
+
+
+def fit2tilts(coeff2, func2d, shape=None, spec_eval=None, spat_eval=None):
+    """
+    Evaluate the wavelength tilt model over the full image. Note that this function
+    requires either shape or both spec_eval and spat_eval to be provided. If all three
+    are provided, spec_eval and spat_eval will be used.
+
+    Parameters
+    ----------
     coeff2 : `numpy.ndarray`_, float
         result of griddata tilt fit
     func2d : str
         the 2d function used to fit the tilts
-    spat_shift : float, optional
-        Spatial shift to be added to image pixels before evaluation.
-        If you are accounting for flexure, then you probably wish to
-        input -1*flexure_shift into this parameter.
-    slit_mask : `numpy.ndarray`_, bool, optional
-        Boolean mask with the same shape as the image.  If provided,
-        tilts are evaluated only where ``slit_mask`` is ``True`` and
-        the returned image is zero elsewhere.
+    shape : tuple of ints, optional
+        Shape of image. Only used if spat_eval and spec_eval are not provided.
+    spat_eval : `numpy.ndarray`_, optional
+        1D array indicating how spatial pixel locations move across the
+        image. If spat_eval is provided, spec_eval must also be provided.
+        spat_shift is ignored when spat_eval and spec_eval are provided.
+        If you wish to account for spatial flexure, then you should include
+        the spatial flexure into this parameter. spat_eval should be given
+        as spatial_coordinates + spatial_flexure.
+    spec_eval : `numpy.ndarray`_, optional
+        1D array indicating how spectral pixel locations move across the
+        image. If spec_eval is provided, spat_eval must also be provided.
 
     Returns
     -------
     tilts : `numpy.ndarray`_, float
-        Image indicating how spectral pixel locations move across the
-        image. This output is used in the pipeline.
-
+        Image indicating how spectral pixel locations move across the image.
     """
-    _spat_shift = 0. if spat_shift is None else spat_shift
-    nspec, nspat = shape
-    xnspecmin1 = float(nspec - 1)
-    xnspatmin1 = float(nspat - 1)
+    # Determine if coordinates have been supplied that include the spatial flexure.
+    if spec_eval is not None and spat_eval is not None:
+        _spec_eval = spec_eval
+        _spat_eval = spat_eval
+    else:
+        # Print a warning just in case only one was provided
+        if (spec_eval is None and spat_eval is not None) or (spec_eval is not None and spat_eval is None):
+            log.warning('Both spec_eval and spat_eval must be provided. Only one variable was provided, '
+                        'so a new (full) grid will be generated with no spatial flexure.')
+        # Print a warning if neither are provided
+        if spec_eval is None and spat_eval is None:
+            log.warning('No spatial and spectral coordinates provided. A new (full) grid will '
+                        'be generated with no spatial flexure.')
+        # Print a warning is shape is not provided
+        if shape is None:
+            raise PypeItError('No shape provided for the image. You must provide either '
+                              '`shape` or both `spat_eval` and `spec_eval`.')
+        log.warning("Assuming no spatial flexure.")
+        _spat_shift = 0.0
+        # Set up the evaluation grid
+        nspec, nspat = shape
+        spec_vec = np.arange(nspec)
+        spat_vec = np.arange(nspat) - _spat_shift
+        spat_img, spec_img = np.meshgrid(spat_vec, spec_vec)
+        _spec_eval = spec_img / (nspec-1.0)
+        _spat_eval = spat_img / (nspat-1.0)
 
+    # Compute the tilts image
     pypeitFit = fitting.PypeItFit(fitc=coeff2, minx=0.0, maxx=1.0,
                                   minx2=0.0, maxx2=1.0, func=func2d)
-
-    if slit_mask is None:
-        spat_pix, spec_pix = map(
-            lambda x : x.ravel(), np.meshgrid(np.arange(nspat), np.arange(nspec))
-        )
-    else:
-        spec_pix, spat_pix = np.where(slit_mask)
-
-    tilts_vals = pypeitFit.eval(spec_pix / xnspecmin1, x2=(spat_pix - _spat_shift) / xnspatmin1)
-    tilts_vals = np.fmax(np.fmin(tilts_vals, 1.2), -0.2)
-    tilts = np.zeros(shape, dtype=float)
-    tilts[(spec_pix,spat_pix)] = tilts_vals
-    del tilts_vals, spec_pix, spat_pix
-
-    return tilts
+    tilts = pypeitFit.eval(_spec_eval, x2=_spat_eval)
+    # Added this to ensure that tilts are never crazy values due to extrapolation of fits which can break
+    # wavelength solution fitting
+    return np.fmax(np.fmin(tilts, 1.2), -0.2)
 

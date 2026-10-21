@@ -23,15 +23,123 @@ We discuss each in turn.
 Spatial Flexure
 ===============
 
-The code has a simple yet relatively robust method to cross-correlate
-the slits against any input image to determine a rigid, spatial offset.
-This algorithm is performed for any frame type by setting
-``spat_flexure_correct = True`` in the ``process`` block
-of :ref:`processimagespar`.
+The spatial flexure of a frame is the shift, in spatial pixels, of the slits
+in that frame relative to the slit edges traced from the ``trace`` frames.  The
+spatial flexure is stored for each slit edge, i.e., as an array with shape
+:math:`(N_{\rm slits}, 2)`, where the first (second) column is the shift of the
+left (right) edge of each slit.  A positive value means that the slit edges are
+shifted towards larger spatial pixel values.
+
+The spatial flexure is determined for a given frame type by setting
+``spat_flexure_method = <method>`` in the ``process`` block
+of :ref:`processimagespar`, where you should replace ``<method>`` with one of the
+following valid methods:
+
+    - ``skip`` - this will skip the spatial flexure correction
+    - ``detector`` - this will calculate one spatial flexure value for all slits on the detector
+    - ``slit`` - this will calculate the spatial flexure for each slit separately
+    - ``edge`` - this will calculate the spatial flexure for each slit edge separately
+    - ``leftedge`` - this will calculate the spatial flexure of the left edge of each
+      slit, and assign the same value to the right edge
+    - ``rightedge`` - this will calculate the spatial flexure of the right edge of each
+      slit, and assign the same value to the left edge
+
+The algorithm proceeds as follows:
+
+    #. The slit edges detected in the frame (using a Sobel filter, with a
+       detection threshold set by ``spat_flexure_sigdetect``) are
+       cross-correlated with the traced slit edges, within a maximum shift of
+       ``spat_flexure_maxlag`` pixels.  The centroid of the peak of the
+       cross-correlation provides a single (sub-pixel) spatial shift for the
+       detector (the ``detector`` method).  If no peak is found in the
+       cross-correlation, or if the peak is beyond the maximum shift, the code
+       assumes there is no spatial flexure and prints a warning.
+
+    #. The code then checks that the slit edges are detected in the frame:
+       after shifting the traced slit edges by the measured shift, it
+       calculates the fraction of the traced slit-edge pixels that coincide
+       (within 2 pixels) with an edge of the same type (left or right) detected
+       in the frame.  This fraction is printed in the log.  If it is less than
+       ``spat_flexure_minfrac`` (10% by default), the slit edges are deemed to
+       be undetected (e.g., in a short exposure of a standard star, where the
+       sky is too faint to show the slit edges), and the peak of the
+       cross-correlation is not trusted.  In this case, no spatial flexure is
+       applied to the frame for *any* method (the following steps are
+       skipped), and a warning is printed.  The slit edges only appear in the
+       spectral rows where the frame is illuminated, so frames with sparse
+       emission lines (e.g., arc frames with few lines) can have a small
+       fraction, even if the shift is well measured.  If needed, decrease
+       ``spat_flexure_minfrac`` for these frames, or set it to 0 to disable
+       this check.
+
+    #. For all other methods, each slit edge is refined, starting from the
+       ``detector`` value.  The flux near the edge is modeled in each spectral
+       row as a step function convolved with a Gaussian (allowing for a
+       gradient of the slit illumination), with a common sub-pixel offset for
+       all rows, which is constrained to be within :math:`\pm 2` pixels.  The
+       ``slit`` method uses the average of the left and right edges of each
+       slit, and the ``leftedge`` (``rightedge``) method uses the left (right)
+       edge for both edges.  Only the spectral rows within the spectral extent
+       of the slit and where the edge is on the detector are used.  If an edge
+       cannot be refined (e.g., if no edge is detected, or if the slit is
+       excluded from the reduction), the ``detector`` value is adopted for that
+       edge.
+
+    #. Optionally, the spatial flexure of the left and right slit edges can be
+       fit with a polynomial as a function of the spatial position of the
+       slits, with an order set by ``spat_flexure_polyord`` (this is only
+       relevant for the ``slit``, ``edge``, ``leftedge`` and ``rightedge``
+       methods).  Only the edges that were refined are used in the fit, and
+       outliers are rejected.
+
+The spatial flexure is measured relative to the traced (initial) slit edges,
+without the padding of the slit edges set by the ``pad`` parameter of
+:ref:`edgetracepar`, and it is applied wherever the slit edges are used: to construct the slit
+images, to evaluate the illumination flat, the wavelength tilts (which are
+evaluated at the same relative position along the slit in the frame used to
+determine the tilts), and the wavelength image, for sky subtraction and
+extraction, and to construct datacubes (see :ref:`coadd3d_spatflex`).  Images
+that are measured in one frame and applied to another frame with a different
+spatial flexure are remapped by the fractional position across each slit; this
+includes the relative spectral illumination of the pixel flat (see
+``use_specillum``), which is remapped to the spatial flexure of each frame that
+is flat-fielded, and the dedicated sky and scale-correction frames used to
+construct datacubes.  The spatial
+flexure of each science frame is stored in the ``sci_spat_flexure`` extension
+of its :doc:`../out_spec2D` file, and that of the processed calibration frames
+(e.g., the arc, tilt, and flat-field images) is stored in their calibration
+files.
+
+The spatial flexure can only be determined for frames that are processed using
+the slit edges.  It cannot be determined for the ``bias``, ``dark``, ``trace``,
+``pinhole``, ``slitless_pixflat``, and ``lampoffflats`` frames; setting
+``spat_flexure_method`` to anything other than ``skip`` for these frame types
+raises an error.
+
+The spatial flexure of the alignment (``align``) frames, used to construct
+datacubes for slicer IFUs, is difficult to determine, so it is not determined
+by default.  If it is requested (by setting ``spat_flexure_method`` in the
+``alignframe`` block), it is stored with the alignment traces, and the traces
+are shifted by the spatial flexure of each science frame *relative* to that of
+the alignment frame when constructing datacubes.  Otherwise, the alignment
+frame is assumed to have no spatial flexure relative to the slits.
+
+.. note::
+
+    The ``spat_flexure_method`` parameter replaces the ``spat_flexure_correct``
+    parameter used by previous versions of PypeIt.  Use
+    ``spat_flexure_method = detector`` instead of ``spat_flexure_correct =
+    True``, and ``spat_flexure_method = skip`` instead of
+    ``spat_flexure_correct = False``.
 
 We have made our own determinations for which instruments to enable this as the
 default. Inspect the :ref:`instr_par` list to see if your instrument is included
-(search for the value of ``spat_flexure_correct``).
+(search for the value of ``spat_flexure_method``). We recommend that you use the
+``detector`` method for most instruments, unless you have good reason to believe
+that the spatial flexure is different for different slits or slit edges. Also note
+that some spectrographs post-process the spatial flexure values when using the ``slit``
+or ``edge`` methods (e.g. perform a linear fit to the spatial flexure values) to improve
+the result. Consult the documentation for your instrument to see if this is the case.
 A QA plot is generated for each frame for which the spatial flexure correction
 is applied. We recommend the user to inspect these plots to ensure the flexure
 correction is reasonable. See :ref:`qa-spat-flex` for more information.
@@ -52,11 +160,11 @@ add this to your PypeIt file:
 
     [scienceframe]
         [[process]]
-            spat_flexure_correct = True
+            spat_flexure_method = detector
     [calibrations]
         [[standardframe]]
             [[[process]]]
-                spat_flexure_correct = True
+                spat_flexure_method = detector
 
 This will:
 
@@ -78,7 +186,7 @@ following to your :doc:`../pypeit_file`:
     [calibrations]
         [[tiltframe]]
             [[[process]]]
-                spat_flexure_correct = True
+                spat_flexure_method = detector
 
 This will:
 
@@ -105,10 +213,16 @@ flexure shift yourself via the ``shift`` column in the data block of your
     pypeit_setup -r /path/to/raw -s shane_kast_blue -c A -f
 
 The column is blank by default, meaning no manual correction: the
-automatically computed value (if ``spat_flexure_correct = True``) is
-used.  Set the column to any number (in pixels, including ``0.0``) for
-a science or standard frame to override the automatic determination
-for that frame:
+automatically computed value (if ``spat_flexure_method`` is not ``skip``)
+is used.  Set the column to any number (in pixels, including ``0.0``) for
+a given frame to override the automatic determination for that frame.  The
+manual value is applied even if ``spat_flexure_method = skip`` for that frame
+type, and it is applied as a single shift to both edges of every slit.  This
+works for any frame type that is processed using the slit traces, i.e.,
+science, standard, and background frames, as well as arc, tilt, and flat-field
+(pixel, illumination, and lamp-off) calibration frames.  Values set for frames
+that are processed without the slit traces (e.g., the trace frames used to
+define the slits) are ignored.
 
 .. code-block:: console
 

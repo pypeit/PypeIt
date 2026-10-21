@@ -736,7 +736,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         if not self.is_empty:
             # Fit the trace locations with a polynomial
             self.fit_refine(debug=debug > 2)
-            # Use the fits to determine if there are any discontinous
+            # Use the fits to determine if there are any discontinuous
             # trace centroid measurements that are actually components
             # of the same slit edge
             self.merge_traces(debug=debug > 2)
@@ -760,6 +760,9 @@ class EdgeTraceSet(calibframe.CalibFrame):
             if debug > 0:
                 self.show(title='Result after re-identifying slit edges from a spectrally '
                                 'collapsed image.')
+
+        if self.par['refine_edges']:
+            self.edge_refine()
 
         # Match the traces found in the image with the ones predicted by
         # the slit-mask design. If not expected traces are found in the image, they
@@ -1642,7 +1645,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
 
         This is primarily a wrapper for
         :func:`~pypeit.core.trace.prepare_sobel_for_trace`; the
-        boxcar smoothing is always 5 pixels. Barring a instantiation
+        boxcar smoothing is always 5 pixels. Barring an instantiation
         of the object, this calculation is only done once per side by
         "lazy loading" :attr:`sobelsig_left` or
         :attr:`sobelsig_right`.
@@ -3639,6 +3642,31 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # Reset the PCA
         self._reset_pca(rebuild_pca and self.can_pca())
         self.log += [inspect.stack()[0][3]]
+
+    def edge_refine(self):
+        """
+        Refines the edges by identifying the spatial location of each
+        edge that exhibits the largest flux gradient.
+        """
+        log.info("Refining edges to the point of steepest flux gradient")
+        # First select the good edges
+        gpm = self.good_traces(include_box=True, good_orders=True)
+        gpm = self.synced_selection(gpm, mode='neither')
+        # Refine left edges
+        gd_left = np.where(gpm & self.is_left)[0]
+        for ll, edg in enumerate(gd_left):
+            this_left = self.edge_fit[:,edg]
+            shift = trace.refine_edge(self.traceimg.image, self.traceimg.select_flag(flag='BPM'), this_left, "l")
+            log.info("Refining left edge {0:d} by {1:+0.2f} pixels".format(ll+1, shift))
+            self.edge_fit[:, edg] += shift
+        # Refine right edges
+        gd_right = np.where(gpm & self.is_right)[0]
+        for rr, edg in enumerate(gd_right):
+            this_right = self.edge_fit[:,edg]
+            shift = trace.refine_edge(self.traceimg.image, self.traceimg.select_flag(flag='BPM'), this_right, "r")
+            log.info("Refining right edge {0:d} by {1:+0.2f} pixels".format(rr+1, shift))
+            self.edge_fit[:, edg] += shift
+        return
 
     # TODO: Make this a core function?
     def _get_insert_locations(self):

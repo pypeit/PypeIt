@@ -5,8 +5,26 @@ Version 2.1.0dev
 Breaking Changes
 ---------------------
 
+- The ``spat_flexure_correct`` image-processing parameter has been replaced by
+  ``spat_flexure_method``; see :ref:`flexure-spatial`.  Use
+  ``spat_flexure_method = detector`` instead of ``spat_flexure_correct = True``
+  and ``spat_flexure_method = skip`` instead of ``spat_flexure_correct = False``.
+  PypeIt files that still use ``spat_flexure_correct`` raise an error with
+  these instructions.
+- The spatial flexure is now stored for each slit edge, as an array with shape
+  :math:`(N_{\rm slits}, 2)`, instead of a single value: e.g., the
+  ``sci_spat_flexure`` of the spec2d files, and the ``spat_flexure`` of the
+  processed images, the processed calibration frames, and the tilts.  The
+  alignment calibration frames now also store their spatial flexure (datamodel
+  version 1.2.0).  Processed files from previous versions should be
+  regenerated.
+
 Documentation Updates
 ---------------------
+
+- Expanded the spatial flexure documentation (:ref:`flexure-spatial`) with a
+  description of the algorithm, the available methods, and the frame types for
+  which the spatial flexure can be determined.
 
 - Updated the documentation about the use of the mask design file for Gemini/GMOS.
   See the :ref:`gemini_gmos` documentation for details.
@@ -30,6 +48,32 @@ Dependency Changes
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
+- Added several methods to determine the spatial flexure, set by the new
+  ``spat_flexure_method`` parameter: a single shift for the detector
+  (``detector``), a shift for each slit (``slit``), for each slit edge
+  (``edge``), or for the left (``leftedge``) or right (``rightedge``) edge of
+  each slit.  The per-slit and per-edge values are determined by fitting a
+  model of the slit edge to the data, and they can be fit with a polynomial as
+  a function of slit position (with outlier rejection), using the new
+  ``spat_flexure_polyord`` parameter.  The
+  spatial flexure can only be determined for frame types that are processed
+  with the slit edges; requesting it for other frame types now raises an error.
+- The spatial flexure of each input frame is recorded in the header of the
+  datacubes constructed by ``pypeit_coadd_datacube`` (``SPFLXnnn`` keywords);
+  see :ref:`coadd3d_spatflex`.
+- Added the ``spat_flexure_minfrac`` image-processing parameter: if less than
+  this fraction (10% by default) of the traced slit-edge pixels coincide with
+  an edge detected in the frame at the measured spatial flexure, the slit edges
+  are deemed to be undetected, and no spatial flexure is applied to the frame
+  (e.g., for a short exposure of a standard star, where the slit edges are
+  not visible).
+- The spatial flexure of each frame is accounted for when constructing
+  datacubes (``pypeit_coadd_datacube``): the RA and Dec of each detector pixel,
+  and the astrometric alignment traces, are now evaluated using the spatial
+  flexure of the frame (relative to that of the alignment frame).  The
+  alignment and scattered-light calibration frames are now processed with the
+  slit edges, so that their spatial flexure can be determined if requested
+  (this is not done by default for the alignment frames).
 - Added the ``lamps_wvrng`` wavelength-calibration parameter, which restricts
   the lines used from each entry in ``lamps`` to a wavelength range.  This
   allows a subset of a shipped line list to be used without copying the file.
@@ -71,12 +115,12 @@ Functionality/Performance Improvements and Additions
   (``get_echelle_angle_files``).  Analogous to ``reid_arxiv``, and used by
   ``shane_hamspec`` to select era-matched archives via
   ``config_specific_par``.
-- Added the ``ech_direct_cc`` wavelength-calibration parameter: for the
-  ``echelle`` method order identification, cross-correlate the stacked arc
-  spectra directly instead of first building synthetic line-only arcs and
-  continuum-subtracting the correlation function.  Much faster for large
-  spectral formats (used by ``shane_hamspec``); the default (False) preserves
-  the original behavior.
+- The ``cc_synth_arc`` wavelength-calibration parameter now also controls the
+  ``echelle`` method order identification: if False, the stacked arc spectra
+  are cross-correlated directly instead of first building synthetic line-only
+  arcs and continuum-subtracting the correlation function.  Much faster for
+  large spectral formats (used by ``shane_hamspec``); the default (True)
+  preserves the original behavior.
 - Added the ``force_center_obj`` object-finding parameter (echelle only): skip
   peak-detection object finding and always extract one object forced at the
   center of each order, with the FWHM and boxcar radius set by the order
@@ -134,7 +178,7 @@ Instrument-specific Updates
 
   - pypeit_setup now recognizes the ``c1`` and ``c2`` files as a single
     exposure without requiring -e c1.fits. The ``c1`` and ``c2`` files of an
-    exposure are paired automatically and checked against ``OPAMP``. 
+    exposure are paired automatically and checked against ``OPAMP``.
     When both are present, only the ``c1`` file is
     written to the PypeIt file and the amplifiers are internally joined
     when it is read. A directory with only ``c1`` or only ``c2`` files is reduced as a
@@ -358,15 +402,60 @@ Bug Fixes
   #2099).  The extra quotes in PypeIt files written by older versions are
   removed when the file is read, with a warning; regenerate the file with
   ``pypeit_setup`` or directly edit it to avoid the warning.
+- Fix the sign of the spatial flexure correction applied when evaluating the
+  wavelength tilts of a frame (e.g. a science frame) whose spatial flexure
+  differs from that of the tilt frame.  The tilts were evaluated at a spatial
+  position shifted in the wrong direction (i.e., twice the relative flexure
+  away from the correct position).  The tilts are now evaluated at the same
+  fractional position along the slit in the tilt frame, which also accounts
+  for a different flexure of the left and right slit edges.
 - Restore the manual spatial flexure correction (Issue #2180): a value in the
   pypeit-file ``shift`` column again overrides the automatically computed
-  spatial flexure for that science/standard frame.  The feature was lost in
+  spatial flexure for that frame.  This applies to any frame type that is
+  processed using the slit traces, including science, standard, background,
+  and calibration (arc, tilt, and flat-field) frames.  The feature was lost in
   the 2.0.0 step-by-step processing refactor.  The ``shift`` column is
   now a string entry that is blank by default (like the ``manual``
   column), so an explicit ``0.0`` is a valid manual override; see
   :ref:`flexure-spatial-manual`.  The frame's spatial
   flexure is also passed to the user sky-regions mask again, which the same
   refactor had dropped.
+- The relative spectral illumination correction (``use_specillum``) is now
+  applied at the spatial flexure of each flat-fielded frame.  It was applied
+  at the spatial flexure of the pixel flat, which gave the wrong correction
+  near the slit edges when the two flexures differed.
+- ``pypeit_coadd_datacube``: dedicated sky frames (``skysub_frame``) and
+  relative scale-correction frames (``scale_corr``) are now remapped to the
+  slits of each science frame, accounting for the spatial flexure of both
+  frames; they were applied pixel by pixel.  The grating correction
+  (``grating_corr``) is now calculated using the spatial flexure and
+  wavelength image of the pixel flat, so it no longer depends on which
+  science frame first used the Flat calibration file.  See
+  :ref:`coadd3d_spatflex`.
+- The spatial flexure is now measured relative to the unpadded traced slit
+  edges.  For spectrographs that pad the slit edges (the ``pad`` parameter of
+  :ref:`edgetracepar`; e.g., APF/Levy and ARC/ARCES), the cross-correlation
+  template and the edge refinement used the padded edges, which biased the
+  measured spatial flexure.  The docstrings of
+  :func:`~pypeit.slittrace.SlitTraceSet.select_edges` and related methods now
+  state that their ``pad`` argument is added to the global padding.
+- Fix the RA and Dec assigned to serendipitous sources (``SERENDIP``) in
+  slitmask observations when the spatial flexure is determined.  Their offset
+  from the slit center was measured relative to the slit center without the
+  spatial flexure of the frame, so their coordinates were shifted by the
+  spatial flexure along the slit.
+- ``pypeit_coadd_2dspec``: the reference traces about which the frames are
+  coadded now include the spatial flexure of each frame.  Frames with
+  different spatial flexure were misregistered by the difference in flexure
+  when the offsets were provided by the user, or taken from the file headers
+  or the slitmask design (the automatically determined offsets absorbed the
+  flexure).  The wavelength grid built from the slits
+  (``use_slits4wvgrid``) also uses the slit edges shifted by the spatial
+  flexure of each frame.
+- ``pypeit_coadd_datacube``: fix the relative scale of the default sky frame
+  when ``skysub_frame = default`` is given for a frame in the ``spec2d`` block
+  of the ``coadd3d`` file; the relative scale was multiplied by the exposure
+  time of the science frame.
 - Avoid a circular import by moving
   :func:`~pypeit.core.wavecal.autoid.arc_fit_qa` out of
   :mod:`~pypeit.core.wavecal.wv_fitting`.
@@ -466,6 +555,9 @@ Bug Fixes
   reference point (``CRVAL``) rather than the sky position of the source
   actually used for the extraction (the fitted or manually-specified
   position). Affects any SlicerIFU-pypeline point-source extraction.
+- Spectral flexure was not previously included when generating a wavelength
+  image for a spec2d file during ``global_skysub``. This caused a multiple
+  correction to the spectral flexure, and only affected IFU data reduction.
 - Fix a memory leak on Python 3.13 and later: the
   ``inspect.getargvalues(inspect.currentframe())`` idiom used by many
   ``__init__`` methods to collect their arguments created a reference cycle

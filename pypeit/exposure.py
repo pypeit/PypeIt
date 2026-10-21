@@ -57,7 +57,7 @@ def adjust_for_slitmask(sciImg_dict:dict, spectrograph, fitstbl, par,
             SpecObjs: Updated SpecObjs object with matched and added objects
     """
     # get object positions from slitmask design and slitmask offsets for all the detectors
-    spat_flexure = np.array([sciImg_dict[ss].spat_flexure for ss in sciImg_dict])
+    spat_flexure = [sciImg_dict[ss].spat_flexure for ss in sciImg_dict]
     # Grab platescale with binning
     bin_spec, bin_spat = parse.parse_binning(fitstbl['binning'][frame0])
     platescale = np.array([sciImg_dict[ss].detector.platescale*bin_spat for ss in sciImg_dict])
@@ -253,8 +253,7 @@ def findobj_on_exposure(sciImg_dict:dict, bkg_redux_sciimg_dict:dict,
         # Update the sciImg with the scaleImg information
         sciImg_dict[det].rel_scaleImg = this_objfind.scaleimg
         # and the global spectral flexure shift
-        sciImg_dict[det].flex_shift = this_objfind.slitshift
-        # TODO: RJC please check if slitshift here should be assigned or added to sciImg_dict[det].flex_shift
+        sciImg_dict[det].spec_flexure = this_objfind.spec_flexure
 
         # update here slits.mask since global_skysub modify reduce_bpm, and we need to propagate it into extraction
         flagged_slits = np.where(this_objfind.reduce_bpm)[0]

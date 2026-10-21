@@ -125,9 +125,12 @@ slit/order for a given detector here is the recommended approach:
 
     from pypeit import spec2dobj
     spec2DObj = spec2dobj.Spec2DObj.from_file('spec2d_b170320_2083-c17_60L._LRISb_2017Mar20T055336.211.fits', det=2)
-    slitmask = spec2DObj.slits.slit_img(flexure=spec2DObj.sci_spat_flexure)
+    slitmask = spec2DObj.slits.slit_img(spat_flexure=spec2DObj.sci_spat_flexure)
 
-If no flexure correction was applied, it will be ignored.
+The spatial flexure (``sci_spat_flexure``) is an array with shape
+:math:`(N_{\rm slits}, 2)`, providing the shift of the left and right edge of
+each slit; see :ref:`flexure-spatial`.  If no spatial flexure correction was
+applied, it is None and it will be ignored.
 This generates an image with pixel values:
 
  - -1 for a pixel not in any slit/order
