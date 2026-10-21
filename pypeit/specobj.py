@@ -6,12 +6,12 @@ Module for the SpecObj classes
 
 """
 import copy
-import inspect
 from IPython import embed
 
 import numpy as np
 
 from pypeit import log
+from pypeit import utils
 from pypeit import PypeItError
 from pypeit.core import extract
 from pypeit.core import flexure
@@ -263,7 +263,7 @@ class SpecObj(datamodel.DataContainer):
     def __init__(self, PYPELINE, DET, OBJTYPE='unknown',
                  SLITID=None, ECH_ORDER=None, ECH_ORDERINDX=None, PYP_SPEC=None):
 
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         _d = dict([(k,values[k]) for k in args[1:]])
         super().__init__(d=_d)
 

@@ -22,6 +22,7 @@ from pypeit import PypeItError
 from pypeit import calibrations
 from pypeit import utils
 from pypeit.history import History
+from pypeit.core import fitting
 from pypeit.metadata import PypeItMetaData
 from pypeit import outputfiles
 from pypeit import exposure
@@ -121,6 +122,8 @@ class PypeIt:
             self.par['rdx'].validate()
         # QA figures are encoded by a thread pool when ncpu > 1
         qaWriter.init(ncpu=self.par['rdx']['ncpu'])
+        # Chunk size used to limit the memory of large 2D polynomial fits
+        fitting.set_polyfit2d_chunk(self.par['rdx']['fit2d_chunk'])
 
         # Write the full parameter set here
         # --------------------------------------------------------------

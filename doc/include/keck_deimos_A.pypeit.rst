@@ -10,7 +10,7 @@
     # Setup
     setup read
     Setup A: null
-    amp: '"SINGLE:B"'
+    amp: SINGLE:B
     binning: 1,1
     decker: dra11
     dispangle: 7699.95654297

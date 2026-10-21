@@ -213,7 +213,7 @@ class CoAdd2D:
             Instance of the subclass appropriate for the requested reduction mode.
         """
 
-        return next(c for c in utils.all_subclasses(cls)
+        return next(c for c in cls.__subclasses__()
                     if c.__name__ == (spectrograph.pypeline + 'CoAdd2D'))(
                         spec2dfiles, spectrograph, par, det=det, 
                         only_slits=only_slits, exclude_slits=exclude_slits,
