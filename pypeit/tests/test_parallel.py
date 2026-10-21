@@ -85,20 +85,55 @@ def start_method(request, monkeypatch):
 DETS = [1, 2, 3, 4]
 
 
-def test_nworkers():
-    # NOTE: the expectations are derived from os.cpu_count() rather than
-    # hard-coded.  A CI runner can have as few as 3 cores, so e.g.
-    # nworkers(8, 3) is 3 on a workstation but 2 there, and asserting the
-    # literal 3 fails on the small machine for the wrong reason.
-    ncores = max(1, (os.cpu_count() or 1) - 1)
+#: Core counts used to exercise :func:`~pypeit.parallel.nworkers` independently
+#: of the machine the tests happen to run on; see :func:`test_nworkers_formula`.
+#: 101 and 102 straddle the point at which an item count of 100 stops being the
+#: binding cap.
+CPU_COUNTS = [1, 2, 3, 4, 24, 101, 102, 256]
+
+
+@pytest.mark.parametrize('ncpu_count', CPU_COUNTS)
+def test_nworkers_formula(monkeypatch, ncpu_count):
+    """
+    ``nworkers`` must honour each of its three caps, on any size of machine.
+
+    NOTE: the expectations deliberately do *not* depend on the host's core
+    count.  Writing them that way means each assertion only exercises whichever
+    cap happens to bind here, and both ends of the range have already broken
+    this test: on a 3-core CI runner ``nworkers(8, 3)`` is 2 rather than 3,
+    and on a machine with more than 101 cores ``nworkers(1000, 100)`` is capped
+    by the *item* count at 100 rather than by the cores, so asserting it equals
+    ``cpu_count()-1`` fails there.  Faking ``os.cpu_count`` over a range covers
+    both ends, and each case below is set up so that exactly one cap binds.
+    """
+    monkeypatch.setattr(parallel.os, 'cpu_count', lambda: ncpu_count)
+    ncores = max(1, ncpu_count - 1)
+
+    # Serial requests never enter the pool, whatever the machine.
     assert parallel.nworkers(1, 4) == 1, 'ncpu=1 must collapse to a single worker'
     assert parallel.nworkers(None, 4) == 1, 'ncpu=None must collapse to a single worker'
-    assert parallel.nworkers(8, 3) == min(3, ncores), \
+
+    # Each cap in turn, with the other two limits made large so they cannot bind.
+    assert parallel.nworkers(2, 10**6) == min(2, ncores), \
+            'number of workers must be capped by the requested ncpu'
+    assert parallel.nworkers(10**6, 3) == min(3, ncores), \
             'number of workers must be capped by the item count'
-    assert parallel.nworkers(1000, 1) == 1, 'a single item needs a single worker'
-    assert parallel.nworkers(1000, 100) == ncores, \
+    assert parallel.nworkers(10**6, 10**6) == ncores, \
             'number of workers must be capped by the available CPUs'
+
+    # Degenerate inputs still yield a usable worker count.
+    assert parallel.nworkers(10**6, 1) == 1, 'a single item needs a single worker'
     assert parallel.nworkers(4, 0) == 1, 'the worker count must never drop below 1'
+
+
+def test_nworkers():
+    """Sanity check against the real machine, using the documented formula."""
+    ncores = max(1, (os.cpu_count() or 1) - 1)
+    assert parallel.nworkers(1, 4) == 1
+    assert parallel.nworkers(None, 4) == 1
+    assert parallel.nworkers(10**6, 10**6) == ncores, \
+            'number of workers must be capped by the available CPUs'
+    assert 1 <= parallel.nworkers(4, 2) <= 2
 
 
 def test_start_method(monkeypatch):
