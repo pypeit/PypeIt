@@ -257,6 +257,72 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
     return caliBrate
 
 
+def calib_status_one(det, spectrograph, fitstbl, par, calib_ID, calibrations_path:str,
+                     reuse_calibs:bool=True, qa_path:str=None, show:bool=False,
+                     run_state=None, stop_at_step:str=None, status_only:bool=False,
+                     reload_only:bool=False):
+    """
+    Build/load the calibrations for one detector and return only the status.
+
+    Thin, detector-first wrapper around :func:`calib_one` for use with
+    :func:`~pypeit.parallel.map_over_detectors`.  The
+    :class:`~pypeit.calibrations.Calibrations` object is deliberately *not*
+    returned: it is large, and every downstream consumer reloads the
+    calibrations from ``Calibrations/*.fits`` anyway (see
+    :func:`load_calibrations_for_frame`), so nothing heavy has to cross a
+    process boundary.
+
+    This must stay a module-level function.  Under the ``fork`` start method a
+    closure would happen to work, but ``spawn`` support is a future goal and
+    requires the mapped function to be importable.
+
+    Parameters
+    ----------
+    det : :obj:`int`, :obj:`tuple`
+        Detector (1-indexed) or mosaic.  First argument, as required by
+        :func:`~pypeit.parallel.map_over_detectors`.
+    spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+        The spectrograph instance.
+    fitstbl : :class:`~pypeit.metadata.PypeItMetaData`
+        The class holding the metadata for all the frames in this PypeIt run.
+    par : :class:`~pypeit.par.pypeitpar.PypeItPar`
+        The parameter set for the reduction.
+    calib_ID : :obj:`str`
+        The calibration group ID.
+    calibrations_path : :obj:`str`
+        Path to the calibration files.
+    reuse_calibs : :obj:`bool`, optional
+        If True, reuse existing calibration files if they exist.
+    qa_path : :obj:`str`, optional
+        Path to the QA files; if None, use the default path defined by the
+        parameters.
+    show : :obj:`bool`, optional
+        Show the QA during processing.
+    run_state : :class:`~pypeit.state.run_state.RunPypeItState`, optional
+        The current state of the reduction.  If None, no state tracking is
+        performed.
+    stop_at_step : :obj:`str`, optional
+        Run only up to this calibration step.
+    status_only : :obj:`bool`, optional
+        If True, only check whether the calibration output files exist and
+        update the state accordingly, without running any calibrations.
+    reload_only : :obj:`bool`, optional
+        If True, only reload the calibrations, without running any.
+
+    Returns
+    -------
+    :obj:`tuple`
+        ``(success, failed_step)``: a :obj:`bool` flagging whether the
+        calibrations completed, and the :obj:`str` naming the step that failed
+        (None if none did).
+    """
+    log.info(f'Calibrating detector {det}')
+    caliBrate = calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path,
+                          reuse_calibs=reuse_calibs, qa_path=qa_path, show=show,
+                          run_state=run_state, stop_at_step=stop_at_step,
+                          status_only=status_only, reload_only=reload_only)
+    return caliBrate.success, caliBrate.failed_step
+
 def process_one_det(spectrograph, fitstbl, par, frames:list, 
                     det, calib_ID:str, calibrations_path:str, bg_frames:list=None,
                     sci_outfile:str=None, bkg_outfile:str=None): 
@@ -384,6 +450,56 @@ def process_one_det(spectrograph, fitstbl, par, frames:list,
 
     # Return
     return sciImg, bkg_redux_sciimg
+
+def process_one_det_bydet(det, spectrograph, fitstbl, par, frames:list, calib_ID:str,
+                          calibrations_path:str, bg_frames:list=None,
+                          sci_outfile:str=None, bkg_outfile:str=None):
+    """
+    Detector-first adapter for :func:`process_one_det`.
+
+    Reorders the arguments of :func:`process_one_det` so that the detector comes
+    first, as :func:`~pypeit.parallel.map_over_detectors` requires, and emits the
+    progress message the serial loop in
+    :func:`~pypeit.exposure.process_exposure` used to emit itself.  The loop body
+    is otherwise untouched.
+
+    This must stay a module-level function; see :func:`calib_status_one`.
+
+    Parameters
+    ----------
+    det : :obj:`int`, :obj:`tuple`
+        Detector (1-indexed) or mosaic.  First argument, as required by
+        :func:`~pypeit.parallel.map_over_detectors`.
+    spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+        The spectrograph instance.
+    fitstbl : :class:`~pypeit.metadata.PypeItMetaData`
+        The class holding the metadata for all the frames in this PypeIt run.
+    par : :class:`~pypeit.par.pypeitpar.PypeItPar`
+        The parameter set for the reduction.
+    frames : :obj:`list`
+        Indices of the science frames in ``fitstbl`` to process together.
+    calib_ID : :obj:`str`
+        The calibration group ID.
+    calibrations_path : :obj:`str`
+        Path to the calibration files.
+    bg_frames : :obj:`list`, optional
+        Indices of the background frames in ``fitstbl``.  If None or empty, no
+        A-B background subtraction is performed.
+    sci_outfile : :obj:`str`, optional
+        The science output file, if this is a science reduction.
+    bkg_outfile : :obj:`str`, optional
+        The background output file, if this is a background-subtraction
+        reduction.
+
+    Returns
+    -------
+    :obj:`tuple`
+        ``(sciImg, bkg_redux_sciimg)``; see :func:`process_one_det`.
+    """
+    log.info(f'Reducing detector {det}')
+    return process_one_det(spectrograph, fitstbl, par, frames, det, calib_ID,
+                           calibrations_path, bg_frames=bg_frames,
+                           sci_outfile=sci_outfile, bkg_outfile=bkg_outfile)
 
 def findobj_on_det(sciImg, spectrograph, fitstbl, par, frames:list, calib_ID:str, 
                    det, calibrations_path:str, std_outfile:str=None, 
@@ -907,6 +1023,73 @@ def extract_det(spectrograph, fitstbl, par,
 
     # Return
     return spec2DObj, sobjs
+
+def extract_det_bydet(det, spectrograph, fitstbl, par, frames, calib_ID:str,
+                      calibrations_path:str, sciImg=None, final_sky=None,
+                      sobjs_obj=None, calib_slits=None, bkg_redux_final_sky=None,
+                      bkg_redux:bool=False, find_negative:bool=False, show:bool=False):
+    """
+    Detector-first adapter for :func:`extract_det`.
+
+    Reorders the arguments of :func:`extract_det` so that the detector comes
+    first, as :func:`~pypeit.parallel.map_over_detectors` requires.  The five
+    per-detector objects (``sciImg``, ``final_sky``, ``sobjs_obj``,
+    ``calib_slits`` and ``bkg_redux_final_sky``) are keyword arguments with None
+    defaults because they are supplied through the mapper's ``payload``, which
+    the parent slices per detector so that each worker only ever receives its own
+    data.  They are not genuinely optional: :func:`extract_det` takes the first
+    four as required positional arguments.
+
+    This must stay a module-level function; see :func:`calib_status_one`.
+
+    Parameters
+    ----------
+    det : :obj:`int`, :obj:`tuple`
+        Detector (1-indexed) or mosaic.  First argument, as required by
+        :func:`~pypeit.parallel.map_over_detectors`.
+    spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+        The spectrograph instance.
+    fitstbl : :class:`~pypeit.metadata.PypeItMetaData`
+        The class holding the metadata for all the frames in this PypeIt run.
+    par : :class:`~pypeit.par.pypeitpar.PypeItPar`
+        The parameter set for the reduction.
+    frames : :obj:`list`
+        List of frames to extract; stacked if more than one is provided.
+    calib_ID : :obj:`str`
+        The calibration group ID.
+    calibrations_path : :obj:`str`
+        Path to the calibration files.
+    sciImg : :class:`~pypeit.images.pypeitimage.PypeItImage`
+        Data container holding this detector's image and its related images
+        (e.g., ivar, mask).  Supplied through the mapper's ``payload``.
+    final_sky : `numpy.ndarray`_
+        Final global sky model for this detector.  Supplied through the mapper's
+        ``payload``.
+    sobjs_obj : :class:`~pypeit.specobjs.SpecObjs`
+        The objects found on this detector during object finding.  Supplied
+        through the mapper's ``payload``.
+    calib_slits : :class:`~pypeit.slittrace.SlitTraceSet`
+        Slits to use instead of those from the calibrations.  Supplied through
+        the mapper's ``payload``.
+    bkg_redux_final_sky : `numpy.ndarray`_, optional
+        Final global sky model for the background-reduced science image.
+        Supplied through the mapper's ``payload``.
+    bkg_redux : :obj:`bool`, optional
+        Indicates whether the reduction involves background subtraction.
+    find_negative : :obj:`bool`, optional
+        Indicates whether to find negative objects during the reduction.
+    show : :obj:`bool`, optional
+        Show the QA during processing.
+
+    Returns
+    -------
+    :obj:`tuple`
+        ``(spec2DObj, sobjs)``; see :func:`extract_det`.
+    """
+    return extract_det(spectrograph, fitstbl, par, frames, det, calib_ID,
+                       calibrations_path, sciImg, final_sky, sobjs_obj, calib_slits,
+                       bkg_redux_final_sky=bkg_redux_final_sky, bkg_redux=bkg_redux,
+                       find_negative=find_negative, show=show)
 
 def instantiate_objfind(sciImg, spectrograph, fitstbl, par, frames, det,
                         caliBrate, bkg_redux, find_negative, 
