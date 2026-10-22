@@ -13,7 +13,9 @@ Breaking Changes
   need to start ``ginga --modules=RC,SlitWavelength`` before running PypeIt.
   Displays now *pause* the code that opens them: scripts exit when the window
   is closed, and reductions continue when the window is closed (the next
-  display opens it again).
+  display opens it again).  Displays do not wait in headless sessions
+  (``QT_QPA_PLATFORM=offscreen``), under ``pytest``, or when
+  ``PYPEIT_VIEWER_NOWAIT=1``.
 - Removed the ``SlitWavelength`` ginga plugin, which was only used to receive
   images through the remote-control connection.
 

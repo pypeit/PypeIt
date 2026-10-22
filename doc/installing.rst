@@ -581,6 +581,13 @@ Displays pause the code that opens them:
 The window title says what closing the window does (e.g., "PypeIt: close the
 window to continue").
 
+Displays do *not* wait for the window to be closed when nobody can close it:
+when Qt runs without a display (e.g., with ``QT_QPA_PLATFORM=offscreen``, as
+used for headless test runs), when running under ``pytest``, or when the
+``PYPEIT_VIEWER_NOWAIT`` environment variable is set to ``1``.  This allows
+automated runs (e.g., on remote or cloud machines) to proceed without user
+interaction.
+
 The viewer keeps its ``ginga`` preferences (window layout, etc.) separate from
 those of a standalone ``ginga`` session.  They are saved in the ``ginga``
 directory of PypeIt's configuration directory (e.g.,

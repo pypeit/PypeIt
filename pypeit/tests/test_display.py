@@ -234,3 +234,29 @@ def test_spec2d_make_channel():
     assert data.make_channel(3) is None
     chan = data.make_channel('mask')
     assert chan.name == 'A_MASK' and not chan.show_slits
+
+
+def test_viewer_headless():
+    # Smoke test of the in-process viewer.  Under pytest (and without a
+    # display), show() must not wait for the window to be closed.
+    import time
+    from pypeit.display import display
+    rng = np.random.default_rng(42)
+    img = rng.normal(size=(200, 100))
+    waveimg = np.tile(np.linspace(4000., 5000., 200)[:, None], (1, 100))
+    left = np.column_stack([np.full(200, 10.), np.full(200, 50.)])
+    right = left + 30.
+    vwr, ch = display.show_image(img, chname='test', waveimg=waveimg, cuts=(-1., 1.), clear=True)
+    display.show_slits(vwr, ch, left, right, slit_ids=np.array([1, 2]))
+    display.show_trace(vwr, ch, left + 15., np.array(['obj1', 'obj2']))
+    vwr2, ch2 = display.show_image(img, chname='test2', wcs_match=True)
+    assert vwr2 is vwr
+    t = time.perf_counter()
+    display.show()
+    assert time.perf_counter() - t < 30.
+    assert {'test', 'test2'} <= set(vwr.channel_names())
+    # Left edges, right edges, slit IDs, and traces
+    assert len(ch.fitsimage.get_canvas().get_tags_by_tag_pfx(display.TAG_PREFIX)) == 4
+    # The channels are linked
+    ch.fitsimage.set_pan(20., 100.)
+    assert np.allclose(ch2.fitsimage.get_pan()[:2], (20., 100.))

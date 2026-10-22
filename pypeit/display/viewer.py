@@ -119,6 +119,74 @@ def _patch_ginga_hidpi_plots():
     PlotViewBase._pypeit_hidpi_patch = True
 
 
+def wait_for_user():
+    """
+    Check if displays should wait for the user to close the window.
+
+    Displays do not wait (see :meth:`PypeItViewer.show`) when nobody can close
+    the window:
+
+        - when the ``PYPEIT_VIEWER_NOWAIT`` environment variable is set to
+          ``1``, ``true``, or ``yes``,
+
+        - when running under ``pytest``, or
+
+        - when Qt runs without a display (the ``offscreen`` or ``minimal``
+          Qt platforms; e.g., with ``QT_QPA_PLATFORM=offscreen``).
+
+    Returns
+    -------
+    :obj:`bool`
+        True if displays should wait for the user.
+    """
+    if os.environ.get('PYPEIT_VIEWER_NOWAIT', '').lower() in ['1', 'true', 'yes']:
+        return False
+    if 'PYTEST_CURRENT_TEST' in os.environ:
+        return False
+    platform = os.environ.get('QT_QPA_PLATFORM', '')
+    try:
+        from qtpy.QtGui import QGuiApplication
+        app = QGuiApplication.instance()
+        if app is not None:
+            platform = app.platformName()
+    except Exception:
+        pass
+    return platform.split(':')[0] not in ['offscreen', 'minimal']
+
+
+@contextlib.contextmanager
+def _reuse_qapplication():
+    """
+    Make ginga reuse an existing Qt application, if there is one.
+
+    ginga always instantiates a new ``QApplication``, but Qt only allows one
+    per process.  If a Qt application already exists (e.g., in a Qt program,
+    or in tests that use ``pytest-qt``), this temporarily replaces the
+    ``QApplication`` class with a subclass that returns the existing instance,
+    while the viewer is being built.
+    """
+    try:
+        from qtpy import QtWidgets
+    except ImportError:
+        yield
+        return
+    existing = QtWidgets.QApplication.instance()
+    if existing is None:
+        yield
+        return
+    real = QtWidgets.QApplication
+
+    class _ExistingApplication(real):
+        def __new__(cls, *args, **kwargs):
+            return existing
+
+    QtWidgets.QApplication = _ExistingApplication
+    try:
+        yield
+    finally:
+        QtWidgets.QApplication = real
+
+
 def get_viewer():
     """
     Return the process-wide PypeIt viewer, creating it if necessary.
@@ -536,7 +604,8 @@ class PypeItViewer(GingaShellViewer):
             self.rv.add_plugin_spec(spec)
         parser = argparse.ArgumentParser()
         self.rv.add_default_options(parser)
-        self.rv.main(parser.parse_args(['--nosplash', f'--basedir={basedir}']), [])
+        with _reuse_qapplication():
+            self.rv.main(parser.parse_args(['--nosplash', f'--basedir={basedir}']), [])
 
         super().__init__(self.rv.ginga_shell)
         # TODO: Remove when ginga's HiDPI plot bug is fixed
@@ -611,6 +680,8 @@ class PypeItViewer(GingaShellViewer):
         block : :obj:`bool`, optional
             If True, run the ginga event loop until the user closes the
             window.  If False, only process pending GUI events and return.
+            Ignored (treated as False) if nobody can close the window; see
+            :func:`wait_for_user`.
         message : :obj:`str`, optional
             Message shown in the window title (and logged) while waiting.  If
             None, the message is "close the window to continue".
@@ -623,6 +694,10 @@ class PypeItViewer(GingaShellViewer):
         self.pending = False
         # Fit the images of new channels to the window
         self.fit_channels()
+        if block and not wait_for_user():
+            log.info('PypeIt viewer: not waiting for the window to be closed (automated or '
+                     'headless session; see pypeit.display.viewer.wait_for_user).')
+            block = False
         if not block:
             self._update()
             return
@@ -656,7 +731,8 @@ class PypeItViewer(GingaShellViewer):
         """
         # NOTE: sys.last_value is set if the program is ending because of an
         # uncaught exception; never wait for the user in that case.
-        if not self.closed and self.pending and not hasattr(sys, 'last_value'):
+        if not self.closed and self.pending and not hasattr(sys, 'last_value') \
+                and wait_for_user():
             try:
                 self.show(message='close the window to exit')
             except Exception:

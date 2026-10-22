@@ -79,8 +79,12 @@ astronomical telescopes into calibrated spectra for scientific analysis.
   (`pypeit.display.viewer.get_viewer()`); there is no remote-control (RC)
   connection.  `display.show_*` functions add images/overlays; call
   `display.show()` to wait for the user to close the window (it is only
-  hidden and reused by the next display).  New display code must call `display.show()` (or rely on a
-  `show()` method that does), otherwise the display appears only at exit.
+  hidden and reused by the next display).  New display code must call
+  `display.show()` (or rely on a `show()` method that does), otherwise the
+  display appears only at exit.  `show()` never waits in headless/automated
+  runs (`QT_QPA_PLATFORM=offscreen`, under pytest, or
+  `PYPEIT_VIEWER_NOWAIT=1`; see `viewer.wait_for_user()`), so tests and CI
+  do not hang on displays.
 
 - Never import ginga GUI/canvas modules (e.g. `get_canvas_types()`,
   `ginga.canvas.types.basic`) at module import time: ginga must choose its Qt
