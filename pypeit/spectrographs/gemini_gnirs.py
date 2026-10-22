@@ -641,7 +641,7 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
         par['scienceframe']['process']['objlim'] = 1.5
         par['scienceframe']['process']['use_illumflat'] = False  # illumflat is applied when building the relative scale image in reduce.py, so should be applied to scienceframe too.
         par['scienceframe']['process']['use_specillum'] = False  # apply relative spectral illumination
-        par['scienceframe']['process']['spat_flexure_correct'] = False  # don't correct for spatial flexure - varying spatial illumination profile could throw this correction off. Also, there's no way to do astrometric correction if we can't correct for spatial flexure of the contbars frames
+        par['scienceframe']['process']['spat_flexure_method'] = "skip"  # don't correct for spatial flexure - varying spatial illumination profile could throw this correction off. Also, there's no way to do astrometric correction if we can't correct for spatial flexure of the contbars frames
         par['scienceframe']['process']['use_biasimage'] = False
         par['scienceframe']['process']['use_darkimage'] = False
         par['calibrations']['flatfield']['slit_illum_finecorr'] = False
@@ -763,6 +763,10 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
             pxscl = spatial_scale / 3600.0  # 3600 is to convert arcsec to degrees
 
         # Get the typical slit length (this changes by ~0.3% over all slits, so a constant is fine for now)
+        # NOTE: The slit length does not include the spatial flexure of the frame,
+        # so that the WCS reference pixel is the same for all frames reduced with
+        # the same slits.  The spatial flexure is accounted for when calculating
+        # the RA and Dec of each pixel (see SlitTraceSet.get_radec_image).
         slitlength = int(np.round(np.median(slits.get_slitlengths(median=True))))
 
         # Get RA/DEC

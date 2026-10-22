@@ -43,6 +43,7 @@ from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
 from pypeit import dataPaths
 from pypeit.pkg import cache
+from pypeit.wavetilts import WaveTilts
 
 
 class FlatImages(calibframe.CalibFrame):
@@ -83,8 +84,19 @@ class FlatImages(calibframe.CalibFrame):
                                               descr='Relative spectral illumination'),
                  'pixelflat_waveimg': dict(otype=np.ndarray, atype=np.floating,
                                            descr='Waveimage for pixel flat'),
+                 'pixelflat_spat_flexure': dict(otype=np.ndarray, atype=np.floating,
+                                                descr='Spatial flexure shift, in spatial pixels, between pixelflat '
+                                                'and SlitTrace. Shape is (nslits, 2), where '
+                                                'spat_flexure[i,0] is the spatial shift of the left '
+                                                'edge of slit i and spat_flexure[i,1] is the spatial '
+                                                'shift of the right edge of slit i.'),
                  'illumflat_raw': dict(otype=np.ndarray, atype=np.floating,
                                        descr='Processed, combined illum flats'),
+                 # TODO : RJC thinks we should store the initial and tweaked slit edges. At the moment, we don't
+                 #  store any knowledge if the spatial b-splines are generated with initial or tweaked edges. This
+                 #  is a concern if we generate the fit2illumflat with initial=True, but the spatial b-splines were
+                 #  generated with tweaked edges. Same is true for the pixelflat_spat_bsplines, but that is not as
+                 #  big an issue.
                  'illumflat_spat_bsplines': dict(otype=np.ndarray, atype=BSplineContainer,
                                                  descr='B-spline models for illum flat; see '
                                                        ':class:`~pypeit.core.bspline.containers.BSplineContainer`'),
@@ -93,13 +105,19 @@ class FlatImages(calibframe.CalibFrame):
                                              'the spatial illumination profile'),
                  'illumflat_bpm': dict(otype=np.ndarray, atype=np.integer,
                                        descr='Mirrors SlitTraceSet mask for flat-specific flags'),
+                 'illumflat_spat_flexure': dict(otype=np.ndarray, atype=np.floating,
+                                                descr='Spatial flexure shift, in spatial pixels, between illumflat '
+                                                'and SlitTrace. Shape is (nslits, 2), where '
+                                                'spat_flexure[i,0] is the spatial shift of the left '
+                                                'edge of slit i and spat_flexure[i,1] is the spatial '
+                                                'shift of the right edge of slit i.'),
                  'spat_id': dict(otype=np.ndarray, atype=np.integer, descr='Slit spat_id')}
 
     def __init__(self, pixelflat_raw=None, pixelflat_norm=None, pixelflat_bpm=None,
                  pixelflat_model=None, pixelflat_spat_bsplines=None, pixelflat_finecorr=None,
-                 pixelflat_spec_illum=None, pixelflat_waveimg=None, illumflat_raw=None,
-                 illumflat_spat_bsplines=None, illumflat_bpm=None, illumflat_finecorr=None,
-                 PYP_SPEC=None, spat_id=None):
+                 pixelflat_spec_illum=None, pixelflat_waveimg=None, pixelflat_spat_flexure=None,
+                 illumflat_raw=None, illumflat_spat_bsplines=None, illumflat_bpm=None,
+                 illumflat_finecorr=None, illumflat_spat_flexure=None, PYP_SPEC=None, spat_id=None):
         # Parse
         args, values = utils.init_arg_values()
         d = dict([(k,values[k]) for k in args[1:]])
@@ -362,15 +380,25 @@ class FlatImages(calibframe.CalibFrame):
                 zeroth order correction (finecorr=False)
             initial (bool, optional):
                 If True, the initial slit edges will be used
-            spat_flexure (float, optional):
-                Spatial flexure in pixels
+            spat_flexure (`numpy.ndarray`_, optional):
+                If provided, this is the shift, in spatial pixels, of the frame
+                you wish to calculate the tilts for (typically a science image),
+                relative to the initial slits. The shape of the array should be
+                (nslits, 2), where the first column is the shift to apply to the
+                left edge of each slit and the second column is the
+                shift to apply to the right edge of each slit.
 
         Returns:
             `numpy.ndarray`_: An image of the spatial illumination profile for all slits.
         """
         # Check spatial flexure type
-        if spat_flexure is not None and not isinstance(spat_flexure, float):
-            raise PypeItError('Spatial flexure must be None or float.')
+        if spat_flexure is not None and not isinstance(spat_flexure, np.ndarray):
+            raise PypeItError('Spatial flexure must be None or a 2D numpy array.')
+        # Check the spatial flexure input
+        _spat_flexure = np.zeros((slits.nslits, 2)) if spat_flexure is None else spat_flexure
+        if _spat_flexure.shape != (slits.nslits, 2):
+            raise PypeItError(f'Input spat_flexure has shape {_spat_flexure.shape}, but should be '
+                              f'({slits.nslits}, 2).  Cannot generate the illumination flat.')
         # Initialise the returned array
         illumflat = np.ones(self.shape, dtype=float)
         # Load spatial bsplines
@@ -386,14 +414,14 @@ class FlatImages(calibframe.CalibFrame):
             # Skip masked
             if slits.mask[slit_idx] != 0:
                 continue
-            # Skip those without a bspline
-            # DO it
-            _slitid_img = slits.slit_img(slitidx=slit_idx, initial=initial, flexure=spat_flexure)
+            # Create a slit ID image for the frame that corresponds to the input spat_flexure value
+            _slitid_img = slits.slit_img(slitidx=slit_idx, initial=initial, spat_flexure=_spat_flexure)
             onslit = _slitid_img == slits.spat_id[slit_idx]
+            # Generate the spatial coordinates at the input spatial flexure
             spat_coo = slits.spatial_coordinate_image(slitidx=slit_idx,
                                                       initial=initial,
                                                       slitid_img=_slitid_img,
-                                                      flexure_shift=spat_flexure)
+                                                      spat_flexure=_spat_flexure)
             if finecorr:
                 spec_coo = np.where(onslit)[0] / (slits.nspec - 1)
                 illumflat[onslit] = spat_bsplines[slit_idx].eval(spat_coo[onslit], spec_coo)
@@ -528,11 +556,15 @@ class FlatImages(calibframe.CalibFrame):
                              ['pixelflat_norm', 'pixelflat_spat_illum', 'pixelflat_finecorr', 'pixelflat_totalillum',
                               'pixelflat_raw', 'pixelflat_model', 'pixelflat_spec_illum'],
                              [(0.9, 1.1), (0.9, 1.1), (0.95, 1.05), (0.9, 1.1),
-                              None, None, (0.8, 1.2)])
+                              None, None, (0.8, 1.2)],
+                             7*[self.pixelflat_spat_flexure],
+                             )
         elif frametype == 'illum':
             image_list = zip([illumflat_illum, illumflat_finecorr, illumflat_totalillum, self.illumflat_raw],
                              ['illumflat_spat_illum', 'illumflat_finecorr', 'illumflat_totalillum', 'illumflat_raw'],
-                             [(0.9, 1.1), (0.95, 1.05), (0.9, 1.1), None])
+                             [(0.9, 1.1), (0.95, 1.05), (0.9, 1.1), None],
+                             4*[self.illumflat_spat_flexure],
+                             )
         else:
             # Show everything that's available (anything that is None will not be displayed)
             image_list = zip([self.pixelflat_norm, illumflat_pixel, pixelflat_finecorr, pixelflat_totalillum,
@@ -543,7 +575,9 @@ class FlatImages(calibframe.CalibFrame):
                               'illumflat_spat_illum', 'illumflat_finecorr', 'illumflat_totalillum', 'illumflat_raw'],
                              [(0.9, 1.1), (0.9, 1.1), (0.95, 1.05), (0.9, 1.1),
                               None, None, (0.8, 1.2),
-                              (0.9, 1.1), (0.95, 1.05), (0.9, 1.1), None])
+                              (0.9, 1.1), (0.95, 1.05), (0.9, 1.1), None],
+                             7*[self.pixelflat_spat_flexure] + 4*[self.illumflat_spat_flexure],
+                             )
         # Display frames
         show_flats(image_list, wcs_match=wcs_match, slits=slits, waveimg=self.pixelflat_waveimg)
 
@@ -692,6 +726,9 @@ class FlatField:
             slitless is True.
         slitless (bool, optional):
             True if the input rawflatimg is a slitless flat. Default is False.
+        spat_flexure (`numpy.ndarray`_, optional):
+            If input, the slitmask and slit edges are shifted prior
+            to tilt analysis.
         spat_illum_only (bool, optional):
             Only perform the spatial illumination calculation, and ignore
             the 2D bspline fit. This should only be set to true if you
@@ -716,7 +753,7 @@ class FlatField:
 
     """
     def __init__(self, rawflatimg, spectrograph, flatpar, slits, wavetilts=None, wv_calib=None,
-                 slitless=False, spat_illum_only=False, qa_path=None, calib_key=None):
+                 slitless=False, spat_flexure=None, spat_illum_only=False, qa_path=None, calib_key=None):
 
         # Defaults
         self.spectrograph = spectrograph
@@ -731,6 +768,7 @@ class FlatField:
         self.slits = slits
         self.wavetilts = wavetilts
         self.wv_calib = wv_calib
+        self.spat_flexure = spat_flexure
 
         # Worth a check
         if self.wavetilts is not None and not slitless:
@@ -817,7 +855,10 @@ class FlatField:
             if not self.spat_illum_only:
                 niter = 1  # Just do one iteration... two is too long, and doesn't significantly improve the fine spatial illumination correction.
                 det_resp_model = 1  # Initialise detector structure to a value of 1 (i.e. no detector structure)
-                onslits = self.slits.slit_img(pad=-self.flatpar['slit_trim'], initial=False) != -1
+                onslits = self.slits.slit_img(initial=False,
+                                              spat_flexure=self.spat_flexure,
+                                              pad=-self.flatpar['slit_trim']
+                                              ) != -1
                 for ff in range(niter):
                     # If we're only doing the spatial illumination profile, the detector structure
                     # has already been divided out by the pixel flat.
@@ -858,7 +899,9 @@ class FlatField:
             return FlatImages(illumflat_raw=self.rawflatimg.image,
                               illumflat_spat_bsplines=np.asarray(self.list_of_spat_bsplines),
                               illumflat_finecorr=np.asarray(self.list_of_finecorr_fits),
-                              illumflat_bpm=bpmflats, PYP_SPEC=self.spectrograph.name,
+                              illumflat_bpm=bpmflats,
+                              illumflat_spat_flexure=self.spat_flexure,
+                              PYP_SPEC=self.spectrograph.name,
                               spat_id=self.slits.spat_id)
 
         # Pixel and illumination correction only
@@ -869,6 +912,7 @@ class FlatField:
                           pixelflat_finecorr=np.asarray(self.list_of_finecorr_fits),
                           pixelflat_bpm=bpmflats, pixelflat_spec_illum=self.spec_illum,
                           pixelflat_waveimg=self.waveimg,
+                          pixelflat_spat_flexure=self.spat_flexure,
                           PYP_SPEC=self.spectrograph.name, spat_id=self.slits.spat_id)
 
     def build_mask(self):
@@ -893,11 +937,10 @@ class FlatField:
         if self.wavetilts is None or self.wv_calib is None:
             raise PypeItError("Wavelength calib or tilts are not available.  Cannot generate wavelength image.")
         else:
-            flex = self.wavetilts.spat_flexure
-            slitmask = self.slits.slit_img(initial=True, flexure=flex)
-            tilts = self.wavetilts.fit2tiltimg(slitmask, flexure=flex)
+            slitmask = self.slits.slit_img(initial=True, spat_flexure=self.spat_flexure)
+            tilts = self.wavetilts.fit2tiltimg(slitmask, spat_flexure=self.spat_flexure)
             # Save to class attribute for inclusion in the Flat calibration frame
-            self.waveimg = self.wv_calib.build_waveimg(tilts, self.slits, spat_flexure=flex)
+            self.waveimg = self.wv_calib.build_waveimg(tilts, self.slits, spat_flexure=self.spat_flexure)
 
     def show(self, wcs_match=True):
         """
@@ -909,8 +952,10 @@ class FlatField:
         """
         # Prepare the images to show, their names and their cuts
         image_list = zip([self.mspixelflat, self.msillumflat, self.rawflatimg.image, self.flat_model],
-                         ['pixelflat', 'spat_illum', 'raw', 'model', 'spec_illum'],
-                         [(0.9, 1.1), (0.9, 1.1), None, None, (0.8, 1.2)])
+                         ['pixelflat', 'spat_illum', 'raw', 'model', 'spec_illum'],  # TODO: The spec_illum is missing?
+                         [(0.9, 1.1), (0.9, 1.1), None, None, (0.8, 1.2)],
+                         4 * [self.spat_flexure],
+                         )
         show_flats(image_list, wcs_match=wcs_match, slits=self.slits, waveimg=self.waveimg)
 
     def fit(self, spat_illum_only=False, doqa=True, debug=False):
@@ -1069,16 +1114,27 @@ class FlatField:
         # TODO: This needs to include a padding check
         # Construct three versions of the slit ID image, all of unmasked slits!
         #   - an image that uses the padding defined by self.slits
-        slitid_img_init = self.slits.slit_img(initial=True)
+        slitid_img_init = self.slits.slit_img(initial=True, spat_flexure=self.spat_flexure)
         #   - an image that uses the extra padding defined by
         #     self.flatpar. This was always 5 pixels in the previous
         #     version.
-        padded_slitid_img = self.slits.slit_img(initial=True, pad=pad)
+        padded_slitid_img = self.slits.slit_img(initial=True, spat_flexure=self.spat_flexure, pad=pad)
         #   - and an image that trims the width of the slit using the
         #     parameter in self.flatpar. This was always 3 pixels in
         #     the previous version.
         # TODO: Fix this for when trim is a tuple
-        trimmed_slitid_img = self.slits.slit_img(pad=-trim, initial=True)
+        trimmed_slitid_img = self.slits.slit_img(initial=True, spat_flexure=self.spat_flexure, pad=-trim)
+
+        # Evaluate the tilts of all slits once, over the *padded* slits, so
+        # that the spectral model of each slit is evaluated over its padded
+        # footprint (onslit_padded, below)
+        if self.slitless:
+            tilts = np.tile(np.arange(rawflat.shape[0]) / (rawflat.shape[0]-1), (rawflat.shape[1], 1)).T
+        else:
+            tilts = self.wavetilts.fit2tiltimg(padded_slitid_img, spat_flexure=self.spat_flexure)
+        # Convert the tilt image to an image with the spectral pixel index
+        spec_coo = tilts * (nspec-1)
+        tilts = None
 
         # Prep for results
         self.mspixelflat = np.ones_like(rawflat)
@@ -1167,7 +1223,8 @@ class FlatField:
             #  calculation?
 
             # Create an image with the spatial coordinates relative to the left edge of this slit
-            spat_coo_init = self.slits.spatial_coordinate_image(slitidx=slit_idx, full=True, initial=True)
+            spat_coo_init = self.slits.spatial_coordinate_image(slitidx=slit_idx, full=True, initial=True,
+                                                                spat_flexure=self.spat_flexure)
 
             # Find pixels on the padded and trimmed slit coordinates
             onslit_padded = padded_slitid_img == slit_spat
@@ -1176,21 +1233,6 @@ class FlatField:
             # ----------------------------------------------------------
             # Collapse the slit spatially and fit the spectral function
             # TODO: Put this stuff in a self.spectral_fit method?
-
-            # Create the tilts for pixels in this slit only (not full image)
-            if self.slitless:
-                tilts = np.tile(np.arange(rawflat.shape[0]) / rawflat.shape[0], (rawflat.shape[1], 1)).T
-                spec_coo = tilts * (nspec-1)
-            else:
-                # TODO -- JFH Confirm the sign of this shift is correct!
-                _flexure = 0. if self.wavetilts.spat_flexure is None else self.wavetilts.spat_flexure
-                tilts = tracewave.fit2tilts(rawflat.shape,
-                                            self.wavetilts['coeffs'][:,:,slit_idx],
-                                            self.wavetilts['func2d'],
-                                            spat_shift=-1*_flexure,
-                                            slit_mask=onslit_padded)
-            # Convert the tilt image to an image with the spectral pixel index
-            spec_coo = tilts * (nspec-1)
 
             # Only include the trimmed set of pixels in the flat-field
             # fit along the spectral direction.
@@ -1308,7 +1350,6 @@ class FlatField:
 
             if tweak_slits:
                 # TODO: Should the tweak be based on the bspline fit?
-                # TODO: Will this break if
                 left_thresh, left_shift, self.slits.left_tweak[:,slit_idx], right_thresh, \
                     right_shift, self.slits.right_tweak[:,slit_idx] \
                         = self.tweak_slit_edges(self.slits.left_init[:,slit_idx],
@@ -1323,14 +1364,20 @@ class FlatField:
                 #  image for all slits. Fix this...
 
                 # Update the onslit mask
-                _slitid_img = self.slits.slit_img(slitidx=slit_idx, initial=False)
+                # NOTE: We still need to include spatial flexure here, because the
+                # tweak slits are relative to initial with spat_flexure=True, and
+                # the spatial flexure of the flat frame is still unchanged whether
+                # we use initial or tweaked edges.
+                _slitid_img = self.slits.slit_img(slitidx=slit_idx, initial=False, spat_flexure=self.spat_flexure)
                 onslit_tweak = _slitid_img == slit_spat
                 # Note, we need to get the full image with the coordinates similar to spat_coo_init, otherwise, the
                 # tweaked locations are biased.
-                spat_coo_tweak = self.slits.spatial_coordinate_image(slitidx=slit_idx, full=True, slitid_img=_slitid_img)
+                spat_coo_tweak = self.slits.spatial_coordinate_image(slitidx=slit_idx, full=True,
+                                                                     slitid_img=_slitid_img,
+                                                                     spat_flexure=self.spat_flexure)
 
                 # Construct the empirical illumination profile
-                # TODO This is extremely inefficient, because we only need to re-fit the illumflat, but
+                # TODO: This is extremely inefficient, because we only need to re-fit the illumflat, but
                 #  spatial_fit does both the reconstruction of the illumination function and the bspline fitting.
                 #  Only the b-spline fitting needs be reddone with the new tweaked spatial coordinates, so that would
                 #  save a ton of runtime. It is not a trivial change because the coords are sorted, etc.
@@ -1551,8 +1598,6 @@ class FlatField:
             # Cleanup to save on memory usage
             spec_coo_data = None
             twod_spec_coo_data = None
-            spec_coo = None
-            tilts = None
             gc.collect(2)
 
         # No need to continue if we're just doing the spatial illumination
@@ -1562,9 +1607,9 @@ class FlatField:
         # Set the pixelflat to 1.0 wherever the flat was nonlinear
         self.mspixelflat[rawflat >= nonlinear_counts] = 1.0
         # Set the pixelflat to 1.0 within trim pixels of all the slit edges
-        trimmed_slitid_img_new = self.slits.slit_img(pad=-trim, initial=False)
-        tweaked_slitid_img = self.slits.slit_img(initial=False)
-        self.mspixelflat[(trimmed_slitid_img_new < 0) & (tweaked_slitid_img > 0)] = 1.0
+        trimmed_slitid_img_new = self.slits.slit_img(pad=-trim, initial=False, spat_flexure=self.spat_flexure)
+        tweaked_slitid_img = self.slits.slit_img(initial=False, spat_flexure=self.spat_flexure)
+        self.mspixelflat[(trimmed_slitid_img_new == -1) & (tweaked_slitid_img != -1)] = 1.0
 
         # Do not apply pixelflat field corrections that are greater than
         # 100% to avoid creating edge effects, etc.
@@ -1580,12 +1625,23 @@ class FlatField:
 
         Args:
             norm_spec (`numpy.ndarray`_):
+                Flat-field image (2D array) with the spectral response normalized out.
             spat_coo (`numpy.ndarray`_):
-                Spatial coordinate array
+                An image with the slit spatial coordinates, expected to
+                be with respect to a single slit and span the full image
+                region selected by the good-pixel mask (``spat_gpm``).
+                Shape must match ``norm_spec``.
             median_slit_width (:obj:`float`):
+                Fiducial slit width used to set the median-filter window size.
             spat_gpm (`numpy.ndarray`_):
+                The good-pixel mask that selects the pixels to include in
+                the slit illumination profile calculation. If None, **all
+                pixels in the provided images are used**. For virtually
+                all practical purposes, this array should be provided.
             gpm (`numpy.ndarray`_):
+                TODO :: This parameter is not used -- I think this is a bug, and the GPM is not being updated from the call to this function?
             debug (bool, optional):
+                If True, show plots useful for debugging.
 
         Returns:
             tuple: 7 objects
@@ -1681,7 +1737,7 @@ class FlatField:
         # check id self.waveimg is available
         if self.waveimg is None:
             log.warning("Cannot perform the fine correction to the spatial illumination without the wavelength image.")
-            return
+            return np.ones_like(self.rawflatimg.image)
         # TODO :: Include fit_order in the parset??
         fit_order = np.array([3, 6])
         slit_txt = self.slits.slitord_txt
@@ -1690,11 +1746,12 @@ class FlatField:
         # initialise
         illumflat_finecorr = np.ones_like(self.rawflatimg.image)
         # Trim the edges by a few pixels to avoid edge effects
-        onslit_tweak_trim = self.slits.slit_img(pad=-slit_trim, slitidx=slit_idx, initial=False) == slit_spat
+        onslit_tweak_trim = self.slits.slit_img(pad=-slit_trim, slitidx=slit_idx,
+                                                initial=False, spat_flexure=self.spat_flexure
+                                                ) == slit_spat
         # Setup
         slitimg = (slit_spat + 1) * onslit_tweak.astype(int) - 1  # Need to +1 and -1 so that slitimg=-1 when off the slit
-
-        left, right, msk = self.slits.select_edges(flexure=self.wavetilts.spat_flexure if self.wavetilts is not None else 0.0)
+        left, right, msk = self.slits.select_edges(spat_flexure=self.spat_flexure)
         this_left = left[:, slit_idx]
         this_right = right[:, slit_idx]
         slitlen = int(np.median(this_right - this_left))
@@ -1704,7 +1761,7 @@ class FlatField:
         this_wave = self.waveimg[this_slit]
         xpos_img = self.slits.spatial_coordinate_image(slitidx=slit_idx,
                                                        slitid_img=slitimg,
-                                                       flexure_shift=self.wavetilts.spat_flexure if self.wavetilts is not None else 0.0)
+                                                       spat_flexure=self.spat_flexure)
         # Generate the trimmed versions for fitting
         this_slit_trim = np.where(onslit_tweak_trim & self.rawflatimg.select_flag(invert=True))
         this_wave_trim = self.waveimg[this_slit_trim]
@@ -1793,10 +1850,13 @@ class FlatField:
                                illumflat_spat_bsplines=np.asarray(self.list_of_spat_bsplines),
                                illumflat_finecorr=np.asarray(self.list_of_finecorr_fits),
                                illumflat_bpm=bpmflats, PYP_SPEC=self.spectrograph.name,
+                               illumflat_spat_flexure=self.spat_flexure,
                                spat_id=self.slits.spat_id)
         # Divide by the spatial profile
-        spat_illum = tmp_flats.fit2illumflat(self.slits, frametype='illum', finecorr=False)
-        spat_illum *= tmp_flats.fit2illumflat(self.slits, frametype='illum', finecorr=True)
+        spat_illum = tmp_flats.fit2illumflat(self.slits, frametype='illum', finecorr=False,
+                                             spat_flexure=self.spat_flexure)
+        spat_illum *= tmp_flats.fit2illumflat(self.slits, frametype='illum', finecorr=True,
+                                              spat_flexure=self.spat_flexure)
         rawflat = rawflat_orig * utils.inverse(spat_illum)
         # Now fit the spectral profile
         # TODO: Should this be *any* flag, or just BPM?
@@ -1804,10 +1864,10 @@ class FlatField:
         scale_model = illum_profile_spectral(rawflat, self.waveimg, self.slits,
                                              slit_illum_ref_idx=self.flatpar['slit_illum_ref_idx'],
                                              model=None, gpmask=gpm, skymask=None, trim=self.flatpar['slit_trim'],
-                                             flexure=self.wavetilts.spat_flexure if self.wavetilts is not None else 0.0,
+                                             spat_flexure=self.spat_flexure,
                                              smooth_npix=self.flatpar['slit_illum_smooth_npix'])
         # Trim the edges by a few pixels to avoid edge effects
-        onslits_trim = gpm & (self.slits.slit_img(pad=-slit_trim, initial=False) != -1)
+        onslits_trim = gpm & (self.slits.slit_img(pad=-slit_trim, initial=False, spat_flexure=self.spat_flexure) != -1)
         onslits = (self.waveimg != 0.0) & gpm
         # Construct a wavelength array
         minwv = np.min(self.waveimg[onslits])
@@ -1853,7 +1913,7 @@ class FlatField:
         # check if the waveimg is available
         if self.waveimg is None:
             log.warning("Cannot perform the spectral illumination without the wavelength image.")
-            return None
+            return np.ones_like(self.rawflatimg.image)
         log.info('Performing a joint fit to the flat-field response')
         # Grab some parameters
         trim = self.flatpar['slit_trim']
@@ -1866,15 +1926,15 @@ class FlatField:
         # Obtain relative spectral illumination
         return illum_profile_spectral(rawflat, self.waveimg, self.slits,
                                       slit_illum_ref_idx=self.flatpar['slit_illum_ref_idx'],
-                                      model=None, gpmask=gpm, skymask=None, trim=trim,
-                                      flexure=self.wavetilts.spat_flexure  if self.wavetilts is not None else 0.0,
-                                      smooth_npix=self.flatpar['slit_illum_smooth_npix'],
-                                      debug=debug)
+                                      model=None, gpmask=gpm, skymask=None, trim=trim, spat_flexure=self.spat_flexure,
+                                      smooth_npix=self.flatpar['slit_illum_smooth_npix'], debug=debug)
 
     def tweak_slit_edges(self, left, right, spat_coo, norm_flat, method='threshold', thresh=0.93,
                          maxfrac=0.1, debug=False):
         r"""
         Tweak the slit edges based on the normalized slit illumination profile.
+
+        # TODO :: Since this is just a wrapper, and not really "core", maybe it should be moved to pypeit.flatfield?
 
         Args:
             left (`numpy.ndarray`_):
@@ -1930,7 +1990,6 @@ class FlatField:
                 - The adjusted right edge
 
         """
-        # TODO :: Since this is just a wrapper, and not really "core", maybe it should be moved to pypeit.flatfield?
         # Tweak the edges via the specified method
         if method == "threshold":
             return flat.tweak_slit_edges_threshold(left, right, spat_coo, norm_flat,
@@ -2018,11 +2077,13 @@ class FiberFlatField(FlatField):
         # ------------------------------------------------------------------
         if self.wavetilts is not None and self.wv_calib is not None:
             log.info("Building wavelength image for fiber flat extraction")
-            flex = self.wavetilts.spat_flexure
-            slitmask = self.slits.slit_img(initial=True, flexure=flex)
-            tilts = self.wavetilts.fit2tiltimg(slitmask, flexure=flex)
+            # Same as FlatField.build_waveimg: the slit image is evaluated at
+            # the spatial flexure of the flat, and fit2tiltimg accounts for
+            # the flexure of the flat relative to the tilts.
+            slitmask = self.slits.slit_img(initial=True, spat_flexure=self.spat_flexure)
+            tilts = self.wavetilts.fit2tiltimg(slitmask, spat_flexure=self.spat_flexure)
             waveimg = self.wv_calib.build_waveimg(tilts, self.slits,
-                                                  spat_flexure=flex)
+                                                  spat_flexure=self.spat_flexure)
         else:
             log.warning("Wavelength calibration unavailable; using pixel "
                         "coordinates as wavelength proxy for fiber flat "
@@ -2595,14 +2656,19 @@ def detector_structure_qa(det_resp, det_resp_model, outfile=None, title="Detecto
     return
 
 
-def show_flats(image_list, wcs_match=True, slits=None, waveimg=None):
+def show_flats(image_list, wcs_match=True,
+               slits=None, waveimg=None):
     """
     Show the flat-field images
 
     Parameters
     ----------
     image_list : list
-        List of tuples containing the image data, image name and the cut levels
+        List of tuples containing the image data, image name, the cut levels, and spatial flexure.
+        The spatial flexure can be None, but if provided, this is the shift, in spatial pixels, to
+        apply to each slit. This is used to correct for spatial flexure. The shape of the array
+        should be (nslits, 2), where the first column is the shift to apply to the left edge of
+        each slit and the second column is the shift to apply to the right edge of each slit.
     wcs_match : bool, optional
         Match the WCS of the images
     slits : :class:`pypeit.slittrace.SlitTraceSet`, optional
@@ -2612,12 +2678,9 @@ def show_flats(image_list, wcs_match=True, slits=None, waveimg=None):
 
     """
     display.connect_to_ginga(raise_err=True, allow_new=True)
-    if slits is not None:
-        left, right, mask = slits.select_edges()
-        gpm = mask == 0
     # Loop me
     clear = True
-    for img, name, cut in image_list:
+    for img, name, cut, spat_flexure in image_list:
         if img is None:
             continue
         # TODO: Add an option that shows the relevant stuff in a
@@ -2625,6 +2688,8 @@ def show_flats(image_list, wcs_match=True, slits=None, waveimg=None):
         viewer, ch = display.show_image(img, chname=name, cuts=cut, wcs_match=wcs_match,
                                         waveimg=waveimg, clear=clear)
         if slits is not None:
+            left, right, mask = slits.select_edges(initial=True, spat_flexure=spat_flexure)
+            gpm = mask == 0
             display.show_slits(viewer, ch, left[:, gpm], right[:, gpm],
                                slit_ids=slits.spat_id[gpm])
         # Turn off clear
@@ -2633,8 +2698,9 @@ def show_flats(image_list, wcs_match=True, slits=None, waveimg=None):
 
 
 # TODO :: This could possibly be moved to core.flat
-def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_npix=None, polydeg=None,
-                           model=None, gpmask=None, skymask=None, trim=3, flexure=None, maxiter=5, debug=False):
+def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_npix=None,
+                           polydeg=None, model=None, gpmask=None, skymask=None, trim=3,
+                           initial=True, spat_flexure=None, maxiter=5, debug=False):
     """
     Determine the relative spectral illumination of all slits.
     Currently only used for image slicer IFUs.
@@ -2654,17 +2720,22 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
     polydeg : int, optional
         Degree of polynomial to be used for determining relative spectral sensitivity. If None,
         coadd.smooth_weights will be used, with the smoothing length set to smooth_npix.
-    model : `numpy.ndarray`_, None
+    model : `numpy.ndarray`_, optional
         A model of the rawimg data. If None, rawimg will be used.
-    gpmask : `numpy.ndarray`_, None
+    gpmask : `numpy.ndarray`_, optional
         Good pixel mask
-    skymask : `numpy.ndarray`_, None
+    skymask : `numpy.ndarray`_, optional
         Sky mask
     trim : int
         Number of pixels to trim from the edges of the slit
         when deriving the spectral illumination
-    flexure : float, None
-        Spatial flexure
+    spat_flexure : `numpy.ndarray`_, optional
+        If provided, this is the shift, in spatial pixels, to
+        apply to each slit. This is used to correct for spatial
+        flexure. The shape of the array should be (nslits, 2),
+        where the first column is the shift to apply to the
+        left edge of each slit and the second column is the
+        shift to apply to the right edge of each slit.
     maxiter : :obj:`int`
         Maximum number of iterations to perform
     debug : :obj:`bool`
@@ -2680,13 +2751,13 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
         log.info("Using polynomial of degree {0:d} for relative spectral sensitivity".format(polydeg))
     else:
         log.info("Using 'smooth_weights' algorithm for relative spectral sensitivity")
-    # Setup some helpful parameters
+    # Set up some helpful parameters
     skymask_now = skymask if (skymask is not None) else np.ones_like(rawimg, dtype=bool)
     gpm = gpmask if (gpmask is not None) else np.ones_like(rawimg, dtype=bool)
     modelimg = model if (model is not None) else rawimg.copy()
-    # Setup the slits
-    slitid_img = slits.slit_img(pad=0, flexure=flexure)
-    slitid_img_trim = slits.slit_img(pad=-trim, flexure=flexure)
+    # Set up the slits
+    slitid_img = slits.slit_img(pad=0, initial=initial, spat_flexure=spat_flexure)
+    slitid_img_trim = slits.slit_img(pad=-trim, initial=initial, spat_flexure=spat_flexure)
     scaleImg = np.ones_like(rawimg)
     modelimg_copy = modelimg.copy()
     # Obtain the minimum and maximum wavelength of all slits

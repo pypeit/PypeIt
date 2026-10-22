@@ -402,9 +402,9 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         # Flexure
         # Parameters should work for long-slit N1.8 camera exposures
         # N3.75 camera and/or multi-slit may require careful adjustment
-        par['scienceframe']['process']['spat_flexure_correct'] = True
+        par['scienceframe']['process']['spat_flexure_method'] = 'detector'
         par['scienceframe']['process']['spat_flexure_sigdetect'] = 100
-        par['calibrations']['tiltframe']['process']['spat_flexure_correct'] = True
+        par['calibrations']['tiltframe']['process']['spat_flexure_method'] = 'detector'
         par['calibrations']['tiltframe']['process']['spat_flexure_sigdetect'] = 100
 
         par['scienceframe']['process']['sigclip'] = 20.0
@@ -636,9 +636,9 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
 
         # Flexure
         par['flexure']['spec_method'] = 'skip'
-        par['scienceframe']['process']['spat_flexure_correct'] = True
+        par['scienceframe']['process']['spat_flexure_method'] = 'detector'
         par['scienceframe']['process']['spat_flexure_sigdetect'] = 100
-        par['calibrations']['tiltframe']['process']['spat_flexure_correct'] = True
+        par['calibrations']['tiltframe']['process']['spat_flexure_method'] = 'detector'
         par['calibrations']['tiltframe']['process']['spat_flexure_sigdetect'] = 100
 
         par['scienceframe']['process']['sigclip'] = 20.0

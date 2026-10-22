@@ -56,7 +56,7 @@ class Rectify2DSpec(scriptbase.ScriptBase):
             for detname in detnames:
                 log.info(f'DETECTOR: {detname}')
                 spec2d = spec2dobj.Spec2DObj.from_file(spec2file, detname, chk_version=chk_version)
-                slitmask = spec2d.slits.slit_img(flexure=spec2d.sci_spat_flexure)
+                slitmask = spec2d.slits.slit_img(spat_flexure=spec2d.sci_spat_flexure)
                 slit_ids = spec2d.slits.spat_id
                 # this is just to print useful info in the terminal
                 slitord_ids = spec2d.slits.slitord_id
