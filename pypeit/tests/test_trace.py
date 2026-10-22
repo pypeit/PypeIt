@@ -110,11 +110,15 @@ def test_refine_edge():
 def test_refine_edge_detector_boundary():
     nspec, nspat = 200, 60
     bpm = np.zeros((nspec, nspat), dtype=bool)
-    # Edges close to, or beyond, the detector boundary cannot be refined
+    # Edges close to, or beyond, the detector boundary cannot be refined, so
+    # the input edge is kept
     for edge in [1., -5., nspat - 2.]:
         img = _edge_image(edge + 0.4, nspec=nspec, nspat=nspat)
-        assert np.isnan(trace.refine_edge(img, bpm, np.full(nspec, edge), 'left')), \
+        assert trace.refine_edge(img, bpm, np.full(nspec, edge), 'left') == 0., \
             f'An edge at {edge} should not be refined'
+        shift, refined = trace.refine_edge(img, bpm, np.full(nspec, edge), 'left',
+                                           return_success=True)
+        assert shift == 0. and not refined, 'Failure should be flagged'
     # An edge that is only partially on the detector is refined using the
     # spectral rows where it is on the detector
     edge = np.linspace(-10., 20., nspec)
@@ -127,3 +131,65 @@ def test_refine_edge_bad_side():
     img = _edge_image(20.)
     with pytest.raises(PypeItError):
         trace.refine_edge(img, None, np.full(img.shape[0], 20.), 'middle')
+
+
+def _slits_image(lefts, rights, nspec=300, sig=1.0, level=1e4):
+    """
+    Synthetic image of slits whose edges (at the 50% points, i.e. the steepest
+    flux gradient) drift by 1.3 pixels along the spectral direction.
+    """
+    drift = np.linspace(0, 1.3, nspec)
+    nspat = int(np.max(rights)) + 30
+    xx = np.arange(nspat, dtype=float)[None, :]
+    img = np.zeros((nspec, nspat))
+    for l, r in zip(lefts, rights):
+        img += level * (trace._edge_model(xx - l - drift[:, None], 0., sig, 1)
+                        + trace._edge_model(xx - r - drift[:, None], 0., sig, -1) - 1)
+    img = np.clip(img, 0, None) + 20.
+    rng = np.random.default_rng(2)
+    return rng.normal(img, np.sqrt(img)), drift
+
+
+@pytest.mark.parametrize('gap', [3., 4., 10.])
+def test_refine_edge_neighbour(gap):
+    # Three slits separated by a few pixels.  The input edges of the middle
+    # slit (and the facing edges of its neighbours) are offset outwards by
+    # 0.6 pixels, as for traced edges.
+    width = 60.
+    lefts = 20.3 + np.arange(3) * (width + gap)
+    rights = lefts + width
+    img, drift = _slits_image(lefts, rights)
+    left, right = lefts[1] + drift - 0.6, rights[1] + drift + 0.6
+    left_nbr, right_nbr = rights[0] + drift + 0.6, lefts[2] + drift - 0.6
+    # Modelling the neighbouring slits recovers the steepest gradient
+    shift = trace.refine_edge(img, None, left, 'left', neighbour=left_nbr)
+    assert np.isclose(shift, 0.6, atol=0.03), 'Left edge not refined correctly'
+    shift = trace.refine_edge(img, None, right, 'right', neighbour=right_nbr)
+    assert np.isclose(shift, -0.6, atol=0.03), 'Right edge not refined correctly'
+    if gap < 5:
+        # Without modelling the neighbouring slits, the edges are biased
+        # towards the centre of the slit (or cannot be refined)
+        shift, refined = trace.refine_edge(img, None, left, 'left', return_success=True)
+        assert not refined or shift > 0.7, 'Test is not sensitive'
+    # The neighbouring slit does not matter when it is far away
+    nbr_far = left_nbr - 50.
+    assert np.isclose(trace.refine_edge(img, None, left, 'left', neighbour=nbr_far),
+                      trace.refine_edge(img, None, left, 'left')), \
+        'A distant neighbouring slit should not be modelled'
+
+
+def test_facing_edges():
+    nspec = 10
+    # Three slits, given in a random order, and a lone left edge
+    left = np.tile([50., 10., 90., 130.], (nspec, 1))
+    right = np.tile([80., 40., 120.], (nspec, 1))
+    left_nbr, right_nbr = trace.facing_edges(left, right)
+    assert np.all(left_nbr[:, 0] == 40.) and np.all(left_nbr[:, 2] == 80.) \
+           and np.all(left_nbr[:, 3] == 120.), 'Incorrect neighbouring right edges'
+    assert np.all(np.isnan(left_nbr[:, 1])), 'The first slit has no neighbour on the left'
+    assert np.all(right_nbr[:, 0] == 90.) and np.all(right_nbr[:, 1] == 50.) \
+           and np.all(right_nbr[:, 2] == 130.), 'Incorrect neighbouring left edges'
+    # Slits that touch (edges crossing by less than 1 pixel) are still neighbours
+    left_nbr, right_nbr = trace.facing_edges(np.tile([10., 39.5], (nspec, 1)),
+                                             np.tile([40., 70.], (nspec, 1)))
+    assert np.all(left_nbr[:, 1] == 40.) and np.all(right_nbr[:, 0] == 39.5)

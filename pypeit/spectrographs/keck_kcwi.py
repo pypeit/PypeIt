@@ -304,7 +304,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
 
         # Set the slit edge parameters
         par['calibrations']['slitedges']['fit_order'] = 4
-        par['calibrations']['slitedges']['pad'] = 0  # Do not pad the slits - this ensures that the tweak_edges method=gradient guarantees that the edges are defined at the maximum gradient.
+        par['calibrations']['slitedges']['pad'] = 0  # Do not pad the slits, so that the slit edges are at the steepest flux gradient (see refine_edges, which is True for all SlicerIFU spectrographs)
         par['calibrations']['slitedges']['edge_thresh'] = 5  # 5 works well with a range of setups tested by RJC (mostly 1x1 binning)
 
         # KCWI has non-uniform spectral resolution across the field-of-view

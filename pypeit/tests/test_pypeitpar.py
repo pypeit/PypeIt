@@ -352,3 +352,21 @@ def test_spat_flexure_minfrac():
         with pytest.raises(ValueError):
             pypeitpar.ProcessImagesPar(use_overscan=False, spat_flexure_minfrac=value)
     pypeitpar.ProcessImagesPar(use_overscan=False, spat_flexure_minfrac=0)
+
+
+def test_edge_flexure_frames():
+    # The slit edges are refined by default for the SlicerIFU spectrographs
+    # only, and the frames with an edge-based spatial flexure method are found
+    from pypeit.spectrographs.util import load_spectrograph
+    par = load_spectrograph('keck_kcwi').default_pypeit_par()
+    assert par['calibrations']['slitedges']['refine_edges']
+    assert 'scienceframe' in par.edge_flexure_frames()
+    assert 'arcframe' in par.edge_flexure_frames()
+    par = load_spectrograph('keck_deimos').default_pypeit_par()
+    assert not par['calibrations']['slitedges']['refine_edges']
+    assert par.edge_flexure_frames() == []
+    par['scienceframe']['process']['spat_flexure_method'] = 'slit'
+    assert par.edge_flexure_frames() == [], 'The slit method is not edge-based'
+    par['scienceframe']['process']['spat_flexure_method'] = 'leftedge'
+    par['calibrations']['arcframe']['process']['spat_flexure_method'] = 'edge'
+    assert sorted(par.edge_flexure_frames()) == ['arcframe', 'scienceframe']

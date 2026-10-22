@@ -308,6 +308,9 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
     # Set up the slits and image properties
     # NOTE: The global padding is removed, so that the edges are at the traced edges
     left, right, _ = slits.select_edges(initial=True, spat_flexure=total_flexure, pad=nopad)
+    # The facing edges of the neighbouring slits (of all slits, since excluded
+    # slits are also illuminated), so that their light is accounted for
+    left_nbr, right_nbr = trace.facing_edges(left, right)
     spec = np.arange(_sciimg.shape[0])
     # Only refine the edges that are needed
     refine_left = method != 'rightedge'
@@ -319,12 +322,14 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
         # Only use the spectral extent of the slit
         rows = (spec >= slits.specmin[slit_idx]) & (spec <= slits.specmax[slit_idx])
         # Calculate the shift of each edge
-        if refine_left:
-            delta_flexure[slit_idx, 0] = trace.refine_edge(_sciimg, bpm, left[:, slit_idx], "left",
-                                                           rows=rows)
-        if refine_right:
-            delta_flexure[slit_idx, 1] = trace.refine_edge(_sciimg, bpm, right[:, slit_idx], "right",
-                                                           rows=rows)
+        for i, (refine, edge, nbr, side) in enumerate([(refine_left, left, left_nbr, 'left'),
+                                                       (refine_right, right, right_nbr, 'right')]):
+            if not refine:
+                continue
+            shift, refined = trace.refine_edge(_sciimg, bpm, edge[:, slit_idx], side, rows=rows,
+                                               neighbour=nbr[:, slit_idx], return_success=True)
+            if refined:
+                delta_flexure[slit_idx, i] = shift
     # Check that the slit edges have been detected in the image: if too few of
     # the edges can be refined (i.e. no edge is found close to the edges
     # shifted by the detector-level flexure), the slit edges are not visible in

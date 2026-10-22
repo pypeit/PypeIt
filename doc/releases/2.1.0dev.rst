@@ -61,6 +61,15 @@ Functionality/Performance Improvements and Additions
 - The spatial flexure of each input frame is recorded in the header of the
   datacubes constructed by ``pypeit_coadd_datacube`` (``SPFLXnnn`` keywords);
   see :ref:`coadd3d_spatflex`.
+- Added the ``refine_edges`` slit-edge tracing parameter, which shifts each
+  traced slit edge to the position of the steepest flux gradient (the traced
+  edges are a fraction of a pixel to about a pixel outside it), accounting for
+  the light of the neighbouring slit; the traced edge is kept (with a warning)
+  if an edge cannot be refined.  It is ``True`` by default for all
+  ``SlicerIFU`` spectrographs, so that the edge-based spatial flexure is
+  measured relative to the steepest gradient, and a warning is printed if the
+  ``edge``, ``leftedge`` or ``rightedge`` spatial flexure method is used with
+  ``refine_edges = False``.
 - Added the ``spat_flexure_minfrac`` image-processing parameter: if less than
   this fraction of the traced slit-edge pixels coincide with an edge detected
   in the frame at the measured spatial flexure, the slit edges are deemed to

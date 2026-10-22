@@ -401,7 +401,11 @@ class ProcessImagesPar(ParSet):
                                        '"leftedge" means that the left slit edge will be used to determine ' \
                                            'the shift, and this value will be assigned to the right edge. ' \
                                        '"rightedge" means that the right slit edge will be used to determine ' \
-                                           'the shift, and this value will be assigned to the left edge.'
+                                           'the shift, and this value will be assigned to the left edge.  ' \
+                                       'For the edge-based methods (edge, leftedge and rightedge), the ' \
+                                       'slit edges should be placed at the steepest flux gradient when ' \
+                                       'they are traced (see the refine_edges parameter of the slit edge ' \
+                                       'tracing).'
 
         defaults['spat_flexure_polyord'] = None
         dtypes['spat_flexure_polyord'] = int
@@ -4080,10 +4084,19 @@ class EdgeTracePar(ParSet):
                                 '`center_mode` for these edges and place them at the edge of ' \
                                 'the detector (with the relevant shape).'
 
-        defaults['refine_edges'] = False  # Maybe set this default to True?
+        defaults['refine_edges'] = False
         dtypes['refine_edges'] = bool
-        descr['refine_edges'] = 'If True, a spatial shift will be applied to the fitted edges to ' \
-                                'ensure the edge is located at the position of steepest flux gradient.' \
+        descr['refine_edges'] = 'If True, a spatial shift will be applied to each traced edge to ' \
+                                'ensure the edge is located at the position of steepest flux ' \
+                                'gradient (the traced edges are typically a fraction of a pixel ' \
+                                'to a pixel outside the steepest gradient).  The light of the ' \
+                                'neighbouring slits is accounted for.  If an edge cannot be ' \
+                                'refined, the traced edge is kept.  This should be True if the ' \
+                                'spatial flexure is measured with an edge-based method (edge, ' \
+                                'leftedge or rightedge; see spat_flexure_method), since the ' \
+                                'flexure of each edge is measured relative to the steepest ' \
+                                'flux gradient.  This is True by default for all SlicerIFU ' \
+                                'spectrographs.'
 
         defaults['bound_detector'] = False
         dtypes['bound_detector'] = bool
@@ -5883,6 +5896,35 @@ class PypeItPar(ParSet):
             if isinstance(self[_key], ParSet) and 'process' in self[_key].keys():
                 for key,value in kwargs.items():
                     self[_key]['process'][key] = value
+
+    def edge_flexure_frames(self):
+        """
+        Return the frame types whose spatial flexure is measured with an
+        edge-based method (``edge``, ``leftedge`` or ``rightedge``).
+
+        These methods measure the spatial flexure of each slit edge relative
+        to the traced slit edges, so the traced edges should be at the steepest
+        flux gradient (see the ``refine_edges`` parameter of
+        :class:`EdgeTracePar`).
+
+        Returns:
+            :obj:`list`: The names of the parameter sets of the frame types
+            (e.g. ``'arcframe'``, ``'scienceframe'``).
+        """
+        edge_methods = ['edge', 'leftedge', 'rightedge']
+        frames = []
+        # Calibrations
+        for key in self['calibrations'].keys():
+            if isinstance(self['calibrations'][key], ParSet) \
+                    and 'process' in self['calibrations'][key].keys() \
+                    and self['calibrations'][key]['process']['spat_flexure_method'] in edge_methods:
+                frames.append(key)
+        # Science frame
+        for key in self.keys():
+            if isinstance(self[key], ParSet) and 'process' in self[key].keys() \
+                    and self[key]['process']['spat_flexure_method'] in edge_methods:
+                frames.append(key)
+        return frames
 
     def sync_processing(self, proc_par):
         """

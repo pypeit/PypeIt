@@ -70,10 +70,13 @@ The algorithm proceeds as follows:
        frames with few lines).
 
     #. For all other methods, each slit edge is refined, starting from the
-       ``detector`` value.  The flux near the edge is modeled in each spectral
+       ``detector`` value: the refined edge is at the steepest flux gradient
+       across the edge.  The flux near the edge is modeled in each spectral
        row as a step function convolved with a Gaussian (allowing for a
        gradient of the slit illumination), with a common sub-pixel offset for
-       all rows, which is constrained to be within :math:`\pm 2` pixels.  The
+       all rows, which is constrained to be within :math:`\pm 2` pixels.  If
+       the neighbouring slit is only a few pixels away, its facing edge is
+       modeled as well, so that its light does not bias the edge.  The
        ``slit`` method uses the average of the left and right edges of each
        slit, and the ``leftedge`` (``rightedge``) method uses the left (right)
        edge for both edges.  Only the spectral rows within the spectral extent
@@ -95,7 +98,19 @@ The algorithm proceeds as follows:
 
 The spatial flexure is measured relative to the traced (initial) slit edges,
 without the padding of the slit edges set by the ``pad`` parameter of
-:ref:`edgetracepar`, and it is applied wherever the slit edges are used: to construct the slit
+:ref:`edgetracepar`.  The ``slit``, ``edge``, ``leftedge`` and ``rightedge``
+methods measure the position of the steepest flux gradient across each edge, so
+the traced slit edges should also be at the steepest flux gradient; otherwise,
+the frame used to trace the slits would itself have a non-zero spatial flexure.
+The slit edges are traced using a signal-to-noise weighted flux gradient, which
+places them a fraction of a pixel to about a pixel *outside* the steepest
+gradient.  Set ``refine_edges = True`` in :ref:`edgetracepar` to shift each
+traced edge to the steepest flux gradient (using the same model of the edge;
+the traced edge is kept if an edge cannot be refined).  This is the default for
+all ``SlicerIFU`` spectrographs, and a warning is printed if the ``edge``,
+``leftedge`` or ``rightedge`` method is used without it.  (The inward shifts of
+the two edges of a slit cancel for the ``slit`` method.)  The spatial flexure
+is applied wherever the slit edges are used: to construct the slit
 images, to evaluate the illumination flat, the wavelength tilts (which are
 evaluated at the same relative position along the slit in the frame used to
 determine the tilts), and the wavelength image, for sky subtraction and

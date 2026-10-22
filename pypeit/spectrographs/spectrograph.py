@@ -198,6 +198,11 @@ class Spectrograph:
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = cls.name
+        if cls.pypeline == 'SlicerIFU':
+            # Place the slit edges at the steepest flux gradient, so that the
+            # spatial flexure (measured with the edge-based methods) is relative
+            # to the steepest gradient (the slits are not tweaked)
+            par['calibrations']['slitedges']['refine_edges'] = True
         return par
 
     def config_specific_par(
