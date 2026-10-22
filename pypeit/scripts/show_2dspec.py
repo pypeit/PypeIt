@@ -158,7 +158,8 @@ class Show2DSpec(scriptbase.ScriptBase):
                             help='Ignore the extraction mask')
         parser.add_argument('--show_wave_rms', default=False, action='store_true',
                             help='Show the RMS (in pixels) of the wavelength solution for the '
-                                 'slit under the cursor in the ginga readout')
+                                 'slit under the cursor in the ginga readout. Use of this option '
+                                 'on many-slit frames may take a long time')
 #        parser.add_argument('--sensfunc', type=str, default=None,
 #                            help='Pass in a sensfunc to display the sky-subtracted image with a '
 #                                 'flux calibration')
