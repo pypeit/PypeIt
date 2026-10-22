@@ -131,7 +131,6 @@ class Show1DSpec(scriptbase.ScriptBase):
             if sobjs[exten]['OPT_WAVE'] is None: #not in sobjs[exten]._data.keys():
                     raise PypeItError("Spectrum not extracted with OPT.  Try --extract BOX")
 
-        # Pre-pend cwd to filename (in case RC Ginga was launched already)
         full_file = Path(args.file).absolute()
 
         # Ginga
@@ -139,3 +138,7 @@ class Show1DSpec(scriptbase.ScriptBase):
             str(full_file), ext=exten, masked=args.masked, extraction=args.extract,
             fluxed=args.flux
         )
+
+        # Wait for the user to close the window
+        from pypeit.display.viewer import show
+        show(message='close the window to exit')

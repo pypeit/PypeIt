@@ -1041,19 +1041,11 @@ def ech_pca_traces(
                 ## Showing the final traces from this routine
                 display.show_trace(viewer, ch, sobjs_final.TRACE_SPAT[iord].T, sobjs_final.NAME, color='cyan')
 
-        # Labels for the points
-        text_final = [dict(type='text', args=(nspat / 2 -40, nspec / 2, 'final trace'),
-                           kwargs=dict(color='cyan', fontsize=20))]
-
-        text_pca = [dict(type='text', args=(nspat / 2 -40, nspec / 2 - 30, 'PCA fit'),kwargs=dict(color='yellow', fontsize=20))]
-
-        text_fit = [dict(type='text', args=(nspat / 2 -40, nspec / 2 - 60, 'predicted'),kwargs=dict(color='red', fontsize=20))]
-
-        text_notfit = [dict(type='text', args=(nspat / 2 -40, nspec / 2 - 90, 'originally found'),kwargs=dict(color='magenta', fontsize=20))]
-
-        canvas = viewer.canvas(ch._chname)
-        canvas_list = text_final + text_pca + text_fit + text_notfit
-        canvas.add('constructedcanvas', canvas_list)
+        # Labels for the traces
+        for i, (label, color) in enumerate([('final trace', 'cyan'), ('PCA fit', 'yellow'),
+                                            ('predicted', 'red'), ('originally found', 'magenta')]):
+            display.show_text(viewer, ch, nspat / 2 - 40, nspec / 2 - 30*i, label, color=color)
+        display.show()
     # TODO two things need to be debugged. 1) For objects which were found and traced, i don't think we should be updating the tracing with
     # the PCA. This just adds a failutre mode. 2) The PCA fit is going wild for X-shooter. Debug that.
     # Vette
@@ -2214,6 +2206,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
         if show_peaks:
             # Show rectified image here? Add this to QA
             viewer, ch = display.show_image(image_rect*gpm_rect*np.sqrt(ivar_rect), chname='objs_in_slit_show', cuts=(-5.0,5.0))
+            display.show()
         # QA
         objfind_QA(spat_peaks, snr_peaks_all, spat_vector, snr_smash_smth, snr_thresh, qa_title, peaks_gpm,
                 near_edge_bpm, nperslit_bpm, objfindQA_filename=objfindQA_filename, show=show_peaks) #show_peaks)
@@ -2433,6 +2426,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
             else:
                 color = 'blue'
             display.show_trace(viewer, ch,sobjs[iobj].TRACE_SPAT, trc_name = sobjs[iobj].NAME, color=color)
+        display.show()
 
     log.info("Successfully traced a total of {0:d} objects".format(len(sobjs)))
 

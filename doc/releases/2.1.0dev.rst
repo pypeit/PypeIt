@@ -5,6 +5,18 @@ Version 2.1.0dev
 Breaking Changes
 ---------------------
 
+- PypeIt no longer uses a remote-control connection to a separately launched
+  ``ginga``.  All displays (``pypeit_show_2dspec``, ``pypeit_view_fits``,
+  ``pypeit_show_1dspec``, the ``pypeit_chk_*`` scripts, ``run_pypeit
+  --show``, and the debugging displays) now open a ``ginga`` window that runs
+  inside the PypeIt process; see :ref:`pypeit_ginga_viewer`.  There is no
+  need to start ``ginga --modules=RC,SlitWavelength`` before running PypeIt.
+  Displays now *pause* the code that opens them: scripts exit when the window
+  is closed, and reductions continue when the window is closed (the next
+  display opens it again).
+- Removed the ``SlitWavelength`` ginga plugin, which was only used to receive
+  images through the remote-control connection.
+
 Documentation Updates
 ---------------------
 
@@ -125,6 +137,20 @@ Functionality/Performance Improvements and Additions
   points processed at a time by the chunked 2D polynomial fits and
   evaluations above.  It trades peak memory for speed and does not change the
   results beyond round-off.
+- Much faster ``ginga`` displays.  Images and overlays are passed directly to
+  a ``ginga`` viewer running in the PypeIt process instead of being sent to a
+  separate ``ginga`` process (e.g., ~0.6 s instead of ~9 s to show a 4k x 4k
+  image with its wavelength map).  Slit edges and object traces are drawn
+  only for the part of the image in view, with a limited number of vertices,
+  so panning and zooming stay fast.  For more than 200 traces (e.g., the
+  Binospec IFU fibers), traces are only drawn when zoomed in enough to
+  distinguish them; hovering over a trace highlights it and shows its name.
+  ``pypeit_show_2dspec`` therefore now shows the overlays for the Binospec
+  IFU, which were previously skipped.
+- Added the ``Spec2dView`` ginga plugin used by ``pypeit_show_2dspec``.  Its
+  panel allows selecting the detector/mosaic and toggling the images and the
+  overlays shown, without restarting the script or reloading the other
+  images.
 
 Instrument-specific Updates
 ---------------------------
@@ -267,6 +293,11 @@ Instrument-specific Updates
 
 Script Changes
 --------------
+- ``pypeit_show_2dspec --no_clear`` and the new ``pypeit_view_fits
+  --no_clear`` option send the file to an already open PypeIt viewer
+  (opened by either script) and return immediately; see :ref:`pypeit_show_2dspec`.
+- The Setup GUI now shows raw files with ``pypeit_view_fits``, in a single
+  separate window.
 - Added ``pypeit_binospec_ifu_cube`` for building datacubes from Binospec IFU
   spec1d files.  Combines both detector sides and produces FITS datacubes
   with 3-axis WCS.
@@ -280,6 +311,11 @@ Script Changes
 
 Testing
 -------
+
+- Added tests for the level-of-detail ginga overlays
+  (:mod:`~pypeit.display.overlays`), the commands accepted by the PypeIt
+  viewer from other processes (:mod:`~pypeit.display.viewer`), and the
+  spec2d display helpers (:mod:`~pypeit.display.spec2d_data`).
 
 - Add new tests for :mod:`~pypeit.core.pydl`
 - Added new tests for :class:`~pypeit.inputfiles.InputFile` objects.
@@ -334,6 +370,12 @@ Under-the-hood Improvements
 
 Bug Fixes
 ---------
+
+- Worked around a bug in ginga 7.5 that draws plots (e.g., the ``Spec1dView``
+  spectrum shown by ``pypeit_show_1dspec``) at half size on HiDPI (e.g.,
+  Retina) displays.  The workaround
+  (:func:`~pypeit.display.viewer._patch_ginga_hidpi_plots`) should be
+  removed once the bug is fixed in ginga.
 
 - Magellan/LDSS3: fixed the telescope (was MMT), the MJD (was the ``JD`` card,
   unconverted), ``dataext`` (1 to 0), the binning axis used to scale the

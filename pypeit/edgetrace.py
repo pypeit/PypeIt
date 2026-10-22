@@ -1414,8 +1414,6 @@ class EdgeTraceSet(calibframe.CalibFrame):
             id_kwargs['maskdef_ids'] = maskdef_ids
             _trc = cen if fit is None else fit
 
-            # Connect to or instantiate ginga window
-            display.connect_to_ginga(raise_err=True, allow_new=True)
             # Clear the viewer and show the trace image
             trace_viewer, trace_ch = display.show_image(self.traceimg.image, chname='Trace Image',
                                                         clear=True)
@@ -1428,6 +1426,8 @@ class EdgeTraceSet(calibframe.CalibFrame):
             if not self.is_empty:
                 display.show_slits(sobel_viewer, sobel_ch, _trc[:,gpm & is_left],
                                    _trc[:,gpm & is_right], pstep=thin, synced=synced, **id_kwargs)
+            # Wait for the user
+            display.show()
             return
 
         # Show the traced image

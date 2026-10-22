@@ -1,14 +1,18 @@
 """
 Module for ginga routines.  Mainly for debugging
 
+All displays use a ginga viewer that runs in the same python process (see
+:mod:`pypeit.display.viewer`).  The ``show_*`` functions add images and
+overlays to the viewer; call :func:`show` to raise the viewer window and wait
+for the user to close it before continuing.
+
 .. include:: ../include/links.rst
 
 """
-import os
+from pathlib import Path
+
 import numpy as np
-import time
 from IPython import embed
-import subprocess
 
 # A note from ejeschke on how to use the canvas add command in ginga: https://github.com/ejeschke/ginga/issues/720
 # c
@@ -18,80 +22,56 @@ import subprocess
 # Most of the standard geometric types are in basic.py and there are specialized ones in utils.py, astro.py and layer.py. Looking at
 # the classes will also tell you which parameters are positional and which are keyword.
 
-from astropy.io import fits
-
-from ginga.util import grc
-
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import io
-from pypeit import utils
+from pypeit.display.viewer import get_viewer, show
 
-def connect_to_ginga(host='localhost', port=grc.default_rc_port,
-                     raise_err=False, allow_new=False):
+#: Prefix for the tags of all canvas objects added by PypeIt
+TAG_PREFIX = 'pypeit'
+
+
+def connect_to_ginga(host=None, port=None, raise_err=False, allow_new=False):
     """
-    Connect to a RC Ginga.
+    Return the PypeIt ginga viewer.
 
-    Args:
-        host (:obj:`str`, optional):
-            Host name.
-        port (:obj:`int`, optional):
-            Probably should remain at Ginga default
-        raise_err (:obj:`bool`, optional):
-            Raise an error if no connection is made, otherwise just
-            raise a warning and continue
-        allow_new (:obj:`bool`, optional):
-            Allow a subprocess to be called to execute a new ginga
-            viewer if one is not already running.
+    .. deprecated::
+        PypeIt no longer connects to a separate ginga process.  This function
+        is kept for backwards compatibility and simply returns the viewer from
+        :func:`pypeit.display.viewer.get_viewer`; all arguments are ignored.
 
-    Returns:
-        `ginga.RemoteClient`_: connection to ginga viewer.
+    Returns
+    -------
+    :class:`~pypeit.display.viewer.PypeItViewer`
+        The in-process ginga viewer.
     """
-    # Start
-    viewer = grc.RemoteClient(host, port)
-    # Test
-    sh = viewer.shell()
-    try:
-        tmp = sh.get_current_workspace()
-    except:
-        if allow_new:
-            subprocess.Popen(['ginga', f'--rcport={port}',
-                              '--modules=RC,SlitWavelength'])
+    return get_viewer()
 
-            # NOTE: time.sleep(3) is now insufficient. The loop below
-            # continues to try to connect with the ginga viewer that
-            # was just instantiated for a maximum number of iterations.
-            # If the connection is remains unsuccessful, an error is
-            # thrown stating that the connection timed out.
-            maxiter = int(3e4)
-            for i in range(maxiter):
-                try:
-                    viewer = grc.RemoteClient(host, port)
-                    sh = viewer.shell()
-                    tmp = sh.get_current_workspace()
-                except:
-                    continue
-                else:
-                    break
-            if i == maxiter-1:
-                raise PypeItError('Timeout waiting for ginga to start.  If window does not appear, type '
-                           f'`ginga --rcport={port} --modules=RC,SlitWavelength` on the command line.  In either '
-                           'case, wait for the ginga viewer to open and try the pypeit command '
-                           'again.')
-            return viewer
 
-        if raise_err:
-            raise ValueError
-        else:
-            log.warning('Problem connecting to Ginga.  Launch an RC Ginga viewer and '
-                      f'then continue: \n    ginga --rcport={port} --modules=RC,SlitWavelength')
+def _canvas(ch):
+    """Return the canvas of a channel's main viewer."""
+    return ch.fitsimage.get_canvas()
 
-    # Return
-    return viewer
+
+def _add(viewer, ch, obj, tagpfx=TAG_PREFIX):
+    """Add a canvas object to a channel, tagged as a PypeIt object."""
+    _canvas(ch).add(obj, tagpfx=tagpfx, redraw=False)
+    # NOTE: Unlike a redraw of the canvas, this redraw is held while the
+    # viewer's redraws are suppressed (see ``suppress_redraw``).
+    ch.fitsimage.redraw(whence=3)
+    viewer.pending = True
+
+
+def _clear_channel(ch, tagpfx=TAG_PREFIX):
+    """Delete the PypeIt objects with a given tag prefix from a channel canvas."""
+    canvas = _canvas(ch)
+    tags = canvas.get_tags_by_tag_pfx(tagpfx)
+    if len(tags) > 0:
+        canvas.delete_objects_by_tag(tags, redraw=True)
 
 
 def show_image(inp, chname='Image', waveimg=None, mask=None, exten=0, cuts=None, clear=False,
-               wcs_match=False):
+               wcs_match=False, viewer=None):
     """
     Display an image using Ginga.
 
@@ -122,10 +102,14 @@ def show_image(inp, chname='Image', waveimg=None, mask=None, exten=0, cuts=None,
         wcs_match(:obj:`bool`, optional):
             Use this as a reference image for the WCS and match all
             image in other channels to it.
+        viewer (:class:`~pypeit.display.viewer.GingaShellViewer`, optional):
+            Viewer to use.  If None, use PypeIt's in-process viewer (see
+            :func:`~pypeit.display.viewer.get_viewer`).
 
     Returns:
-        :obj:`tuple`: The ginga remote client object and the channel object with
-        the displayed image.
+        :obj:`tuple`: The viewer (:class:`~pypeit.display.viewer.PypeItViewer`)
+        and the ginga channel (``ginga.rv.Channel.Channel``) with the displayed
+        image.
 
     Raises:
         ValueError:
@@ -135,122 +119,92 @@ def show_image(inp, chname='Image', waveimg=None, mask=None, exten=0, cuts=None,
     if cuts is not None and len(cuts) != 2:
         raise ValueError('Input cuts must only have two elements, the lower and upper cut.')
 
-    # Instantiate viewer
-    viewer = connect_to_ginga()
+    if viewer is None:
+        viewer = get_viewer()
     # Read or set the image data.  This will fail if the input is a
     # string and astropy.io.fits cannot read the image.
-    img = io.fits_open(inp)[exten].data if isinstance(inp, str) else inp
+    img = io.fits_open(inp)[exten].data if isinstance(inp, (str, Path)) else inp
+    img = np.asarray(img)
+    if img.dtype == bool:
+        img = img.astype(np.uint8)
 
     if clear:
-        clear_all()
+        viewer.clear_all()
 
-    sh = viewer.shell()
-    sh.get_channel_on_demand(chname)
-
+    # NOTE: SlitImage requires the ginga widget toolkit to be chosen, which
+    # is done when the viewer is created.
+    from pypeit.display.slitwavelength import SlitImage
     ch = viewer.channel(chname)
-    # Header
-    header = {}
-    header['NAXIS1'] = img.shape[1]
-    header['NAXIS2'] = img.shape[0]
-
-    # Giddy up
-#    waveimg = None
-    if waveimg is not None:
-        args = [chname, chname, grc.Blob(img.tobytes()), img.shape, img.dtype.name, header,
-                grc.Blob(waveimg.tobytes()), waveimg.dtype.name, {}]
-        sh.call_global_plugin_method('SlitWavelength', 'load_buffer', args, {})
-    else:
-        ch.load_np(chname, img, 'fits', header)
-
+    image = SlitImage(wav_np=waveimg, logger=viewer.shell.logger)
+    image.load_data(img)
+    image.set(name=chname, path=None)
     # These commands set up the viewer. They can be found at
     # ginga/ginga/ImageView.py
-    canvas = viewer.canvas(ch._chname)
-    out = canvas.clear()
-    out = ch.set_color_map('ramp')
-    out = ch.set_intensity_map('ramp')
-    out = ch.set_color_algorithm('linear')
-    out = ch.restore_contrast()
-    out = ch.restore_cmap()
-    if cuts is not None:
-        out = ch.cut_levels(float(cuts[0]), float(cuts[1]))
+    fi = ch.fitsimage
+    with fi.suppress_redraw:
+        viewer.shell.add_image(chname, image, chname=chname)
+        _clear_channel(ch)
+        fi.set_color_map('ramp')
+        fi.set_intensity_map('ramp')
+        fi.set_color_algorithm('linear')
+        fi.restore_contrast()
+        fi.restore_cmap()
+        if cuts is not None:
+            fi.cut_levels(float(cuts[0]), float(cuts[1]))
 
     # WCS Match this to other images with this as the reference image?
     if wcs_match:
-        # After displaying all the images since up the images with WCS_MATCH
-        shell = viewer.shell()
-        out = shell.start_global_plugin('WCSMatch')
-        out = shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname], {})
-
-
-    # TODO: I would prefer to change the color map to indicate these
-    # pixels rather than overplot points. Because for large numbers of
-    # masked pixels, this is super slow. Need to ask ginga folks how to
-    # do that.
+        viewer.set_wcs_match(chname)
 
     # If bitmask was passed in, assume this is an extraction qa image
     # and use the mask to identify why each pixel was masked
     if mask is not None:
-        # Select pixels on any slit
-        onslit = mask.flagged('OFFSLITS', invert=True)
+        show_mask_flags(viewer, ch, mask)
 
-        # These are the pixels that were masked by the bpm
-        spec_bpm, spat_bpm = np.where(mask.bpm & onslit)
-        nbpm = len(spec_bpm)
-        # note: must cast numpy floats to regular python floats to pass the remote interface
-        points_bpm = [dict(type='point', args=(float(spat_bpm[i]), float(spec_bpm[i]), 2),
-                           kwargs=dict(style='plus', color='magenta')) for i in range(nbpm)]
-
-        # These are the pixels that were masked by LACOSMICS
-        spec_cr, spat_cr = np.where(mask.cr & onslit)
-        ncr = len(spec_cr)
-        # note: must cast numpy floats to regular python floats to pass the remote interface
-        points_cr = [dict(type='point', args=(float(spat_cr[i]), float(spec_cr[i]), 2),
-                             kwargs=dict(style='plus', color='cyan')) for i in range(ncr)]
-
-        # These are the pixels that were masked by the extraction
-        spec_ext, spat_ext = np.where(mask.extract & onslit)
-        next = len(spec_ext)
-        # note: must cast numpy floats to regular python floats to pass the remote interface
-        points_ext = [dict(type='point', args=(float(spat_ext[i]), float(spec_ext[i]), 2),
-                            kwargs=dict(style='plus', color='red')) for i in range(next)]
-
-        # Get the "rest" of the flags
-        other_flags = list(mask.bit_keys())
-        other_flags.remove('OFFSLITS')
-        other_flags.remove('BPM')
-        other_flags.remove('CR')
-        other_flags.remove('EXTRACT')
-        # Determine where any of them are flagged
-        other_bpm = mask.flagged(flag=other_flags)
-
-        # These are the pixels that were masked for any other reason (and on a slit)
-        spec_oth, spat_oth = np.where(other_bpm & onslit)
-        noth = len(spec_oth)
-        # note: must cast numpy floats to regular python floats to pass
-        # the remote interface
-        points_oth = [dict(type='point', args=(float(spat_oth[i]), float(spec_oth[i]), 2),
-                            kwargs=dict(style='plus', color='yellow')) for i in range(noth)]
-
-        nspat = img.shape[1]
-        nspec = img.shape[0]
-        # Labels for the points
-        text_bpm = [dict(type='text', args=(nspat / 2 -40, nspec / 2, 'BPM'),
-                           kwargs=dict(color='magenta', fontsize=20))]
-
-        text_cr = [dict(type='text', args=(nspat / 2 -40, nspec / 2 - 30, 'CR'),
-                           kwargs=dict(color='cyan', fontsize=20))]
-
-        text_ext = [dict(type='text', args=(nspat / 2 -40, nspec / 2 - 60, 'EXTRACT'),
-                          kwargs=dict(color='red', fontsize=20))]
-
-        text_oth = [dict(type='text', args=(nspat / 2 -40, nspec / 2 - 90, 'OTHER'),
-                          kwargs=dict(color='yellow', fontsize=20))]
-
-        canvas_list = points_bpm + points_cr + points_ext + points_oth + text_bpm + text_cr \
-                        + text_ext + text_oth
-        canvas.add('constructedcanvas', canvas_list)
-
+    viewer.pending = True
     return viewer, ch
+
+
+def show_mask_flags(viewer, ch, mask):
+    """
+    Overlay the pixels flagged by an image bitmask, colored by the reason.
+
+    Pixels flagged as bad pixels are magenta, cosmic rays are cyan, pixels
+    masked during extraction are red, and pixels masked for any other reason
+    are yellow.  Pixels off all slits are not marked.
+
+    Args:
+        viewer (:class:`~pypeit.display.viewer.PypeItViewer`):
+            PypeIt ginga viewer
+        ch (``ginga.rv.Channel.Channel``):
+            Ginga channel
+        mask (:class:`~pypeit.images.ImageBitMaskArray`):
+            Bitmask array with the reasons pixels are masked.
+    """
+    from ginga.RGBImage import RGBImage
+    dc = viewer.canvas_types()
+
+    # Select pixels on any slit
+    onslit = mask.flagged('OFFSLITS', invert=True)
+    other_flags = list(mask.bit_keys())
+    for flag in ['OFFSLITS', 'BPM', 'CR', 'EXTRACT']:
+        other_flags.remove(flag)
+
+    # Later flags take precedence where pixels have more than one flag
+    rgba = np.zeros(onslit.shape + (4,), dtype=np.uint8)
+    layers = [(mask.flagged(flag=other_flags), (255, 255, 0), 'OTHER', 'yellow'),
+              (mask.extract, (255, 0, 0), 'EXTRACT', 'red'),
+              (mask.cr, (0, 255, 255), 'CR', 'cyan'),
+              (mask.bpm, (255, 0, 255), 'BPM', 'magenta')]
+    for flagged, rgb, _, _ in layers:
+        rgba[flagged & onslit] = rgb + (255,)
+    _add(viewer, ch, dc.Image(0, 0, RGBImage(data_np=rgba), flipy=False))
+
+    # Legend
+    labels = [dc.Text(10, 20 + 20*i, label, color=color, fontsize=14, coord='window',
+                      bgcolor='black', bgalpha=0.6)
+              for i, (_, _, label, color) in enumerate(layers[::-1])]
+    _add(viewer, ch, dc.CompoundObject(*labels))
 
 
 def show_points(viewer, ch, spec, spat, color='cyan', legend=None, legend_spec=None, legend_spat=None):
@@ -259,9 +213,9 @@ def show_points(viewer, ch, spec, spat, color='cyan', legend=None, legend_spec=N
 
     Parameters
     ----------
-    viewer : `ginga.RemoteClient`_
-        Ginga RC viewer
-    ch : ``ginga.util.grc._channel_proxy``
+    viewer : :class:`~pypeit.display.viewer.PypeItViewer`
+        PypeIt ginga viewer
+    ch : ``ginga.rv.Channel.Channel``
         Ginga channel
     spec : list
         List of spectral positions on image to plot
@@ -277,29 +231,50 @@ def show_points(viewer, ch, spec, spat, color='cyan', legend=None, legend_spec=N
         Pixel location for legend
 
     """
-    canvas = viewer.canvas(ch._chname)
-    npoints = len(spec)
-    canvas_list = [dict(type='point', args=(float(spat[i]), float(spec[i]), 2),
-                         kwargs=dict(style='plus', color=color)) for i in range(npoints)]
+    dc = viewer.canvas_types()
+    objs = [dc.Point(float(_spat), float(_spec), 2, style='plus', color=color)
+            for _spat, _spec in zip(spat, spec)]
     if legend is not None:
         spec_label = np.mean(np.array(spec)) if legend_spec is None else legend_spec
         spat_label = (np.mean(np.array(spat)) + 30) if legend_spat is None else legend_spat
-        text = [dict(type='text', args=(spat_label, spec_label, legend), kwargs=dict(color=color, fontsize=20))]
-        canvas_list += text
+        objs += [dc.Text(float(spat_label), float(spec_label), legend, color=color, fontsize=20)]
+    _add(viewer, ch, dc.CompoundObject(*objs))
 
-    canvas.add('constructedcanvas', canvas_list)
+
+def show_text(viewer, ch, spat, spec, text, color='cyan', fontsize=20):
+    """
+    Write text on an image in a ginga viewer.
+
+    Parameters
+    ----------
+    viewer : :class:`~pypeit.display.viewer.PypeItViewer`
+        PypeIt ginga viewer
+    ch : ``ginga.rv.Channel.Channel``
+        Ginga channel
+    spat, spec : :obj:`float`
+        Spatial (horizontal) and spectral (vertical) image coordinates of the
+        start of the text.
+    text : :obj:`str`
+        Text to write.
+    color : :obj:`str`, optional
+        Text color.
+    fontsize : :obj:`float`, optional
+        Font size.
+    """
+    dc = viewer.canvas_types()
+    _add(viewer, ch, dc.Text(float(spat), float(spec), text, color=color, fontsize=fontsize))
 
 
 # TODO: Should we continue to allow rotate as an option?
 def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=None, maskdef_ids=None, spec_vals=None,
-               rotate=False, pstep=50, clear=False, synced=True):
+               rotate=False, pstep=50, clear=False, synced=True, tagpfx=TAG_PREFIX):
     r"""
     Overplot slits on the image in Ginga in the given channel
 
     Args:
-        viewer (`ginga.RemoteClient`_):
-            Ginga RC viewer
-        ch (``ginga.util.grc._channel_proxy``):
+        viewer (:class:`~pypeit.display.viewer.PypeItViewer`):
+            PypeIt ginga viewer
+        ch (``ginga.rv.Channel.Channel``):
             Ginga channel
         left (`numpy.ndarray`_):
             Array with spatial position of left slit edges. Shape must be :math:`(N_{\rm
@@ -337,9 +312,9 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
             ``synced`` is True.
         rotate (:obj:`bool`, optional):
             Rotate the image?
-        pstep (:obj:`bool`, optional):
-            Show every pstep point of the edges as opposed to *every*
-            point, recommended for speed.
+        pstep (:obj:`int`, optional):
+            Minimum step between the edge points that are drawn.  At most
+            100 points are drawn for the part of each edge in view.
         clear (:obj:`bool`, optional):
             Clear the canvas?
         synced (:obj:`bool`, optional):
@@ -347,7 +322,12 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
             Otherwise, the edges are treated separately. If True, the
             number of left and right edges must be the same and
             ``left_ids`` and ``right_ids`` are ignored.
+        tagpfx (:obj:`str`, optional):
+            Prefix for the tags of the canvas objects; see
+            :func:`clear_overlays`.  Must start with ``'pypeit'``.
     """
+    from pypeit.display.overlays import TraceOverlay
+
     # Setup the trace data and IDs
     _left = left.reshape(-1,1) if left.ndim == 1 else left
     nleft = _left.shape[1]
@@ -364,7 +344,7 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
     if spec_vals is not None:
         y = spec_vals.reshape(-1,1) if spec_vals.ndim == 1 else spec_vals
     else:
-        y = np.repeat(np.arange(nspec).astype(float)[:, np.newaxis], nright, axis=1)
+        y = np.arange(nspec, dtype=float)[:, np.newaxis]
 
     # Check input
     if synced:
@@ -374,88 +354,66 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
         if left_ids is not None or right_ids is not None:
             log.warning('For showing synced edges, left and right ID numbers are ignored.')
         nslits = _left.shape[1]
-        _left_ids = None
-        _right_ids = None
         _slit_ids = np.arange(nslits) if slit_ids is None else np.atleast_1d(slit_ids)
         if len(_slit_ids) != nslits:
             raise PypeItError('Incorrect number of slit IDs provided.')
-        _slit_id_loc = _left + 0.45*(_right - _left)
-        if maskdef_ids is not None and maskdef_ids.size == nslits:
-            _maskdef_ids = np.atleast_1d(maskdef_ids)
-        else:
-            _maskdef_ids = None
+        _maskdef_ids = np.atleast_1d(maskdef_ids) \
+                            if maskdef_ids is not None and maskdef_ids.size == nslits else None
     else:
         _left_ids = -np.arange(nleft) if left_ids is None else np.atleast_1d(left_ids)
         if len(_left_ids) != nleft:
             raise PypeItError('Incorrect number of left IDs provided.')
-        _left_id_loc = _left*1.05
         _right_ids = -np.arange(nright) if right_ids is None else np.atleast_1d(right_ids)
         if len(_right_ids) != nright:
             raise PypeItError('Incorrect number of right IDs provided.')
-        _right_id_loc = _right*(1-0.05)
 
-    # Canvas
-    canvas = viewer.canvas(ch._chname)
     if clear:
-        canvas.clear()
+        _clear_channel(ch)
 
-    # Label positions
-    top = int(2*nspec/3.)
-    bot = int(nspec/2.)
+    def _overlay(x, **kwargs):
+        # Swap the image axes if requested
+        _x, _y = np.broadcast_arrays(x, y)
+        if rotate:
+            _x, _y = _y, _x
+        return TraceOverlay(_x, y=_y, min_stride=pstep, rot_deg=0. if rotate else 90.,
+                            what='slit edges', owner=ch.fitsimage, **kwargs)
 
-    # Plot lefts. Points need to be int or float. Use of .tolist() on
-    # each array insures this
-    canvas_list = [dict(type=str('path'),
-                        args=(list(zip(y[::pstep, i].tolist(), _left[::pstep,i].tolist())),) if rotate
-                        else (list(zip(_left[::pstep,i].tolist(), y[::pstep, i].tolist())),),
-                        kwargs=dict(color=str('green'))) for i in range(nleft)]
-    if not synced:
-        # Add text
-        canvas_list += [dict(type='text',
-                             args=(float(y[bot, i]), float(_left_id_loc[bot,i]), str('S{0}'.format(_left_ids[i]))) if rotate
-                             else (float(_left_id_loc[bot,i]), float(y[bot, i]), str('S{0}'.format(_left_ids[i]))),
-                             kwargs=dict(color=str('aquamarine'), fontsize=20., rot_deg=90.)) for i in range(nleft)]
-
-    # Plot rights. Points need to be int or float. Use of .tolist() on
-    # each array insures this
-    canvas_list += [dict(type=str('path'),
-                        args=(list(zip(y[::pstep, i].tolist(), _right[::pstep,i].tolist())),) if rotate
-                        else (list(zip(_right[::pstep,i].tolist(), y[::pstep, i].tolist())),),
-                        kwargs=dict(color=str('magenta'))) for i in range(nright)]
-    if not synced:
-        # Add text
-        canvas_list += [dict(type='text',
-                             args=(float(y[bot, i]), float(_right_id_loc[bot,i]), str('S{0}'.format(_right_ids[i]))) if rotate
-                             else (float(_right_id_loc[bot,i]), float(y[bot, i]), str('S{0}'.format(_right_ids[i]))),
-                             kwargs=dict(color=str('magenta'), fontsize=20., rot_deg=90.)) for i in range(nright)]
-
-    canvas.add('constructedcanvas', canvas_list)
+    # Edges
+    _add(viewer, ch, tagpfx=tagpfx, obj=_overlay(_left, colors='green', fontsize=20.,
+                              labels=None if synced else [f'S{i}' for i in _left_ids],
+                              label_colors='aquamarine', label_offset=(12., 0.)))
+    _add(viewer, ch, tagpfx=tagpfx, obj=_overlay(_right, colors='magenta', fontsize=20.,
+                              labels=None if synced else [f'S{i}' for i in _right_ids],
+                              label_offset=(-12., 0.)))
 
     # Plot slit labels, if synced
     if synced:
-        # Slit IDs
-        canvas_list += [dict(type='text',
-                             args=(float(y[bot, i]), float(_slit_id_loc[bot,i])-400, str('S{0}'.format(_slit_ids[i]))) if rotate
-                             else (float(_slit_id_loc[bot,i]), float(y[bot, i])-400, str('S{0}'.format(_slit_ids[i]))),
-                             kwargs=dict(color=str('aquamarine'), fontsize=20., rot_deg=90.)) for i in range(nslits)]
-        # maskdef_ids
+        _slit_id_loc = _left + 0.45*(_right - _left)
+        # NOTE: The labels are rotated by 90 deg, so they extend upward from
+        # their anchor.  The slit and slitmask IDs are placed below the center
+        # of the visible part of the slit, where they do not overlap the
+        # object names drawn by show_trace.
+        _add(viewer, ch, tagpfx=tagpfx, obj=_overlay(_slit_id_loc, draw_lines=False, fontsize=20.,
+                                  labels=[f'S{i}' for i in _slit_ids], label_colors='aquamarine',
+                                  label_offset=(0., -100.)))
         if _maskdef_ids is not None:
-            canvas_list += [dict(type='text',
-                                 args=(float(y[bot, i]), float(_slit_id_loc[bot,i])-250, str('{0}'.format(_maskdef_ids[i]))) if rotate
-                                 else (float(_slit_id_loc[bot,i]), float(y[bot, i])-250, str('{0}'.format(_maskdef_ids[i]))),
-                                 kwargs=dict(color=str('cyan'), fontsize=20., rot_deg=90.)) for i in range(nslits)]
-
-    canvas.add('constructedcanvas', canvas_list)
+            _add(viewer, ch, tagpfx=tagpfx, obj=_overlay(_slit_id_loc, draw_lines=False, fontsize=20.,
+                                      labels=[f'{i}' for i in _maskdef_ids], label_colors='cyan',
+                                      label_offset=(0., -220.)))
 
 
 def show_trace(viewer, ch, trace, trc_name=None, maskdef_extr=None, manual_extr=None, clear=False,
-               rotate=False, pstep=3, yval=None, color='blue'):
+               rotate=False, pstep=3, yval=None, color='blue', tagpfx=TAG_PREFIX):
     r"""
+    Overplot object traces on the image in Ginga in the given channel.
+
+    For more than 200 traces (e.g., fiber-fed IFUs), the traces are only drawn
+    when the view is zoomed in enough to distinguish adjacent traces.
 
     Args:
-        viewer (`ginga.RemoteClient`_):
-            Ginga RC viewer.
-        ch (``ginga.util.grc._channel_proxy``):
+        viewer (:class:`~pypeit.display.viewer.PypeItViewer`):
+            PypeIt ginga viewer.
+        ch (``ginga.rv.Channel.Channel``):
             Ginga channel.
         trace (`numpy.ndarray`_):
             Array with spatial position of the object traces on the detector.
@@ -470,20 +428,26 @@ def show_trace(viewer, ch, trace, trc_name=None, maskdef_extr=None, manual_extr=
             Clear the canvas?
         rotate (:obj:`bool`, optional):
             Rotate the image?
-        pstep (:obj:`bool`, optional):
-            Show every pstep point of the edges as opposed to *every* point, recommended for speed.
+        pstep (:obj:`int`, optional):
+            Minimum step between the trace points that are drawn.  At most
+            100 points are drawn for the part of each trace in view.
         yval (`numpy.ndarray`_, optional):
             Array with spectral position of the object traces. Shape must be :math:`(N_{\rm spec},)`
             or :math:`(N_{\rm spec}, N_{\rm trace})`. If not passed in, the default of
             np.arange(:math:`(N_{\rm spec},)`) will be used.
         color (str, optional):
-            Color for the trace
+            If None, the traces are not drawn (only their names).  Otherwise,
+            traces are orange, or yellow (maskdef extractions) or light blue
+            (manual extractions).
+        tagpfx (:obj:`str`, optional):
+            Prefix for the tags of the canvas objects; see
+            :func:`clear_overlays`.  Must start with ``'pypeit'``.
 
     """
-    # Canvas
-    canvas = viewer.canvas(ch._chname)
+    from pypeit.display.overlays import TraceOverlay
+
     if clear:
-        canvas.clear()
+        _clear_channel(ch)
 
     if trace.ndim == 1:
         trace = trace.reshape(-1,1)
@@ -495,30 +459,44 @@ def show_trace(viewer, ch, trace, trc_name=None, maskdef_extr=None, manual_extr=
 
     # Show
     if yval is None:
-        y = np.repeat(np.arange(trace.shape[0]).astype(float)[:, None], trace.shape[1], axis=1)
+        y = np.arange(trace.shape[0], dtype=float)[:, None]
     else:
         y = yval.reshape(-1, 1) if yval.ndim == 1 else yval
+    x, y = np.broadcast_arrays(trace, y)
+    if rotate:
+        x, y = y, x
 
-    canvas_list = []
-    for i in range(trace.shape[1]):
+    colors = []
+    for i in range(ntrace):
         if _maskdef_extr[i]:
             _color = '#f0e442' if color is not None else color
         elif _manual_extr[i]:
             _color = '#33ccff' if color is not None else color
         else:
             _color = 'orange' if color is not None else color
-        canvas_list += [dict(type=str('path'),
-                        args=(list(zip(y[::pstep,i].tolist(), trace[::pstep,i].tolist())),) if rotate
-                        else (list(zip(trace[::pstep,i].tolist(), y[::pstep,i].tolist())),),
-                        kwargs=dict(color=_color))]
-        # Text
-        ohf = len(trace[:,i])//2
-        # Do it
-        canvas_list += [dict(type='text',args=(float(y[ohf,i]), float(trace[ohf,i]), str(_trc_name[i])) if rotate
-                             else (float(trace[ohf,i]), float(y[ohf,i]), str(_trc_name[i])),
-                             kwargs=dict(color=_color, fontsize=17., rot_deg=90.))]
+        colors.append(_color)
+    label_colors = [c if c is not None else 'orange' for c in colors]
 
-    canvas.add('constructedcanvas', canvas_list)
+    overlay = TraceOverlay(x, y=y, colors=colors, labels=_trc_name, label_colors=label_colors,
+                           fontsize=17., rot_deg=0. if rotate else 90., min_stride=pstep,
+                           what='object traces', note_index=1, owner=ch.fitsimage)
+    _add(viewer, ch, overlay, tagpfx=tagpfx)
+    if not rotate:
+        overlay.enable_hover(ch.fitsimage)
+
+
+def clear_overlays(ch, tagpfx):
+    """
+    Remove overlays added with a given tag prefix (e.g., by
+    :func:`show_slits` or :func:`show_trace`) from a channel.
+
+    Args:
+        ch (``ginga.rv.Channel.Channel``):
+            Ginga channel
+        tagpfx (:obj:`str`):
+            Tag prefix of the overlays to remove.
+    """
+    _clear_channel(ch, tagpfx=tagpfx)
 
 
 def clear_canvas(cname):
@@ -529,10 +507,9 @@ def clear_canvas(cname):
         cname (str):  Channel name
 
     """
-    viewer = connect_to_ginga()
-    ch = viewer.channel(cname)
-    canvas = viewer.canvas(ch._chname)
-    canvas.clear()
+    viewer = get_viewer()
+    if cname in viewer.channel_names():
+        _clear_channel(viewer.channel(cname))
 
 
 def clear_all(allow_new=False):
@@ -541,14 +518,9 @@ def clear_all(allow_new=False):
 
     Args:
         allow_new (:obj:`bool`, optional):
-            Allow a subprocess to be called to execute a new ginga viewer if one
-            is not already running.  See :func:`connect_to_ginga`.
+            Ignored; kept for backwards compatibility.
     """
-    viewer = connect_to_ginga(allow_new=allow_new)
-    shell = viewer.shell()
-    chnames = shell.get_channel_names()
-    for ch in chnames:
-        shell.delete_channel(ch)
+    get_viewer().clear_all()
 
 
 def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, nspec=None, pstep=3, clear_canvas=False):
@@ -556,9 +528,9 @@ def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, nspec=Non
     Show the arc tilts on the input channel
 
     Args:
-        viewer (`ginga.RemoteClient`_):
-            Ginga RC viewer
-        ch (``ginga.util.grc._channel_proxy``):
+        viewer (:class:`~pypeit.display.viewer.PypeItViewer`):
+            PypeIt ginga viewer
+        ch (``ginga.rv.Channel.Channel``):
             Ginga channel
         tilt_traces (`astropy.table.Table`_):
             Table containing the traced and fitted tilts
@@ -577,70 +549,56 @@ def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, nspec=Non
             Clear the canvas first?
 
     """
+    from pypeit.display.overlays import MarkerOverlay
+
     if tilt_traces is None:
         raise PypeItError('No tilts have been traced or fitted')
 
-    canvas = viewer.canvas(ch._chname)
     if clear_canvas:
-        canvas.clear()
+        _clear_channel(ch)
 
-    canvas_list = []
+    dc = viewer.canvas_types()
 
     # Plot traced tilts
-    # We just plot the points, so we do not need to loop over each slit/line
-    # This makes the plotting much very slow, this is why we make it optional by using the points keyword
     if 'goodpix_tilt' in tilt_traces.keys() and tilt_traces['goodpix_tilt'][0].size > 0 and points:
-        # note: must cast numpy floats to regular python floats to pass the remote interface
-        goodpix_spat = tilt_traces['goodpix_spat'][0] + xoff
-        goodpix_tilt = tilt_traces['goodpix_tilt'][0] + yoff
-        canvas_list += [dict(type='squarebox', args=(float(goodpix_spat[i]), float(goodpix_tilt[i]), 1),
-                             kwargs=dict(color='cyan', fill=False)) for i in range(goodpix_tilt.size)]
+        _add(viewer, ch, MarkerOverlay(tilt_traces['goodpix_spat'][0] + xoff,
+                                       tilt_traces['goodpix_tilt'][0] + yoff, color='cyan'))
 
     # Plot the 2D fitted tilts
     # loop over each line, this allows to use type='path' and therefore a faster plotting
     if 'good2dfit_lid' in tilt_traces.keys():
+        objs = []
         for iline in np.unique(tilt_traces['good2dfit_lid'][0]):
             # good fit
             this_line = tilt_traces['good2dfit_lid'][0] == iline
             if np.any(this_line):
                 good2dfit_spat = tilt_traces['good2dfit_spat'][0][this_line] + xoff
                 good2dfit_tilt = tilt_traces['good2dfit_tilt'][0][this_line] + yoff
-                canvas_list += [dict(type=str('path'),
-                                     args=(list(zip(good2dfit_spat[::pstep].tolist(), good2dfit_tilt[::pstep].tolist())),),
-                                     kwargs=dict(color='blue', linewidth=1))]
+                objs.append(dc.Path(np.column_stack([good2dfit_spat[::pstep],
+                                                     good2dfit_tilt[::pstep]]),
+                                    color='blue', linewidth=1))
+        if len(objs) > 0:
+            _add(viewer, ch, dc.CompoundObject(*objs))
 
     # Now plot the masked traces and the rejected 2D fits
-    # We just plot the points, so we do not need to loop over each slit/line
     # masked traces
     if 'badpix_tilt' in tilt_traces.keys() and tilt_traces['badpix_tilt'][0].size > 0:
-        # note: must cast numpy floats to regular python floats to pass the remote interface
-        badpix_spat = tilt_traces['badpix_spat'][0] + xoff
-        badpix_tilt = tilt_traces['badpix_tilt'][0] + yoff
-        canvas_list += [dict(type='squarebox', args=(float(badpix_spat[i]), float(badpix_tilt[i]), 1),
-                             kwargs=dict(color='red', fill=False)) for i in range(badpix_tilt.size)]
+        _add(viewer, ch, MarkerOverlay(tilt_traces['badpix_spat'][0] + xoff,
+                                       tilt_traces['badpix_tilt'][0] + yoff, color='red'))
     # rejected fit
     if 'bad2dfit_tilt' in tilt_traces.keys() and tilt_traces['bad2dfit_tilt'][0].size > 0:
-        # note: must cast numpy floats to regular python floats to pass the remote interface
-        bad2dfit_spat = tilt_traces['bad2dfit_spat'][0] + xoff
-        bad2dfit_tilt = tilt_traces['bad2dfit_tilt'][0] + yoff
-        canvas_list += [dict(type='squarebox', args=(float(bad2dfit_spat[i]), float(bad2dfit_tilt[i]), 1),
-                             kwargs=dict(color='yellow', fill=False)) for i in range(bad2dfit_tilt.size)]
+        _add(viewer, ch, MarkerOverlay(tilt_traces['bad2dfit_spat'][0] + xoff,
+                                       tilt_traces['bad2dfit_tilt'][0] + yoff, color='yellow'))
 
     # Add text
-    text_xpos = 20
-    start_ypos = 20
-    ypos_step = 0.03*nspec if nspec is not None else 50.
-    text_ypos = [start_ypos, start_ypos + ypos_step, start_ypos + 2*ypos_step]
     text_str = ['Masked pixel', 'Rejected in fit', 'Good tilt fit']
     text_color = ['red', 'yellow', 'blue']
     if points:
-        text_ypos += [start_ypos + 3*ypos_step]
         text_str += ['Good pixel']
         text_color += ['cyan']
-    canvas_list += [dict(type='text', args=(float(text_xpos), float(text_ypos[i]), str(text_str[i])),
-                    kwargs=dict(color=text_color[i], fontsize=20)) for i in range(len(text_str))]
-
-    canvas.add('constructedcanvas', canvas_list)
+    _add(viewer, ch, dc.CompoundObject(*[dc.Text(10, 20 + 20*i, s, color=c, fontsize=14,
+                                                 coord='window', bgcolor='black', bgalpha=0.6)
+                                         for i, (s, c) in enumerate(zip(text_str, text_color))]))
 
 
 def show_scattered_light(image_list, slits=None, wcs_match=True):
@@ -656,7 +614,6 @@ def show_scattered_light(image_list, slits=None, wcs_match=True):
     wcs_match : :obj:`bool`, optional
         Use a reference image for the WCS and match all image in other channels to it.
     """
-    connect_to_ginga(raise_err=True, allow_new=True)
     if slits is not None:
         left, right, mask = slits.select_edges()
         gpm = mask == 0
@@ -671,6 +628,7 @@ def show_scattered_light(image_list, slits=None, wcs_match=True):
         # Turn off clear
         if clear:
             clear = False
+    show()
 
 
 def show_1dspec(filename, ext=0, masked=True, fluxed=False, extraction='OPT'):
@@ -684,19 +642,18 @@ def show_1dspec(filename, ext=0, masked=True, fluxed=False, extraction='OPT'):
     ext : int
         extension to show (which spectrum)
     """
-    viewer = connect_to_ginga(raise_err=True, allow_new=True)
-    sh = viewer.shell()
-    # NOTE: ext may be a numpy integer, which doesn't marshall over the
-    # RPC interface that Ginga currently uses--coerce to a regular Python int
-    ext = int(ext)
+    viewer = get_viewer()
+    shell = viewer.shell
 
     chname, plname = "Spec1d", "Spec1dView"
-    sh.add_channel(chname)
-    ch = viewer.channel(chname)
-    # set up the options as passed
-    kwargs = dict(ext=ext, extraction=extraction, masked=masked, fluxed=fluxed)
-    sh.call_local_plugin_method(chname, plname, 'set_params', [], kwargs)
+    viewer.channel(chname)
     # start the plugin
-    sh.start_local_plugin(chname, plname)
+    shell.start_local_plugin(chname, plname)
+    viewer._update(0.2)
+    # set up the options as passed
+    shell.call_local_plugin_method(chname, plname, 'set_params', [],
+                                   dict(ext=int(ext), extraction=extraction, masked=masked,
+                                        fluxed=fluxed))
     # load the file
-    sh.load_file(filename, chname=chname)
+    shell.load_file(str(filename), chname=chname, wait=False)
+    viewer.pending = True
