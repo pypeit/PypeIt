@@ -156,3 +156,61 @@ def test_flatfield_spec_illum_flexure():
     assert not np.array_equal(expected, spec_illum), 'Test requires a change of flexure'
     assert np.allclose(raw.image[0] * expected, 1.), \
         'The spectral illumination should be applied at the spatial flexure of the frame'
+
+
+def test_flatfield_fit_padded_slits(tmp_path):
+    # The spectral model of each slit must be evaluated over the padded slit,
+    # so that the illumination profile close to (and beyond) the slit edges,
+    # and therefore the tweaked slit edges, are correct
+    from scipy.special import erf, erfinv
+    from pypeit.images.detector_container import DetectorContainer
+    from pypeit.images.pypeitimage import PypeItImage
+    from pypeit.par.pypeitpar import FlatFieldPar
+    from pypeit.slittrace import SlitTraceSet
+    from pypeit.tests import tstutils
+    from pypeit.wavetilts import WaveTilts
+    nspec, nspat = 200, 100
+    spec = np.arange(nspec)
+    left = np.column_stack([12.3 + 0.004 * spec, 56.6 + 0.004 * spec])
+    right = left + 31.
+    slits = SlitTraceSet(left_init=left, right_init=right, pypeline='MultiSlit', nspat=nspat,
+                         PYP_SPEC='dummy')
+    slits.set_paths(tmp_path, 'A', '1', 'DET01')
+    slits.to_file()
+    # The tilts are the spectral coordinate
+    coeffs = np.zeros((2, 2, 2))
+    coeffs[:2, 0, :] = 0.5
+    wvtilts = WaveTilts(coeffs=coeffs, nslit=slits.nslits, spat_id=slits.spat_id,
+                        spat_order=np.array([1, 1]), spec_order=np.array([1, 1]),
+                        func2d='legendre2d', slits_filename=Path(slits.get_path()).name)
+    wvtilts.set_paths(tmp_path, 'A', '1', 'DET01')
+    # The flat is not illuminated in the first 40 spectral rows, so the
+    # spectral model is not defined there
+    blaze = 1e4 * np.clip((spec - 40) / 50., 0, None) * (1.5 - spec / nspec)
+    sig = 0.8
+    xx = np.arange(nspat)[None, :]
+    illum = sum(0.5 * (erf((xx - left[:, i, None]) / (np.sqrt(2) * sig))
+                       - erf((xx - right[:, i, None]) / (np.sqrt(2) * sig)))
+                for i in range(slits.nslits))
+    model = blaze[:, None] * illum + 5.
+    rng = np.random.default_rng(1)
+    rawflat = PypeItImage(rng.normal(model, np.sqrt(model)), ivar=1 / model)
+    rawflat.detector = DetectorContainer(**tstutils.default_detector())
+    flatpar = FlatFieldPar()
+    flatField = flatfield.FlatField(rawflat, load_spectrograph('shane_kast_blue'), flatpar, slits,
+                                    wavetilts=wvtilts)
+    flatField.fit(doqa=False)
+    # The illumination profile beyond the slit edges (in the padding) must be
+    # close to 0
+    width = np.median(right - left)
+    outside = np.array([-3., width + 3.]) / width
+    for bspl in flatField.list_of_spat_bsplines:
+        assert np.all(np.absolute(bspl.value(outside)[0]) < 0.1), \
+            'Illumination profile beyond the slit edges is wrong'
+    # The tweaked edges must be where the illumination profile reaches the
+    # threshold
+    inset = sig * np.sqrt(2) * erfinv(2 * flatpar['tweak_slits_thresh'] - 1)
+    assert np.allclose(np.median(slits.left_tweak - left, axis=0), inset, atol=0.35), \
+        'Incorrect tweaked left edges'
+    assert np.allclose(np.median(slits.right_tweak - right, axis=0), -inset, atol=0.35), \
+        'Incorrect tweaked right edges'

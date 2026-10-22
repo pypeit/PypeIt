@@ -152,6 +152,24 @@ def test_fit2tilts():
         'Spatial coordinate changed without spatial flexure'
 
 
+def test_fit2tilts_prepareSlit_no_flexure():
+    # Without a relative spatial flexure, the evaluation coordinates must be
+    # *exactly* the pixel coordinates (as used before the spatial flexure was
+    # introduced), even for edges that are not at integer pixel positions
+    nspec, nspat = 50, 30
+    spec = np.arange(nspec)
+    slits_left = 3.37 + 0.011 * spec
+    slits_right = 21.83 + 0.007 * spec
+    spat = np.arange(nspat)[None, :]
+    thismask = (spat > slits_left[:, None]) & (spat < slits_right[:, None])
+    spec_pix, spat_pix = np.where(thismask)
+    for flex in [None, np.zeros(2)]:
+        _spec_eval, _spat_eval = tracewave.fit2tilts_prepareSlit(slits_left, slits_right, thismask,
+                                                                 relative_spat_flexure=flex)
+        assert np.array_equal(_spec_eval, spec_pix / (nspec - 1)), 'Spectral coordinate changed'
+        assert np.array_equal(_spat_eval, spat_pix / (nspat - 1)), 'Spatial coordinate changed'
+
+
 def test_fit2tiltimg_spat_flexure_shift(tmp_path):
     """
     A frame whose spatial flexure is dx pixels larger than that of the tilts frame

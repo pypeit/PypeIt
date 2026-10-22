@@ -81,7 +81,7 @@ def spat_flexure_edge_match(sci_edges, slits_edges, shift, tol=2):
 
 
 def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, sigdetect=10.,
-                       minfrac=0.1, return_gpm=False, debug=False):
+                       minfrac=0., min_refined_frac=0.25, return_gpm=False, debug=False):
     """
     Calculate the flexure shift (in detector pixels) in the spatial dimension
     between the slitmask and the science image.
@@ -112,8 +112,8 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
             method calculates the shift of the left (right) edge of each
             slit and applies the same shift to the other edge.  For all
             methods, if the slit edges are deemed to be undetected (see
-            ``minfrac``), no spatial flexure is applied (the returned
-            shifts are all zero).
+            ``minfrac`` and ``min_refined_frac``), no spatial flexure is
+            applied (the returned shifts are all zero).
         bpm (`numpy.ndarray`_, optional):
             Bad pixel mask (True = Bad)
         maxlag (:obj:`int`, optional):
@@ -128,7 +128,19 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
             spatial flexure; see :func:`spat_flexure_edge_match`.  If the
             fraction is smaller, the slit edges are deemed to be undetected
             in the image (e.g. because the exposure is too faint), and no
-            spatial flexure is applied.  Set to 0 to disable this check.
+            spatial flexure is applied.  Set to 0 (the default) to disable
+            this check.
+        min_refined_frac (:obj:`float`, optional):
+            Only used by the 'slit', 'edge', 'leftedge' and 'rightedge'
+            methods.  Minimum fraction of the slit edges (of the slits used
+            to measure the flexure) that must be refined successfully,
+            starting from the detector-level spatial flexure.  If fewer
+            edges can be refined (i.e. no edge is found within the search
+            window of :func:`~pypeit.core.trace.refine_edge` for most
+            edges), the slit edges are deemed to be undetected in the image
+            (e.g. because the exposure is too faint, so that the peak of
+            the cross-correlation is spurious), and no spatial flexure is
+            applied.  Set to 0 to disable this check.
         return_gpm (:obj:`bool`, optional):
             Also return a boolean array identifying the slit edges for
             which the spatial flexure was measured.
@@ -146,7 +158,8 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
         edges where the spatial flexure was measured.  For the
         ``detector`` method, this is True for all edges of the slits used
         to measure the flexure.  If the slit edges are deemed to be
-        undetected (see ``minfrac``), this is False for all edges.
+        undetected (see ``minfrac`` and ``min_refined_frac``), this is False
+        for all edges.
 
     Raises:
         PypeItError: Raised if the method is not recognized.
@@ -312,6 +325,26 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
         if refine_right:
             delta_flexure[slit_idx, 1] = trace.refine_edge(_sciimg, bpm, right[:, slit_idx], "right",
                                                            rows=rows)
+    # Check that the slit edges have been detected in the image: if too few of
+    # the edges can be refined (i.e. no edge is found close to the edges
+    # shifted by the detector-level flexure), the slit edges are not visible in
+    # the image, or the detector-level flexure is spurious.
+    attempted = np.tile([refine_left, refine_right], (slits.nslits, 1))
+    attempted[bad_slits] = False
+    nattempted = np.sum(attempted)
+    nrefined = np.sum(np.isfinite(delta_flexure) & attempted)
+    if nattempted > 0 and nrefined < min_refined_frac * nattempted:
+        log.warning(
+            f'Only {nrefined} of the {nattempted} slit edges could be refined, starting from the '
+            f'detector-level spatial flexure ({total_flexure[0, 0]:.3f} pixels).\nAt least '
+            f'{100*min_refined_frac:.0f}% are required, so the slit edges are deemed to be '
+            'undetected.\nAssuming there is NO SPATIAL FLEXURE.\nIf the slit edges are visible in '
+            'this frame, consider using the manual flexure correction.'
+        )
+        total_flexure = np.zeros((slits.nslits, 2), dtype=float)
+        gpm = np.zeros((slits.nslits, 2), dtype=bool)
+        return (total_flexure, gpm) if return_gpm else total_flexure
+
     if method == "slit":
         # Use the average flexure of both edges as the flexure for the slit
         # (or the flexure of one edge, if only that edge could be refined)

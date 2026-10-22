@@ -198,9 +198,6 @@ class Spectrograph:
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = cls.name
-        # Arc/tilt emission lines don't cover much of the slit, but the lines are usually good enough to get the correct spatial flexure.
-        par['calibrations']['arcframe']['process']['spat_flexure_minfrac'] = 0.0
-        par['calibrations']['tiltframe']['process']['spat_flexure_minfrac'] = 0.0
         return par
 
     def config_specific_par(

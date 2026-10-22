@@ -279,6 +279,41 @@ def test_spat_flexure_shift_undetected_edges(method):
     assert np.allclose(spat_flexure, dx, atol=0.3), 'Incorrect spatial flexure with minfrac=0'
 
 
+@pytest.mark.parametrize('method', ['slit', 'edge'])
+def test_spat_flexure_shift_refined_edges(method):
+    # With the default minfrac (0), the slit edges are deemed to be detected if
+    # enough of them can be refined.  A genuine flexure is therefore measured
+    # even if the slit edges are only visible in a few spectral rows (e.g. sky
+    # lines in a near-IR frame)...
+    dx = 3.
+    sciimg, slits = _synthetic_slit_image(dx, dx, nslit=3)
+    bpm = np.zeros(sciimg.shape, dtype=bool)
+    rng = np.random.default_rng(1)
+    _sciimg = sciimg.copy()
+    _sciimg[10:] = rng.normal(0, 1, _sciimg[10:].shape)
+    spat_flexure, gpm = flexure.spat_flexure_shift(_sciimg, slits, method=method, bpm=bpm,
+                                                   maxlag=10, sigdetect=5., return_gpm=True)
+    assert np.allclose(spat_flexure, dx, atol=0.1), 'Incorrect spatial flexure'
+    assert np.all(gpm), 'All slit edges should be refined'
+    # ... but not if the slit edges are not visible, and the peak of the
+    # cross-correlation is spurious (here, from a bright object close to the
+    # left edge of one slit)
+    xx = np.arange(sciimg.shape[1])[None, :]
+    _sciimg = rng.normal(0, 1, sciimg.shape) \
+                + 1000. * np.exp(-0.5 * ((xx - slits.left_init[:, :1] - 6.) / 1.3) ** 2)
+    spat_flexure = flexure.spat_flexure_shift(_sciimg, slits, method='detector', bpm=bpm,
+                                              maxlag=10, sigdetect=5.)
+    assert np.all(np.absolute(spat_flexure) > 1), 'Test is not sensitive'
+    spat_flexure, gpm = flexure.spat_flexure_shift(_sciimg, slits, method=method, bpm=bpm,
+                                                   maxlag=10, sigdetect=5., return_gpm=True)
+    assert np.all(spat_flexure == 0.), 'Undetected slit edges should give no flexure'
+    assert not np.any(gpm), 'Undetected slit edges should be flagged'
+    # The check can be disabled
+    spat_flexure = flexure.spat_flexure_shift(_sciimg, slits, method=method, bpm=bpm,
+                                              maxlag=10, sigdetect=5., min_refined_frac=0.)
+    assert np.all(np.absolute(spat_flexure) > 1), 'The check should be disabled'
+
+
 
 def _fractional_slit_image(slits, spat_flexure, offslit=1e6):
     """

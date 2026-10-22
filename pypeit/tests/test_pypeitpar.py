@@ -347,7 +347,7 @@ def test_spat_flexure_polyord():
 
 def test_spat_flexure_minfrac():
     # The minimum fraction of matched slit-edge pixels must be between 0 and 1
-    assert pypeitpar.ProcessImagesPar()['spat_flexure_minfrac'] == 0.1
+    assert pypeitpar.ProcessImagesPar()['spat_flexure_minfrac'] == 0.
     for value in [-0.1, 1.5]:
         with pytest.raises(ValueError):
             pypeitpar.ProcessImagesPar(use_overscan=False, spat_flexure_minfrac=value)

@@ -1125,6 +1125,17 @@ class FlatField:
         # TODO: Fix this for when trim is a tuple
         trimmed_slitid_img = self.slits.slit_img(initial=True, spat_flexure=self.spat_flexure, pad=-trim)
 
+        # Evaluate the tilts of all slits once, over the *padded* slits, so
+        # that the spectral model of each slit is evaluated over its padded
+        # footprint (onslit_padded, below)
+        if self.slitless:
+            tilts = np.tile(np.arange(rawflat.shape[0]) / (rawflat.shape[0]-1), (rawflat.shape[1], 1)).T
+        else:
+            tilts = self.wavetilts.fit2tiltimg(padded_slitid_img, spat_flexure=self.spat_flexure)
+        # Convert the tilt image to an image with the spectral pixel index
+        spec_coo = tilts * (nspec-1)
+        tilts = None
+
         # Prep for results
         self.mspixelflat = np.ones_like(rawflat)
         self.msillumflat = np.ones_like(rawflat)
@@ -1222,15 +1233,6 @@ class FlatField:
             # ----------------------------------------------------------
             # Collapse the slit spatially and fit the spectral function
             # TODO: Put this stuff in a self.spectral_fit method?
-
-            # Create the tilts for pixels in this slit only (not full image)
-            if self.slitless:
-                tilts = np.tile(np.arange(rawflat.shape[0]) / (rawflat.shape[0]-1), (rawflat.shape[1], 1)).T
-            else:
-                tilts = self.wavetilts.fit2tiltimg(slitid_img_init, spat_flexure=self.spat_flexure)
-
-            # Convert the tilt image to an image with the spectral pixel index
-            spec_coo = tilts * (nspec-1)
 
             # Only include the trimmed set of pixels in the flat-field
             # fit along the spectral direction.
@@ -1596,8 +1598,6 @@ class FlatField:
             # Cleanup to save on memory usage
             spec_coo_data = None
             twod_spec_coo_data = None
-            spec_coo = None
-            tilts = None
             gc.collect(2)
 
         # No need to continue if we're just doing the spatial illumination

@@ -418,20 +418,22 @@ class ProcessImagesPar(ParSet):
                                           'finding slit edges in the spectral image, '  \
                                           'for which the spatial flexure is computed.'
 
-        defaults['spat_flexure_minfrac'] = 0.1
+        defaults['spat_flexure_minfrac'] = 0.0
         dtypes['spat_flexure_minfrac'] = [int, float]
         descr['spat_flexure_minfrac'] = 'Minimum fraction of the traced slit-edge pixels that ' \
                                         'must coincide (within 2 pixels) with an edge detected ' \
                                         'in the image, after shifting the traced edges by the ' \
                                         'measured detector-level spatial flexure.  If fewer ' \
-                                        'edge pixels are matched (e.g. because the slit edges ' \
-                                        'are not visible in a faint exposure), the slit edges ' \
-                                        'are deemed to be undetected and no spatial flexure is ' \
-                                        'applied.  For frames where the slit edges are only ' \
-                                        'visible in a few spectral rows (e.g. arc frames with ' \
-                                        'few emission lines), a lower value may be required.  ' \
-                                        'Set to 0 to disable this check.  This value must be ' \
-                                        'between 0 and 1.'
+                                        'edge pixels are matched, the slit edges are deemed to ' \
+                                        'be undetected and no spatial flexure is applied.  ' \
+                                        'Note that the slit edges are only visible in the ' \
+                                        'spectral rows where the frame is illuminated (e.g. ' \
+                                        'sky or arc lines), so frames with a genuine flexure ' \
+                                        'can have a small fraction.  The default (0) disables ' \
+                                        'this check.  For the slit, edge, leftedge and ' \
+                                        'rightedge methods, the slit edges are also deemed to ' \
+                                        'be undetected if fewer than 25% of them can be ' \
+                                        'refined.  This value must be between 0 and 1.'
 
         defaults['spat_flexure_vrange'] = None
         dtypes['spat_flexure_vrange'] = tuple
