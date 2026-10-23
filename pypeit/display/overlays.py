@@ -392,8 +392,12 @@ class MarkerOverlay(_ViewDependentOverlay):
     """
     Draw a (possibly large) set of square markers.
 
-    Only the markers inside the view are drawn.  If more than ``max_markers``
-    are in view, a regularly spaced subset is drawn.
+    Only the markers inside the view are drawn, and at most one marker is
+    drawn for each patch of the screen about the size of a marker, so that
+    the number of markers drawn does not grow when zooming out.  At most
+    ``max_markers`` markers are drawn.  The markers are drawn directly with
+    the viewer's renderer (not as individual ginga canvas objects), which is
+    much faster for thousands of markers.
 
     Parameters
     ----------
@@ -407,18 +411,30 @@ class MarkerOverlay(_ViewDependentOverlay):
         Half-size of the markers in image pixels.
     max_markers : :obj:`int`, optional
         Maximum number of markers drawn.
+    min_screen_size : :obj:`float`, optional
+        Minimum size in screen pixels of the patch of the screen in which only
+        one marker is drawn.
+    owner : ``ginga.ImageView.ImageViewBase``, optional
+        The viewer of the channel with this overlay.  The markers are only
+        drawn in this viewer, not in other viewers that draw the same canvas
+        (e.g., ginga's Pan plugin).  If None, they are drawn in all viewers.
     """
-    def __init__(self, x, y, color='cyan', size=1., max_markers=5000):
+    def __init__(self, x, y, color='cyan', size=1., max_markers=2000, min_screen_size=3.,
+                 owner=None):
         super().__init__()
         self.x = np.asarray(x, dtype=float).ravel()
         self.y = np.asarray(y, dtype=float).ravel()
         self.color = color
         self.size = size
         self.max_markers = max_markers
+        self.min_screen_size = min_screen_size
+        self.owner = owner
+        # Shape used to set the line style for the renderer
+        self._style = SquareBox(0., 0., size, color=color, fill=False)
 
-    def build(self, viewer):
+    def select(self, viewer):
         """
-        Construct the ginga objects to draw for the current view.
+        Select the markers to draw for the current view.
 
         Parameters
         ----------
@@ -427,12 +443,162 @@ class MarkerOverlay(_ViewDependentOverlay):
 
         Returns
         -------
-        :obj:`list`
-            The ginga canvas objects to draw.
+        `numpy.ndarray`_
+            Indices of the markers to draw.
         """
         x1, y1, x2, y2 = viewer.get_datarect()
+        sx, sy = viewer.get_scale_xy()
         indx = np.where((self.x >= x1) & (self.x <= x2) & (self.y >= y1) & (self.y <= y2))[0]
+        if indx.size == 0:
+            return indx
+        # Keep one marker per screen patch
+        patch = max(2. * self.size * min(sx, sy), self.min_screen_size)
+        cells = np.column_stack([np.floor((self.x[indx] - x1) * sx / patch),
+                                 np.floor((self.y[indx] - y1) * sy / patch)]).astype(np.int64)
+        _, first = np.unique(cells, axis=0, return_index=True)
+        indx = indx[np.sort(first)]
         if indx.size > self.max_markers:
             indx = indx[::int(np.ceil(indx.size / self.max_markers))]
-        return [SquareBox(self.x[i], self.y[i], self.size, color=self.color, fill=False)
-                for i in indx]
+        return indx
+
+    def build(self, viewer):
+        """
+        Construct the screen coordinates of the markers to draw.
+
+        Parameters
+        ----------
+        viewer : ``ginga.ImageView.ImageViewBase``
+            The ginga viewer doing the rendering.
+
+        Returns
+        -------
+        `numpy.ndarray`_
+            Array with shape :math:`(N_{\\rm marker}, 4, 2)` with the corners of
+            each marker in the renderer's (native) coordinates.
+        """
+        indx = self.select(viewer)
+        if indx.size == 0:
+            return np.empty((0, 4, 2))
+        s = self.size
+        offsets = np.array([[-s, -s], [s, -s], [s, s], [-s, s]])
+        corners = np.column_stack([self.x[indx], self.y[indx]])[:, None, :] + offsets[None]
+        native = np.asarray(viewer.tform['data_to_native'].to_(corners.reshape(-1, 2)))
+        return native[:, :2].reshape(-1, 4, 2)
+
+    def draw(self, viewer):
+        """
+        Draw the markers.
+
+        Parameters
+        ----------
+        viewer : ``ginga.ImageView.ImageViewBase``
+            The ginga viewer doing the rendering.
+        """
+        if viewer.get_image() is None or (self.owner is not None and viewer is not self.owner):
+            return
+        key = _view_key(viewer)
+        cached = self._cache.get(id(viewer))
+        if cached is None or cached[0] != key:
+            corners = self.build(viewer)
+            self._cache[id(viewer)] = (key, corners)
+        else:
+            corners = cached[1]
+        if len(corners) == 0:
+            return
+        cr = viewer.renderer.setup_cr(self._style)
+        cr.initialize_from_shape(self._style, line=True, fill=False)
+        for cpoints in corners:
+            cr.draw_polygon(cpoints, line=cr.line, fill=None)
+
+
+class PolylineOverlay(_ViewDependentOverlay):
+    """
+    Draw a (possibly large) set of short polylines (e.g., the fitted tilts of
+    the arc lines).
+
+    Only the lines that overlap the view are drawn, each with at most
+    ``max_vertices`` vertices.  The lines are drawn directly with the viewer's
+    renderer (not as individual ginga canvas objects), which is much faster for
+    hundreds of lines.
+
+    Parameters
+    ----------
+    lines : :obj:`list`
+        List of (x, y) tuples with the image coordinates of the vertices of
+        each line.
+    color : :obj:`str`, optional
+        Line color.
+    linewidth : :obj:`int`, optional
+        Line width in screen pixels.
+    max_vertices : :obj:`int`, optional
+        Maximum number of vertices drawn for each line.
+    owner : ``ginga.ImageView.ImageViewBase``, optional
+        The viewer of the channel with this overlay.  The lines are only drawn
+        in this viewer, not in other viewers that draw the same canvas (e.g.,
+        ginga's Pan plugin).  If None, they are drawn in all viewers.
+    """
+    def __init__(self, lines, color='blue', linewidth=1, max_vertices=20, owner=None):
+        super().__init__()
+        self.lines = []
+        for x, y in lines:
+            x = np.asarray(x, dtype=float).ravel()
+            y = np.asarray(y, dtype=float).ravel()
+            gpm = np.isfinite(x) & np.isfinite(y)
+            if np.sum(gpm) < 2:
+                continue
+            x, y = x[gpm], y[gpm]
+            if x.size > max_vertices:
+                indx = np.unique(np.linspace(0, x.size - 1, max_vertices).astype(int))
+                x, y = x[indx], y[indx]
+            self.lines.append(np.column_stack([x, y]))
+        # Bounding boxes used to select the lines in view
+        self.bbox = np.array([[ln[:, 0].min(), ln[:, 1].min(), ln[:, 0].max(), ln[:, 1].max()]
+                              for ln in self.lines]).reshape(-1, 4)
+        self.owner = owner
+        # Shape used to set the line style for the renderer
+        self._style = Path(np.zeros((2, 2)), color=color, linewidth=linewidth)
+
+    def select(self, viewer):
+        """
+        Select the lines that overlap the view.
+
+        Parameters
+        ----------
+        viewer : ``ginga.ImageView.ImageViewBase``
+            The ginga viewer doing the rendering.
+
+        Returns
+        -------
+        `numpy.ndarray`_
+            Indices of the lines to draw.
+        """
+        x1, y1, x2, y2 = viewer.get_datarect()
+        b = self.bbox
+        return np.where((b[:, 2] >= x1) & (b[:, 0] <= x2) & (b[:, 3] >= y1) & (b[:, 1] <= y2))[0]
+
+    def draw(self, viewer):
+        """
+        Draw the lines.
+
+        Parameters
+        ----------
+        viewer : ``ginga.ImageView.ImageViewBase``
+            The ginga viewer doing the rendering.
+        """
+        if viewer.get_image() is None or len(self.lines) == 0 \
+                or (self.owner is not None and viewer is not self.owner):
+            return
+        key = _view_key(viewer)
+        cached = self._cache.get(id(viewer))
+        if cached is None or cached[0] != key:
+            tform = viewer.tform['data_to_native']
+            cpoints = [np.asarray(tform.to_(self.lines[i]))[:, :2] for i in self.select(viewer)]
+            self._cache[id(viewer)] = (key, cpoints)
+        else:
+            cpoints = cached[1]
+        if len(cpoints) == 0:
+            return
+        cr = viewer.renderer.setup_cr(self._style)
+        cr.initialize_from_shape(self._style, line=True)
+        for cpts in cpoints:
+            cr.draw_path(cpts, line=cr.line)

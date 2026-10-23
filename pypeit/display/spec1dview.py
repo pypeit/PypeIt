@@ -67,6 +67,7 @@ Tips
   the data.
 
 """
+from pathlib import Path
 import time
 
 import numpy as np
@@ -82,6 +83,7 @@ from ginga.canvas.CanvasObject import get_canvas_types
 from ginga.util.syncops import Shelf
 
 from pypeit import specobjs
+from pypeit import onespec
 from pypeit import utils
 
 __all__ = ['Spec1dView']
@@ -105,6 +107,8 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         # will be set if we are invoked
         self.data = Bunch.Bunch()
         self.sobjs = []
+        # Set if the file is a OneSpec file (e.g., a coadded spectrum)
+        self.onespec = None
         self.num_exten = 0
         self.exten = 0
 
@@ -257,6 +261,10 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         spacer = Widgets.Label('')
         top.add_widget(spacer, stretch=1)
 
+        hint = Widgets.Label("Press 'Keys' (or 'h' with the cursor on the plot) for the "
+                             "keyboard and mouse shortcuts.", halign='left')
+        top.add_widget(hint, stretch=0)
+
         btns = Widgets.HBox()
         btns.set_spacing(3)
 
@@ -266,11 +274,21 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         btn = Widgets.Button("Help")
         btn.add_callback('activated', lambda w: self.help())
         btns.add_widget(btn, stretch=0)
+        btn = Widgets.Button("Keys")
+        btn.set_tooltip("Show the keyboard and mouse shortcuts of the plot "
+                        "(or press 'h' with the cursor on the plot)")
+        btn.add_callback('activated', lambda w: self.show_keys())
+        btns.add_widget(btn, stretch=0)
         btns.add_widget(Widgets.Label(''), stretch=1)
         top.add_widget(btns, stretch=0)
 
         container.add_widget(top, stretch=1)
         self.gui_up = True
+
+    def show_keys(self):
+        """Show the keyboard and mouse bindings of the plot in a help tab."""
+        from pypeit.display.pypeit_modes import show_key_bindings
+        show_key_bindings(self.fv)
 
     def set_z_cb(self, w):
         """Callback for setting the zed value in the plugin.
@@ -605,18 +623,28 @@ class Spec1dView(GingaPlugin.LocalPlugin):
     def process_file(self, filepath):
         """Process `filepath` creating `SpecObjs` (a series of extensions),
         which can then have data extracted and plotted.
+
+        If the file contains a :class:`~pypeit.onespec.OneSpec` object
+        (e.g., a coadded spectrum), its single spectrum is plotted.
         """
         self.w.filepath.set_text(filepath)
 
-        self.sobjs = specobjs.SpecObjs.from_fitsfile(filepath,
-                                                     chk_version=False)
-        self.num_exten = len(self.sobjs)
+        if onespec.is_onespec_file(filepath):
+            self.onespec = onespec.OneSpec.from_file(filepath, chk_version=False)
+            self.sobjs = []
+            names = [Path(filepath).name]
+        else:
+            self.onespec = None
+            self.sobjs = specobjs.SpecObjs.from_fitsfile(filepath,
+                                                         chk_version=False)
+            names = self.sobjs.NAME
+        self.num_exten = len(names)
         self.w.extensions.set_text(str(self.num_exten))
 
         self.w.exten.clear()
-        for name in self.sobjs.NAME:
+        for name in names:
             self.w.exten.append_text(name)
-        self.w.exten.set_enabled(True)
+        self.w.exten.set_enabled(self.num_exten > 1)
         self.exten = min(self.start_ext, self.num_exten - 1)
         self.w.exten.set_index(self.exten)
 
@@ -637,6 +665,12 @@ class Spec1dView(GingaPlugin.LocalPlugin):
 
         Replot everything as a result.
         """
+        if self.onespec is not None:
+            wave, flux, ivar, gpm = self._onespec_arrays()
+            self.ext_name = Path(self.onespec.filename).name
+            self._plot_arrays(wave, flux, ivar, gpm)
+            return
+
         specobj = self.sobjs[self.exten]
 
         # check if we have BOX or OPT extractions and adjust UI
@@ -668,6 +702,43 @@ class Spec1dView(GingaPlugin.LocalPlugin):
             self.fv.show_error("fluxed=True cannot be used with this data")
             return
 
+        self.ext_name = self.sobjs.NAME[self.exten]
+        self._plot_arrays(wave, flux, ivar, gpm)
+
+    def _onespec_arrays(self):
+        """
+        Get the arrays to plot from a :class:`~pypeit.onespec.OneSpec`
+        object, and set the (fixed) extraction and fluxing in the UI.
+
+        Returns:
+            :obj:`tuple`: The wavelength, flux, inverse variance, and good-pixel
+            mask arrays.
+        """
+        spec = self.onespec
+        # A OneSpec has a single extraction and is either fluxed or not; show
+        # them in the UI, but do not allow them to be changed.
+        if spec.ext_mode in self.extraction_types:
+            self.extraction = spec.ext_mode
+            self.w.extraction.set_index(self.extraction_types.index(self.extraction))
+        self.w.extraction.set_enabled(False)
+        self.fluxed = bool(spec.fluxed)
+        self.w.fluxed.set_index(self.fluxed_options.index(self.fluxed))
+        self.w.fluxed.set_enabled(False)
+
+        wave = np.asarray(spec.wave, dtype=float)
+        flux = np.asarray(spec.flux, dtype=float)
+        if spec.ivar is not None:
+            ivar = np.asarray(spec.ivar, dtype=float)
+        elif spec.sigma is not None:
+            ivar = utils.inverse(np.square(np.asarray(spec.sigma, dtype=float)))
+        else:
+            ivar = np.ones_like(flux)
+        gpm = np.ones(flux.shape, dtype=bool) if spec.mask is None \
+                else np.asarray(spec.mask).astype(bool)
+        return wave, flux, ivar, gpm
+
+    def _plot_arrays(self, wave, flux, ivar, gpm):
+        """Apply the masking and smoothing selected and replot the spectrum."""
         sig = np.sqrt(utils.inverse(ivar))
         wave_gpm = wave > 1.0
         wave, flux, sig, gpm = (wave[wave_gpm], flux[wave_gpm],
@@ -689,7 +760,6 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         self.data.flux = flux
         self.data.sig = sig
 
-        self.ext_name = self.sobjs.NAME[self.exten]
         self.replot()
 
     def close(self):
@@ -716,6 +786,7 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         viewer = self.channel.get_viewer('Ginga Plot')
         viewer.clear()
         self.sobjs = 0
+        self.onespec = None
         self.exten = 0
         self.ext_name = ''
         self.num_exten = 0

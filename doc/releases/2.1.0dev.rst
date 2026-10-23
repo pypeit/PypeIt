@@ -295,9 +295,21 @@ Instrument-specific Updates
 
 Script Changes
 --------------
+- The ``Spec1dView`` panel of ``pypeit_show_1dspec`` has a new "Keys" button
+  that lists the keyboard and mouse shortcuts of the plot; typing 'h' with the
+  cursor on the plot does the same.  The listing now includes the smoothing
+  keys, and the documented ``singlequote`` key (set the X range to the marked
+  region) now works.
+- ``pypeit_show_1dspec`` (and the ``Spec1dView`` ginga plugin) can now show
+  files with a single spectrum (:class:`~pypeit.onespec.OneSpec`), such as the
+  coadds produced by ``pypeit_coadd_1dspec``.  Added
+  :func:`~pypeit.onespec.is_onespec_file` to identify these files.
 - ``pypeit_show_2dspec --no_clear`` and the new ``pypeit_view_fits
   --no_clear`` option send the file to an already open PypeIt viewer
   (opened by either script) and return immediately; see :ref:`pypeit_show_2dspec`.
+- ``pypeit_show_2dspec`` and ``pypeit_view_fits`` read the file (and, for
+  spec2d files, check its datamodel version) before opening the ginga window,
+  so problems are reported immediately, in the terminal.
 - The Setup GUI now shows raw files with ``pypeit_view_fits``, in a single
   separate window.
 - Added ``pypeit_binospec_ifu_cube`` for building datacubes from Binospec IFU

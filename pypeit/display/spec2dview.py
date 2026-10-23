@@ -152,7 +152,7 @@ class Spec2dView(GingaPlugin.GlobalPlugin):
 
     def load_spec2d(self, file, det=None, channels=None, prefix='', showmask=None,
                     removetrace=False, ignore_extract_mask=False, spat_id=None, maskID=None,
-                    try_old=False, show_slits=True, show_traces=True, clear=True):
+                    try_old=False, show_slits=True, show_traces=True, clear=True, data=None):
         """
         Show a spec2d file.
 
@@ -171,6 +171,10 @@ class Spec2dView(GingaPlugin.GlobalPlugin):
             Delete all existing channels before showing the file.  If False,
             the channels are added to (or replace channels with the same
             name in) the existing ones.
+        data : :class:`~pypeit.display.spec2d_data.Spec2DDisplay`, optional
+            The data to show, already read from ``file`` with the other
+            parameters (e.g., by ``pypeit_show_2dspec``, before opening the
+            viewer).  If None, the file is read.
         """
         self.params = dict(file=str(Path(file).absolute()), det=det, channels=channels,
                            prefix=prefix, showmask=showmask, removetrace=removetrace,
@@ -178,9 +182,12 @@ class Spec2dView(GingaPlugin.GlobalPlugin):
                            maskID=maskID, try_old=try_old, show_slits=show_slits,
                            show_traces=show_traces)
         self.shown = {}
-        self.redo(clear=clear)
+        self.reload_file(clear=clear, data=data)
 
-    def redo(self, clear=False):
+    # NOTE: Do *not* name this method "redo".  ginga calls the redo(channel,
+    # image) method of active global plugins every time an image is shown in
+    # any channel.
+    def reload_file(self, clear=False, data=None):
         """
         Read the file and show it with the current parameters.
 
@@ -191,12 +198,17 @@ class Spec2dView(GingaPlugin.GlobalPlugin):
             shown the last time the file was shown are deleted.  In either
             case, existing channels with the same names as the channels to
             show are reused.
+        data : :class:`~pypeit.display.spec2d_data.Spec2DDisplay`, optional
+            The data already read from the file.  If None, the file is read.
         """
         viewer = self._viewer()
         if self.params['file'] is None:
             return
-        pars = {k: v for k, v in self.params.items() if k not in ['show_slits', 'show_traces']}
-        self.data = spec2d_data.load_spec2d_display(**pars)
+        if data is None:
+            pars = {k: v for k, v in self.params.items()
+                        if k not in ['show_slits', 'show_traces']}
+            data = spec2d_data.load_spec2d_display(**pars)
+        self.data = data
         self.params['det'] = self.data.detname
         self._params_to_gui()
 
@@ -294,7 +306,7 @@ class Spec2dView(GingaPlugin.GlobalPlugin):
         self.params['det'] = None
         self.data = None
         try:
-            self.redo(clear=False)
+            self.reload_file(clear=False)
         except Exception as e:
             self._report(f'Could not show {self.params["file"]}: {e}')
 
@@ -304,14 +316,14 @@ class Spec2dView(GingaPlugin.GlobalPlugin):
             return
         self.params['det'] = self.data.detnames[idx]
         try:
-            self.redo(clear=False)
+            self.reload_file(clear=False)
         except Exception as e:
             self._report(f'Could not show {self.params["det"]}: {e}')
 
     def reload_cb(self):
         """Callback for the Reload button."""
         try:
-            self.redo(clear=False)
+            self.reload_file(clear=False)
         except Exception as e:
             self._report(f'Could not show {self.params["file"]}: {e}')
 

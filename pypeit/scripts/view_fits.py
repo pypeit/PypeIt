@@ -80,6 +80,13 @@ class ViewFits(scriptbase.ScriptBase):
         # does not need to import ginga.
         from pypeit.display import viewer
 
+        # Construct the image(s) before opening the viewer, so that any problem
+        # reading the file is reported immediately.
+        # NOTE: If the file is sent to an open viewer, the image is constructed
+        # again by that viewer; constructing it here makes sure that any
+        # problem is reported by this script, not in the other viewer.
+        images = cls.build_images(args)
+
         # Show the image in an already open viewer?
         if not args.clear:
             if viewer.send_command('view_fits', **vars(args)):
@@ -91,7 +98,7 @@ class ViewFits(scriptbase.ScriptBase):
         # Allow other calls to this script (and pypeit_show_2dspec) to add
         # images to this viewer
         v.listen()
-        cls.show(args)
+        cls.show(args, images=images)
 
         if args.embed:
             viewer.embed(header=utils.embed_header())
@@ -100,16 +107,38 @@ class ViewFits(scriptbase.ScriptBase):
         v.show(message='close the window to exit')
 
     @classmethod
-    def show(cls, args):
+    def show(cls, args, images=None):
         """
-        Construct and show the image(s) selected by the command-line arguments.
+        Show the image(s) selected by the command-line arguments.
 
         Args:
             args (`argparse.Namespace`_):
                 Parsed command-line arguments.
+            images (:obj:`list`, optional):
+                The images to show, as returned by :meth:`build_images`.  If
+                None, they are constructed from ``args``.
+        """
+        from pypeit.display import display
+
+        if images is None:
+            images = cls.build_images(args)
+        for img, chname in images:
+            display.show_image(img, chname=chname)
+
+    @classmethod
+    def build_images(cls, args):
+        """
+        Construct the image(s) selected by the command-line arguments.
+
+        Args:
+            args (`argparse.Namespace`_):
+                Parsed command-line arguments.
+
+        Returns:
+            :obj:`list`: List of (image, channel name) tuples with the images
+            to show.
         """
         from pypeit import PypeItError
-        from pypeit.display import display
         from pypeit.spectrographs import util
         from pypeit import io
         from pypeit.images import buildimage
@@ -182,10 +211,11 @@ class ViewFits(scriptbase.ScriptBase):
                     raise PypeItError(bad_read_message 
                                + f'  Original exception -- {type(e).__name__}: {str(e)}')
 
-        display.show_image(img, chname=args.chname)
+        images = [(img, args.chname)]
 
         if args.showmask:
             if not args.proc:
                 log.info("You need to use --proc with --showmask to show the mask.  Ignoring your argument")
             else:
-                display.show_image(Img.bpm, chname="BPM")
+                images.append((Img.bpm, "BPM"))
+        return images

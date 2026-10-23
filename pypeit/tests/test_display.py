@@ -115,9 +115,15 @@ def test_marker_overlay():
     rng = np.random.default_rng(42)
     x, y = rng.uniform(0, 1000, size=(2, 20000))
     overlay = MarkerOverlay(x, y, max_markers=1000)
-    objs = overlay.build(MockViewer((0., 0., 500., 500.)))
-    assert 0 < len(objs) <= 1000
-    assert all(o.x <= 500 and o.y <= 500 for o in objs)
+    # Only markers in view are selected, at most max_markers
+    indx = overlay.select(MockViewer((0., 0., 500., 500.), scale=4.))
+    assert 0 < indx.size <= 1000
+    assert np.all(x[indx] <= 500) and np.all(y[indx] <= 500)
+    # Zoomed out, at most one marker per screen patch (3 pixels) is selected
+    indx = overlay.select(MockViewer((0., 0., 1000., 1000.), scale=0.1))
+    assert indx.size <= (1000 * 0.1 / 3 + 1)**2
+    cells = np.floor(np.column_stack([x[indx], y[indx]]) * 0.1 / 3).astype(int)
+    assert len(np.unique(cells, axis=0)) == indx.size
 
 
 class MockShell:
@@ -260,3 +266,44 @@ def test_viewer_headless():
     # The channels are linked
     ch.fitsimage.set_pan(20., 100.)
     assert np.allclose(ch2.fitsimage.get_pan()[:2], (20., 100.))
+
+
+def test_is_onespec_file(tmp_path):
+    from pypeit.onespec import OneSpec, is_onespec_file
+    wave = np.linspace(4000., 5000., 100)
+    spec = OneSpec(wave, wave, np.ones_like(wave), PYP_SPEC='shane_kast_blue',
+                   ivar=np.ones_like(wave), mask=np.ones(wave.size, dtype=int), ext_mode='OPT',
+                   fluxed=False)
+    ofile = tmp_path / 'onespec.fits'
+    spec.to_file(str(ofile), overwrite=True)
+    assert is_onespec_file(ofile)
+    # A file that is not a OneSpec file
+    other = tmp_path / 'other.fits'
+    fits.HDUList([fits.PrimaryHDU(), fits.ImageHDU(np.zeros((2, 2)))]).writeto(other)
+    assert not is_onespec_file(other)
+
+
+def test_spec1d_key_bindings_documented():
+    # The bindings of the spec1d mode must be listed in the text shown by the
+    # "Keys" button of Spec1dView (the docstring of Spec1DMode)
+    import logging
+    # NOTE: Importing the overlays chooses ginga's widget toolkit, which must be
+    # done before importing ginga's plot modes.
+    from pypeit.display import overlays
+    from pypeit.display.pypeit_modes import Spec1DMode, key_bindings_text
+
+    class _Viewer:
+        def get_logger(self):
+            return logging.getLogger('test')
+
+    actions = Spec1DMode(_Viewer(), settings={}).actions
+    text = key_bindings_text()
+    for action, key, description in [('kp_help', 'h', '* h :'),
+                                     ('kp_smooth_more', 's', '* s :'),
+                                     ('kp_smooth_less', 'a', '* a :'),
+                                     ('kp_no_smooth', 'A', '* A (shift + a) :'),
+                                     ('kp_cut_x_range', 'singlequote', '* singlequote :'),
+                                     ('kp_fitting', 'f', '* f :'),
+                                     ('kp_clear_marks', 'c', '* c :')]:
+        assert f'spec1d+{key}' in actions[action], action
+        assert description in text, description

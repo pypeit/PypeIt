@@ -326,6 +326,17 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
             Prefix for the tags of the canvas objects; see
             :func:`clear_overlays`.  Must start with ``'pypeit'``.
     """
+    # Only redraw the channel once all the overlays have been added
+    with ch.fitsimage.suppress_redraw:
+        _show_slits(viewer, ch, left, right, slit_ids=slit_ids, left_ids=left_ids,
+                    right_ids=right_ids, maskdef_ids=maskdef_ids, spec_vals=spec_vals,
+                    rotate=rotate, pstep=pstep, clear=clear, synced=synced, tagpfx=tagpfx)
+
+
+def _show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=None,
+                maskdef_ids=None, spec_vals=None, rotate=False, pstep=50, clear=False,
+                synced=True, tagpfx=TAG_PREFIX):
+    """Add the slit overlays to a channel; see :func:`show_slits`."""
     from pypeit.display.overlays import TraceOverlay
 
     # Setup the trace data and IDs
@@ -549,10 +560,21 @@ def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, nspec=Non
             Clear the canvas first?
 
     """
-    from pypeit.display.overlays import MarkerOverlay
+    from pypeit.display.overlays import MarkerOverlay, PolylineOverlay
 
     if tilt_traces is None:
         raise PypeItError('No tilts have been traced or fitted')
+
+    # Only redraw the channel once all the overlays have been added
+    with ch.fitsimage.suppress_redraw:
+        _show_tilts(viewer, ch, tilt_traces, yoff=yoff, xoff=xoff, points=points, pstep=pstep,
+                    clear_canvas=clear_canvas)
+
+
+def _show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, pstep=3,
+                clear_canvas=False):
+    """Add the tilt overlays to a channel; see :func:`show_tilts`."""
+    from pypeit.display.overlays import MarkerOverlay, PolylineOverlay
 
     if clear_canvas:
         _clear_channel(ch)
@@ -562,33 +584,32 @@ def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, nspec=Non
     # Plot traced tilts
     if 'goodpix_tilt' in tilt_traces.keys() and tilt_traces['goodpix_tilt'][0].size > 0 and points:
         _add(viewer, ch, MarkerOverlay(tilt_traces['goodpix_spat'][0] + xoff,
-                                       tilt_traces['goodpix_tilt'][0] + yoff, color='cyan'))
+                                       tilt_traces['goodpix_tilt'][0] + yoff, color='cyan', owner=ch.fitsimage))
 
     # Plot the 2D fitted tilts
     # loop over each line, this allows to use type='path' and therefore a faster plotting
     if 'good2dfit_lid' in tilt_traces.keys():
-        objs = []
-        for iline in np.unique(tilt_traces['good2dfit_lid'][0]):
-            # good fit
-            this_line = tilt_traces['good2dfit_lid'][0] == iline
-            if np.any(this_line):
-                good2dfit_spat = tilt_traces['good2dfit_spat'][0][this_line] + xoff
-                good2dfit_tilt = tilt_traces['good2dfit_tilt'][0][this_line] + yoff
-                objs.append(dc.Path(np.column_stack([good2dfit_spat[::pstep],
-                                                     good2dfit_tilt[::pstep]]),
-                                    color='blue', linewidth=1))
-        if len(objs) > 0:
-            _add(viewer, ch, dc.CompoundObject(*objs))
+        lid = tilt_traces['good2dfit_lid'][0]
+        spat = tilt_traces['good2dfit_spat'][0] + xoff
+        tilt = tilt_traces['good2dfit_tilt'][0] + yoff
+        # Group the points by line (keeping their order within each line)
+        srt = np.argsort(lid, kind='stable')
+        _, start = np.unique(lid[srt], return_index=True)
+        lines = [(x[::pstep], y[::pstep])
+                 for x, y in zip(np.split(spat[srt], start[1:]), np.split(tilt[srt], start[1:]))]
+        if len(lines) > 0:
+            _add(viewer, ch, PolylineOverlay(lines, color='blue', linewidth=1,
+                                             owner=ch.fitsimage))
 
     # Now plot the masked traces and the rejected 2D fits
     # masked traces
     if 'badpix_tilt' in tilt_traces.keys() and tilt_traces['badpix_tilt'][0].size > 0:
         _add(viewer, ch, MarkerOverlay(tilt_traces['badpix_spat'][0] + xoff,
-                                       tilt_traces['badpix_tilt'][0] + yoff, color='red'))
+                                       tilt_traces['badpix_tilt'][0] + yoff, color='red', owner=ch.fitsimage))
     # rejected fit
     if 'bad2dfit_tilt' in tilt_traces.keys() and tilt_traces['bad2dfit_tilt'][0].size > 0:
         _add(viewer, ch, MarkerOverlay(tilt_traces['bad2dfit_spat'][0] + xoff,
-                                       tilt_traces['bad2dfit_tilt'][0] + yoff, color='yellow'))
+                                       tilt_traces['bad2dfit_tilt'][0] + yoff, color='yellow', owner=ch.fitsimage))
 
     # Add text
     text_str = ['Masked pixel', 'Rejected in fit', 'Good tilt fit']

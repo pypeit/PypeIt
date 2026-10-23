@@ -85,9 +85,10 @@ class Show2DSpec(scriptbase.ScriptBase):
         if not Path(args.file).is_file():
             raise PypeItError(f'{args.file} does not exist!')
 
-        # NOTE: The import of the viewer is deferred so that the --list option
-        # does not need to import ginga.
+        # NOTE: The imports are deferred so that the --list option does not
+        # need to import ginga.
         from pypeit.display import viewer
+        from pypeit.display import spec2d_data
 
         # Find the set of channels to show
         show_channels = None if args.channels is None \
@@ -97,6 +98,13 @@ class Show2DSpec(scriptbase.ScriptBase):
                       prefix=args.prefix, showmask=args.showmask, removetrace=args.removetrace,
                       ignore_extract_mask=args.ignore_extract_mask, spat_id=args.spat_id,
                       maskID=args.maskID, try_old=args.try_old)
+
+        # Read the file before opening the viewer, so that any problem (e.g., an
+        # incompatible datamodel version) is reported immediately.
+        # NOTE: If the file is sent to an open viewer, the file is read again
+        # by that viewer; reading it here makes sure that any problem is
+        # reported by this script, not in the other viewer.
+        data = spec2d_data.load_spec2d_display(**kwargs)
 
         # Show the file in an already open viewer?
         if not args.clear:
@@ -111,7 +119,7 @@ class Show2DSpec(scriptbase.ScriptBase):
         # Allow other calls to this script (and pypeit_view_fits) to add files
         # to this viewer
         v.listen()
-        plugin.load_spec2d(clear=True, **kwargs)
+        plugin.load_spec2d(clear=True, data=data, **kwargs)
 
         if args.embed:
             viewer.embed(header=utils.embed_header())
