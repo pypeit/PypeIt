@@ -16,7 +16,9 @@ class Show1DSpec(scriptbase.ScriptBase):
         parser = super().get_parser(description='Show a 1D spectrum', width=width)
         parser.add_argument(
             'file', type=str,
-            help='PypeIt spec1d file (this script does not work with coadd_1dspec output spectra).'
+            help='PypeIt spec1d file, or a file with a single spectrum (OneSpec), e.g. from '
+                 'pypeit_coadd_1dspec.  For OneSpec files, the extension, object, and '
+                 'extraction options are ignored.'
         )
         parser.add_argument(
             '--list', default=False, action='store_true',
@@ -54,12 +56,28 @@ class Show1DSpec(scriptbase.ScriptBase):
 
         import numpy as np
 
+        from pypeit import log
         from pypeit import PypeItError
         from pypeit import specobjs
+        from pypeit import onespec
         from pypeit.display.display import show_1dspec
 
         # Initialize the log
         cls.init_log(args)
+
+        # A single spectrum (e.g., from pypeit_coadd_1dspec)?
+        if onespec.is_onespec_file(args.file):
+            spec = onespec.OneSpec.from_file(args.file, chk_version=False)
+            if args.list:
+                print(f'{args.file} contains a single spectrum (OneSpec): '
+                      f'extraction={spec.ext_mode}, fluxed={spec.fluxed}, npix={spec.npix}')
+                return
+            if args.obj is not None or args.exten != 1:
+                log.warning('The file contains a single spectrum; ignoring --exten/--obj.')
+            show_1dspec(str(Path(args.file).absolute()), ext=0, masked=args.masked)
+            from pypeit.display.viewer import show
+            show(message='close the window to exit')
+            return
 
         sobjs = specobjs.SpecObjs.from_fitsfile(args.file, chk_version=False)
 
@@ -131,7 +149,6 @@ class Show1DSpec(scriptbase.ScriptBase):
             if sobjs[exten]['OPT_WAVE'] is None: #not in sobjs[exten]._data.keys():
                     raise PypeItError("Spectrum not extracted with OPT.  Try --extract BOX")
 
-        # Pre-pend cwd to filename (in case RC Ginga was launched already)
         full_file = Path(args.file).absolute()
 
         # Ginga
@@ -139,3 +156,7 @@ class Show1DSpec(scriptbase.ScriptBase):
             str(full_file), ext=exten, masked=args.masked, extraction=args.extract,
             fluxed=args.flux
         )
+
+        # Wait for the user to close the window
+        from pypeit.display.viewer import show
+        show(message='close the window to exit')

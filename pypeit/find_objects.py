@@ -425,8 +425,7 @@ class FindObjects:
         show_fits : :obj:`bool`, optional
             Generate QA  showing fits to traces
         show_trace : :obj:`bool`, optional
-            Generate QA  showing traces identified. Requires an open ginga RC
-            modules window
+            Show the traces identified in PypeIt's ginga viewer
         show : :obj:`bool`, optional
             Show all the QA
         save_objfindQA : :obj:`bool`, optional
@@ -636,9 +635,13 @@ class FindObjects:
         return global_sky
 
     def show(self, attr, image=None, global_sky=None, showmask=False, sobjs=None,
-             chname=None, slits=False,clear=False):
+             chname=None, slits=False,clear=False, block=True):
         """
         Show one of the internal images
+
+        The image is shown in PypeIt's ginga viewer.  By default, the
+        execution then waits until the user closes the viewer window; see
+        :func:`~pypeit.display.viewer.show`.
 
         .. todo::
 
@@ -657,6 +660,9 @@ class FindObjects:
                 - image -- Input image
         image : ndarray, optional
             User supplied image to display
+        block : bool, optional
+            Wait for the user before continuing.  Set to False to show more
+            images before waiting.
         """
         mask_in = self.sciImg.fullmask if showmask else None
 
@@ -683,6 +689,9 @@ class FindObjects:
 
         if slits and self.slits_left is not None:
             display.show_slits(viewer, ch, self.slits_left, self.slits_right)
+
+        if block:
+            display.show()
 
     def __repr__(self):
         txt = '<{:s}: nimg={:d}'.format(self.__class__.__name__,
@@ -761,8 +770,7 @@ class MultiSlitFindObjects(FindObjects):
         show_fits : :obj:`bool`, optional
             Generate QA  showing fits to traces
         show_trace : :obj:`bool`, optional
-            Generate QA  showing traces identified. Requires an open ginga RC
-            modules window
+            Show the traces identified in PypeIt's ginga viewer
         show : :obj:`bool`, optional
             Show all the QA
         save_objfindQA : :obj:`bool`, optional
@@ -918,7 +926,7 @@ class EchelleFindObjects(FindObjects):
         show_fits : :obj:`bool`, optional
             Generate QA  showing fits to traces
         show_trace : :obj:`bool`, optional
-            Generate QA  showing traces identified. Requires an open ginga RC modules window
+            Show the traces identified in PypeIt's ginga viewer
         save_objfindQA : :obj:`bool`, optional
             Save to disk (png file) QA showing the object profile
         neg : :obj:`bool`, optional

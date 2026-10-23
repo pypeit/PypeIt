@@ -102,6 +102,18 @@ Here is a typical call:
 
     pypeit_show_1dspec Science/spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits --exten 1
 
+Files with a single spectrum (see :doc:`out_onespec`), such as the coadds
+produced by ``pypeit_coadd_1dspec``, are shown the same way:
+
+.. code-block:: console
+
+    pypeit_show_1dspec J1217p3905_coadd.fits
+
+For these files, the ``--exten``, ``--obj``, ``--extract``, and ``--flux``
+options are ignored: the file holds a single spectrum, with the extraction and
+fluxing used to construct it, which are shown (but cannot be changed) in the
+``Spec1dView`` panel.
+
 .. warning::
 
     If you get an obscure error when executing the above command, it may be that
@@ -118,15 +130,18 @@ Interacting with the display
 ----------------------------
 
 The spec1d mode is a mode enabled by ginga to interact with the spectrum plot.
-**To get a listing of the key-bindings in the ginga window, type 'h'.**  If that
-doesn't work, or if the key bindings themselves don't seem to work, you may have
-exited the mode.  To restart the mode, hit the space-bar and then the 1 key.  If
-you're still having trouble, please submit an issue via GitHub or post a
-question to the Users Slack.
+**To get a listing of the key-bindings in the ginga window, press the "Keys"
+button at the bottom of the** ``Spec1dView`` **panel, or type 'h' with the
+cursor on the plot.**  The listing opens in a new tab ("HELP: Spec1d keys")
+next to the ``Spec1dView`` tab, so the plot stays visible; close it with its
+"Close" button.  If the key bindings don't
+seem to work, you may have exited the mode.  To restart the mode, hit the
+space-bar and then the 1 key.  If you're still having trouble, please submit an
+issue via GitHub or post a question to the Users Slack.
 
 The key-bindings below are copied from the relevant docstring; if anything is
-different from the dialog you get when pressing 'h' in ginga, you should defer
-to what is shown there.  The key-bindigs are as follows:
+different from the listing shown in ginga, you should defer to what is shown
+there.  The key-bindings are as follows:
 
 Enter the mode
 ++++++++++++++
@@ -183,6 +198,16 @@ Regions
 * singlequote : (zoom) set X range to region
 * f : fit a Gaussian to the region and show result
 * c : clear fit result
+
+Smoothing
++++++++++
+* s : smooth more
+* a : smooth less
+* A (shift + a) : no smoothing
+
+Help
+++++
+* h : show the list of key bindings
 
 ----
 

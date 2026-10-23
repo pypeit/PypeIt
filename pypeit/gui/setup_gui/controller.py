@@ -6,6 +6,7 @@ acting on user input, running background tasks, and returning information to the
 .. include:: ../include/links.rst
 """
 import traceback
+import subprocess
 import sys
 import re
 import io
@@ -27,7 +28,7 @@ from pypeit.gui.setup_gui.text_viewer import TextViewerWindow
 from pypeit.gui.setup_gui.dialog_helpers import prompt_to_save, display_error, FileDialog, FileType
 from pypeit.gui.setup_gui.model import PypeItSetupGUIModel, ModelState, PypeItFileModel
 from pypeit import log
-from pypeit.display import display
+from pypeit.display import viewer
 from pypeit import io as pypeit_io
 
 
@@ -413,7 +414,13 @@ class PypeItMetadataController(QObject):
                 action.updateEnabledStatus()
                     
     def view_file(self, n=None):
-        """View the selected files in the metadata using Ginga."""
+        """View the selected files in the metadata using Ginga.
+
+        The files are shown by ``pypeit_view_fits``, which runs in a separate
+        process.  The first file opens a PypeIt viewer; the others are sent to
+        that viewer (see the ``--no_clear`` option of ``pypeit_view_fits``) so
+        that all files are shown in the same window, each in its own channel.
+        """
         if n == None:
             # Default to detector 1
             n = 1
@@ -421,36 +428,36 @@ class PypeItMetadataController(QObject):
         det_name = f"DET {n}"
 
         row_indices = self._view.selectedRows()
-        if len(row_indices) > 0:
+        if len(row_indices) == 0:
+            return
 
-            # Make sure ginga is available
+        files = []
+        for indx in row_indices:
+            metadata_row = self._model.metadata[indx]
+            # Make sure to strip comments off commented out files
+            file = Path(metadata_row['directory'], metadata_row['filename'].lstrip('# '))
+            if not file.exists():
+                display_error(self._main_controller.main_window, f"Could not find {file.name} in {file.parent}.")
+                return
+            files.append(file)
+
+        for i, file in enumerate(files):
+            cmd = ['pypeit_view_fits', self._model.spectrograph.name, str(file), '--det', str(n),
+                   '--chname', f"{file.name} {det_name}", '--no_clear']
             try:
-                display.connect_to_ginga(raise_err=True, allow_new=True)
+                subprocess.Popen(cmd)
             except Exception as e:
-                display_error(self._main_controller.main_window, f"Could not start ginga to view FITS files: {e}")
-                log.warning(f"Failed to connect to ginga:\n" + traceback.format_exc())
-
-            
-            # Display each file in its own ginga tab
-            for indx in row_indices:
-                metadata_row = self._model.metadata[indx]
-                # Make sure to strip comments off commented out files
-                file = Path(metadata_row['directory'], metadata_row['filename'].lstrip('# '))
-                if not file.exists():
-                    display_error(self._main_controller.main_window, f"Could not find {file.name} in {file.parent}.")
-                    return
-
-                try:
-                    img = self._model.spectrograph.get_rawimage(str(file), n)[1]
-                except Exception as e:
-                    display_error(self._main_controller.main_window, f"Failed to read image {file.name}: {e}")
-                    log.warning(f"Failed get raw image:\n" + traceback.format_exc())
-
-                try:
-                    display.show_image(img, chname = f"{file.name} {det_name}")
-                except Exception as e:
-                    display_error(self._main_controller.main_window, f"Failed to send image {file.name} to ginga: {e}")
-                    log.warning(f"Failed send image to ginga:\n" + traceback.format_exc())
+                display_error(self._main_controller.main_window, f"Could not start pypeit_view_fits to view {file.name}: {e}")
+                log.warning(f"Failed to start pypeit_view_fits:\n" + traceback.format_exc())
+                return
+            if i == 0 and len(files) > 1 and not viewer.is_listening():
+                # Wait for the new viewer to accept files before sending it
+                # the others, so that they are all shown in the same window.
+                for _ in range(600):
+                    QApplication.processEvents()
+                    if viewer.is_listening():
+                        break
+                    QThread.msleep(100)
 
     def view_header(self):
         """ Display the header of one or more selected files in the metadata.

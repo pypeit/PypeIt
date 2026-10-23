@@ -29,10 +29,8 @@ class RunToCalibStep(scriptbase.ScriptBase):
         parser.add_argument('-r', '--redux_path', default=None,
                             help='Path to directory for the reduction.  Only advised for testing')
         parser.add_argument('-s', '--show', default=False, action='store_true',
-                            help='Show reduction steps via plots (which will block further '
-                                 'execution until clicked on) and outputs to ginga. Requires '
-                                 'remote control ginga session via '
-                                 '"ginga --modules=RC,SlitWavelength &"')
+                            help='Show reduction steps via plots and PypeIt\'s ginga viewer.  Execution is '
+                                 'blocked until the plot or viewer window is closed.')
 
         return parser
 

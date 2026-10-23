@@ -70,7 +70,7 @@ Required Arguments
 Optional Arguments
 ~~~~~~~~~~~~~~~~~~
 
-- ``--show``: Show reduction steps via plots and outputs to ginga (requires remote control ginga session)
+- ``--show``: Show reduction steps via plots and PypeIt's ginga viewer (see :ref:`pypeit_ginga_viewer`); the reduction waits until you close the plot or viewer window
 
 Detectors
 ---------
@@ -228,7 +228,7 @@ Notes
 
 - The script requires that calibrations have been generated (either by a previous full run or by running calibration steps)
 - Standard star information is automatically loaded when available for science frame reductions
-- The ``--show`` option requires a running ginga session with remote control enabled
+- The ``--show`` option opens PypeIt's ginga viewer; you no longer need to start ginga yourself
 - Intermediate files are stored in the same directory structure as the main pipeline
 
 See Also

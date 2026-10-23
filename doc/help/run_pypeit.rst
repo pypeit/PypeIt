@@ -7,7 +7,7 @@
                       pypeit_file
     
     PypeIt: The Python Spectroscopic Data Reduction Pipeline
-    Version 2.0.2.dev1093+g279e0bc58
+    Version 2.0.2.dev1397+gf15443ff9.d20261022
     
     Available spectrographs include:
         aat_uhrf, apf_levy, arc_arces, arc_kosmos, arc_tspec, bok_bc,
@@ -55,10 +55,9 @@
       -m, --do_not_reuse_calibs
                             Do not load previously generated calibrations, even ones
                             made during the run.
-      -s, --show            Show reduction steps via plots (which will block further
-                            execution until clicked on) and outputs to ginga.
-                            Requires remote control ginga session via "ginga
-                            --modules=RC,SlitWavelength &"
+      -s, --show            Show reduction steps via plots and PypeIt's ginga
+                            viewer. Execution is blocked until the plot or viewer
+                            window is closed.
       -o, --overwrite       Overwrite any existing files/directories
       -c, --calib_only      Only run on calibrations
       --ncpu NCPU           Number of CPUs to use. Overrides the [rdx] ncpu
