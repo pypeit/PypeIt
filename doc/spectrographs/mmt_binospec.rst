@@ -211,10 +211,11 @@ flux calibration downstream.  The reduction proceeds as follows:
 
 2. When the spectrograph supplies a static ``fiber_illumination.fits``
    vector (Binospec does), it is multiplied into the per-fiber scalar as
-   a refinement of the flat-derived throughput.  The side-B (``DET02``)
-   vector is mirrored before the fiber-ID lookup, because the IDL
-   calibration vector is stored in the extracted side-B fiber-axis order
-   whereas PypeIt's DET02 reference profile is in detector order.
+   a refinement of the flat-derived throughput.  The IDL pipeline's
+   side-B (``DET02``) calibrations are stored in a frame that is
+   spatially mirrored relative to PypeIt's DET02 image, so the side-B
+   reference fiber profile is mirrored onto the PypeIt frame when it is
+   loaded, and this vector is reversed to match its row order.
 
 3. The combined scalar is attached to each fiber's ``SpecObj`` so that
    the sky-model fit and the post-extraction correction apply the same
@@ -315,9 +316,10 @@ The script then:
 
 .. note::
 
-   The two Binospec detectors produce mirror-image spectra.  The script
-   automatically accounts for this by reversing the fiber-to-sky mapping
-   for side B so that the two halves of the IFU tile correctly.
+   Each fiber is matched to its layout entry by fiber name (e.g.,
+   ``B122``), using the names assigned during fiber identification.  Dead
+   fibers (B27, B79, B159, and B199 on side B) have no spectrum and are
+   omitted.
 
 .. note::
 

@@ -1146,6 +1146,13 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
     nfibers_a = 360
     nfibers_b = 356
 
+    # The side-B (DET02) tables in fiber_ref_profile.fits come from the IDL
+    # pipeline, whose side-B spatial axis is mirrored relative to PypeIt's
+    # DET02 image: a fiber at IDL pixel p lands at PypeIt pixel
+    # ``ref_mirror_pix_b - p``.  Measured from the fiber peaks of four DET02
+    # flats (2024-2025), which agree to within 0.05 px.
+    ref_mirror_pix_b = 4105.7
+
     # Pointing-separation tolerance (arcsec) below which two science/standard
     # frames are treated as the same pointing and coadded onto a shared
     # comb_id (see get_comb_group).  Binospec writes the commanded RA/DEC, so
@@ -1490,6 +1497,14 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         from a high-quality flat field observation. This is used to
         cross-match detected fiber traces against known fiber IDs.
 
+        The side-B table is stored in the IDL pipeline's mirrored frame (see
+        :attr:`ref_mirror_pix_b`).  For ``det=2`` it is mapped onto PypeIt's
+        DET02 frame: live ``TR_PIX`` positions are mirrored, the odd
+        Gauss-Hermite terms change sign, the rows are reversed so ``TR_PIX``
+        increases with row index, and ``FIB_BLOCK`` is renumbered so block
+        IDs also increase with ``TR_PIX``.  Dead fibers keep ``TR_PIX = 0``
+        and ``FIB_BLOCK = -1``.
+
         Args:
             det (:obj:`int`):
                 1-indexed detector number (1=side A, 2=side B).
@@ -1504,7 +1519,18 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
             raise PypeItError(f'Detector number must be 1 or 2 for MMT/Binospec, not {det}.')
         ref_file = self._ifu_calib_path() / 'fiber_ref_profile.fits'
         # ext 1 = IFUTRACES_A (side A, det 1), ext 2 = IFUTRACES_B (side B, det 2)
-        return fits.getdata(ref_file, ext=det)
+        ref = fits.getdata(ref_file, ext=det)
+        if det == 1:
+            return ref
+
+        ref = ref[::-1].copy()
+        live = ref['FIB_BLOCK'] >= 0
+        ref['TR_PIX'][live] = self.ref_mirror_pix_b - ref['TR_PIX'][live]
+        for col in ('TR_H3', 'TR_H5'):
+            ref[col] = -ref[col]
+        blocks = ref['FIB_BLOCK'][live]
+        ref['FIB_BLOCK'][live] = blocks.min() + blocks.max() - blocks
+        return ref
 
     def load_sky_layout(self) -> tuple[np.ndarray, np.ndarray]:
         """
@@ -1541,10 +1567,8 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         row = 0 if det == 1 else 1
         with fits.open(illum_file) as hdu:
             f_illum = hdu[1].data['F_ILLUM'][row].copy()
-        # The IDL flat-fielding code applies this vector directly to the
-        # extracted side-B fiber axis.  PypeIt's DET02 detector image is
-        # mirror-flipped relative to that axis, so map the vector back onto
-        # the reference-profile row order used by MASKDEF_ID lookup.
+        # The vector follows the IDL row order of the side-B reference table,
+        # which load_fiber_ref_profile reverses for DET02; reverse it to match.
         return f_illum[::-1] if det == 2 else f_illum
 
     def get_ifu_datacube_meta(self, raw_hdr):
@@ -2139,12 +2163,9 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         missing from the input data.
 
         The layout file (``bino_IFU_sky_layout.fits``) contains 640 entries
-        (indices 0-319 for side A, 320-639 for side B).  Live science
-        fibers from the reference profile are sorted by detector position
-        and paired with live layout entries: in forward order for side A,
-        and in reverse order for side B (because the two detectors produce
-        mirror-image spectra).  Dead fibers (``_DEAD`` suffix) are excluded
-        from both lists so they do not disrupt the pairing.
+        (indices 0-319 for side A, 320-639 for side B) named with the same
+        IDL fiber names as the reference profile.  Dead fibers (``_DEAD``
+        suffix) are never matched.
 
         Args:
             det (:obj:`int`):
@@ -2162,40 +2183,18 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
             are assigned -1.
         """
         ref = self.load_fiber_ref_profile(det)
-        ref_ids = ref['FIB_ID']
-        ref_names = [n.strip() for n in ref['FIB_NAME']]
-        ref_pix = ref['TR_PIX']
+        id_to_name = {int(fid): name.strip()
+                      for fid, name in zip(ref['FIB_ID'], ref['FIB_NAME'])}
 
-        # Identify live science fibers in the reference profile and sort
-        # by detector position (TR_PIX).
-        ref_is_sci = np.array([not n.startswith('SKY') for n in ref_names])
-        ref_is_live = np.array(['_DEAD' not in n for n in ref_names])
-        ref_live_sci = ref_is_sci & ref_is_live
-        live_sci_ids = ref_ids[ref_live_sci]
-        live_sci_pix = ref_pix[ref_live_sci]
-        sort_idx = np.argsort(live_sci_pix)
-        live_sci_ids_sorted = live_sci_ids[sort_idx]
-
-        # Get live layout entries for this side in layout-file order.
         sky_file = self._ifu_calib_path() / 'bino_IFU_sky_layout.fits'
         with fits.open(sky_file) as hdu:
             layout_names = [n.strip() for n in hdu[1].data[0]['TARGET_NAME']]
         start, end = (0, 320) if det == 1 else (320, 640)
-        live_layout_indices = [i for i in range(start, end)
-                               if '_DEAD' not in layout_names[i]]
-
-        # Pair reference fibers (by detector position) with layout entries.
-        # Side A: forward (leftmost on detector = first layout entry).
-        # Side B: reversed (leftmost on detector = last layout entry)
-        # because the two detectors produce mirror-image spectra.
-        n_map = min(len(live_sci_ids_sorted), len(live_layout_indices))
-        id_to_layout = {}
-        for rank in range(n_map):
-            fid = int(live_sci_ids_sorted[rank])
-            if det == 1:
-                id_to_layout[fid] = live_layout_indices[rank]
-            else:
-                id_to_layout[fid] = live_layout_indices[n_map - 1 - rank]
+        name_to_layout = {layout_names[i]: i for i in range(start, end)
+                          if '_DEAD' not in layout_names[i]}
+        id_to_layout = {fid: name_to_layout[name]
+                        for fid, name in id_to_name.items()
+                        if name in name_to_layout}
 
         nfibers = len(fiber_ids)
         layout_indices = np.full(nfibers, -1, dtype=int)
@@ -2219,6 +2218,8 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         The reference profile (PROF_REF) is a 1D array representing the
         summed Gaussian-Hermite profiles of all fibers, stored in
         extension 3 (IFUPROF) of the reference fiber profile FITS file.
+        The side-B profile is mirrored onto PypeIt's DET02 frame (see
+        :attr:`ref_mirror_pix_b`).
 
         Args:
             det (:obj:`int`):
@@ -2230,7 +2231,11 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         ref_file = self._ifu_calib_path() / 'fiber_ref_profile.fits'
         side_idx = 0 if det == 1 else 1
         with fits.open(ref_file) as hdu:
-            return hdu[3].data['PROF_REF'][side_idx].copy()
+            profile = hdu[3].data['PROF_REF'][side_idx].astype(float)
+        if det == 1:
+            return profile
+        x = np.arange(profile.size, dtype=float)
+        return np.interp(self.ref_mirror_pix_b - x, x, profile, left=0., right=0.)
 
     def match_fibers_to_reference(self, det, detected_positions):
         """
