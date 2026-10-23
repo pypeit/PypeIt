@@ -24,6 +24,36 @@ from pypeit.core.plot import pyplot_rcparams, pyplot_rcparams_default
 from IPython import embed
 
 
+USE_VECTORIZED_ARCFIT = True
+"""
+Module switch for the vectorized arc-line fit in :func:`fit_arcspec`.  Set to
+False to restore the per-line `scipy.optimize.curve_fit`_ implementation for
+all lines (it is used as the fallback for individual lines regardless).
+"""
+
+ARCFIT_GN_ITER = 10
+"""
+Maximum number of vectorized Gauss-Newton (Levenberg-Marquardt) refinement
+iterations applied to the analytic log-parabola solution in
+:func:`fit_arcspec`.  Set to 0 to use the pure analytic fit.
+"""
+
+ARCFIT_RESCUE_ITER = 20
+"""
+Maximum number of vectorized Gauss-Newton (Levenberg-Marquardt) iterations
+used in :func:`fit_arcspec` to fit, from a moment-based starting guess, the
+lines the analytic solution cannot handle.  Lines converge in far fewer
+iterations; this is only a cap.  Set to 0 to fit those lines with the
+per-line fit instead.
+"""
+
+ARCFIT_MIN_GOODPIX = 4
+"""
+Minimum number of positive, in-bounds pixels required for the analytic fit in
+:func:`fit_arcspec`; lines with fewer use the per-line fit.
+"""
+
+
 def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigrej=3.0, func2d='legendre2d', debug=False):
     """Routine to obtain the 2D wavelength solution for an echelle spectrograph. 
     This is calculated from the spec direction pixel-centroid and the order number 
@@ -1091,7 +1121,28 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
     """
     Fit a series of pre-identified arc spectrum lines.
 
-    The implementation is a simple 3-parameter Gaussian (amplitude, centroid, width)
+    The implementation is a simple 3-parameter Gaussian (amplitude, centroid,
+    width), fit to a window of pixels around each line.  All lines are fit
+    simultaneously with a weighted analytic log-parabola solution: in the
+    window-centred coordinate :math:`u = x - x_{\\rm pixt}`, :math:`\\ln y = a_0
+    + a_1 u + a_2 u^2` is fit by weighted least squares with weights :math:`w_i
+    = y_i` (which reproduces the linear-space least-squares objective to first
+    order), using only the positive pixels in each window.  The Gaussian
+    parameters follow from the parabola coefficients in closed form.  The
+    solution is then polished with a few vectorized Gauss-Newton iterations
+    (see :data:`ARCFIT_GN_ITER`) that minimize the same linear-space objective
+    as the per-line fit, using all in-bounds pixels.
+
+    Lines for which the analytic solution is unusable (too few positive
+    pixels, a singular normal matrix, no peak, or a centroid outside the fit
+    window) are instead fit with vectorized Gauss-Newton iterations starting
+    from the moment-based guess used by the per-line fit (see
+    :data:`ARCFIT_RESCUE_ITER`).  Lines that also fail this fit fall back to
+    the per-line `scipy.optimize.curve_fit`_ fit
+    (:func:`_fit_arcspec_curvefit`); the fit parameters of lines for which
+    that fit returns non-finite values are set to -999.  Setting
+    :data:`USE_VECTORIZED_ARCFIT` to False uses the per-line fit for all
+    lines, which is the previous implementation.
 
     Parameters
     ----------
@@ -1101,7 +1152,7 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
     yarray: `numpy.ndarray`_
         Arc spectrum in counts
     pixt: `numpy.ndarray`_
-        Initial guess for the center of the lines
+        Integer pixel index of the initial guess for the center of the lines
     fitp: int
         Number of pixels to fit with
 
@@ -1115,7 +1166,7 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
     widt : `numpy.ndarray`_ 
         widths (sigma) of the fitted lines
     centerr : `numpy.ndarray`_
-        error in the centroids of the fitted lines
+        variance of the centroids of the fitted lines
 
     """
 
@@ -1125,13 +1176,430 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
     # Setup the arrays with fit parameters
     sz_p = pixt.size
     sz_a = yarray.size
-    b      = np.full(sz_p, -999.0, dtype=float)
     ampl   = np.full(sz_p, -999.0, dtype=float)
     cent   = np.full(sz_p, -999.0, dtype=float)
     widt   = np.full(sz_p, -999.0, dtype=float)
     centerr =np.full(sz_p, -999.0, dtype=float)
+    if sz_p == 0:
+        return ampl, cent, widt, centerr
+    if not USE_VECTORIZED_ARCFIT:
+        return _fit_arcspec_curvefit(xarray, yarray, pixt, fit_interval, sz_a, np.arange(sz_p),
+                                     ampl, cent, widt, centerr)
 
-    for p in range(sz_p):
+    # Fit windows: symmetric about the peak and truncated at the spectrum
+    # edges, exactly as in the per-line fit.  Out-of-range positions are
+    # masked, not shifted.
+    _pixt = np.asarray(pixt, dtype=int)
+    off = np.arange(-fit_interval, fit_interval + 1)
+    idx = _pixt[:,None] + off[None,:]
+    inb = (idx >= 0) & (idx < sz_a)
+    idxc = np.clip(idx, 0, sz_a - 1)
+    y = yarray[idxc]
+    x0 = xarray[_pixt]
+    # Window-centred coordinate; centring keeps the normal equations well
+    # conditioned.
+    u = np.where(inb, xarray[idxc] - x0[:,None], 0.)
+
+    # The log fit needs strictly positive flux; the wings of the
+    # continuum-subtracted arc are often <= 0.
+    gpm = inb & np.isfinite(y) & (y > 0.)
+    nwin = np.sum(inb, axis=1)
+    ngood = np.sum(gpm, axis=1)
+    # The per-line fit skips the same lines
+    attempt = (nwin > 0) & (nwin >= fit_interval)
+    analytic = attempt & (ngood >= ARCFIT_MIN_GOODPIX)
+
+    # Weighted log-parabola normal equations, with weights w_i = y_i
+    w2 = np.where(gpm, y, 0.)**2
+    lny = np.log(np.where(gpm, y, 1.))
+    upow = u[...,None]**np.arange(5)
+    S = np.sum(w2[...,None] * upow, axis=1)
+    T = np.sum((w2 * lny)[...,None] * upow[...,:3], axis=1)
+    A = S[:,np.array([[0,1,2],[1,2,3],[2,3,4]])]
+
+    with np.errstate(invalid='ignore', over='ignore'):
+        det3 = np.linalg.det(A)
+        solvable = analytic & np.isfinite(det3) \
+                    & (np.abs(det3) > 1e-12 * np.absolute(A[:,0,0]*A[:,1,1]*A[:,2,2]))
+    coef = np.full((sz_p, 3), np.nan)
+    if np.any(solvable):
+        coef[solvable] = np.linalg.solve(A[solvable], T[solvable,:,None])[...,0]
+    a0, a1, a2 = coef.T
+
+    # Gaussian parameters
+    umax = np.max(np.absolute(u), axis=1)
+    with np.errstate(invalid='ignore', divide='ignore', over='ignore'):
+        u0 = -0.5 * a1 / a2
+        sig = np.sqrt(-0.5 / a2)
+        amp = np.exp(a0 - 0.25 * a1**2 / a2)
+        # Do not extrapolate the centroid beyond the fit window
+        ok = solvable & np.isfinite(a2) & (a2 < 0.) & np.isfinite(u0) & np.isfinite(sig) \
+                & np.isfinite(amp) & (np.absolute(u0) <= umax)
+
+    # Pixels used by the linear-space fits: all in-bounds pixels, including
+    # the negative wings.
+    fpm = inb & np.isfinite(y)
+    if ARCFIT_GN_ITER > 0:
+        # Polish against the objective of the per-line fit.  The centroid is
+        # no longer restricted to the fit window, just as in the per-line fit.
+        amp, u0, sig, ok = _gauss_newton_refine(u, y, fpm, amp, u0, sig, ok,
+                                                niter=ARCFIT_GN_ITER)
+        var_c = _gauss_center_variance(u, y, fpm, amp, u0, sig, ok)
+    else:
+        var_c = _center_variance(A, coef, u, w2, lny, ngood, ok)
+    ok &= np.isfinite(var_c)
+
+    rescue = attempt & np.logical_not(ok) & (np.sum(fpm, axis=1) > 3)
+    if ARCFIT_RESCUE_ITER > 0 and np.any(rescue):
+        # Fit the lines the analytic solution cannot handle starting from the
+        # moment-based guess used by the per-line fit
+        # (:func:`~pypeit.core.fitting.guess_gauss`)
+        r = np.where(rescue)[0]
+        ra, rc, rs = _moment_seed(u[r], y[r], fpm[r])
+        rok = np.isfinite(ra) & np.isfinite(rc) & np.isfinite(rs) & (rs > 0.)
+        ra, rc, rs, rok = _gauss_newton_refine(u[r], y[r], fpm[r], ra, rc, rs, rok,
+                                               niter=ARCFIT_RESCUE_ITER)
+        rvar = _gauss_center_variance(u[r], y[r], fpm[r], ra, rc, rs, rok)
+        rok &= np.isfinite(rvar)
+        amp[r], u0[r], sig[r], var_c[r] = ra, rc, rs, rvar
+        ok[r] = rok
+
+    ampl[ok] = amp[ok]
+    cent[ok] = x0[ok] + u0[ok]
+    widt[ok] = sig[ok]
+    centerr[ok] = var_c[ok]
+
+    # Fall back to the per-line fit for the remaining lines.  Lines with
+    # non-finite pixels in their window are skipped: curve_fit cannot fit
+    # them.
+    bad = attempt & np.logical_not(ok) & np.all(fpm == inb, axis=1)
+    nbad = np.sum(bad)
+    if nbad > 0:
+        if nbad > 0.25 * sz_p:
+            log.warning(f'Vectorized Gaussian fit failed for {nbad}/{sz_p} arc lines; using '
+                        'curve_fit for those lines.')
+        _fit_arcspec_curvefit(xarray, yarray, pixt, fit_interval, sz_a, np.where(bad)[0],
+                              ampl, cent, widt, centerr)
+        # curve_fit can return non-finite parameters for degenerate windows;
+        # flag them as failed fits.
+        failed = bad & np.logical_not(np.isfinite(ampl) & np.isfinite(cent) & np.isfinite(widt))
+        ampl[failed] = cent[failed] = widt[failed] = centerr[failed] = -999.
+        # ... and an undefined covariance, which is reported as infinite.
+        centerr[bad & np.logical_not(np.isfinite(centerr))] = np.inf
+    return ampl, cent, widt, centerr
+
+
+def _moment_seed(u, y, gpm):
+    """
+    Guess Gaussian parameters from the moments of the flux, for many lines at
+    once.
+
+    This is a vectorized version of :func:`~pypeit.core.fitting.guess_gauss`,
+    which provides the starting guess for the per-line fit.
+
+    Parameters
+    ----------
+    u : `numpy.ndarray`_
+        Window-centred coordinates, shape ``(nline,nwin)``.
+    y : `numpy.ndarray`_
+        Flux, shape ``(nline,nwin)``.
+    gpm : `numpy.ndarray`_
+        Boolean mask selecting the pixels in each window, shape
+        ``(nline,nwin)``.  Each line must have at least one selected pixel.
+
+    Returns
+    -------
+    amp, u0, sig : `numpy.ndarray`_
+        Guessed amplitude, centroid, and sigma, shape ``(nline,)``.  The values
+        are NaN if the flux is constant across the window.
+    """
+    ym = np.where(gpm, y, np.nan)
+    ypos = np.where(gpm, y - np.nanmin(ym, axis=1)[:,None], 0.)
+    with np.errstate(invalid='ignore', divide='ignore'):
+        norm = np.sum(ypos, axis=1)
+        u0 = np.sum(ypos * u, axis=1) / norm
+        sig = np.sqrt(np.absolute(np.sum(ypos * (u - u0[:,None])**2, axis=1) / norm))
+        # Amplitude from the pixels within +/- sigma/2
+        cen = gpm & (np.absolute(u - u0[:,None]) < sig[:,None]/2)
+        has_cen = np.any(cen, axis=1)
+    amp = np.nanmax(ym, axis=1)
+    if np.any(has_cen):
+        amp[has_cen] = np.nanmedian(np.where(cen, y, np.nan)[has_cen], axis=1)
+    return amp, u0, sig
+
+
+def _gauss_model(u, gpm, amp, u0, sig):
+    """
+    Evaluate the 3-parameter Gaussian and its Jacobian for many lines at once.
+
+    Parameters
+    ----------
+    u : `numpy.ndarray`_
+        Window-centred coordinates, shape ``(nline,nwin)``.
+    gpm : `numpy.ndarray`_
+        Boolean mask selecting the pixels in each fit, shape ``(nline,nwin)``.
+        The model and Jacobian are zero for excluded pixels.
+    amp, u0, sig : `numpy.ndarray`_
+        Amplitude, centroid, and sigma of each line, shape ``(nline,)``.
+
+    Returns
+    -------
+    g : `numpy.ndarray`_
+        Gaussian model, shape ``(nline,nwin)``.
+    J : `numpy.ndarray`_
+        Derivatives of the model with respect to ``(amp, u0, sig)``, shape
+        ``(nline,nwin,3)``.
+    """
+    d = u - u0[:,None]
+    e = np.exp(-0.5 * (d / sig[:,None])**2) * gpm
+    g = amp[:,None] * e
+    J = np.stack([e, g * d / sig[:,None]**2, g * d**2 / sig[:,None]**3], axis=-1)
+    return g, J
+
+
+def _solve3(H, rhs, good):
+    """
+    Solve a stack of 3x3 linear systems, skipping singular ones.
+
+    Parameters
+    ----------
+    H : `numpy.ndarray`_
+        Matrices, shape ``(nline,3,3)``.
+    rhs : `numpy.ndarray`_
+        Right-hand sides, shape ``(nline,3)``.
+    good : `numpy.ndarray`_
+        Boolean array selecting the systems to solve, shape ``(nline,)``.
+
+    Returns
+    -------
+    x : `numpy.ndarray`_
+        Solutions, shape ``(nline,3)``; NaN for systems that are not ``good``
+        or are singular.
+    """
+    x = np.full(rhs.shape, np.nan)
+    with np.errstate(invalid='ignore', over='ignore'):
+        det = np.linalg.det(H)
+        good = good & np.isfinite(det) & np.isfinite(rhs).all(axis=1) \
+                & (np.absolute(det) > 1e-12 * np.absolute(H[:,0,0]*H[:,1,1]*H[:,2,2]))
+    if np.any(good):
+        x[good] = np.linalg.solve(H[good], rhs[good,:,None])[...,0]
+    return x
+
+
+def _gauss_newton_refine(u, y, gpm, amp, u0, sig, ok, niter=3, lam=1e-3, tol=1e-10):
+    """
+    Refine Gaussian fits for many lines at once with Levenberg-Marquardt
+    iterations.
+
+    The objective is that of the per-line `scipy.optimize.curve_fit`_ fit,
+    :math:`\\sum_i (y_i - A \\exp(-(u_i-u_0)^2 / 2\\sigma^2))^2`, over the
+    pixels selected by ``gpm``.  Unlike the log-parabola seed, this can use
+    every in-bounds pixel, including the negative wings of a
+    continuum-subtracted arc.  Each line has its own damping factor, which is
+    decreased after a step that lowers its objective and increased (and the
+    step rejected) otherwise.  A line stops iterating once its objective
+    changes by less than a fraction ``tol``, or once its damping factor
+    exceeds 1e10.
+
+    Parameters
+    ----------
+    u : `numpy.ndarray`_
+        Window-centred coordinates, shape ``(nline,nwin)``.
+    y : `numpy.ndarray`_
+        Flux, shape ``(nline,nwin)``.
+    gpm : `numpy.ndarray`_
+        Boolean mask selecting the pixels in each fit, shape ``(nline,nwin)``.
+    amp, u0, sig : `numpy.ndarray`_
+        Starting amplitude, centroid, and sigma of each line, shape
+        ``(nline,)``.
+    ok : `numpy.ndarray`_
+        Boolean array selecting the lines to refine, shape ``(nline,)``.
+    niter : int, optional
+        Maximum number of iterations.
+    lam : float, optional
+        Initial damping factor, relative to the diagonal of the normal matrix.
+    tol : float, optional
+        Relative change in the objective below which a line has converged.
+
+    Returns
+    -------
+    amp, u0, sig : `numpy.ndarray`_
+        Refined parameters; ``sig`` is returned positive.  Lines that are not
+        ``ok`` are returned unchanged.
+    ok : `numpy.ndarray`_
+        The input ``ok`` array, excluding lines whose refined parameters are not
+        finite or have zero width.
+    """
+    a, c, s = amp.copy(), u0.copy(), sig.copy()
+    _y = np.where(gpm, y, 0.)
+    lamv = np.full(a.size, lam)
+    diag = np.arange(3)
+    with np.errstate(invalid='ignore', divide='ignore', over='ignore', under='ignore'):
+        g, J = _gauss_model(u, gpm, a, c, s)
+        chi2 = np.sum((_y - g)**2, axis=1)
+        # Indices of the lines still iterating, and their model and Jacobian
+        act = np.where(ok & np.isfinite(chi2))[0]
+        g, J = g[act], J[act]
+        for _ in range(niter):
+            if act.size == 0:
+                break
+            H = np.einsum('nij,nik->njk', J, J)
+            H[:,diag,diag] *= 1. + lamv[act,None]
+            rhs = np.einsum('nij,ni->nj', J, _y[act] - g)
+            step = _solve3(H, rhs, np.ones(act.size, dtype=bool))
+            at, ct, st = a[act] + step[:,0], c[act] + step[:,1], s[act] + step[:,2]
+            gt, Jt = _gauss_model(u[act], gpm[act], at, ct, st)
+            chi2t = np.sum((_y[act] - gt)**2, axis=1)
+            accept = np.isfinite(chi2t) & (chi2t <= chi2[act]) & (st != 0.)
+            done = accept & (chi2[act] - chi2t <= tol * chi2[act])
+            a[act] = np.where(accept, at, a[act])
+            c[act] = np.where(accept, ct, c[act])
+            s[act] = np.where(accept, st, s[act])
+            chi2[act] = np.where(accept, chi2t, chi2[act])
+            g = np.where(accept[:,None], gt, g)
+            J = np.where(accept[:,None,None], Jt, J)
+            lamv[act] = np.where(accept, lamv[act]/10., lamv[act]*10.)
+            keep = np.logical_not(done) & (lamv[act] < 1e10)
+            act, g, J = act[keep], g[keep], J[keep]
+    s = np.absolute(s)
+    ok = ok & np.isfinite(a) & np.isfinite(c) & np.isfinite(s) & (s > 0.)
+    return a, c, s, ok
+
+
+def _gauss_center_variance(u, y, gpm, amp, u0, sig, ok):
+    """
+    Compute the variance of the Gaussian centroid the same way as
+    `scipy.optimize.curve_fit`_.
+
+    The parameter covariance is :math:`s^2 (J^T J)^{-1}`, where :math:`J` is
+    the Jacobian of the model at the best-fit parameters and :math:`s^2 =
+    \\sum_i r_i^2 / (n - 3)` is the variance of the residuals :math:`r_i` over
+    the :math:`n` fitted pixels.
+
+    Parameters
+    ----------
+    u : `numpy.ndarray`_
+        Window-centred coordinates, shape ``(nline,nwin)``.
+    y : `numpy.ndarray`_
+        Flux, shape ``(nline,nwin)``.
+    gpm : `numpy.ndarray`_
+        Boolean mask selecting the pixels in each fit, shape ``(nline,nwin)``.
+    amp, u0, sig : `numpy.ndarray`_
+        Best-fit amplitude, centroid, and sigma of each line, shape
+        ``(nline,)``.
+    ok : `numpy.ndarray`_
+        Boolean array selecting the lines with a valid fit, shape
+        ``(nline,)``.
+
+    Returns
+    -------
+    var_c : `numpy.ndarray`_
+        Variance of the centroid; NaN for lines that are not ``ok``, and inf
+        for lines with fewer than four fitted pixels.  Shape ``(nline,)``.
+    """
+    var_c = np.full(ok.size, np.nan)
+    if not np.any(ok):
+        return var_c
+    with np.errstate(invalid='ignore', divide='ignore', over='ignore', under='ignore'):
+        g, J = _gauss_model(u[ok], gpm[ok], amp[ok], u0[ok], sig[ok])
+        dof = np.sum(gpm[ok], axis=1) - 3
+        s2 = np.sum((np.where(gpm[ok], y[ok], 0.) - g)**2, axis=1) / dof
+        s2[dof <= 0] = np.inf
+        H = np.einsum('nij,nik->njk', J, J)
+        # Second column of the inverse
+        e1 = np.zeros((H.shape[0], 3))
+        e1[:,1] = 1.
+        var_c[ok] = s2 * _solve3(H, e1, np.ones(H.shape[0], dtype=bool))[:,1]
+    return var_c
+
+
+def _center_variance(A, coef, u, w2, lny, ngood, ok):
+    """
+    Propagate the covariance of the weighted log-parabola fit to the variance
+    of the Gaussian centroid.
+
+    The parabola covariance is :math:`C = s^2 A^{-1}`, with :math:`s^2 =
+    \\sum_i w_i^2 \\delta_i^2 / (n_{\\rm good} - 3)` and :math:`\\delta_i = \\ln
+    y_i - p(u_i)`.  The centroid offset :math:`u_0 = -a_1/(2 a_2)` has
+    derivatives :math:`\\partial u_0/\\partial a_1 = -1/(2 a_2)` and
+    :math:`\\partial u_0/\\partial a_2 = a_1/(2 a_2^2)`.
+
+    Parameters
+    ----------
+    A : `numpy.ndarray`_
+        Weighted normal matrices of the parabola fits, shape ``(nline,3,3)``.
+    coef : `numpy.ndarray`_
+        Parabola coefficients :math:`(a_0, a_1, a_2)`, shape ``(nline,3)``.
+    u : `numpy.ndarray`_
+        Window-centred coordinates, shape ``(nline,nwin)``.
+    w2 : `numpy.ndarray`_
+        Squared weights, zero for pixels excluded from the fit, shape
+        ``(nline,nwin)``.
+    lny : `numpy.ndarray`_
+        Log of the flux; values for excluded pixels are ignored.  Shape
+        ``(nline,nwin)``.
+    ngood : `numpy.ndarray`_
+        Number of pixels included in each fit, shape ``(nline,)``.
+    ok : `numpy.ndarray`_
+        Boolean array selecting the lines with a valid fit, shape
+        ``(nline,)``.
+
+    Returns
+    -------
+    var_c : `numpy.ndarray`_
+        Variance of the centroid; NaN for lines that are not ``ok``.  Shape
+        ``(nline,)``.
+    """
+    var_c = np.full(ok.size, np.nan)
+    if not np.any(ok):
+        return var_c
+    a0, a1, a2 = coef[ok].T
+    resid = lny[ok] - (a0[:,None] + a1[:,None]*u[ok] + a2[:,None]*u[ok]**2)
+    dof = ngood[ok] - 3
+    with np.errstate(invalid='ignore', divide='ignore'):
+        s2 = np.sum(w2[ok]*resid**2, axis=1) / dof
+        s2[dof <= 0] = np.inf
+        Ainv = np.linalg.inv(A[ok])
+        j1 = -0.5 / a2
+        j2 = 0.5 * a1 / a2**2
+        var_c[ok] = s2 * (j1**2 * Ainv[:,1,1] + 2*j1*j2 * Ainv[:,1,2] + j2**2 * Ainv[:,2,2])
+    return var_c
+
+
+def _fit_arcspec_curvefit(xarray, yarray, pixt, fit_interval, sz_a, which, ampl, cent, widt,
+                          centerr):
+    """
+    Fit arc lines one at a time with `scipy.optimize.curve_fit`_.
+
+    This is the original implementation of :func:`fit_arcspec`, retained as
+    the fallback for lines the vectorized fit cannot handle and as the
+    reference implementation.
+
+    Parameters
+    ----------
+    xarray : `numpy.ndarray`_
+        x-values of the input spectrum.
+    yarray : `numpy.ndarray`_
+        Arc spectrum in counts.
+    pixt : `numpy.ndarray`_
+        Integer pixel index of the initial guess for the center of the lines.
+    fit_interval : int
+        Half-width of the fit window in pixels.
+    sz_a : int
+        Number of pixels in the spectrum.
+    which : `numpy.ndarray`_
+        Indices of the lines in ``pixt`` to fit.
+    ampl, cent, widt, centerr : `numpy.ndarray`_
+        Amplitude, centroid, width (sigma), and centroid variance of each line.
+        Filled in place for the lines in ``which``; values for lines that are
+        skipped or for which the fit fails are left unchanged.
+
+    Returns
+    -------
+    ampl, cent, widt, centerr : `numpy.ndarray`_
+        The input arrays, after being filled.
+    """
+    for p in which:
         # This interval is always symmetric about the peak
         pmin = pixt[p] - fit_interval
         pmax = pixt[p] + fit_interval + 1
