@@ -216,3 +216,71 @@ def test_identify_fibers_with_offset():
     assert np.all(result['fiber_id'] > 0), \
         "all fibers should still match with a 2-pixel offset; unmatched: " \
         f"{np.sum(result['fiber_id'] <= 0)}"
+
+
+def _fake_preextract_findobj(radii, seed=2222):
+    """Build a minimal FiberFindObjects and fiber list for pre-extraction tests."""
+    rng = np.random.default_rng(seed)
+    nspec, nspat = 200, 160
+    spec_pix = np.arange(nspec)
+    # Two blocks of fibers separated by an unassigned gap
+    centers = np.concatenate([20. + 6.9*np.arange(5), 100. + 6.9*np.arange(5)])
+    centers += rng.uniform(-0.5, 0.5, size=centers.size)
+    slitid = np.repeat([1, 2], 5)
+
+    slitmask = np.full((nspec, nspat), -1, dtype=int)
+    slitmask[:, 14:54] = 1
+    slitmask[:, 94:134] = 2
+    image = rng.normal(100., 10., size=(nspec, nspat))
+    ivar = np.full((nspec, nspat), 0.01)
+    ivar[rng.uniform(size=ivar.shape) < 0.01] = 0.
+    gpm = ivar > 0
+    gpm[rng.uniform(size=gpm.shape) < 0.01] = False
+    waveimg = np.where(slitmask >= 0, 5000. + spec_pix[:, None]
+                       + 0.01*np.arange(nspat)[None, :], 0.)
+
+    fobj = object.__new__(FiberFindObjects)
+    fobj.sciImg = SimpleNamespace(image=image, ivar=ivar,
+                                  select_flag=lambda invert=False: gpm)
+    fobj.slits = SimpleNamespace(slit_img=lambda initial=False: slitmask)
+    fobj.waveimg = waveimg
+    fobj.wv_calib = None
+
+    def make_sobjs():
+        return [SimpleNamespace(TRACE_SPAT=c + 0.004*(spec_pix - nspec/2),
+                                BOX_R_PIX=r, SLITID=s, MASKDEF_ID=i)
+                for i, (c, r, s) in enumerate(zip(centers, radii, slitid))]
+
+    return fobj, make_sobjs
+
+
+def test_preextract_fast_path_matches_loop_with_nonuniform_radii():
+    radii = np.array([3.21, 3.48, 3.30, 3.45, 3.25, 3.40, 3.22, 3.35, 3.47, 3.29])
+    fobj, make_sobjs = _fake_preextract_findobj(radii)
+
+    loop = make_sobjs()
+    fobj._preextract_fibers_loop(loop)
+
+    def no_fallback(sobjs):
+        raise AssertionError('Fast path fell back to the per-fiber loop')
+    fobj._preextract_fibers_loop = no_fallback
+    fast = make_sobjs()
+    fobj._preextract_fibers(fast)
+
+    for f, l in zip(fast, loop):
+        assert np.array_equal(f.BOX_MASK, l.BOX_MASK)
+        assert np.allclose(f.BOX_COUNTS, l.BOX_COUNTS, rtol=1e-12, atol=0)
+        assert np.allclose(f.BOX_COUNTS_IVAR, l.BOX_COUNTS_IVAR, rtol=1e-12, atol=0)
+        assert np.allclose(f.BOX_WAVE, l.BOX_WAVE, rtol=1e-12, atol=0)
+
+
+def test_preextract_fast_path_uses_each_fiber_radius():
+    # A unit image summed over each aperture gives its full width, 2*BOX_R_PIX
+    radii = np.array([3.21, 3.48, 3.30, 3.45, 3.25, 3.40, 3.22, 3.35, 3.47, 3.29])
+    fobj, make_sobjs = _fake_preextract_findobj(radii)
+    fobj.sciImg.image = np.ones_like(fobj.sciImg.image)
+    fobj.sciImg.select_flag = lambda invert=False: np.ones_like(fobj.sciImg.image, dtype=bool)
+    sobjs = make_sobjs()
+    fobj._preextract_fibers(sobjs)
+    for s in sobjs:
+        assert np.allclose(s.BOX_COUNTS[s.BOX_MASK], 2*s.BOX_R_PIX)
