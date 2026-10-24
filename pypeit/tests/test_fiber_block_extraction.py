@@ -295,3 +295,58 @@ def test_identify_fibers_with_offset():
     assert np.all(result['fiber_id'] > 0), \
         "all fibers should still match with a 2-pixel offset; unmatched: " \
         f"{np.sum(result['fiber_id'] <= 0)}"
+
+
+def test_fiber_half_spacings_uniform_block():
+    """Evenly spaced fibers all get half the spacing."""
+    centers = 100.0 + 6.6 * np.arange(5)
+    np.testing.assert_allclose(
+        FiberFindObjects._fiber_half_spacings(centers, 10.0), 3.3,
+        err_msg="Uniform spacing should give a half-spacing radius everywhere")
+
+
+def test_fiber_half_spacings_dead_neighbor_of_end_fiber():
+    """An end fiber next to a dead slot should not get a doubled aperture."""
+    # Second fiber of the block is dead, leaving a 2x gap after the first.
+    centers = 100.0 + 6.6 * np.array([0, 2, 3, 4, 5, 6])
+    half = FiberFindObjects._fiber_half_spacings(centers, 10.0)
+    np.testing.assert_allclose(half, 3.3,
+                               err_msg="End fiber beside a dead slot should "
+                                       "keep the typical radius")
+    # Same at the other end of the block.
+    half = FiberFindObjects._fiber_half_spacings(centers[::-1].max() - centers[::-1]
+                                                 + 100.0, 10.0)
+    np.testing.assert_allclose(half, 3.3)
+
+
+def test_fiber_half_spacings_single_fiber():
+    """A single-fiber block falls back to the supplied radius."""
+    np.testing.assert_allclose(
+        FiberFindObjects._fiber_half_spacings(np.array([42.0]), 5.0), [5.0])
+
+
+@pytest.mark.parametrize('det', [1, 2])
+def test_reference_block_apertures_not_widened(det):
+    """No reference fiber should get an aperture widened across a dead slot."""
+    for block in spec.get_fiber_blocks(det):
+        half = FiberFindObjects._fiber_half_spacings(block['fiber_positions'], 0.0)
+        typical = np.median(np.diff(block['fiber_positions'])) / 2.0
+        assert np.all(half <= typical * 1.5), \
+            f"DET{det:02d} block {block['block_id']}: aperture wider than " \
+            f"typical ({half.max():.2f} > {typical:.2f} px)"
+
+
+def test_reference_block_apertures_only_change_at_dead_gaps():
+    """Only the three DET02 end fibers beside a dead slot should change radius."""
+    nchanged = {}
+    for det in (1, 2):
+        nchanged[det] = 0
+        for block in spec.get_fiber_blocks(det):
+            pos = block['fiber_positions']
+            spacings = np.diff(pos)
+            neighbor = np.concatenate(([spacings[0]],
+                                       np.minimum(spacings[:-1], spacings[1:]),
+                                       [spacings[-1]])) / 2.0
+            half = FiberFindObjects._fiber_half_spacings(pos, 0.0)
+            nchanged[det] += int(np.sum(~np.isclose(half, neighbor)))
+    assert nchanged == {1: 0, 2: 3}, f"Unexpected radius changes: {nchanged}"

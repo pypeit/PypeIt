@@ -428,6 +428,11 @@ Bug Fixes
   up to 2.8 pixels).  Science-fiber sky positions were already correct and
   are now assigned by fiber name.  Side-B calibrations and spec1d files must
   be regenerated to pick up the corrected fiber IDs.
+- Fiber pypeline: the boxcar aperture of a fiber at the end of a block-slit
+  whose neighbor is a dead fiber is no longer doubled in width; it now uses
+  the block's median fiber spacing across the dead fiber's slot.  This
+  affected three side-B Binospec IFU fibers (B80, B160, and B200), whose
+  boxcar extractions also picked up the dead fiber's slot.
 - MMT/Binospec: flat/trace/illumflat frame typing now requires the
   incandescent lamp to be on (``INCAN`` = ``on``), preventing dark/noisy
   ``INCAN`` = ``off`` exposures from being combined into pixel and trace flats.
