@@ -416,6 +416,23 @@ Bug Fixes
   populates its own portion of the shared ``*_state.json``.
 - Fixes a bug in :class:`~pypeit.bspline.bspline.bspline` which was not
   correctly setting ``xmin`` and ``xmax`` when using the ``x2`` option.
+- MMT Binospec IFU: fix mirrored fiber identification on side B (DET02)
+  (Issue #2220).  The side-B fiber reference profile (from the IDL pipeline)
+  is stored in a frame that is spatially mirrored relative to PypeIt's DET02
+  image and is now mirrored onto that frame when loaded.  Previously every
+  side-B fiber was assigned the name and ID of its mirror partner, so fibers
+  B122, B162, B242, and B294 appeared to be missing (they were labeled as
+  B199, B159, B79, and B27).  The truly dead fibers are now correctly
+  identified as B27, B79, B159, and B199, and side-B reference fiber positions
+  agree with observed flat-field traces to ~0.3 pixel rms (previously ~1 pixel,
+  up to 2.8 pixels).  Science-fiber sky positions were already correct and
+  are now assigned by fiber name.  Side-B calibrations and spec1d files must
+  be regenerated to pick up the corrected fiber IDs.
+- Fiber pypeline: the boxcar aperture of a fiber at the end of a block-slit
+  whose neighbor is a dead fiber is no longer doubled in width; it now uses
+  the block's median fiber spacing across the dead fiber's slot.  This
+  affected three side-B Binospec IFU fibers (B80, B160, and B200), whose
+  boxcar extractions also picked up the dead fiber's slot.
 - MMT/Binospec: flat/trace/illumflat frame typing now requires the
   incandescent lamp to be on (``INCAN`` = ``on``), preventing dark/noisy
   ``INCAN`` = ``off`` exposures from being combined into pixel and trace flats.

@@ -2563,6 +2563,41 @@ class FiberFindObjects(FindObjects):
         flatimg, _ = flat.flatfield(flat_raw, flat_images.pixelflat_norm)
         return flatimg
 
+    @staticmethod
+    def _fiber_half_spacings(fiber_centers, single_fiber_radius):
+        """
+        Boxcar half-widths for the fibers of one block-slit.
+
+        Each fiber gets half the distance to its nearest neighbor, so adjacent
+        apertures touch but don't overlap.  The end fibers have only one
+        neighbor, which may sit across a dead fiber's empty slot (twice the
+        normal spacing); such a gap (more than 1.5 times the block's median
+        spacing) is replaced by the median spacing.
+
+        Parameters
+        ----------
+        fiber_centers : `numpy.ndarray`_
+            Sorted fiber center positions (pixels) within the block.
+        single_fiber_radius : :obj:`float`
+            Half-width to use if the block contains a single fiber.
+
+        Returns
+        -------
+        half_spacings : `numpy.ndarray`_
+            Boxcar half-width (pixels) for each fiber.
+        """
+        spacings = np.diff(fiber_centers)
+        half_spacings = np.zeros(len(fiber_centers))
+        if len(spacings) == 0:
+            half_spacings[0] = single_fiber_radius
+            return half_spacings
+        typical = np.median(spacings)
+        end_spacings = np.array([spacings[0], spacings[-1]])
+        end_spacings[end_spacings > 1.5 * typical] = typical
+        half_spacings[0], half_spacings[-1] = end_spacings / 2.0
+        half_spacings[1:-1] = np.minimum(spacings[:-1], spacings[1:]) / 2.0
+        return half_spacings
+
     def find_objects_pypeline(self, image, ivar, std_trace=None,
                               manual_extract_dict=None,
                               show_peaks=False, show_fits=False, show_trace=False,
@@ -2573,7 +2608,8 @@ class FiberFindObjects(FindObjects):
         For each pseudo-slit, uses fiber positions from the spectrograph's
         reference profile to create SpecObjs at known fiber locations.
         FWHM and BOX_R_PIX are set from inter-fiber spacing so adjacent
-        boxcar apertures touch but don't overlap.
+        boxcar apertures touch but don't overlap; an aperture next to a dead
+        fiber's empty slot is not widened into it.
 
         Parameters
         ----------
@@ -2635,15 +2671,8 @@ class FiberFindObjects(FindObjects):
             fiber_meta = self.spectrograph.identify_fibers_in_block(
                 self.det, slit_idx, fiber_centers)
 
-            # Compute inter-fiber spacings for BOX_R_PIX
-            spacings = np.diff(fiber_centers)
-            half_spacings = np.zeros(len(fiber_centers))
-            if len(spacings) > 0:
-                half_spacings[0] = spacings[0] / 2.0
-                half_spacings[-1] = spacings[-1] / 2.0
-                half_spacings[1:-1] = np.minimum(spacings[:-1], spacings[1:]) / 2.0
-            else:
-                half_spacings[0] = np.median(right - left) / 2.0
+            half_spacings = self._fiber_half_spacings(
+                fiber_centers, np.median(right - left) / 2.0)
 
             for j, center_pix in enumerate(fiber_centers):
                 obj_counter += 1
