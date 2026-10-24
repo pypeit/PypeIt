@@ -147,7 +147,9 @@ def moment1d(flux, col, width, ivar=None, bpm=None, fwgt=None, row=None, weighti
             :math:`3\sigma`).  The provided value can be a scalar to use
             a constant window definition, or it can be an array variable
             integration window where the array must have the same shape
-            as `col`.
+            as `col`.  Each element of the array is computed with its own
+            window, exactly as if it were computed separately with its
+            scalar width.
         ivar (`numpy.ndarray`_, optional):
             Inverse variance of the image intensity.  If not provided,
             unity variance is used.  If provided, must have the same
@@ -438,14 +440,29 @@ def moment1d(flux, col, width, ivar=None, bpm=None, fwgt=None, row=None, weighti
     # calculation of `c`, the increase of the window size by 4 isn't
     # strictly necessary. At minimum it has to be 2, but the increase
     # by 4 ensures there are 0 pixels at either end of the integration
-    # window. TODO: Should consider changing this to 2.
+    # window. TODO: Should consider changing this to 2.  When the widths
+    # differ, the window is sized by the *widest* aperture so that wider
+    # apertures are not truncated; narrower apertures then include extra
+    # pixels that have zero weight for uniform weighting.  For a single
+    # width, i2-i1 still varies by one pixel with the sub-pixel position of
+    # _col, and the window is sized by the narrowest of these, as it always
+    # has been.
     i1 = np.floor(_col - _radius + 0.5).astype(int)
     i2 = np.floor(_col + _radius + 0.5).astype(int)
-    c = i1[:,None]-1+np.arange(int(np.amax(np.amin(i2-i1)-1,0))+4)[None,:]
+    single_width = np.all(_width == _width[0])
+    nwin = np.amin(i2-i1) if single_width else np.amax(i2-i1)
+    c = i1[:,None]-1+np.arange(int(nwin)+3)[None,:]
     ih = np.clip(c,0,ncol-1)
+    # Pixels beyond each aperture's own window; i.e., the padding added for
+    # the wider apertures.  These are excluded entirely so that they have no
+    # effect on the narrower apertures (including any non-finite values in
+    # flux).
+    pad = None if single_width else c - i1[:,None] > (i2-i1)[:,None]+1
 
     # Set the weight over the window; masked pixels have 0 weight
     good = (c >= 0) & (c < ncol)
+    if pad is not None:
+        good &= np.logical_not(pad)
     if bpm is not None:
         # NOTE: `&=` doesn't work here because of the np.newaxis usage
         good = good & np.logical_not(bpm[_row[:,None],ih])
@@ -466,6 +483,8 @@ def moment1d(flux, col, width, ivar=None, bpm=None, fwgt=None, row=None, weighti
     integ = flux[_row[:,None],ih] * wt
     if fwgt is not None:
         integ *= fwgt[_row[:,None],ih]
+    if pad is not None:
+        integ[pad] = 0.
     mu = np.array([np.ma.sum(integ, axis=1), None, None], dtype=object)
     mue = np.array([None, None, None], dtype=object)
     mum = np.array([np.ma.getmaskarray(mu[0]).copy(), None, None], dtype=object)
