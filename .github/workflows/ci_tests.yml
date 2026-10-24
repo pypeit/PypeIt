@@ -16,6 +16,13 @@ on:
       - release
       - develop
 
+# Only the newest run per PR matters: adding several labels or pushing again
+# cancels the superseded runs.  Other events (pushes to protected branches,
+# manual dispatch) are grouped by commit, so every merge gets a complete run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   SETUP_XVFB: True  # avoid issues if something tries to open a GUI window
 
