@@ -362,11 +362,13 @@ def test_edge_flexure_frames():
         par = load_spectrograph(spec).default_pypeit_par()
         assert par['calibrations']['slitedges']['refine_edges']
         # The calibration frames use the edge method, and the science frames
-        # (whose slit edges are faint) the slit method
+        # (whose slit edges are faint) the detector method, which is only
+        # applied if enough of the traced slit-edge pixels are matched
         assert sorted(par.edge_flexure_frames()) \
                     == ['arcframe', 'illumflatframe', 'pixelflatframe', 'tiltframe']
-        assert par['scienceframe']['process']['spat_flexure_method'] == 'slit'
-        assert par['scienceframe']['process']['spat_flexure_polyord'] == 1
+        assert par['scienceframe']['process']['spat_flexure_method'] == 'detector'
+        assert par['scienceframe']['process']['spat_flexure_polyord'] is None
+        assert par['scienceframe']['process']['spat_flexure_minfrac'] == 0.25
     par = load_spectrograph('keck_deimos').default_pypeit_par()
     assert not par['calibrations']['slitedges']['refine_edges']
     assert par.edge_flexure_frames() == []

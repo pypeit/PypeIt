@@ -1914,9 +1914,12 @@ def refine_edge(trcimg, bpm, edge, l_or_r, min_rows=10, search=2.0, rows=None, m
     :data:`REFINE_EDGE_MIN_SIGNIFICANCE` standard deviations), and the
     uncertainty of the shift is smaller than :data:`REFINE_EDGE_MAX_ERROR`
     pixels (see :func:`_refine_edge_significance`).  This also allows faint
-    edges to be refined (e.g. the edges of the slits in a science frame, which
-    are only illuminated by the sky), provided that enough spectral rows are
-    used.
+    continuum-illuminated edges to be refined, provided that enough spectral
+    rows are used.  Note that the uncertainty is a formal one, which assumes
+    that the model describes the data.  This is not the case for edges that
+    are only illuminated by emission lines that are tilted across the edge
+    (e.g. the sky lines of a science frame, or an arc frame), whose refined
+    position can depend on which spectral rows are used (see ``max_rows``).
 
     If the facing edge of the neighbouring slit (i.e. the right edge of the
     slit to the left of a left edge, or the left edge of the slit to the right
@@ -1955,7 +1958,9 @@ def refine_edge(trcimg, bpm, edge, l_or_r, min_rows=10, search=2.0, rows=None, m
     max_rows : int, optional
         The maximum number of spectral rows to use.  If more rows are
         available, an evenly spaced subset is used, to limit the computation
-        time.
+        time.  For line-dominated images (e.g. arcs), a subset of fewer than
+        about 1000 rows can miss the brightest rows of some lines, which makes
+        the refined position less reliable.
     neighbour : numpy.ndarray, optional
         The spatial positions (one per spectral row, like ``edge``) of the
         facing edge of the neighbouring slit; i.e. the right edge of the slit

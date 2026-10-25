@@ -777,6 +777,75 @@ def gaussian2D(tup, intflux, xo, yo, sigma_x, sigma_y, theta, offset):
     return gtwod.ravel()
 
 
+def _circular_gaussian2D(tup, intflux, xo, yo, sigma, offset):
+    """
+    A circular 2D Gaussian; see :func:`gaussian2D`.
+
+    Args:
+        tup (:obj:`tuple`):
+            A two element tuple containing the x and y coordinates of each pixel
+            in the image
+        intflux (float):
+            The integrated flux of the 2D Gaussian
+        xo (float):
+            The centre of the Gaussian along the x-coordinate (units of pixels)
+        yo (float):
+            The centre of the Gaussian along the y-coordinate (units of pixels)
+        sigma (float):
+            The standard deviation of the Gaussian (units of pixels)
+        offset (float):
+            Constant offset
+
+    Returns:
+        `numpy.ndarray`_: The 2D Gaussian evaluated at the coordinate (x, y)
+    """
+    return gaussian2D(tup, intflux, xo, yo, sigma, sigma, 0., offset)
+
+
+def _brightest_pixel_centroid(image, gpm, xx, yy, x0, y0, radius):
+    """
+    Return the flux-weighted centroid of the brightest good pixel within a
+    given distance of a position, and of its 8 neighbours.
+
+    This provides a robust starting position for the fit of a poorly sampled
+    object, whose position measured by e.g. DAOStarFinder can be wrong by a
+    pixel or more.
+
+    Args:
+        image (`numpy.ndarray`_):
+            The background-subtracted image.
+        gpm (`numpy.ndarray`_):
+            Good pixel mask of the image (True = good).
+        xx (`numpy.ndarray`_):
+            The x coordinate of each pixel of the image.
+        yy (`numpy.ndarray`_):
+            The y coordinate of each pixel of the image.
+        x0 (:obj:`float`):
+            The x coordinate of the approximate position.
+        y0 (:obj:`float`):
+            The y coordinate of the approximate position.
+        radius (:obj:`float`):
+            Only good pixels within this distance (in pixels) of the
+            approximate position are searched for the brightest pixel.
+
+    Returns:
+        :obj:`tuple`: The (x, y) position of the centroid.  If there is no
+        good pixel within ``radius``, or no positive flux around the brightest
+        pixel, the input position (or the position of the brightest pixel) is
+        returned.
+    """
+    near = gpm & ((xx - x0)**2 + (yy - y0)**2 <= radius**2)
+    if not np.any(near):
+        return x0, y0
+    ibright = np.argmax(np.where(near, image, -np.inf))
+    xb, yb = xx.flat[ibright], yy.flat[ibright]
+    box = gpm & (np.absolute(xx - xb) <= 1.5) & (np.absolute(yy - yb) <= 1.5)
+    wgt = np.where(box, np.clip(image, 0., None), 0.)
+    if np.sum(wgt) <= 0:
+        return xb, yb
+    return np.sum(wgt*xx)/np.sum(wgt), np.sum(wgt*yy)/np.sum(wgt)
+
+
 def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None, 
                   fwhm=3.0, nsigma=5.0, mask_edge=0, median_filter=False, 
                   norm=False, pixelscale=None, verbose=False):
@@ -806,10 +875,14 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
         the image has shape (ny, nx), a position (x, y) refers to image[y, x].
         If set, the 2D Gaussian fit will be performed with the position
         constrainted to be within plus or minus fwhm/3 in x and y. If not set,
-        the position will be determined by running DAOStarFinder on the image,
-        and the fitted position is constrained to be within plus or minus the
-        larger of fwhm and 1 pixel (the DAOStarFinder position of a poorly
-        sampled object can be wrong by up to about one pixel).  Default is
+        the brightest object is detected by running DAOStarFinder on the
+        image.  The DAOStarFinder position of a poorly sampled object can be
+        wrong by a pixel or more (in particular if ``fwhm`` is smaller than
+        the FWHM of the object), so the fit then starts from the flux-weighted
+        centroid of the brightest good pixel within the larger of 3*fwhm and 3
+        pixels of the DAOStarFinder position (and of its 8 neighbours), and
+        the fitted position is constrained to be within plus or minus the
+        larger of fwhm and 1 pixel of this starting position.  Default is
         None.
     fwhm : float, optional
         The FWHM of the image in pixels. This is used to estimate the initial
@@ -839,19 +912,25 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
        The optimum parameters of the Gaussian in the following order:
        integrated flux, x center, y center, sigma_x, sigma_y, theta, offset.
        See :func:`~pypeit.core.datacube.gaussian2D` for a more detailed
-       description of the model.  If the fit fails, a warning is printed,
-       and these are the initial guesses: the initial position, a symmetric
-       Gaussian with the input FWHM, and the integrated flux and offset
-       estimated from the image.
+       description of the model.  The fit is performed in two stages: a
+       circular Gaussian is fit first, and the elliptical Gaussian is then fit
+       starting from the circular one.  If the elliptical fit fails, the
+       circular fit is returned (with sigma_x = sigma_y and theta = 0).  If
+       both fits fail, a warning is printed, and these are the initial
+       guesses: the initial position, a circular Gaussian with the input FWHM,
+       and the integrated flux and offset estimated from the image.
     pcov : `numpy.ndarray`_
-        Corresponding covariance matrix (infinite if the fit fails)
+        Corresponding covariance matrix.  If only the circular fit succeeded,
+        the elements involving theta are infinite; if both fits fail, all
+        elements are infinite.
     model : `numpy.ndarray`_
         The 2D Gaussian model evaluated at the input image pixel locations
     _init_obj_position : tuple
-        If the init_obj_position input parameter is None, this will be the
-        initial guess for the object position in (x, y) image coordinates,
-        determined by running DAOStarFinder on the image. Otherwise it will be
-        the input value.
+        The initial guess for the object position in (x, y) image
+        coordinates.  If the init_obj_position input parameter is None, this
+        is the centroid of the brightest pixel near the object detected by
+        DAOStarFinder (see ``init_obj_position``).  Otherwise it is the input
+        value.
     flux_opt : float
         The optimally extracted object flux of the brightest source in the image
     sigma_opt : float
@@ -879,6 +958,13 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
             _ivar = np.ones_like(image)
     else:
         _ivar = ivar
+
+    # Setup the coordinates
+    x = np.linspace(0, image.shape[1] - 1, image.shape[1])
+    y = np.linspace(0, image.shape[0] - 1, image.shape[0])
+    xx, yy = np.meshgrid(x, y, indexing='xy')
+    # The background level of the image is its (sigma-clipped) median
+    mean_image, median_image, std_image = sigma_clipped_stats(image[np.logical_not(totmask)], sigma=3.0)
 
     if init_obj_position is None: 
         if DAOStarFinder is None:
@@ -920,23 +1006,21 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
                     sources[col].info.format = '%.2f'  # for consistent table output
             sources.pprint(max_width=76)
 
-        _init_obj_position = sources['x_centroid'][0], sources['y_centroid'][0]
         # The DAOStarFinder position of a poorly sampled object can be wrong by
-        # up to about one pixel, so allow the fitted position a wider range
+        # a pixel or more, so start the fit from the centroid of the brightest
+        # pixel near the detected object, and allow the fitted position a wider
+        # range
+        _init_obj_position = _brightest_pixel_centroid(
+            image - median_image, np.logical_not(totmask), xx, yy,
+            sources['x_centroid'][0], sources['y_centroid'][0], max(3.0*fwhm, 3.0))
         dpos = max(fwhm, 1.0)
     else:
         _init_obj_position = init_obj_position
         dpos = fwhm/3.0
 
-    # Setup the coordinates
-    x = np.linspace(0, image.shape[1] - 1, image.shape[1])
-    y = np.linspace(0, image.shape[0] - 1, image.shape[0])
-    xx, yy = np.meshgrid(x, y, indexing='xy')
-
     # Estimate the initial integrated flux and offset from the image: the offset
-    # is the (sigma-clipped) median of the image, and the integrated flux is the
+    # is the background level of the image, and the integrated flux is the
     # flux above the offset within a few FWHM of the initial position.
-    mean_image, median_image, std_image = sigma_clipped_stats(image[np.logical_not(totmask)], sigma=3.0)
     near_obj = np.sqrt((xx - _init_obj_position[0])**2 + (yy - _init_obj_position[1])**2) \
                     <= max(3.0*fwhm, 3.0)
     init_flux = np.sum((image - median_image)[near_obj & _gpm]) / wlscl
@@ -951,15 +1035,41 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
     # TODO :: May want to generate the image on a finer pixel scale first
     # TODO JFH: The 2D Gaussian fitting should be using the noise and the gpm. This should be
     # implemented with scipy.optimize and a loss function instead of curve_fit
+    # The fit is performed in two stages.  A circular Gaussian is fit first,
+    # because the orientation of an elliptical Gaussian is undetermined at a
+    # circular initial guess, which can prevent the fit from converging.  The
+    # elliptical Gaussian is then fit starting from the circular one.
+    data = image.ravel() / wlscl
+    # The parameters of the circular Gaussian (integrated flux, x, y, sigma,
+    # offset) are these parameters of the elliptical Gaussian
+    circ = [0, 1, 2, 3, 6]
     try:
-        popt, pcov = opt.curve_fit(gaussian2D, (xx, yy), image.ravel() / wlscl,
-                                   bounds=bounds, p0=initial_guess)
+        popt_circ, pcov_circ = opt.curve_fit(
+            _circular_gaussian2D, (xx, yy), data, p0=np.asarray(initial_guess)[circ],
+            bounds=(np.asarray(bounds[0])[circ], np.asarray(bounds[1])[circ]))
     except RuntimeError as err:
         log.warning(f'The 2D Gaussian fit failed ({err}).\nAdopting the initial position, '
                     f'(x, y) = ({_init_obj_position[0]:.2f}, {_init_obj_position[1]:.2f}), and a '
                     f'symmetric Gaussian with FWHM = {fwhm:.2f} pixels.')
         popt = np.array(initial_guess, dtype=float)
         pcov = np.full((popt.size, popt.size), np.inf)
+    else:
+        # The equivalent elliptical Gaussian, with sigma_x = sigma_y and an
+        # undetermined orientation (theta = 0, with an infinite variance)
+        ell = [0, 1, 2, 3, 4, 6]
+        expand = [0, 1, 2, 3, 3, 4]
+        popt = np.zeros(len(initial_guess))
+        popt[ell] = popt_circ[expand]
+        pcov = np.full((popt.size, popt.size), np.inf)
+        pcov[np.ix_(ell, ell)] = pcov_circ[np.ix_(expand, expand)]
+        # Start slightly elongated, so that the orientation is defined
+        p0 = popt.copy()
+        p0[3] = popt[3]*1.05 if popt[3]*1.05 <= bounds[1][3] else popt[3]/1.05
+        try:
+            popt, pcov = opt.curve_fit(gaussian2D, (xx, yy), data, bounds=bounds, p0=p0)
+        except RuntimeError as err:
+            log.info(f'The elliptical 2D Gaussian fit failed ({err}).  Adopting the circular '
+                     '2D Gaussian fit.')
     _, xobj, yobj, sigma_x_gauss, sigma_y_gauss, theta_gauss, _ = popt
     log.info("Gaussian fit gives:")
     log.info("--------------------------------")

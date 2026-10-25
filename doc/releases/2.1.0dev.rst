@@ -82,8 +82,11 @@ Functionality/Performance Improvements and Additions
   matched at the detector-level flexure, in which case the detector-level
   flexure is adopted for all edges.  An edge is refined if its model is a
   significant (10 sigma) improvement over a constant flux, and if its position
-  is measured to better than 0.1 pixels, so that the faint slit edges of
-  science frames can also be refined.
+  is measured to better than 0.1 pixels.  Refined edges whose spatial flexure
+  is inconsistent with that of the other edges (by more than 4 times their
+  robust scatter about a linear fit across the detector, and at least 0.25
+  pixels) are rejected, and their spatial flexure is interpolated from the
+  neighbouring edges.
 - The spatial flexure of each frame is accounted for when constructing
   datacubes (``pypeit_coadd_datacube``): the RA and Dec of each detector pixel,
   and the astrometric alignment traces, are now evaluated using the spatial
@@ -192,11 +195,13 @@ Instrument-specific Updates
 
 - Keck/KCWI and Keck/KCRM: the spatial flexure is now determined by default
   for the arc, tilt, pixel-flat and illumination-flat frames (``edge``
-  method) and for the science frames (``slit`` method, with
-  ``spat_flexure_polyord = 1``); the faint slit edges of science frames are
-  biased towards the slit centre when they are refined, and this bias cancels
-  for the ``slit`` method.  The traced slit edges are refined to the steepest
-  flux gradient (``refine_edges = True``), and the slit edges are no longer
+  method) and for the science frames (``detector`` method, with
+  ``spat_flexure_minfrac = 0.25``); the slit edges of science frames are only
+  illuminated by the sky, and the edges of individual slits cannot be
+  measured reliably, whereas the detector-level shift is consistent to a few
+  thousandths of a pixel between consecutive exposures.  The traced slit
+  edges are refined to the steepest flux gradient (``refine_edges = True``),
+  and the slit edges are no longer
   tweaked (``tweak_slits = False``), so that everything is relative to the
   initial slits.  Other changes to the KCWI/KCRM defaults:
 
@@ -424,9 +429,13 @@ Bug Fixes
   flux and offset did not depend on the image, and the position of a
   DAOStarFinder detection was constrained to within one third of the FWHM, so
   that the fit of a poorly sampled object often failed (or ended at the
-  bounds).  The position is now constrained to within the larger of the FWHM
-  and one pixel, and, if the fit fails, the initial position and the input
-  FWHM are adopted with a warning.
+  bounds).  The fit now starts from the centroid of the brightest pixel near
+  the DAOStarFinder detection (whose position can be wrong by more than a
+  pixel for a poorly sampled object), the position is constrained to within
+  the larger of the FWHM and one pixel, and a circular Gaussian is fit before
+  the elliptical one (whose orientation is undetermined at a circular initial
+  guess).  If the elliptical fit fails, the circular fit is adopted; if both
+  fail, the initial position and the input FWHM are adopted with a warning.
 
 - Make reductions reproducible run to run (Issue #2208).
   :func:`~pypeit.core.pca.pca_decomposition` now uses the exact

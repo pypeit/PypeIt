@@ -81,14 +81,20 @@ The algorithm proceeds as follows:
        slit, and the ``leftedge`` (``rightedge``) method uses the left (right)
        edge for both edges.  Only the spectral rows within the spectral extent
        of the slit and where the edge is on the detector are used (at most
-       500 rows, evenly spaced).  An edge is refined only if the model is a
-       significant improvement over a constant flux in each row (by more than
-       10 standard deviations), and if the uncertainty of its position is
-       less than 0.1 pixels; this allows the faint slit edges of science
-       frames (which are only illuminated by the sky) to be refined.  However,
-       faint edges are biased towards the centre of the slit (by up to about
-       0.1 pixels), so the ``slit`` method, for which this bias cancels, is
-       recommended for faint frames.  If an edge cannot be refined (e.g., if
+       1000 rows, evenly spaced; fewer rows can miss the brightest rows of
+       arc frames, which makes the refined edges less reliable).  An edge is
+       refined only if the model is a significant improvement over a
+       constant flux in each row (by more than 10 standard deviations), and
+       if the (formal) uncertainty of its position is less than 0.1 pixels.
+       The model describes continuum-illuminated edges (e.g., in flat-field
+       frames) well.  However, in frames whose slit edges are only
+       illuminated by emission lines (e.g., the sky lines of science frames),
+       the edges of individual slits can be shifted by a pixel or more (e.g.,
+       by objects or sky lines near the edges), while the formal uncertainty
+       remains small.  For such frames (in particular faint science frames),
+       the ``detector`` method is recommended: it is much more precise than
+       the refined edges, and its reliability can be checked with
+       ``spat_flexure_minfrac``.  If an edge cannot be refined (e.g., if
        no edge is detected, or if the slit is excluded from the reduction),
        the ``detector`` value is adopted for that edge.  If fewer than 25% of
        the slit edges can be refined, the slit edges are deemed to be
@@ -100,12 +106,22 @@ The algorithm proceeds as follows:
        the previous step): the slit edges are then clearly visible, but too
        faint to refine, and the ``detector`` value is adopted for all edges.
 
+    #. Refined edges whose spatial flexure is inconsistent with that of the
+       other edges are rejected.  For the left and right edges separately, a
+       straight line is fit to the spatial flexure of the refined edges as a
+       function of their spatial position, with iterative rejection; an edge
+       is rejected if its difference from the fit is larger than 4 times the
+       (robust) scatter of the differences, or 0.25 pixels if that is larger
+       (provided that at least 5 edges were refined on that side).  The
+       spatial flexure of a rejected edge is interpolated from the
+       neighbouring edges on the same side, and a warning is printed.
+
     #. Optionally, the spatial flexure of the left and right slit edges can be
        fit with a polynomial as a function of the spatial position of the
        slits, with an order set by ``spat_flexure_polyord`` (this is only
        relevant for the ``slit``, ``edge``, ``leftedge`` and ``rightedge``
-       methods).  Only the edges that were refined are used in the fit, and
-       outliers are rejected.
+       methods).  Only the edges that were refined (and not rejected) are
+       used in the fit, and outliers are rejected.
 
 The spatial flexure is measured relative to the traced (initial) slit edges,
 without the padding of the slit edges set by the ``pad`` parameter of

@@ -82,7 +82,8 @@ def spat_flexure_edge_match(sci_edges, slits_edges, shift, tol=2):
 
 def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, sigdetect=10.,
                        minfrac=0., min_refined_frac=0.25, fallback_match_frac=0.5,
-                       refine_max_rows=500, return_gpm=False, debug=False):
+                       refine_max_rows=1000, outlier_nsig=4., outlier_min_tol=0.25,
+                       return_gpm=False, debug=False):
     """
     Calculate the flexure shift (in detector pixels) in the spatial dimension
     between the slitmask and the science image.
@@ -155,7 +156,21 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
             instead of no flexure.
         refine_max_rows (:obj:`int`, optional):
             Maximum number of spectral rows used to refine each slit edge;
-            see :func:`~pypeit.core.trace.refine_edge`.
+            see :func:`~pypeit.core.trace.refine_edge`.  The rows are evenly
+            spaced, so fewer rows can miss the brightest rows of
+            line-dominated images (e.g. arcs), which makes the refined edges
+            less reliable.
+        outlier_nsig (:obj:`float`, optional):
+            Only used by the 'slit', 'edge', 'leftedge' and 'rightedge'
+            methods.  Refined slit edges whose spatial flexure differs from
+            that of the other edges on the same side of the slits by more
+            than ``outlier_nsig`` times their (robust) scatter, or by more
+            than ``outlier_min_tol`` pixels if that is larger, are rejected,
+            and their spatial flexure is interpolated from the other edges;
+            see :func:`reject_edge_flexure_outliers`.
+        outlier_min_tol (:obj:`float`, optional):
+            Minimum difference (in pixels) for a refined slit edge to be
+            rejected; see ``outlier_nsig``.
         return_gpm (:obj:`bool`, optional):
             Also return a boolean array identifying the slit edges for
             which the spatial flexure was measured.
@@ -168,9 +183,12 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
         column provides the shift of the left (right) edge of each slit.
         Slit edges that could not be refined (or that belong to slits
         excluded from the flexure calculation) are assigned the detector
-        level spatial flexure.  If ``return_gpm`` is True, a boolean array
-        with the same shape is also returned, which is True for the slit
-        edges where the spatial flexure was measured.  For the
+        level spatial flexure, and refined slit edges that are inconsistent
+        with the other edges are assigned the spatial flexure interpolated
+        from the other edges (see ``outlier_nsig``).  If ``return_gpm`` is
+        True, a boolean array with the same shape is also returned, which is
+        True for the slit edges where the spatial flexure was measured (i.e.
+        it is False for the rejected edges).  For the
         ``detector`` method (or if the detector-level flexure is adopted
         because too few edges could be refined; see
         ``fallback_match_frac``), this is True for all edges of the slits
@@ -379,26 +397,111 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
         gpm = np.zeros((slits.nslits, 2), dtype=bool)
         return (total_flexure, gpm) if return_gpm else total_flexure
 
+    # Reject the refined edges whose flexure is inconsistent with that of the
+    # other edges on the same side of the slits (e.g. because an object or the
+    # sky lines near the edge shift the refined position), and interpolate
+    # their flexure from the remaining edges
+    mid = left.shape[0] // 2
+    edge_pos = np.column_stack((left[mid], right[mid]))
+    delta_flexure, rejected = reject_edge_flexure_outliers(delta_flexure, edge_pos,
+                                                           nsig=outlier_nsig,
+                                                           min_tol=outlier_min_tol)
+    if np.any(rejected):
+        log.warning(f'The spatial flexure of {np.sum(rejected)} refined slit edge(s) is '
+                    'inconsistent with that of the other slit edges; these are assigned the '
+                    'spatial flexure interpolated from the other slit edges.')
+    # The slit edges where the spatial flexure was measured
+    gpm = np.isfinite(delta_flexure) & np.logical_not(rejected)
+
     if method == "slit":
         # Use the average flexure of both edges as the flexure for the slit
         # (or the flexure of one edge, if only that edge could be refined)
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', category=RuntimeWarning)
             delta_flexure = np.nanmean(delta_flexure, axis=1)[:, None].repeat(2, axis=1)
+        gpm = np.any(gpm, axis=1)[:, None].repeat(2, axis=1)
     elif method == "leftedge":
         # Assign the left edge flexure to the right edge
         delta_flexure[:, 1] = delta_flexure[:, 0]
+        gpm[:, 1] = gpm[:, 0]
     elif method == "rightedge":
         # Assign the right edge flexure to the left edge
         delta_flexure[:, 0] = delta_flexure[:, 1]
+        gpm[:, 0] = gpm[:, 1]
     # Edges that could not be refined are assigned the detector level flexure
-    gpm = np.isfinite(delta_flexure)
-    if not np.all(gpm):
-        log.warning(f'The spatial flexure could not be refined for {np.sum(~gpm)} slit edge(s); '
-                    'these are assigned the detector level spatial flexure.')
+    refined = np.isfinite(delta_flexure)
+    if not np.all(refined):
+        log.warning(f'The spatial flexure could not be refined for {np.sum(~refined)} slit '
+                    'edge(s); these are assigned the detector level spatial flexure.')
     # Add the delta_flexure to the total_flexure
-    total_flexure = total_flexure + np.where(gpm, delta_flexure, 0.)
+    total_flexure = total_flexure + np.where(refined, delta_flexure, 0.)
     return (total_flexure, gpm) if return_gpm else total_flexure
+
+
+def reject_edge_flexure_outliers(delta_flexure, edge_pos, nsig=4., min_tol=0.25, min_edges=5,
+                                 maxiter=10):
+    """
+    Reject slit edges whose refined spatial flexure is inconsistent with that
+    of the other slit edges, and interpolate their spatial flexure from the
+    remaining edges.
+
+    The spatial flexure varies smoothly across the detector, so, for the left
+    and right edges of the slits separately, a straight line is fit to the
+    spatial flexure as a function of the edge position, with iterative
+    rejection.  An edge is rejected if the difference from the fit is larger
+    than ``nsig`` times the robust standard deviation of the differences (from
+    the median absolute deviation), or larger than ``min_tol`` pixels if that
+    is larger.  The spatial flexure of a rejected edge is linearly
+    interpolated from the nearest remaining edges on the same side of the
+    slits (the value of the nearest edge is used beyond the outermost
+    remaining edges).
+
+    Args:
+        delta_flexure (`numpy.ndarray`_):
+            The (refined) spatial flexure of each slit edge, with shape
+            (nslits, 2), where the first (second) column provides the
+            flexure of the left (right) edge of each slit.  NaN values (e.g.
+            edges that could not be refined) are ignored and returned as is.
+        edge_pos (`numpy.ndarray`_):
+            The spatial position of each slit edge (e.g. in the middle of the
+            spectral range), with the same shape as ``delta_flexure``.
+        nsig (:obj:`float`, optional):
+            Rejection threshold, in units of the robust standard deviation of
+            the differences from the fit.
+        min_tol (:obj:`float`, optional):
+            Minimum rejection threshold, in pixels.
+        min_edges (:obj:`int`, optional):
+            Minimum number of edges (with a finite spatial flexure) on one
+            side of the slits needed to reject outliers on that side.
+        maxiter (:obj:`int`, optional):
+            Maximum number of rejection iterations.
+
+    Returns:
+        :obj:`tuple`: A copy of ``delta_flexure`` in which the rejected edges
+        are assigned the interpolated spatial flexure, and a boolean array
+        with the same shape, which is True for the rejected edges.
+    """
+    _delta = np.array(delta_flexure, dtype=float)
+    rejected = np.zeros(_delta.shape, dtype=bool)
+    for ii in range(_delta.shape[1]):
+        meas = np.where(np.isfinite(_delta[:, ii]))[0]
+        if meas.size < min_edges:
+            continue
+        pos, val = edge_pos[meas, ii], _delta[meas, ii]
+        good = np.ones(meas.size, dtype=bool)
+        for _ in range(maxiter):
+            resid = val - np.polyval(np.polyfit(pos[good], val[good], 1), pos)
+            mad = np.median(np.absolute(resid[good] - np.median(resid[good])))
+            _good = np.absolute(resid) <= max(nsig * 1.4826 * mad, min_tol)
+            if np.sum(_good) < min_edges or np.array_equal(_good, good):
+                break
+            good = _good
+        if np.all(good):
+            continue
+        srt = np.argsort(pos[good])
+        _delta[meas[~good], ii] = np.interp(pos[~good], pos[good][srt], val[good][srt])
+        rejected[meas[~good], ii] = True
+    return _delta, rejected
 
 
 

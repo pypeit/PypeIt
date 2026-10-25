@@ -336,13 +336,17 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         # Illumination corrections
         par['scienceframe']['process']['use_illumflat'] = True  # illumflat is applied when building the relative scale image in reduce.py, so should be applied to scienceframe too.
         par['scienceframe']['process']['use_specillum'] = True  # apply relative spectral illumination
-        # Slice dependent spatial flexure; see above.  The slit edges of the
-        # science frames are only illuminated by the sky (i.e., they are faint),
-        # and faint edges are biased towards the slit centre when they are
-        # refined.  The 'slit' method uses the mean shift of the two edges of
-        # each slit, which cancels this bias, so that the slits keep their width.
-        par['scienceframe']['process']['spat_flexure_method'] = "slit"
-        par['scienceframe']['process']['spat_flexure_polyord'] = 1  # Fit the spatial flexure of the slits with a linear function.
+        # Spatial flexure of the science frames.  Their slit edges are only
+        # illuminated by the sky, and the edges of individual slits cannot be
+        # refined reliably (sky lines and objects near the edges can shift the
+        # refined edge by a pixel or more), so a single shift is measured for
+        # the detector.  This is consistent to a few thousandths of a pixel
+        # between consecutive exposures.  If fewer than 25% of the traced
+        # slit-edge pixels are matched by an edge in the image (e.g. because
+        # the frame is too faint), the cross-correlation is not reliable, and
+        # no spatial flexure is applied.
+        par['scienceframe']['process']['spat_flexure_method'] = "detector"
+        par['scienceframe']['process']['spat_flexure_minfrac'] = 0.25
         par['scienceframe']['process']['use_biasimage'] = True  # Need to use bias frames for KCWI, because the bias level varies monotonically with spatial and spectral direction
         par['scienceframe']['process']['use_darkimage'] = False
 

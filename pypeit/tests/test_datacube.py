@@ -410,19 +410,57 @@ def _undersampled_star(x0, y0, sigma, flux, shape, noise, seed):
 
 
 @photutils_required
-def test_fitgaussian2d_undersampled_star():
+@pytest.mark.parametrize('fwhm', [0.81, 1.1])
+def test_fitgaussian2d_undersampled_star(fwhm):
     """An undersampled star (most of its flux in two pixels, as for the KCWI
     GD50 datacube) must be fit at its position, with its integrated flux,
-    without normalising the image."""
+    without normalising the image.  The input FWHM of 0.81 pixels (the
+    1.1 arcsec of the dev-suite extraction) is smaller than the FWHM of the
+    star, so the DAOStarFinder position can be wrong by more than a pixel."""
     for seed in range(4):
         image = _undersampled_star(10.5, 7.1, 0.45, 700.0, (17, 24), 1.0, seed)
-        popt, pcov, *_ = datacube.fitGaussian2D(image, fwhm=1.1, norm=False)
+        popt, pcov, *_ = datacube.fitGaussian2D(image, fwhm=fwhm, norm=False)
         assert np.all(np.isfinite(pcov)), 'the 2D Gaussian fit of an undersampled star failed'
         assert np.isclose(popt[1], 10.5, atol=0.05) and np.isclose(popt[2], 7.1, atol=0.05), \
             'wrong position of an undersampled star'
         assert np.isclose(popt[0], 700.0, rtol=0.03), 'wrong integrated flux of an undersampled star'
         # The (pixel-integrated) width is sqrt(0.45**2 + 1/12) = 0.54 pixels
         assert np.allclose(popt[3:5], 0.54, atol=0.05), 'wrong width of an undersampled star'
+
+
+@photutils_required
+@pytest.mark.parametrize('x0, y0', [(9.70, 6.76), (9.83, 7.29), (10.25, 6.78)])
+def test_fitgaussian2d_undersampled_star_positions(x0, y0):
+    """Undersampled stars at positions where the DAOStarFinder position (with
+    an input FWHM of 0.81 pixels) is more than 1.5 pixels from the star."""
+    image = _undersampled_star(x0, y0, 0.45, 700.0, (17, 24), 1.0, 1)
+    popt, pcov, *_ = datacube.fitGaussian2D(image, fwhm=0.81, norm=False)
+    assert np.all(np.isfinite(pcov)), 'the 2D Gaussian fit of an undersampled star failed'
+    assert np.isclose(popt[1], x0, atol=0.05) and np.isclose(popt[2], y0, atol=0.05), \
+        'wrong position of an undersampled star'
+    assert np.isclose(popt[0], 700.0, rtol=0.03), 'wrong integrated flux of an undersampled star'
+
+
+@photutils_required
+def test_fitgaussian2d_circular_fit(monkeypatch):
+    """If the elliptical 2D Gaussian fit fails, the circular fit is adopted."""
+    image = _undersampled_star(10.5, 7.1, 0.45, 700.0, (17, 24), 1.0, 0)
+    curve_fit = datacube.opt.curve_fit
+
+    def circular_only(func, xdata, ydata, p0=None, **kwargs):
+        if len(p0) == 7:
+            raise RuntimeError('Optimal parameters not found')
+        return curve_fit(func, xdata, ydata, p0=p0, **kwargs)
+
+    monkeypatch.setattr(datacube.opt, 'curve_fit', circular_only)
+    popt, pcov, *_ = datacube.fitGaussian2D(image, fwhm=1.1, norm=False)
+    assert np.isclose(popt[1], 10.5, atol=0.05) and np.isclose(popt[2], 7.1, atol=0.05), \
+        'wrong position of the circular fit'
+    assert np.isclose(popt[3], popt[4]) and popt[5] == 0, 'the circular fit was not adopted'
+    assert np.isclose(popt[0], 700.0, rtol=0.03), 'wrong integrated flux of the circular fit'
+    assert np.all(np.isfinite(np.delete(np.delete(pcov, 5, axis=0), 5, axis=1))), \
+        'the covariance of the circular fit should be finite'
+    assert np.all(np.isinf(pcov[5])), 'the orientation of the circular fit is undetermined'
 
 
 @photutils_required
