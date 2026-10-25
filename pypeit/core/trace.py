@@ -1544,6 +1544,23 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
     return fit, cen, err, msk, npeak
 
 
+def _ndtr_antideriv(t):
+    """
+    Antiderivative of the standard normal cumulative distribution function.
+
+    Parameters
+    ----------
+    t : `numpy.ndarray`_
+        Argument.
+
+    Returns
+    -------
+    `numpy.ndarray`_
+        The antiderivative evaluated at ``t``.
+    """
+    return t * special.ndtr(t) + np.exp(-0.5 * t * t) / np.sqrt(2 * np.pi)
+
+
 def _edge_model(u, cen, sig, side):
     """
     Pixel-integrated model of a slit edge.
@@ -1568,11 +1585,8 @@ def _edge_model(u, cen, sig, side):
     `numpy.ndarray`_
         The model (between 0 and 1) evaluated for each pixel.
     """
-    def _antideriv(t):
-        # Antiderivative of the standard normal cumulative distribution function
-        return t * special.ndtr(t) + np.exp(-0.5 * t * t) / np.sqrt(2 * np.pi)
-    return side * sig * (_antideriv(side * (u + 0.5 - cen) / sig)
-                         - _antideriv(side * (u - 0.5 - cen) / sig))
+    return side * sig * (_ndtr_antideriv(side * (u + 0.5 - cen) / sig)
+                         - _ndtr_antideriv(side * (u - 0.5 - cen) / sig))
 
 
 def facing_edges(left, right, cross=1.):
@@ -1630,6 +1644,15 @@ REFINE_EDGE_SIG_RANGE = (0.2, 5.0)
 
 REFINE_EDGE_MAX_GRAD = 0.2
 """Maximum (absolute) gradient of the slit illumination in the edge model of :func:`refine_edge`."""
+
+REFINE_EDGE_MIN_SIGNIFICANCE = 10.
+"""
+Minimum significance (in standard deviations) of the detection of an edge by
+:func:`refine_edge`; see :func:`_refine_edge_significance`.
+"""
+
+REFINE_EDGE_MAX_ERROR = 0.1
+"""Maximum uncertainty (pixels) of the position of an edge refined by :func:`refine_edge`."""
 
 
 def _refine_edge_failed(reason, l_or_r, return_success):
@@ -1802,6 +1825,73 @@ def _refine_edge_merit(par, u, fnorm, wgt, row_wgt, side, search, sep, sep_med, 
                             cen_nbr=cen_nbr)[0]
 
 
+def _refine_edge_significance(par, u, fnorm, wgt, row_wgt, side, rss_const, sep=None, step=0.05):
+    r"""
+    Significance of the detection of the edge fit by :func:`refine_edge`, and
+    the uncertainty of its position.
+
+    Because each row is weighted by the square of the flux step across the
+    edge (see :func:`refine_edge`), the weighted residual sum of squares of the
+    normalised flux is proportional to the residual sum of squares of the flux.
+    The noise variance (in the same units) is estimated from the residuals of
+    the best fit, :math:`s^2 = \chi^2/\nu`.  Compared to a constant flux in
+    each row, the edge model has :math:`\Delta p` more free parameters, so,
+    if there is no edge, :math:`\Delta\chi^2/s^2` follows a :math:`\chi^2`
+    distribution with :math:`\Delta p` degrees of freedom.  The significance of
+    the detection is therefore
+
+    .. math::
+
+        z = \frac{\Delta\chi^2/s^2 - \Delta p}{\sqrt{2\Delta p}}.
+
+    The uncertainty of the position of the edge is computed from the curvature
+    of :math:`\chi^2` as a function of the offset of the edge (with the other
+    parameters fixed): :math:`\sigma^2 = 2 s^2 / (\partial^2\chi^2/\partial
+    c^2)`.
+
+    Parameters
+    ----------
+    par : array-like
+        Best-fitting parameters (see :func:`_refine_edge_merit`).
+    u, fnorm, wgt, row_wgt, side, sep : various
+        See :func:`_refine_edge_rss`.
+    rss_const : float
+        Weighted residual sum of squares for a constant flux in each row.
+    step : float, optional
+        Step (in pixels) used to compute the curvature of :math:`\chi^2`.
+
+    Returns
+    -------
+    z : float
+        Significance of the detection, in standard deviations.
+    err : float
+        Uncertainty of the offset of the edge, in pixels.
+    """
+    sig = np.exp(par[1])
+    cen_nbr = par[3] if sep is not None else 0.
+    chisq = _refine_edge_rss(u, fnorm, wgt, row_wgt, side, par[0], sig, par[2], sep=sep,
+                             cen_nbr=cen_nbr)[0]
+    chisq_lo = _refine_edge_rss(u, fnorm, wgt, row_wgt, side, par[0] - step, sig, par[2],
+                                sep=sep, cen_nbr=cen_nbr)[0]
+    chisq_hi = _refine_edge_rss(u, fnorm, wgt, row_wgt, side, par[0] + step, sig, par[2],
+                                sep=sep, cen_nbr=cen_nbr)[0]
+    curv = (chisq_hi - 2 * chisq + chisq_lo) / step ** 2
+    # Free parameters: an amplitude and a background in each row (plus the
+    # amplitude of the neighbouring slit), and the global parameters
+    nrow = fnorm.shape[0]
+    npar_row = 2 if sep is None else 3
+    dof = np.sum(wgt) - nrow * npar_row - len(par)
+    dpar = nrow * (npar_row - 1) + len(par)
+    if rss_const <= 0 or dof <= 0 or curv <= 0:
+        return 0., np.inf
+    if chisq <= 0:
+        # A perfect fit (noiseless data)
+        return np.inf, 0.
+    s2 = chisq / dof
+    z = ((rss_const - chisq) / s2 - dpar) / np.sqrt(2 * dpar)
+    return z, np.sqrt(2 * s2 / curv)
+
+
 def refine_edge(trcimg, bpm, edge, l_or_r, min_rows=10, search=2.0, rows=None, max_rows=1000,
                 neighbour=None, return_success=False):
     """
@@ -1819,9 +1909,14 @@ def refine_edge(trcimg, bpm, edge, l_or_r, min_rows=10, search=2.0, rows=None, m
     the edge.  Because the shape of the edge is modelled, the shift is
     accurately determined even if the edge is aligned with the detector columns
     (i.e. if all spectral rows sample the same pixel phases).  The edge is only
-    considered to be detected if the model accounts for at least half of the
-    variance of the flux around the edge (compared to a constant flux in each
-    row).
+    considered to be detected if, compared to a constant flux in each row, the
+    model is a significant improvement (by more than
+    :data:`REFINE_EDGE_MIN_SIGNIFICANCE` standard deviations), and the
+    uncertainty of the shift is smaller than :data:`REFINE_EDGE_MAX_ERROR`
+    pixels (see :func:`_refine_edge_significance`).  This also allows faint
+    edges to be refined (e.g. the edges of the slits in a science frame, which
+    are only illuminated by the sky), provided that enough spectral rows are
+    used.
 
     If the facing edge of the neighbouring slit (i.e. the right edge of the
     slit to the left of a left edge, or the left edge of the slit to the right
@@ -1983,7 +2078,7 @@ def refine_edge(trcimg, bpm, edge, l_or_r, min_rows=10, search=2.0, rows=None, m
     nbr_grid = [0.] if sep is None else [-1., -0.5, 0., 0.5]
 
     best = (np.inf, 0., 1., 0.)
-    for cen in np.arange(-search, search + 1e-6, 0.25):
+    for cen in np.arange(-search, search + 1e-6, 0.5):
         for sig in [0.5, 1.0, 2.0]:
             for cen_nbr in nbr_grid:
                 if not _refine_edge_gap_ok(cen, cen_nbr, side, sep_med):
@@ -1997,22 +2092,28 @@ def refine_edge(trcimg, bpm, edge, l_or_r, min_rows=10, search=2.0, rows=None, m
                                    return_success)
 
     # Refine the fit, including the gradient of the slit illumination
-    x0 = [best[1], np.log(best[2]), 0.] + ([best[3]] if sep is not None else [])
+    x0 = np.array([best[1], np.log(best[2]), 0.] + ([best[3]] if sep is not None else []))
+    # The initial simplex spans about half of the steps of the grid search
+    simplex_step = np.array([0.25, 0.3, 0.02] + ([0.25] if sep is not None else []))
+    initial_simplex = np.vstack([x0, x0 + np.diag(simplex_step)])
     res = optimize.minimize(_refine_edge_merit, x0=x0, method='Nelder-Mead',
                             args=(u, fnorm, wgt, row_wgt, side, search, sep, sep_med,
                                   1e3 * (best[0] + 1.)),
-                            options=dict(xatol=1e-4, fatol=1e-10 * (best[0] + 1.),
-                                         maxiter=400 * len(x0)))
+                            options=dict(xatol=1e-3, fatol=1e-8 * (best[0] + 1.),
+                                         maxiter=400 * len(x0), initial_simplex=initial_simplex))
     shift, sig, grad = res.x[0], np.exp(res.x[1]), res.x[2]
     cen_nbr = res.x[3] if sep is not None else 0.
-    chisq, amp = _refine_edge_rss(u, fnorm, wgt, row_wgt, side, shift, sig, grad, sep=sep,
-                                  cen_nbr=cen_nbr)
+    _, amp = _refine_edge_rss(u, fnorm, wgt, row_wgt, side, shift, sig, grad, sep=sep,
+                              cen_nbr=cen_nbr)
     # Check the edge was detected, and the fit is reasonable
-    detected = rss_const > 0 and chisq < 0.5 * rss_const
+    signif, err = _refine_edge_significance(res.x, u, fnorm, wgt, row_wgt, side, rss_const,
+                                            sep=sep)
+    detected = signif > REFINE_EDGE_MIN_SIGNIFICANCE and err < REFINE_EDGE_MAX_ERROR
     if not np.isfinite(shift) or np.abs(shift) > search or amp.size == 0 or np.median(amp) <= 0 \
             or not detected:
         return _refine_edge_failed(f'Refining the {l_or_r} edge failed (best-fitting shift = '
-                                   f'{shift:.2f} pixels).', l_or_r, return_success)
+                                   f'{shift:.2f} pixels, detected at {signif:.1f} sigma, '
+                                   f'uncertainty {err:.2f} pixels).', l_or_r, return_success)
     return (float(shift), True) if return_success else float(shift)
 
 

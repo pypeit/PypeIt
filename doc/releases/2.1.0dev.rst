@@ -78,7 +78,12 @@ Functionality/Performance Improvements and Additions
   ``rightedge`` methods, the slit edges are deemed to be undetected (and no
   spatial flexure is applied) if fewer than 25% of the slit edges can be
   refined (e.g., for a short exposure of a standard star, where the slit edges
-  are not visible).
+  are not visible), unless at least 50% of the traced slit-edge pixels are
+  matched at the detector-level flexure, in which case the detector-level
+  flexure is adopted for all edges.  An edge is refined if its model is a
+  significant (10 sigma) improvement over a constant flux, and if its position
+  is measured to better than 0.1 pixels, so that the faint slit edges of
+  science frames can also be refined.
 - The spatial flexure of each frame is accounted for when constructing
   datacubes (``pypeit_coadd_datacube``): the RA and Dec of each detector pixel,
   and the astrometric alignment traces, are now evaluated using the spatial
@@ -184,6 +189,25 @@ Functionality/Performance Improvements and Additions
 
 Instrument-specific Updates
 ---------------------------
+
+- Keck/KCWI and Keck/KCRM: the spatial flexure is now determined by default
+  for the arc, tilt, pixel-flat and illumination-flat frames (``edge``
+  method) and for the science frames (``slit`` method, with
+  ``spat_flexure_polyord = 1``); the faint slit edges of science frames are
+  biased towards the slit centre when they are refined, and this bias cancels
+  for the ``slit`` method.  The traced slit edges are refined to the steepest
+  flux gradient (``refine_edges = True``), and the slit edges are no longer
+  tweaked (``tweak_slits = False``), so that everything is relative to the
+  initial slits.  Other changes to the KCWI/KCRM defaults:
+
+  - The wavelength calibration cross-correlates the arc spectra directly
+    with the templates (``cc_synth_arc = False``), instead of synthetic arc
+    spectra.
+  - KCWI: the non-linearity correction (``correct_nonlinear``) and the
+    subtraction of the scattered light from the pixel and illumination flats
+    (``subtract_scattlight``) are no longer applied by default; they can be
+    switched on by the user.  The default ``spat_samp`` and
+    ``tweak_slits_thresh`` of :ref:`flatfieldpar` are now used.
 
 - Magellan/LDSS3: support for the VPH-Blue and VPH-Red grisms, and a rework of
   how the two amplifier files are handled:
@@ -392,6 +416,17 @@ Under-the-hood Improvements
 
 Bug Fixes
 ---------
+
+- Fixed the 2D Gaussian fit of the white-light image of a datacube
+  (:func:`~pypeit.core.datacube.fitGaussian2D`), used to find point sources in
+  ``pypeit_extract_datacube`` and to determine the datacube weights and
+  alignment.  The model was not normalised to its integrated flux, the initial
+  flux and offset did not depend on the image, and the position of a
+  DAOStarFinder detection was constrained to within one third of the FWHM, so
+  that the fit of a poorly sampled object often failed (or ended at the
+  bounds).  The position is now constrained to within the larger of the FWHM
+  and one pixel, and, if the fit fails, the initial position and the input
+  FWHM are adopted with a warning.
 
 - Make reductions reproducible run to run (Issue #2208).
   :func:`~pypeit.core.pca.pca_decomposition` now uses the exact

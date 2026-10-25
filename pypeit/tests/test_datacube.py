@@ -390,6 +390,60 @@ def test_fitgaussian2d_ginga_xy_convention():
         'manual_position did not lock the fit onto the faint source in y (row)'
 
 
+def test_gaussian2d_integrated_flux():
+    """The ``intflux`` parameter of `gaussian2D` must be the integrated flux,
+    including for an asymmetric and rotated Gaussian."""
+    yy, xx = np.mgrid[-30:30:0.05, -30:30:0.05]
+    model = datacube.gaussian2D((xx, yy), 250.0, 0.3, -0.2, 1.7, 0.8, 0.6, 0.0)
+    assert np.isclose(np.sum(model) * 0.05**2, 250.0, rtol=1e-6), \
+        'gaussian2D is not normalised to its integrated flux'
+
+
+def _undersampled_star(x0, y0, sigma, flux, shape, noise, seed):
+    """Image of a pixel-integrated, circular Gaussian star plus Gaussian noise."""
+    from scipy.special import erf
+    ny, nx = shape
+    xedge, yedge = np.arange(nx + 1) - 0.5, np.arange(ny + 1) - 0.5
+    fx = np.diff(0.5 * (1 + erf((xedge - x0) / np.sqrt(2) / sigma)))
+    fy = np.diff(0.5 * (1 + erf((yedge - y0) / np.sqrt(2) / sigma)))
+    return flux * np.outer(fy, fx) + np.random.default_rng(seed).normal(0, noise, shape)
+
+
+@photutils_required
+def test_fitgaussian2d_undersampled_star():
+    """An undersampled star (most of its flux in two pixels, as for the KCWI
+    GD50 datacube) must be fit at its position, with its integrated flux,
+    without normalising the image."""
+    for seed in range(4):
+        image = _undersampled_star(10.5, 7.1, 0.45, 700.0, (17, 24), 1.0, seed)
+        popt, pcov, *_ = datacube.fitGaussian2D(image, fwhm=1.1, norm=False)
+        assert np.all(np.isfinite(pcov)), 'the 2D Gaussian fit of an undersampled star failed'
+        assert np.isclose(popt[1], 10.5, atol=0.05) and np.isclose(popt[2], 7.1, atol=0.05), \
+            'wrong position of an undersampled star'
+        assert np.isclose(popt[0], 700.0, rtol=0.03), 'wrong integrated flux of an undersampled star'
+        # The (pixel-integrated) width is sqrt(0.45**2 + 1/12) = 0.54 pixels
+        assert np.allclose(popt[3:5], 0.54, atol=0.05), 'wrong width of an undersampled star'
+
+
+@photutils_required
+def test_fitgaussian2d_failed_fit(monkeypatch):
+    """If the 2D Gaussian fit fails, the initial position and a symmetric
+    Gaussian with the input FWHM are adopted (rather than raising an error)."""
+    image = _undersampled_star(10.5, 7.1, 0.45, 700.0, (17, 24), 1.0, 0)
+
+    def failed_fit(*args, **kwargs):
+        raise RuntimeError('Optimal parameters not found')
+
+    monkeypatch.setattr(datacube.opt, 'curve_fit', failed_fit)
+    popt, pcov, model, init_pos, flux_opt, sigma_opt = datacube.fitGaussian2D(
+        image, init_obj_position=(10.4, 7.0), fwhm=1.1, norm=False)
+    assert np.allclose(popt[1:3], (10.4, 7.0)), 'the initial position was not adopted'
+    fwhm2sigma = 1.0 / (2 * np.sqrt(2 * np.log(2)))
+    assert np.allclose(popt[3:5], 1.1 * fwhm2sigma), 'the input FWHM was not adopted'
+    assert np.all(np.isinf(pcov)), 'the covariance of a failed fit should be infinite'
+    assert flux_opt > 0 and np.isfinite(sigma_opt), 'the optimal extraction failed'
+
+
 @photutils_required
 def test_extract_point_source_manual_position_selects_correct_source():
     """`extract_point_source` must extract the source at `manual_position`,

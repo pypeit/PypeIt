@@ -315,6 +315,31 @@ def test_spat_flexure_shift_refined_edges(method):
 
 
 
+@pytest.mark.parametrize('method', ['slit', 'edge'])
+def test_spat_flexure_shift_detector_fallback(method):
+    # If too few slit edges can be refined (forced here by requiring more
+    # refined edges than there are), but the cross-correlation matched most of
+    # the traced slit-edge pixels, the edges are visible and the detector-level
+    # flexure is adopted for all edges...
+    dx = 1.7
+    sciimg, slits = _synthetic_slit_image(dx, dx, nslit=3)
+    bpm = np.zeros(sciimg.shape, dtype=bool)
+    det_flexure = flexure.spat_flexure_shift(sciimg, slits, method='detector', bpm=bpm,
+                                             maxlag=10, sigdetect=5.)
+    assert np.allclose(det_flexure, dx, atol=0.4), 'Incorrect detector-level flexure'
+    spat_flexure, gpm = flexure.spat_flexure_shift(sciimg, slits, method=method, bpm=bpm,
+                                                   maxlag=10, sigdetect=5., min_refined_frac=1.01,
+                                                   return_gpm=True)
+    assert np.array_equal(spat_flexure, det_flexure), 'The detector-level flexure should be used'
+    assert np.all(gpm), 'The detector-level flexure is measured for all edges'
+    # ... unless too few of the edge pixels are matched
+    spat_flexure, gpm = flexure.spat_flexure_shift(sciimg, slits, method=method, bpm=bpm,
+                                                   maxlag=10, sigdetect=5., min_refined_frac=1.01,
+                                                   fallback_match_frac=1.01, return_gpm=True)
+    assert np.all(spat_flexure == 0.) and not np.any(gpm), \
+        'Undetected slit edges should give no flexure'
+
+
 def _fractional_slit_image(slits, spat_flexure, offslit=1e6):
     """
     Image with a value that depends linearly on the fractional position across

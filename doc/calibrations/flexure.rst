@@ -80,14 +80,25 @@ The algorithm proceeds as follows:
        ``slit`` method uses the average of the left and right edges of each
        slit, and the ``leftedge`` (``rightedge``) method uses the left (right)
        edge for both edges.  Only the spectral rows within the spectral extent
-       of the slit and where the edge is on the detector are used.  If an edge
-       cannot be refined (e.g., if no edge is detected, or if the slit is
-       excluded from the reduction), the ``detector`` value is adopted for that
-       edge.  If fewer than 25% of the slit edges can be refined, the slit
-       edges are deemed to be undetected (e.g., in a short exposure of a
-       standard star, where the sky is too faint to show the slit edges, so
-       that the peak of the cross-correlation is spurious), and no spatial
-       flexure is applied to the frame, with a warning.
+       of the slit and where the edge is on the detector are used (at most
+       500 rows, evenly spaced).  An edge is refined only if the model is a
+       significant improvement over a constant flux in each row (by more than
+       10 standard deviations), and if the uncertainty of its position is
+       less than 0.1 pixels; this allows the faint slit edges of science
+       frames (which are only illuminated by the sky) to be refined.  However,
+       faint edges are biased towards the centre of the slit (by up to about
+       0.1 pixels), so the ``slit`` method, for which this bias cancels, is
+       recommended for faint frames.  If an edge cannot be refined (e.g., if
+       no edge is detected, or if the slit is excluded from the reduction),
+       the ``detector`` value is adopted for that edge.  If fewer than 25% of
+       the slit edges can be refined, the slit edges are deemed to be
+       undetected (e.g., in a short exposure of a standard star, where the sky
+       is too faint to show the slit edges, so that the peak of the
+       cross-correlation is spurious), and no spatial flexure is applied to
+       the frame, with a warning.  The exception is when at least 50% of the
+       traced slit-edge pixels are matched at the ``detector`` value (see
+       the previous step): the slit edges are then clearly visible, but too
+       faint to refine, and the ``detector`` value is adopted for all edges.
 
     #. Optionally, the spatial flexure of the left and right slit edges can be
        fit with a polynomial as a function of the spatial position of the

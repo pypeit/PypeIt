@@ -178,6 +178,32 @@ def test_refine_edge_neighbour(gap):
         'A distant neighbouring slit should not be modelled'
 
 
+def test_refine_edge_faint():
+    # A faint edge (a step of 10 counts on a background of 5 counts, plus read
+    # noise, e.g. a slit edge illuminated by the sky), with a neighbouring slit
+    # 4 pixels away.  The model explains less than half of the variance of the
+    # flux around the edge, but the edge is detected with a high significance,
+    # and its position is well measured.
+    nspec, nspat = 2000, 60
+    xx = np.arange(nspat)
+    left_true, nbr_true = 30.3, 26.3
+    prof = 0.5 * (1 + erf((xx - left_true) / np.sqrt(2))) \
+                + 0.5 * (1 - erf((xx - nbr_true) / np.sqrt(2)))
+    edge, nbr = np.full(nspec, left_true + 0.4), np.full(nspec, nbr_true + 0.4)
+    rng = np.random.default_rng(3)
+    img = rng.poisson(np.tile(10. * prof + 5., (nspec, 1))) + rng.normal(0, 3., (nspec, nspat))
+    shift, refined = trace.refine_edge(img, None, edge, 'left', neighbour=nbr, return_success=True)
+    assert refined and np.isclose(shift, -0.4, atol=0.2), 'A faint edge should be refined'
+    # Images without an edge cannot be refined: pure noise, ...
+    img = rng.poisson(np.full((nspec, nspat), 30.)) + rng.normal(0, 3., (nspec, nspat))
+    assert not trace.refine_edge(img, None, edge, 'left', neighbour=nbr, return_success=True)[1], \
+        'Noise should not be detected as an edge'
+    # ... and a smooth illumination gradient
+    img = rng.poisson(np.tile(30. + 0.5 * xx, (nspec, 1))) + rng.normal(0, 3., (nspec, nspat))
+    assert not trace.refine_edge(img, None, edge, 'left', neighbour=nbr, return_success=True)[1], \
+        'A smooth gradient should not be detected as an edge'
+
+
 def test_facing_edges():
     nspec = 10
     # Three slits, given in a random order, and a lone left edge

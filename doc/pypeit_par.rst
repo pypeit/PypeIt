@@ -4289,7 +4289,7 @@ Alterations to the default parameters are:
           objlim = 1.5
           noise_floor = 0.01
           use_specillum = True
-          spat_flexure_method = edge
+          spat_flexure_method = slit
           spat_flexure_polyord = 1
   [reduce]
       [[skysub]]
@@ -4414,7 +4414,7 @@ Alterations to the default parameters are:
           noise_floor = 0.01
           use_specillum = True
           use_pattern = True
-          spat_flexure_method = edge
+          spat_flexure_method = slit
           spat_flexure_polyord = 1
           [[[scattlight]]]
               finecorr_method = median

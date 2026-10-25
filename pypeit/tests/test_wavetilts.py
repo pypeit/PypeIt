@@ -170,6 +170,25 @@ def test_fit2tilts_prepareSlit_no_flexure():
         assert np.array_equal(_spat_eval, spat_pix / (nspat - 1)), 'Spatial coordinate changed'
 
 
+def test_fit2tilts_prepareSlit_zero_width():
+    # Spectral rows where the slit has no width (left edge = right edge) must
+    # not give NaN coordinates (which would set the tilts to their clipping
+    # limit)
+    nspec, nspat = 10, 20
+    left, right = np.full(nspec, 5.), np.full(nspec, 12.)
+    right[:3] = left[:3]
+    thismask = np.zeros((nspec, nspat), dtype=bool)
+    thismask[:, 3:15] = True
+    spec_pix, spat_pix = np.where(thismask)
+    for flex in [None, np.zeros(2), np.array([0.3, 0.3]), np.array([0.3, -0.2])]:
+        _, _spat_eval = tracewave.fit2tilts_prepareSlit(left, right, thismask,
+                                                        relative_spat_flexure=flex)
+        assert np.all(np.isfinite(_spat_eval)), 'NaN spatial coordinates for a zero-width slit'
+        if flex is not None and flex[0] == flex[1]:
+            assert np.allclose(_spat_eval, (spat_pix - flex[0]) / (nspat - 1)), \
+                'A uniform relative flexure should shift all pixels equally'
+
+
 def test_fit2tiltimg_spat_flexure_shift(tmp_path):
     """
     A frame whose spatial flexure is dx pixels larger than that of the tilts frame

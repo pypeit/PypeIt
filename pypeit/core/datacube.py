@@ -770,7 +770,9 @@ def gaussian2D(tup, intflux, xo, yo, sigma_x, sigma_y, theta, offset):
     b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
     c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)
     # Normalise so that the integrated flux is a parameter, instead of the amplitude
-    norm = 1/(2*np.pi*np.sqrt(a*c-b*b))
+    # (the integral of exp(-(a x^2 + 2 b x y + c y^2)) is pi/sqrt(ac-b^2), i.e.
+    # 2 pi sigma_x sigma_y)
+    norm = np.sqrt(a*c-b*b)/np.pi
     gtwod = offset + norm*intflux*np.exp(-(a*((x-xo)**2) + 2*b*(x-xo)*(y-yo) + c*((y-yo)**2)))
     return gtwod.ravel()
 
@@ -804,8 +806,11 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
         the image has shape (ny, nx), a position (x, y) refers to image[y, x].
         If set, the 2D Gaussian fit will be performed with the position
         constrainted to be within plus or minus fwhm/3 in x and y. If not set,
-        the position will be determined by running DAOStarFinder on the image.
-        Default is None.
+        the position will be determined by running DAOStarFinder on the image,
+        and the fitted position is constrained to be within plus or minus the
+        larger of fwhm and 1 pixel (the DAOStarFinder position of a poorly
+        sampled object can be wrong by up to about one pixel).  Default is
+        None.
     fwhm : float, optional
         The FWHM of the image in pixels. This is used to estimate the initial
         guess for the Gaussian fit, the fit bounds, and the median filter kernel
@@ -834,9 +839,12 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
        The optimum parameters of the Gaussian in the following order:
        integrated flux, x center, y center, sigma_x, sigma_y, theta, offset.
        See :func:`~pypeit.core.datacube.gaussian2D` for a more detailed
-       description of the model.
+       description of the model.  If the fit fails, a warning is printed,
+       and these are the initial guesses: the initial position, a symmetric
+       Gaussian with the input FWHM, and the integrated flux and offset
+       estimated from the image.
     pcov : `numpy.ndarray`_
-        Corresponding covariance matrix
+        Corresponding covariance matrix (infinite if the fit fails)
     model : `numpy.ndarray`_
         The 2D Gaussian model evaluated at the input image pixel locations
     _init_obj_position : tuple
@@ -913,23 +921,45 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
             sources.pprint(max_width=76)
 
         _init_obj_position = sources['x_centroid'][0], sources['y_centroid'][0]
+        # The DAOStarFinder position of a poorly sampled object can be wrong by
+        # up to about one pixel, so allow the fitted position a wider range
+        dpos = max(fwhm, 1.0)
     else:
         _init_obj_position = init_obj_position
-        
-    initial_guess = (1, _init_obj_position[0], _init_obj_position[1], fwhm*fwhm2sigma, fwhm*fwhm2sigma, 0, 0)
-    bounds = ([0,      _init_obj_position[0]-fwhm/3.0, _init_obj_position[1]-fwhm/3.0, fwhm/6.0, fwhm/6.0, -np.pi, -np.inf],
-              [np.inf, _init_obj_position[0]+fwhm/3.0, _init_obj_position[1]+fwhm/3.0, fwhm    , fwhm    , np.pi , np.inf])
+        dpos = fwhm/3.0
+
+    # Setup the coordinates
+    x = np.linspace(0, image.shape[1] - 1, image.shape[1])
+    y = np.linspace(0, image.shape[0] - 1, image.shape[0])
+    xx, yy = np.meshgrid(x, y, indexing='xy')
+
+    # Estimate the initial integrated flux and offset from the image: the offset
+    # is the (sigma-clipped) median of the image, and the integrated flux is the
+    # flux above the offset within a few FWHM of the initial position.
+    mean_image, median_image, std_image = sigma_clipped_stats(image[np.logical_not(totmask)], sigma=3.0)
+    near_obj = np.sqrt((xx - _init_obj_position[0])**2 + (yy - _init_obj_position[1])**2) \
+                    <= max(3.0*fwhm, 3.0)
+    init_flux = np.sum((image - median_image)[near_obj & _gpm]) / wlscl
+    if not np.isfinite(init_flux) or init_flux <= 0:
+        init_flux = 1.0
+    init_offset = median_image / wlscl if np.isfinite(median_image) else 0.0
+    initial_guess = (init_flux, _init_obj_position[0], _init_obj_position[1], sigma, sigma, 0, init_offset)
+    bounds = ([0,      _init_obj_position[0]-dpos, _init_obj_position[1]-dpos, fwhm/6.0, fwhm/6.0, -np.pi, -np.inf],
+              [np.inf, _init_obj_position[0]+dpos, _init_obj_position[1]+dpos, fwhm    , fwhm    , np.pi , np.inf])
 
     # Perform the fit
     # TODO :: May want to generate the image on a finer pixel scale first
     # TODO JFH: The 2D Gaussian fitting should be using the noise and the gpm. This should be
     # implemented with scipy.optimize and a loss function instead of curve_fit
-    # Setup the coordinates
-    x = np.linspace(0, image.shape[1] - 1, image.shape[1])
-    y = np.linspace(0, image.shape[0] - 1, image.shape[0])
-    xx, yy = np.meshgrid(x, y, indexing='xy')
-    popt, pcov = opt.curve_fit(gaussian2D, (xx, yy), image.ravel() / wlscl,
-                               bounds=bounds, p0=initial_guess)
+    try:
+        popt, pcov = opt.curve_fit(gaussian2D, (xx, yy), image.ravel() / wlscl,
+                                   bounds=bounds, p0=initial_guess)
+    except RuntimeError as err:
+        log.warning(f'The 2D Gaussian fit failed ({err}).\nAdopting the initial position, '
+                    f'(x, y) = ({_init_obj_position[0]:.2f}, {_init_obj_position[1]:.2f}), and a '
+                    f'symmetric Gaussian with FWHM = {fwhm:.2f} pixels.')
+        popt = np.array(initial_guess, dtype=float)
+        pcov = np.full((popt.size, popt.size), np.inf)
     _, xobj, yobj, sigma_x_gauss, sigma_y_gauss, theta_gauss, _ = popt
     log.info("Gaussian fit gives:")
     log.info("--------------------------------")
@@ -956,7 +986,6 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
     optkern = gauss_profile*apodization_window
     optkern /= np.sum(optkern)
     # Optimally extract at the object position
-    mean_image, median_image, std_image = sigma_clipped_stats(image[np.logical_not(totmask)], sigma=3.0)
     image_skysub = image - median_image
     ivar_denom = np.sum(_gpm*optkern)
     var_denom = utils.inverse(ivar_denom)

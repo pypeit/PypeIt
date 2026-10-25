@@ -336,8 +336,13 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         # Illumination corrections
         par['scienceframe']['process']['use_illumflat'] = True  # illumflat is applied when building the relative scale image in reduce.py, so should be applied to scienceframe too.
         par['scienceframe']['process']['use_specillum'] = True  # apply relative spectral illumination
-        par['scienceframe']['process']['spat_flexure_method'] = "edge"  # Slice dependent spatial flexure; see above
-        par['scienceframe']['process']['spat_flexure_polyord'] = 1  # Fit the spatial flexure of the slit edges with a linear function.
+        # Slice dependent spatial flexure; see above.  The slit edges of the
+        # science frames are only illuminated by the sky (i.e., they are faint),
+        # and faint edges are biased towards the slit centre when they are
+        # refined.  The 'slit' method uses the mean shift of the two edges of
+        # each slit, which cancels this bias, so that the slits keep their width.
+        par['scienceframe']['process']['spat_flexure_method'] = "slit"
+        par['scienceframe']['process']['spat_flexure_polyord'] = 1  # Fit the spatial flexure of the slits with a linear function.
         par['scienceframe']['process']['use_biasimage'] = True  # Need to use bias frames for KCWI, because the bias level varies monotonically with spatial and spectral direction
         par['scienceframe']['process']['use_darkimage'] = False
 

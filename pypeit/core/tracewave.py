@@ -903,10 +903,6 @@ def fit2tilts_prepareSlit(slit_left, slit_right, thismask_science, relative_spat
     # Slit edges of the frame of interest (e.g. a science frame), at the spectral
     # position of each slit pixel
     dleft, dright = _spat_flexure
-    frame_left = slit_left[spec_pix] + dleft
-    frame_right = slit_right[spec_pix] + dright
-    # Fractional position of each pixel along the slit of the frame of interest
-    frac_coord = (spat_pix - frame_left) / (frame_right - frame_left)
     # The spatial position in the tilts frame with the same fractional position along the slit,
     # i.e. slit_left + frac_coord * (slit_right - slit_left), which is equal to the expression
     # below.  The *relative* spatial flexure between the tilts frame and the frame (e.g. science)
@@ -916,7 +912,20 @@ def fit2tilts_prepareSlit(slit_left, slit_right, thismask_science, relative_spat
     # Note that the spatial coordinate of the tilts is fit and evaluated over the interval 0-1
     # (where 0 represents the left edge of the detector and 1 represents the right edge of the
     # detector, even when there are multiple slits).
-    spat_eval = spat_pix - dleft - frac_coord * (dright - dleft)
+    if dleft == dright:
+        # The same flexure for both edges: the fractional position is not needed
+        spat_eval = spat_pix - dleft
+    else:
+        # Slit edges of the frame of interest (e.g. a science frame), at the spectral
+        # position of each slit pixel
+        frame_left = slit_left[spec_pix] + dleft
+        frame_right = slit_right[spec_pix] + dright
+        # Fractional position of each pixel along the slit of the frame of interest (the
+        # centre of the slit for the spectral rows where the slit has no width)
+        width = frame_right - frame_left
+        frac_coord = np.divide(spat_pix - frame_left, width, out=np.full(width.shape, 0.5),
+                               where=width != 0)
+        spat_eval = spat_pix - dleft - frac_coord * (dright - dleft)
     _spat_eval = spat_eval / (nspat - 1)
     return _spec_eval, _spat_eval
 
