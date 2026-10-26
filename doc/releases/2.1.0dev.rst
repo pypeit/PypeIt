@@ -33,6 +33,13 @@ Dependency Changes
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
+- The Gaussian fitting of arc lines (and of other features found by
+  :func:`~pypeit.core.arc.detect_lines`) is now vectorized, which roughly
+  halves its cost while detecting the same lines as before.  The new
+  ``[calibrations][wavelengths] fast_line_fit`` parameter makes the
+  wavelength-calibration line fitting more than 10 times faster, at the
+  expense of small changes in the detected lines that can alter the line
+  identifications; it is off by default.  See "Under-the-hood Improvements".
 - PypeIt can now reduce detectors/mosaics concurrently.  With ``[rdx] ncpu``
   (or ``run_pypeit --ncpu``) greater than 1, the calibration build, the
   science-image processing, and the extraction are distributed over worker
@@ -319,6 +326,14 @@ Testing
 - Added a dev-suite ``--ncpu 2`` reduction of the two-detector
   ``keck_lris_blue/multi_600_4000_slitmask`` setup, with a ``vet_tests`` comparison
   against the serial products.
+- Added tests of the vectorized :func:`~pypeit.core.arc.fit_arcspec`: recovery
+  of synthetic lines, agreement with the per-line ``curve_fit`` fit, edge
+  cases (truncated windows, negative wings, degenerate and NaN windows), that
+  ``curve_fit`` is not called on clean data, that narrow features are handed
+  to ``curve_fit``, that :func:`~pypeit.core.arc.detect_lines` accepts the
+  same lines as with ``curve_fit`` on the Paranal sky spectrum, and that the
+  ``fast_line_fit`` parameter is parsed and applied by
+  :class:`~pypeit.wavecalib.BuildWaveCalib`.
 - Add new tests for :mod:`~pypeit.core.pydl`
 - Added new tests for :class:`~pypeit.inputfiles.InputFile` objects.
 - Added tests for MMT/Binospec setup grouping and INCAN-based flat/trace frame
@@ -345,6 +360,29 @@ Under-the-hood Improvements
   backend), and buffer their log records and Python warnings, which the parent
   replays grouped in detector order so that each detector's block stays
   contiguous in the run log.
+- Replaced the per-line ``scipy.optimize.curve_fit`` Gaussian fit in
+  :func:`~pypeit.core.arc.fit_arcspec` with a fit of all detected lines at
+  once: a weighted analytic log-parabola fit, polished with vectorized
+  Gauss-Newton (Levenberg-Marquardt) iterations on the same objective as
+  ``curve_fit``.  Lines the analytic fit cannot handle are fit with the same
+  vectorized iterations starting from the ``curve_fit`` initial guess.  By
+  default, lines for which the vectorized fit is not confident (it has not
+  converged, which is typical of saturated, flat-topped lines, or the fitted
+  line is much narrower than an arc line, e.g. a hot pixel) are still fit
+  with ``curve_fit``, so that :func:`~pypeit.core.arc.detect_lines` (used by
+  the wavelength calibration, tilt tracing, and object finding, among others)
+  accepts the same lines as before, with centroids that agree to better than
+  0.001 pixels.  The line fitting is about twice as fast; most of the
+  remaining time is spent in ``curve_fit`` on lines it ultimately fails to
+  fit.  The new ``[calibrations][wavelengths] fast_line_fit`` parameter
+  (default False) skips that hand-off during the wavelength calibration,
+  which makes its line fitting more than 10 times faster; it then rejects a
+  few saturated lines and accepts a few narrow features, which can change the
+  line identifications (see :data:`~pypeit.core.arc.ARCFIT_MATCH_CURVEFIT`,
+  which sets the same option for all callers).  Fits that failed with NaN
+  values now return the -999 sentinel.  Setting
+  ``pypeit.core.arc.USE_VECTORIZED_ARCFIT = False`` restores the previous
+  implementation.
 - Adds new :class:`~pypeit.core.fitting.PypeItFitCollection` class to replace
   the pypeit-specific uses of ``pypeit.core.pydl.TraceSet``.  This was
   primarily done to avoid a circular import.

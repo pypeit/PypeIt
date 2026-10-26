@@ -3231,7 +3231,7 @@ class WavelengthSolutionPar(ParSet):
     def __init__(self, reference=None, method=None, echelle=None, ech_nspec_coeff=None, ech_norder_coeff=None,
                  ech_sigrej=None, lamps=None, lamps_wvrng=None, bad_orders_maxfrac=None, frac_rms_thresh=None,
                  sigdetect=None, fwhm=None, fwhm_fromlines=None, fwhm_spat_order=None, fwhm_spec_order=None,
-                 reid_arxiv=None, nreid_min=None, reid_cont_sub=None, cc_shift_range=None, cc_thresh=None,
+                 fast_line_fit=None, reid_arxiv=None, nreid_min=None, reid_cont_sub=None, cc_shift_range=None, cc_thresh=None,
                  cc_local_thresh=None, nlocal_cc=None, rms_thresh_frac_fwhm=None, match_toler=None, func=None,
                  n_first=None, n_final=None, sigrej_first=None, sigrej_final=None, numsearch=None,
                  nfitpix=None, boxcar_radius=None, refframe=None,
@@ -3381,6 +3381,21 @@ class WavelengthSolutionPar(ParSet):
         descr['fwhm'] = 'Spectral sampling of the arc lines. This is the FWHM of an arcline in ' \
                         'binned pixels of the input arc image. Note that this is used also in the ' \
                         'wave tilts calibration.'
+
+        defaults['fast_line_fit'] = False
+        dtypes['fast_line_fit'] = bool
+        descr['fast_line_fit'] = 'Use the fastest Gaussian fit of the arc lines when constructing ' \
+                                 'the wavelength solution.  By default, lines for which the ' \
+                                 'vectorized fit is not confident (it has not converged, which is ' \
+                                 'typical of saturated, flat-topped lines, or the line is much ' \
+                                 'narrower than an arc line, e.g. a hot pixel) are refit one at a ' \
+                                 'time with scipy.optimize.curve_fit, so that the same lines are ' \
+                                 'detected as with the per-line fit used in previous versions.  ' \
+                                 'If True, this refit is skipped, which makes the line fitting ' \
+                                 'several times faster, but a few saturated lines are rejected and ' \
+                                 'a few narrow features are accepted, which can change the line ' \
+                                 'identifications.  This only affects the wavelength calibration; ' \
+                                 'see :data:`~pypeit.core.arc.ARCFIT_MATCH_CURVEFIT`.'
 
         defaults['fwhm_fromlines'] = True
         dtypes['fwhm_fromlines'] = bool
@@ -3627,7 +3642,7 @@ class WavelengthSolutionPar(ParSet):
         parkeys = ['reference', 'method', 'echelle', 'ech_nspec_coeff', 'ech_2dfit',
                    'ech_norder_coeff', 'ech_sigrej', 'ech_separate_2d', 'bad_orders_maxfrac', 'frac_rms_thresh',
                    'lamps', 'lamps_wvrng', 'sigdetect', 'fwhm', 'fwhm_fromlines', 'fwhm_spat_order', 'fwhm_spec_order',
-                   'reid_arxiv', 'nreid_min', 'reid_cont_sub', 'cc_shift_range', 'cc_thresh', 'cc_local_thresh',
+                   'fast_line_fit', 'reid_arxiv', 'nreid_min', 'reid_cont_sub', 'cc_shift_range', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_thresh_frac_fwhm', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix', 'boxcar_radius',
                    'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 'reference_slit',

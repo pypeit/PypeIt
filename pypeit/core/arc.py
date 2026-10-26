@@ -8,6 +8,8 @@ in pypeit.core.wavecal related to wavelength calibration.
 """
 
 
+from contextlib import contextmanager
+
 import numpy as np
 from matplotlib import gridspec
 from matplotlib import pyplot as plt
@@ -47,11 +49,62 @@ iterations; this is only a cap.  Set to 0 to fit those lines with the
 per-line fit instead.
 """
 
+ARCFIT_MATCH_CURVEFIT = True
+"""
+If True, :func:`fit_arcspec` hands to the per-line `scipy.optimize.curve_fit`_
+fit every line for which the vectorized fit is not confident: lines whose
+vectorized fit has not converged within the allowed iterations (typically
+saturated, flat-topped lines and blends) and fits much narrower than an arc
+line (see :data:`ARCFIT_MIN_WIDTH`).  The set of accepted lines then matches
+the per-line fit, at the cost of most of the speed-up, because these are the
+lines on which ``curve_fit`` is slowest.  If False, the vectorized result is
+used for all lines it can fit, which is several times faster; centroids of the
+other lines are unchanged, but a few saturated lines are lost and a few
+narrow features are gained, which can change the line identifications of the
+wavelength calibration.
+"""
+
+ARCFIT_MIN_WIDTH = 0.35
+"""
+If :data:`ARCFIT_MATCH_CURVEFIT` is True, vectorized fits in
+:func:`fit_arcspec` with a Gaussian sigma below this fraction of the fit
+half-width are refit with the per-line fit, which decides whether they
+succeed.  Such narrow features (e.g., hot pixels) are usually not arc lines,
+and the per-line fit often fails on them.
+"""
+
 ARCFIT_MIN_GOODPIX = 4
 """
 Minimum number of positive, in-bounds pixels required for the analytic fit in
 :func:`fit_arcspec`; lines with fewer use the per-line fit.
 """
+
+
+@contextmanager
+def arcfit_options(match_curvefit=None):
+    """
+    Temporarily set the options of the vectorized arc-line fit,
+    :func:`fit_arcspec`.
+
+    Used, e.g., by :class:`~pypeit.wavecalib.BuildWaveCalib` to apply the
+    ``fast_line_fit`` parameter of
+    :class:`~pypeit.par.pypeitpar.WavelengthSolutionPar` to the wavelength
+    calibration only.  The previous values are restored on exit.
+
+    Parameters
+    ----------
+    match_curvefit : bool, optional
+        Temporary value of :data:`ARCFIT_MATCH_CURVEFIT`.  If None, it is not
+        changed.
+    """
+    global ARCFIT_MATCH_CURVEFIT
+    previous = ARCFIT_MATCH_CURVEFIT
+    if match_curvefit is not None:
+        ARCFIT_MATCH_CURVEFIT = bool(match_curvefit)
+    try:
+        yield
+    finally:
+        ARCFIT_MATCH_CURVEFIT = previous
 
 
 def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigrej=3.0, func2d='legendre2d', debug=False):
@@ -1140,9 +1193,15 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
     :data:`ARCFIT_RESCUE_ITER`).  Lines that also fail this fit fall back to
     the per-line `scipy.optimize.curve_fit`_ fit
     (:func:`_fit_arcspec_curvefit`); the fit parameters of lines for which
-    that fit returns non-finite values are set to -999.  Setting
-    :data:`USE_VECTORIZED_ARCFIT` to False uses the per-line fit for all
-    lines, which is the previous implementation.
+    that fit returns non-finite values are set to -999.
+
+    By default (:data:`ARCFIT_MATCH_CURVEFIT` is True), lines whose vectorized
+    fit has not converged, and fits much narrower than an arc line, are also
+    handed to the per-line fit, so that the lines that are detected are the
+    same as with the per-line fit.  Setting :data:`ARCFIT_MATCH_CURVEFIT` to
+    False is several times faster, but changes the set of detected lines
+    slightly.  Setting :data:`USE_VECTORIZED_ARCFIT` to False uses the per-line
+    fit for all lines, which is the previous implementation.
 
     Parameters
     ----------
@@ -1242,8 +1301,12 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
     if ARCFIT_GN_ITER > 0:
         # Polish against the objective of the per-line fit.  The centroid is
         # no longer restricted to the fit window, just as in the per-line fit.
-        amp, u0, sig, ok = _gauss_newton_refine(u, y, fpm, amp, u0, sig, ok,
-                                                niter=ARCFIT_GN_ITER)
+        amp, u0, sig, ok, conv = _gauss_newton_refine(u, y, fpm, amp, u0, sig, ok,
+                                                      niter=ARCFIT_GN_ITER)
+        if ARCFIT_MATCH_CURVEFIT:
+            # Lines that have not converged (e.g., saturated, flat-topped
+            # lines, whose objective is very flat) are fit again below
+            ok &= conv
         var_c = _gauss_center_variance(u, y, fpm, amp, u0, sig, ok)
     else:
         var_c = _center_variance(A, coef, u, w2, lny, ngood, ok)
@@ -1257,12 +1320,19 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
         r = np.where(rescue)[0]
         ra, rc, rs = _moment_seed(u[r], y[r], fpm[r])
         rok = np.isfinite(ra) & np.isfinite(rc) & np.isfinite(rs) & (rs > 0.)
-        ra, rc, rs, rok = _gauss_newton_refine(u[r], y[r], fpm[r], ra, rc, rs, rok,
-                                               niter=ARCFIT_RESCUE_ITER)
+        ra, rc, rs, rok, rconv = _gauss_newton_refine(u[r], y[r], fpm[r], ra, rc, rs, rok,
+                                                      niter=ARCFIT_RESCUE_ITER)
+        if ARCFIT_MATCH_CURVEFIT:
+            rok &= rconv
         rvar = _gauss_center_variance(u[r], y[r], fpm[r], ra, rc, rs, rok)
         rok &= np.isfinite(rvar)
         amp[r], u0[r], sig[r], var_c[r] = ra, rc, rs, rvar
         ok[r] = rok
+
+    if ARCFIT_MATCH_CURVEFIT:
+        # Leave features much narrower than an arc line to the per-line fit
+        with np.errstate(invalid='ignore'):
+            ok &= sig >= ARCFIT_MIN_WIDTH * umax
 
     ampl[ok] = amp[ok]
     cent[ok] = x0[ok] + u0[ok]
@@ -1386,7 +1456,7 @@ def _solve3(H, rhs, good):
     return x
 
 
-def _gauss_newton_refine(u, y, gpm, amp, u0, sig, ok, niter=3, lam=1e-3, tol=1e-10):
+def _gauss_newton_refine(u, y, gpm, amp, u0, sig, ok, niter=3, lam=1e-3, tol=1e-10, xtol=1.5e-8):
     """
     Refine Gaussian fits for many lines at once with Levenberg-Marquardt
     iterations.
@@ -1398,8 +1468,9 @@ def _gauss_newton_refine(u, y, gpm, amp, u0, sig, ok, niter=3, lam=1e-3, tol=1e-
     continuum-subtracted arc.  Each line has its own damping factor, which is
     decreased after a step that lowers its objective and increased (and the
     step rejected) otherwise.  A line stops iterating once its objective
-    changes by less than a fraction ``tol``, or once its damping factor
-    exceeds 1e10.
+    changes by less than a fraction ``tol``, once its parameters change by
+    less than a fraction ``xtol`` (relative to the amplitude and the width),
+    or once its damping factor exceeds 1e10.
 
     Parameters
     ----------
@@ -1420,6 +1491,8 @@ def _gauss_newton_refine(u, y, gpm, amp, u0, sig, ok, niter=3, lam=1e-3, tol=1e-
         Initial damping factor, relative to the diagonal of the normal matrix.
     tol : float, optional
         Relative change in the objective below which a line has converged.
+    xtol : float, optional
+        Relative change in the parameters below which a line has converged.
 
     Returns
     -------
@@ -1429,6 +1502,9 @@ def _gauss_newton_refine(u, y, gpm, amp, u0, sig, ok, niter=3, lam=1e-3, tol=1e-
     ok : `numpy.ndarray`_
         The input ``ok`` array, excluding lines whose refined parameters are not
         finite or have zero width.
+    converged : `numpy.ndarray`_
+        Boolean array selecting the lines that stopped iterating before
+        reaching ``niter`` iterations.
     """
     a, c, s = amp.copy(), u0.copy(), sig.copy()
     _y = np.where(gpm, y, 0.)
@@ -1440,6 +1516,7 @@ def _gauss_newton_refine(u, y, gpm, amp, u0, sig, ok, niter=3, lam=1e-3, tol=1e-
         # Indices of the lines still iterating, and their model and Jacobian
         act = np.where(ok & np.isfinite(chi2))[0]
         g, J = g[act], J[act]
+        converged = np.ones(a.size, dtype=bool)
         for _ in range(niter):
             if act.size == 0:
                 break
@@ -1451,7 +1528,12 @@ def _gauss_newton_refine(u, y, gpm, amp, u0, sig, ok, niter=3, lam=1e-3, tol=1e-
             gt, Jt = _gauss_model(u[act], gpm[act], at, ct, st)
             chi2t = np.sum((_y[act] - gt)**2, axis=1)
             accept = np.isfinite(chi2t) & (chi2t <= chi2[act]) & (st != 0.)
-            done = accept & (chi2[act] - chi2t <= tol * chi2[act])
+            # Converged: negligible change in the objective, or in the
+            # parameters (relative to the amplitude and the width)
+            small_step = (np.absolute(step[:,0]) <= xtol * np.absolute(a[act])) \
+                            & (np.absolute(step[:,1]) <= xtol * np.absolute(s[act])) \
+                            & (np.absolute(step[:,2]) <= xtol * np.absolute(s[act]))
+            done = accept & ((chi2[act] - chi2t <= tol * chi2[act]) | small_step)
             a[act] = np.where(accept, at, a[act])
             c[act] = np.where(accept, ct, c[act])
             s[act] = np.where(accept, st, s[act])
@@ -1461,9 +1543,10 @@ def _gauss_newton_refine(u, y, gpm, amp, u0, sig, ok, niter=3, lam=1e-3, tol=1e-
             lamv[act] = np.where(accept, lamv[act]/10., lamv[act]*10.)
             keep = np.logical_not(done) & (lamv[act] < 1e10)
             act, g, J = act[keep], g[keep], J[keep]
+        converged[act] = False
     s = np.absolute(s)
     ok = ok & np.isfinite(a) & np.isfinite(c) & np.isfinite(s) & (s > 0.)
-    return a, c, s, ok
+    return a, c, s, ok, converged
 
 
 def _gauss_center_variance(u, y, gpm, amp, u0, sig, ok):

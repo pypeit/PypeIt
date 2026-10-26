@@ -7,6 +7,8 @@ import numpy as np
 from pypeit.core import arc
 from pypeit.core import fitting
 from pypeit.core import skyspec
+from pypeit.par.pypeitpar import PypeItPar, WavelengthSolutionPar
+from pypeit.wavecalib import BuildWaveCalib
 
 
 def test_detect_lines():
@@ -141,12 +143,54 @@ def test_fit_arcspec_negative_wings(monkeypatch):
     pixt = np.array([30])
     def _boom(*a, **k):
         raise AssertionError('fit_gauss should not be called')
+    # The model cannot match the negative pedestal, so the iterations converge
+    # only slowly; test the vectorized fit itself, without handing the line to
+    # curve_fit
     with monkeypatch.context() as m:
         m.setattr(fitting, 'fit_gauss', _boom)
+        m.setattr(arc, 'ARCFIT_MATCH_CURVEFIT', False)
         new = arc.fit_arcspec(x, y, pixt, 5)
     old = _legacy_fit(monkeypatch, x, y, pixt, 5)
     for n, o in zip(new[:3], old[:3]):
         assert n[0] == pytest.approx(o[0], rel=1e-6)
+
+
+def test_fit_arcspec_narrow_features(monkeypatch):
+    """Features much narrower than an arc line are left to curve_fit."""
+    x, y, _, cen, _ = _synthetic_arc(nspec=512)
+    # A hot pixel between two lines
+    hot = int(np.round(cen[5] + cen[6])) // 2
+    y[hot] += 500.
+    pixt = np.append(np.round(cen).astype(int), hot)
+    ncalls = [0]
+    _fit_gauss = fitting.fit_gauss
+    def _count(*a, **k):
+        ncalls[0] += 1
+        return _fit_gauss(*a, **k)
+    monkeypatch.setattr(fitting, 'fit_gauss', _count)
+    new = arc.fit_arcspec(x, y, pixt, 5)
+    assert ncalls[0] >= 1
+    old = _legacy_fit(monkeypatch, x, y, pixt, 5)
+    # The hot pixel gets exactly the curve_fit result
+    for n, o in zip(new, old):
+        assert n[-1] == o[-1]
+    # Without the hand-off, the vectorized fit returns a very narrow line
+    ncalls[0] = 0
+    monkeypatch.setattr(arc, 'ARCFIT_MATCH_CURVEFIT', False)
+    fast = arc.fit_arcspec(x, y, pixt, 5)
+    assert ncalls[0] == 0
+    assert 0 < fast[2][-1] < arc.ARCFIT_MIN_WIDTH * 3
+
+
+def test_detect_lines_matches_curve_fit(monkeypatch):
+    """With the default hand-off, the accepted lines are those of curve_fit."""
+    flux = skyspec.load_sky_spectrum('paranal_sky.fits').flux
+    new = arc.detect_lines(flux)
+    with monkeypatch.context() as m:
+        m.setattr(arc, 'USE_VECTORIZED_ARCFIT', False)
+        old = arc.detect_lines(flux)
+    assert np.array_equal(new[5], old[5])
+    assert np.max(np.absolute(new[2][new[5]] - old[2][old[5]])) < 0.02
 
 
 def test_fit_arcspec_no_curve_fit_on_clean_data(monkeypatch):
@@ -157,5 +201,43 @@ def test_fit_arcspec_no_curve_fit_on_clean_data(monkeypatch):
     monkeypatch.setattr(fitting, 'fit_gauss', _boom)
     a, c, w, ce = arc.fit_arcspec(x, y, np.round(cen).astype(int), 5)
     assert np.all(c > 0)
+
+def test_arcfit_options():
+    """The context manager sets the option temporarily, even on error."""
+    assert arc.ARCFIT_MATCH_CURVEFIT
+    with arc.arcfit_options(match_curvefit=False):
+        assert not arc.ARCFIT_MATCH_CURVEFIT
+    assert arc.ARCFIT_MATCH_CURVEFIT
+    with pytest.raises(ValueError):
+        with arc.arcfit_options(match_curvefit=False):
+            raise ValueError('test')
+    assert arc.ARCFIT_MATCH_CURVEFIT
+    with arc.arcfit_options():
+        assert arc.ARCFIT_MATCH_CURVEFIT
+
+
+def test_fast_line_fit_par():
+    """The wavelength-solution parameter parses and defaults to the exact fit."""
+    assert WavelengthSolutionPar()['fast_line_fit'] is False
+    cfg = ['[calibrations]', '    [[wavelengths]]', '        fast_line_fit = True']
+    par = PypeItPar.from_cfg_lines(merge_with=(cfg,))
+    assert par['calibrations']['wavelengths']['fast_line_fit'] is True
+
+
+def test_wavecalib_applies_fast_line_fit(monkeypatch):
+    """BuildWaveCalib.run applies fast_line_fit to the line fits it performs."""
+    seen = []
+    def _extract_arcs(self):
+        seen.append(arc.ARCFIT_MATCH_CURVEFIT)
+        raise RuntimeError('stop')
+    monkeypatch.setattr(BuildWaveCalib, 'extract_arcs', _extract_arcs)
+    for fast in [True, False]:
+        wvc = object.__new__(BuildWaveCalib)
+        wvc.par = WavelengthSolutionPar(fast_line_fit=fast)
+        with pytest.raises(RuntimeError):
+            wvc.run()
+        # Restored afterwards
+        assert arc.ARCFIT_MATCH_CURVEFIT
+    assert seen == [False, True]
 
 # Many more functions in pypeit.core.arc that need tests!

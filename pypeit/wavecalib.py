@@ -1164,76 +1164,78 @@ class BuildWaveCalib:
             WaveCalib:  wavelength calibration object
 
         """
-        ###############
-        # Extract an arc down each slit
-        self.arccen, self.wvc_bpm = self.extract_arcs()
+        # Gaussian fits of the arc lines (see WavelengthSolutionPar.fast_line_fit)
+        with arc.arcfit_options(match_curvefit=not self.par['fast_line_fit']):
+            ###############
+            # Extract an arc down each slit
+            self.arccen, self.wvc_bpm = self.extract_arcs()
 
-        # Fill up the calibrations and generate QA
-        self.wv_calib = self.build_wv_calib(
-            self.arccen, self.par['method'],
-            skip_QA=skip_QA,
-            prev_wvcalib=prev_wvcalib)
+            # Fill up the calibrations and generate QA
+            self.wv_calib = self.build_wv_calib(
+                self.arccen, self.par['method'],
+                skip_QA=skip_QA,
+                prev_wvcalib=prev_wvcalib)
 
-        # Fit 2D?
-        if self.par['echelle'] and self.par['ech_2dfit']:
-            # Assess the fits
-            rms = np.array([999. if wvfit.rms is None else wvfit.rms for wvfit in self.wv_calib.wv_fits])
-            # get used FWHM
-            fwhm = self.par['fwhm'] if self.measured_fwhms is None or self.par['fwhm_fromlines'] is False \
-                else self.measured_fwhms.astype(float)
-            # get rms threshold for all orders
-            wave_rms_thresh = np.round(self.par['rms_thresh_frac_fwhm'] * fwhm, 3)
-            bad_rms = rms > wave_rms_thresh
-            if np.any(bad_rms):
-                self.wvc_bpm[bad_rms] = True
-                log.warning("Masking one or more bad orders (RMS)")
-            # Fit
-            fit2ds, dets, order_dets = self.echelle_2dfit(
-                self.wv_calib, skip_QA = skip_QA, debug=debug)
+            # Fit 2D?
+            if self.par['echelle'] and self.par['ech_2dfit']:
+                # Assess the fits
+                rms = np.array([999. if wvfit.rms is None else wvfit.rms for wvfit in self.wv_calib.wv_fits])
+                # get used FWHM
+                fwhm = self.par['fwhm'] if self.measured_fwhms is None or self.par['fwhm_fromlines'] is False \
+                    else self.measured_fwhms.astype(float)
+                # get rms threshold for all orders
+                wave_rms_thresh = np.round(self.par['rms_thresh_frac_fwhm'] * fwhm, 3)
+                bad_rms = rms > wave_rms_thresh
+                if np.any(bad_rms):
+                    self.wvc_bpm[bad_rms] = True
+                    log.warning("Masking one or more bad orders (RMS)")
+                # Fit
+                fit2ds, dets, order_dets = self.echelle_2dfit(
+                    self.wv_calib, skip_QA = skip_QA, debug=debug)
 
-            # Save
-            self.wv_calib.wv_fit2d = np.array(fit2ds)
-            # Save det_img?
-            if self.par['ech_separate_2d']:
-                self.wv_calib.det_img = self.msarc.det_img.copy()
+                # Save
+                self.wv_calib.wv_fit2d = np.array(fit2ds)
+                # Save det_img?
+                if self.par['ech_separate_2d']:
+                    self.wv_calib.det_img = self.msarc.det_img.copy()
 
-            # Try a second attempt with 1D, if needed
-            if np.any(bad_rms):
-                bad_orders = self.slits.ech_order[np.where(bad_rms)[0]]
-                any_fixed = self.redo_echelle_orders(bad_orders, dets, order_dets,
-                                                     bad_orders_maxfrac=self.par['bad_orders_maxfrac'],
-                                                     frac_rms_thresh=self.par['frac_rms_thresh'])
+                # Try a second attempt with 1D, if needed
+                if np.any(bad_rms):
+                    bad_orders = self.slits.ech_order[np.where(bad_rms)[0]]
+                    any_fixed = self.redo_echelle_orders(bad_orders, dets, order_dets,
+                                                         bad_orders_maxfrac=self.par['bad_orders_maxfrac'],
+                                                         frac_rms_thresh=self.par['frac_rms_thresh'])
 
-                # Do another full 2D?
-                if any_fixed:
-                    fit2ds, _, _ = self.echelle_2dfit(self.wv_calib, skip_QA = skip_QA, debug=debug)
-                    # Save
-                    self.wv_calib.wv_fit2d = np.array(fit2ds)
+                    # Do another full 2D?
+                    if any_fixed:
+                        fit2ds, _, _ = self.echelle_2dfit(self.wv_calib, skip_QA = skip_QA, debug=debug)
+                        # Save
+                        self.wv_calib.wv_fit2d = np.array(fit2ds)
 
-            # Check that we have at least one good 2D fit
-            if not np.any([fit2d.success for fit2d in self.wv_calib.wv_fit2d]):
-                raise PypeItError("No successful 2D Wavelength fits.  Cannot proceed.")
+                # Check that we have at least one good 2D fit
+                if not np.any([fit2d.success for fit2d in self.wv_calib.wv_fit2d]):
+                    raise PypeItError("No successful 2D Wavelength fits.  Cannot proceed.")
 
-        # Deal with mask
-        self.update_wvmask()
+            # Deal with mask
+            self.update_wvmask()
 
-        # Any masked during this analysis?
-        wv_masked = np.where(np.logical_not(self.wvc_bpm_init) & self.wvc_bpm)[0]
-        if len(wv_masked) > 0:
-            self.slits.mask[wv_masked] = self.slits.bitmask.turn_on(
-                    self.slits.mask[wv_masked], 'BADWVCALIB')
+            # Any masked during this analysis?
+            wv_masked = np.where(np.logical_not(self.wvc_bpm_init) & self.wvc_bpm)[0]
+            if len(wv_masked) > 0:
+                self.slits.mask[wv_masked] = self.slits.bitmask.turn_on(
+                        self.slits.mask[wv_masked], 'BADWVCALIB')
 
-        # Pack up
-        sv_par = self.par.data.copy()
-        j_par = jsonify(sv_par)
-        self.wv_calib['strpar'] = json.dumps(j_par)#, sort_keys=True, indent=4, separators=(',', ': '))
+            # Pack up
+            sv_par = self.par.data.copy()
+            j_par = jsonify(sv_par)
+            self.wv_calib['strpar'] = json.dumps(j_par)#, sort_keys=True, indent=4, separators=(',', ': '))
 
-        # Post a warning if you're reducing SlicerIFU data and not all slits are available
-        ngood = np.where(np.logical_not(self.wvc_bpm))[0].size
-        if self.spectrograph.pypeline == 'SlicerIFU' and ngood < self.slits.nslits:
-            log.warning(f'Wavelength calibration is not available for {self.slits.nslits-ngood} slits.')
+            # Post a warning if you're reducing SlicerIFU data and not all slits are available
+            ngood = np.where(np.logical_not(self.wvc_bpm))[0].size
+            if self.spectrograph.pypeline == 'SlicerIFU' and ngood < self.slits.nslits:
+                log.warning(f'Wavelength calibration is not available for {self.slits.nslits-ngood} slits.')
 
-        return self.wv_calib
+            return self.wv_calib
 
 
 
