@@ -480,6 +480,17 @@ Bug Fixes
   applied at the spatial flexure of each flat-fielded frame.  It was applied
   at the spatial flexure of the pixel flat, which gave the wrong correction
   near the slit edges when the two flexures differed.
+- Fix the flat-field model of slits (or echelle orders) whose edges are closer
+  than about the ``slit_illum_pad`` padding of :ref:`flatfieldpar` to the edges
+  of the neighbouring slit.  Where the padded footprints of two slits overlap,
+  the overlapping pixels are assigned to only one of the slits, but some of
+  them are within the other slit.  For those pixels, the fit of the spectral
+  response of their slit used the spectral coordinate of the first spectral
+  row (instead of their wavelength tilts), and the spectral model of their slit
+  was not evaluated, so that the pixel flat of up to about two pixels per
+  spectral row near the slit edge could be wrong by up to a factor of 2.  The
+  wavelength tilts and the spectral and spatial models of each slit are now
+  evaluated over its own padded footprint.
 - ``pypeit_coadd_datacube``: dedicated sky frames (``skysub_frame``) and
   relative scale-correction frames (``scale_corr``) are now remapped to the
   slits of each science frame, accounting for the spatial flexure of both

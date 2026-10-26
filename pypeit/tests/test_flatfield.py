@@ -214,3 +214,63 @@ def test_flatfield_fit_padded_slits(tmp_path):
         'Incorrect tweaked left edges'
     assert np.allclose(np.median(slits.right_tweak - right, axis=0), -inset, atol=0.35), \
         'Incorrect tweaked right edges'
+
+
+def test_flatfield_fit_touching_slits(tmp_path):
+    # Where the padded footprints of two slits overlap, padded_slitid_img
+    # assigns the overlapping pixels to the second slit, but some of them are
+    # within the first slit.  The tilts and the spectral model of each slit
+    # must be evaluated over its own footprint, so that the flat-field model of
+    # these pixels is that of the first slit.
+    from scipy.special import erf
+    from pypeit.images.detector_container import DetectorContainer
+    from pypeit.images.pypeitimage import PypeItImage
+    from pypeit.par.pypeitpar import FlatFieldPar
+    from pypeit.slittrace import SlitTraceSet
+    from pypeit.tests import tstutils
+    from pypeit.wavetilts import WaveTilts
+    nspec, nspat, gap = 300, 100, 0.5
+    spec = np.arange(nspec)
+    left = np.column_stack([12.3 + 0.004 * spec, 43.3 + gap + 0.004 * spec])
+    right = left + 31.
+    slits = SlitTraceSet(left_init=left, right_init=right, pypeline='MultiSlit', nspat=nspat,
+                         PYP_SPEC='dummy')
+    slits.set_paths(tmp_path, 'A', '1', 'DET01')
+    slits.to_file()
+    # The tilts of the second slit are offset by 30 spectral pixels (as for
+    # neighbouring echelle orders)
+    offset = 30.
+    coeffs = np.zeros((2, 2, 2))
+    coeffs[:2, 0, :] = 0.5
+    coeffs[0, 0, 1] += offset / (nspec - 1)
+    wvtilts = WaveTilts(coeffs=coeffs, nslit=slits.nslits, spat_id=slits.spat_id,
+                        spat_order=np.array([1, 1]), spec_order=np.array([1, 1]),
+                        func2d='legendre2d', slits_filename=Path(slits.get_path()).name)
+    wvtilts.set_paths(tmp_path, 'A', '1', 'DET01')
+    # The spectral shape of each slit is a function of its own tilts
+    sig = 0.8
+    xx = np.arange(nspat)[None, :]
+    model = np.full((nspec, nspat), 5.)
+    for i in range(slits.nslits):
+        blaze = 1e4 * (1.2 + np.sin(2 * np.pi * (spec + i * offset) / 150.))
+        model += blaze[:, None] * 0.5 * (erf((xx - left[:, i, None]) / (np.sqrt(2) * sig))
+                                         - erf((xx - right[:, i, None]) / (np.sqrt(2) * sig)))
+    rng = np.random.default_rng(1)
+    rawflat = PypeItImage(rng.normal(model, np.sqrt(model)), ivar=1 / model)
+    rawflat.detector = DetectorContainer(**tstutils.default_detector())
+    flatpar = FlatFieldPar()
+    flatField = flatfield.FlatField(rawflat, load_spectrograph('shane_kast_blue'), flatpar, slits,
+                                    wavetilts=wvtilts)
+    flatField.fit(doqa=False)
+    # Pixels of the first slit that are assigned to the second slit
+    padded = slits.slit_img(initial=True, pad=flatpar['slit_illum_pad'])
+    onslit0 = slits.slit_img(slitidx=0) == slits.spat_id[0]
+    shared = onslit0 & (padded == slits.spat_id[1])
+    assert np.sum(shared) > 3 * nspec, 'Test is not sensitive: the slits should overlap'
+    trimmed0 = slits.slit_img(slitidx=0, pad=-flatpar['slit_trim']) == slits.spat_id[0]
+    assert np.any(trimmed0 & shared), 'Test is not sensitive: the trimmed slit should overlap'
+    # The pixel flat must be unity, within the noise (5 sigma)
+    assert np.all(np.absolute(flatField.mspixelflat[shared] - 1) * np.sqrt(model[shared]) < 5), \
+        'Incorrect pixel flat of the pixels shared with the neighbouring slit'
+    assert np.std(flatField.flat_model[trimmed0] / model[trimmed0]) < 0.01, \
+        'Incorrect flat-field model of the first slit'

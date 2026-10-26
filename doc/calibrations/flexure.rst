@@ -240,6 +240,15 @@ This will:
     - Apply an offset to generate tilts and wavelengths for the associated
       science/standard images
 
+The tilts of a frame are evaluated at the spatial flexure of that frame
+relative to the tilt frame.  A frame whose spatial flexure is not determined
+(``spat_flexure_method = skip``, the default for standard frames) is assumed to
+have no spatial flexure relative to the traced slit edges, so its tilts are
+shifted by the spatial flexure of the tilt frame.  If such a frame was taken
+with the same spatial flexure as the tilt frame, also determine its spatial
+flexure (e.g., in the ``[[standardframe]]`` block), or provide it as a manual
+correction (see below).
+
 .. _flexure-spatial-manual:
 
 Manual correction
