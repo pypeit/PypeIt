@@ -36,9 +36,9 @@ Functionality/Performance Improvements and Additions
 - The Gaussian fitting of arc lines (and of other features found by
   :func:`~pypeit.core.arc.detect_lines`) is now vectorized, which roughly
   halves its cost while detecting the same lines as before.  The new
-  ``[calibrations][wavelengths] fast_line_fit`` parameter makes the
-  wavelength-calibration line fitting more than 10 times faster, at the
-  expense of small changes in the detected lines that can alter the line
+  ``[calibrations][wavelengths] fast_line_fit`` parameter further speeds up
+  the line fitting in the wavelength calibration (only), at the expense of
+  small changes in the detected lines that can alter the line
   identifications; it is off by default.  See "Under-the-hood Improvements".
 - PypeIt can now reduce detectors/mosaics concurrently.  With ``[rdx] ncpu``
   (or ``run_pypeit --ncpu``) greater than 1, the calibration build, the
@@ -334,6 +334,9 @@ Testing
   same lines as with ``curve_fit`` on the Paranal sky spectrum, and that the
   ``fast_line_fit`` parameter is parsed and applied by
   :class:`~pypeit.wavecalib.BuildWaveCalib`.
+- Added a test that the archived sky spectrum FWHM used by the spectral
+  flexure correction is measured only once per sky file
+  (:func:`~pypeit.core.flexure.get_archive_spectrum`).
 - Add new tests for :mod:`~pypeit.core.pydl`
 - Added new tests for :class:`~pypeit.inputfiles.InputFile` objects.
 - Added tests for MMT/Binospec setup grouping and INCAN-based flat/trace frame
@@ -372,17 +375,31 @@ Under-the-hood Improvements
   with ``curve_fit``, so that :func:`~pypeit.core.arc.detect_lines` (used by
   the wavelength calibration, tilt tracing, and object finding, among others)
   accepts the same lines as before, with centroids that agree to better than
-  0.001 pixels.  The line fitting is about twice as fast; most of the
-  remaining time is spent in ``curve_fit`` on lines it ultimately fails to
-  fit.  The new ``[calibrations][wavelengths] fast_line_fit`` parameter
-  (default False) skips that hand-off during the wavelength calibration,
-  which makes its line fitting more than 10 times faster; it then rejects a
-  few saturated lines and accepts a few narrow features, which can change the
-  line identifications (see :data:`~pypeit.core.arc.ARCFIT_MATCH_CURVEFIT`,
-  which sets the same option for all callers).  Fits that failed with NaN
+  0.001 pixels.  The vectorized fit itself is many times faster than
+  ``curve_fit``, and with the shipped default the line fitting costs roughly
+  half as much as before; most of the remaining time is spent in
+  ``curve_fit`` on lines it ultimately fails to fit.  The new
+  ``[calibrations][wavelengths] fast_line_fit`` parameter (default False)
+  removes these remaining ``curve_fit`` hand-offs from the wavelength
+  calibration only; it then rejects a few saturated lines and accepts a few
+  narrow features, which can change the line identifications (see
+  :data:`~pypeit.core.arc.ARCFIT_MATCH_CURVEFIT`,
+  which sets the same option for all callers).  With the archived-sky FWHM
+  cache (next item) the hand-offs cost well under 1% of a serial Keck/DEIMOS
+  reduction, so the parameter buys little there; it matters most for
+  spectra with many lines that ``curve_fit`` fails on.  Fits that failed with NaN
   values now return the -999 sentinel.  Setting
   ``pypeit.core.arc.USE_VECTORIZED_ARCFIT = False`` restores the previous
   implementation.
+- The spectral FWHM of the archived sky spectrum used by the spectral flexure
+  correction (:func:`~pypeit.core.flexure.get_archive_spectrum`) is now
+  measured once per sky file and cached, instead of once per slit/object.  The
+  results are identical.  Profiling of the line fitting showed that this
+  repeated measurement accounted for most of the remaining line-fitting time
+  in multi-slit reductions: in a serial Keck/DEIMOS 600ZD reduction it was
+  called 170 times (once per slit and science frame) at ~3.4 s each, and the
+  cache removes about 570 s (6%) from the run, more than the vectorized line
+  fitting itself.
 - Adds new :class:`~pypeit.core.fitting.PypeItFitCollection` class to replace
   the pypeit-specific uses of ``pypeit.core.pydl.TraceSet``.  This was
   primarily done to avoid a circular import.

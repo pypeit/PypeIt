@@ -5,6 +5,7 @@
 
 """
 import copy
+import functools
 
 from astropy.stats import sigma_clipped_stats
 from IPython import embed
@@ -912,6 +913,43 @@ def spec_flexure_slit_global(sciImg, waveimg, global_sky, par, slits, slitmask,
     return flex_list
 
 
+@functools.lru_cache(maxsize=None)
+def _archive_sky_fwhm(sky_file):
+    """
+    Measure the spectral FWHM of an archived sky spectrum.
+
+    The result is cached per ``sky_file`` because the measurement (via
+    :func:`~pypeit.core.wavecal.autoid.measure_fwhm`) is expensive and
+    deterministic, and :func:`get_archive_spectrum` is called once per
+    slit/object during the spectral flexure correction.  Failed measurements
+    raise an exception, which is not cached.  Each process (e.g., worker
+    processes when running with ``ncpu > 1``) keeps its own cache.  Use
+    ``_archive_sky_fwhm.cache_clear()`` to reset the cache.
+
+    Parameters
+    ----------
+    sky_file : :obj:`str`
+        Name of the archival sky file; see
+        :func:`~pypeit.core.skyspec.load_sky_spectrum`.
+
+    Returns
+    -------
+    arx_fwhm_pix : :obj:`float`
+        The FWHM of the sky lines in pixels.
+
+    Raises
+    ------
+    PypeItError
+        Raised if the FWHM could not be measured.
+    """
+    sky_spectrum = skyspec.load_sky_spectrum(sky_file)
+    arx_fwhm_pix = autoid.measure_fwhm(sky_spectrum.flux, sigdetect=4., fwhm=4.)
+    if arx_fwhm_pix is None:
+        raise PypeItError('Failed to measure the spectral FWHM of the archived sky spectrum. '
+                   'Not enough sky lines detected.')
+    return arx_fwhm_pix
+
+
 def get_archive_spectrum(sky_file, obj_skyspec=None, spec_fwhm_pix=None):
     """
     Load an archival sky spectrum
@@ -932,19 +970,21 @@ def get_archive_spectrum(sky_file, obj_skyspec=None, spec_fwhm_pix=None):
     Returns
     -------
     sky_spectrum : :class:`~pypeit.onespec.OneSpec`
-        The sky spectrum
+        The sky spectrum.  A new object is returned on every call.
     arx_fwhm_pix : :obj:`float`
-        The FWHM of the sky lines in pixels.
+        The FWHM of the sky lines in pixels.  For an archived sky file, this
+        is measured only on the first call for that file and cached for
+        subsequent calls.
     """
     if sky_file != 'model':
-        # Load Archive. Save the fwhm to avoid the performance hit from calling it on the archive sky spectrum
-        # multiple times
+        # Load the archive spectrum.  A fresh object is loaded on every call
+        # (this is cheap) so that downstream manipulations can never leak
+        # between slits.
         sky_spectrum = skyspec.load_sky_spectrum(sky_file)
-        # get arxiv sky spectrum resolution (FWHM in pixels)
-        arx_fwhm_pix = autoid.measure_fwhm(sky_spectrum.flux, sigdetect=4., fwhm=4.)
-        if arx_fwhm_pix is None:
-            raise PypeItError('Failed to measure the spectral FWHM of the archived sky spectrum. '
-                       'Not enough sky lines detected.')
+        # Get the archive sky spectrum resolution (FWHM in pixels).  This is
+        # expensive and identical for every slit/object, so it is measured
+        # only once per sky file (see _archive_sky_fwhm).
+        arx_fwhm_pix = _archive_sky_fwhm(sky_file)
     elif obj_skyspec is not None:
         if spec_fwhm_pix is None:
             # measure spec_fwhm_pix
