@@ -80,6 +80,43 @@ def spat_flexure_edge_match(sci_edges, slits_edges, shift, tol=2):
     return nmatch / ntrace
 
 
+def _remove_edge_markers(edges_img, left, right, remove, tol=2):
+    """
+    Remove the markers of selected slit edges from an image of edge markers.
+
+    Args:
+        edges_img (`numpy.ndarray`_):
+            Image of the edge markers, with left edges set to -1, right edges
+            set to 1, and 0 elsewhere; see
+            :func:`~pypeit.core.trace.detect_slit_edges`.
+        left, right (`numpy.ndarray`_):
+            Spatial positions of the left and right slit edges, with shape
+            (nspec, nslits), where nspec is the number of rows of
+            ``edges_img``.
+        remove (`numpy.ndarray`_):
+            Boolean array with shape (nslits, 2), which is True for the left
+            (first column) and right (second column) edges whose markers are
+            removed.
+        tol (:obj:`int`, optional):
+            Markers of the same side (left or right) within this many pixels
+            of the rounded edge position are removed.
+
+    Returns:
+        `numpy.ndarray`_: A copy of ``edges_img`` without the markers of the
+        selected edges.
+    """
+    out = edges_img.copy()
+    nspec, nspat = out.shape
+    rows = np.repeat(np.arange(nspec)[:, None], 2*tol+1, axis=1)
+    offsets = np.arange(-tol, tol+1)[None, :]
+    for i, (edges, side) in enumerate([(left, -1), (right, 1)]):
+        for slit_idx in np.where(remove[:, i])[0]:
+            cols = np.clip(np.round(edges[:, slit_idx]).astype(int)[:, None] + offsets, 0, nspat-1)
+            match = out[rows, cols] == side
+            out[rows[match], cols[match]] = 0
+    return out
+
+
 def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, sigdetect=10.,
                        minfrac=0., min_refined_frac=0.25, fallback_match_frac=0.5,
                        refine_max_rows=1000, outlier_nsig=4., outlier_min_tol=0.25,
@@ -95,6 +132,29 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
     by the flexure), so the tweaked edges (which are defined by the slit
     illumination profile, and can be inset from the traced edges by a few
     pixels) are not used.
+
+    Only the slit edges that were traced in the trace image are used to
+    measure the spatial flexure (see
+    :func:`~pypeit.slittrace.SlitTraceSet.traced_edges`); the edges that were
+    inserted (e.g., at the detector boundary, when only one edge of a long slit
+    is on the detector) are not visible in the image.  An inserted edge is
+    assigned the spatial flexure of the other edge of its slit (or the
+    detector-level spatial flexure).  If no slit edges were traced (e.g., the
+    slits were placed at the detector boundaries because no edges were found),
+    no spatial flexure is applied.
+
+    The detector-level spatial flexure is the average of the peaks of the
+    cross-correlations of the left and right edges detected in the image with
+    the traced left and right edges, respectively.  The positions of the edges
+    detected in the image and of the traced edges are both offset from the
+    steepest flux gradient (outwards), by amounts that depend on the width of
+    the edges, so that the peak of each cross-correlation is biased by up to
+    about a pixel, with opposite signs for the left and right edges; the
+    average of the two peaks cancels these biases.  For the same reason, if
+    the traced edges are all on one side of the slits (e.g., a long slit cut
+    by the detector boundary), the detector-level spatial flexure is biased,
+    so it is replaced by the shifts of the refined traced edges (see below),
+    for all methods.
 
     Args:
         sciimg (`numpy.ndarray`_):
@@ -112,7 +172,11 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
             right edge shifts), the 'edge' method calculates the shift for
             each slit edge independently, and the 'leftedge' ('rightedge')
             method calculates the shift of the left (right) edge of each
-            slit and applies the same shift to the other edge.  For all
+            slit and applies the same shift to the other edge.  If the
+            traced edges are all on one side of the slits, all methods
+            refine the traced edges, and each slit is assigned the shift of
+            its traced edge (traced edges that cannot be refined are
+            assigned the median shift of the refined edges).  For all
             methods, if the slit edges are deemed to be undetected (see
             ``minfrac`` and ``min_refined_frac``), no spatial flexure is
             applied (the returned shifts are all zero).
@@ -134,17 +198,19 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
             this check.
         min_refined_frac (:obj:`float`, optional):
             Only used by the 'slit', 'edge', 'leftedge' and 'rightedge'
-            methods.  Minimum fraction of the slit edges (of the slits used
-            to measure the flexure) that must be refined successfully,
-            starting from the detector-level spatial flexure.  If fewer
-            edges can be refined (i.e. no edge is found within the search
-            window of :func:`~pypeit.core.trace.refine_edge` for most
+            methods.  Minimum fraction of the traced slit edges (of the
+            slits used to measure the flexure) that must be refined
+            successfully, starting from the detector-level spatial flexure.
+            If fewer edges can be refined (i.e. no edge is found within the
+            search window of :func:`~pypeit.core.trace.refine_edge` for most
             edges), the slit edges are deemed to be undetected in the image
             (e.g. because the exposure is too faint, so that the peak of
             the cross-correlation is spurious), and no spatial flexure is
             applied, unless the detector-level cross-correlation clearly
             detected the edges (see ``fallback_match_frac``).  Set to 0 to
-            disable this check.
+            disable this check.  Not used if the traced edges are all on one
+            side of the slits (then, no spatial flexure is applied only if
+            none of the traced edges can be refined).
         fallback_match_frac (:obj:`float`, optional):
             Only used if fewer than ``min_refined_frac`` of the slit edges
             could be refined.  If at least this fraction of the traced
@@ -161,13 +227,13 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
             line-dominated images (e.g. arcs), which makes the refined edges
             less reliable.
         outlier_nsig (:obj:`float`, optional):
-            Only used by the 'slit', 'edge', 'leftedge' and 'rightedge'
-            methods.  Refined slit edges whose spatial flexure differs from
-            that of the other edges on the same side of the slits by more
-            than ``outlier_nsig`` times their (robust) scatter, or by more
-            than ``outlier_min_tol`` pixels if that is larger, are rejected,
-            and their spatial flexure is interpolated from the other edges;
-            see :func:`reject_edge_flexure_outliers`.
+            Only used when the slit edges are refined.  Refined slit edges
+            whose spatial flexure differs from that of the other edges on
+            the same side of the slits by more than ``outlier_nsig`` times
+            their (robust) scatter, or by more than ``outlier_min_tol``
+            pixels if that is larger, are rejected, and their spatial
+            flexure is interpolated from the other edges; see
+            :func:`reject_edge_flexure_outliers`.
         outlier_min_tol (:obj:`float`, optional):
             Minimum difference (in pixels) for a refined slit edge to be
             rejected; see ``outlier_nsig``.
@@ -181,20 +247,24 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
         `numpy.ndarray`_: The spatial flexure shift (in pixels) relative to
         the slits.  The shape is (nslits, 2), where the first (second)
         column provides the shift of the left (right) edge of each slit.
-        Slit edges that could not be refined (or that belong to slits
-        excluded from the flexure calculation) are assigned the detector
-        level spatial flexure, and refined slit edges that are inconsistent
-        with the other edges are assigned the spatial flexure interpolated
-        from the other edges (see ``outlier_nsig``).  If ``return_gpm`` is
-        True, a boolean array with the same shape is also returned, which is
-        True for the slit edges where the spatial flexure was measured (i.e.
-        it is False for the rejected edges).  For the
-        ``detector`` method (or if the detector-level flexure is adopted
-        because too few edges could be refined; see
-        ``fallback_match_frac``), this is True for all edges of the slits
-        used to measure the flexure.  If the slit edges are deemed to be
-        undetected (see ``minfrac`` and ``min_refined_frac``), this is False
-        for all edges.
+        Inserted slit edges are assigned the spatial flexure of the other
+        (refined) edge of their slit.  Other slit edges that could not be
+        refined (or that belong to slits excluded from the flexure
+        calculation) are assigned the detector level spatial flexure (or,
+        if the traced edges are all on one side of the slits, the median
+        shift of the refined edges), and refined slit edges that are
+        inconsistent with the other edges are assigned the spatial flexure
+        interpolated from the other edges (see ``outlier_nsig``).  If
+        ``return_gpm`` is True, a boolean array with the same shape is also
+        returned, which is True for the slit edges where the spatial flexure
+        was measured (i.e. it is False for the rejected edges), including
+        the inserted edges that are assigned the measured spatial flexure of
+        the other edge of their slit.  For the ``detector`` method (or if
+        the detector-level flexure is adopted because too few edges could be
+        refined; see ``fallback_match_frac``), this is True for all traced
+        edges of the slits used to measure the flexure.  If the slit edges
+        are deemed to be undetected (see ``minfrac`` and
+        ``min_refined_frac``), this is False for all edges.
 
     Raises:
         PypeItError: Raised if the method is not recognized.
@@ -204,6 +274,28 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
         raise PypeItError(f'Unknown spatial flexure method: {method}.  Options are: '
                           f'{", ".join(valid_methods)}')
     log.info("Measuring spatial flexure")
+
+    # Slits excluded from the flexure calculation
+    bad_slits = slits.bitmask.flagged(slits.mask, and_not=slits.bitmask.exclude_for_flexure)
+    # The slit edges (of the slits used to measure the flexure) that were
+    # traced, as opposed to inserted (e.g. at the detector boundary).  Only
+    # the traced edges can be expected to be visible in the image.
+    traced = slits.traced_edges() & np.logical_not(bad_slits)[:, None]
+    inserted = np.logical_not(slits.traced_edges()) & np.logical_not(bad_slits)[:, None]
+    ntraced = np.sum(traced, axis=0)
+    if np.sum(ntraced) == 0:
+        log.warning(
+            'None of the slit edges on this detector were traced in the trace image (e.g., the '
+            'slits were placed at the detector boundaries because no slit edges were found; see '
+            'the "bound_detector" parameter of the slit-edge tracing), so the spatial flexure '
+            'cannot be measured.\nAssuming there is NO SPATIAL FLEXURE.'
+        )
+        total_flexure = np.zeros((slits.nslits, 2), dtype=float)
+        gpm = np.zeros((slits.nslits, 2), dtype=bool)
+        return (total_flexure, gpm) if return_gpm else total_flexure
+    # Are the traced edges all on one side of the slits?
+    one_sided = np.sum(ntraced > 0) == 1
+
     # Mask -- Includes short slits and those excluded by the user (e.g. ['rdx']['slitspatnum'])
     # NOTE: The global padding of the slit edges (see the ``pad`` parameter of
     # EdgeTracePar) is removed, so that the template edges are at the traced
@@ -230,45 +322,95 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
         for j in range(_sciimg.shape[0]):
             # mask the region between the left and right edges leaving a margin of maxlag pixels
             if left_edge[j]+maxlag < right_edge[j]-maxlag:
-                _bpm[j, left_edge[j]+maxlag:right_edge[j]-maxlag] = 1
+                _bpm[j, max(left_edge[j]+maxlag, 0):max(right_edge[j]-maxlag, 0)] = 1
 
     # Create Sobel images of the science image and check edges have been detected
     sci_sobel, sci_edges = trace.detect_slit_edges(_sciimg, bpm=_bpm, sigdetect=sigdetect)
     # Create Sobel images of the slit edges
     slits_sobel, slits_edges = trace.detect_slit_edges(_corr_slits, bpm=bpm, sigdetect=1)
-    # Perform the cross-correlation to determine the lag
-    corr = signal.fftconvolve(sci_edges, np.fliplr(slits_edges), mode='same', axes=1)
-    xcorr = np.sum(corr, axis=0)
+    # Remove the inserted edges from the template: they are not visible in
+    # the image
+    if np.any(inserted):
+        left, right, _ = slits.select_edges(initial=True, pad=nopad)
+        slits_edges = _remove_edge_markers(slits_edges, left, right, inserted)
+
+    # Cross-correlate the left (right) edges detected in the image with the
+    # traced left (right) edges.  The edge images are single-pixel markers,
+    # so (close to the peak) each cross-correlation is a histogram of the
+    # (integer) lags between the detected and traced edges in each spectral
+    # row, and the sub-pixel flexure is given by the centroid of the peak.
+    # The edges detected in the image and the traced edges are both offset
+    # from the steepest flux gradient, outwards, by amounts that depend on the
+    # width of the edges, so the peaks of the left- and right-edge
+    # cross-correlations are biased in opposite directions; their average
+    # cancels the biases (whatever the number of edges on either side).
     lags = signal.correlation_lags(sci_edges.shape[1], slits_edges.shape[1], mode='same')
     lag0 = np.where(lags == 0)[0][0]
     # Search window: +/- maxlag, padded on either side so that a peak close to +/- maxlag can
     # still be detected and fitted (see below)
     pad = 5
-    _lo, _hi = max(lag0 - maxlag - pad, 0), min(lag0 + maxlag + pad + 1, xcorr.size)
-    xcorr_max = xcorr[_lo:_hi]
+    _lo, _hi = max(lag0 - maxlag - pad, 0), min(lag0 + maxlag + pad + 1, lags.size)
     lags_max = lags[_lo:_hi]
-
-    # Find the peak of the cross-correlation.  The edge images are single-pixel
-    # markers, so (close to the peak) the cross-correlation is a histogram of the
-    # (integer) lags between the detected and traced edges in each spectral row.
-    # The sub-pixel flexure is therefore given by the centroid of the peak.
-    # NOTE: A peak beyond the search window (+/- maxlag) is rejected, because the
-    # cross-correlation has then most likely failed (or the flexure exceeds maxlag).
-    imax = np.argmax(xcorr_max)
-    peak_found = xcorr_max[imax] > 0
-    peak_beyond_maxlag = np.abs(lags_max[imax]) > maxlag
-    if peak_found and not peak_beyond_maxlag:
+    side_names = ['left', 'right']
+    xcorr = [None, None]
+    side_flexure = np.full(2, np.nan)
+    side_beyond_maxlag = np.zeros(2, dtype=bool)
+    for i, side in enumerate([-1, 1]):
+        template = slits_edges == side
+        if not np.any(template):
+            continue
+        # NOTE: The cross-correlation counts coinciding edge pixels, so it is
+        # rounded to remove the round-off errors of the FFT
+        xcorr[i] = np.round(np.sum(signal.fftconvolve((sci_edges == side).astype(float),
+                                                      np.fliplr(template.astype(float)),
+                                                      mode='same', axes=1), axis=0))
+        xcorr_max = xcorr[i][_lo:_hi]
+        imax = np.argmax(xcorr_max)
+        if xcorr_max[imax] <= 0:
+            continue
+        # NOTE: A peak beyond the search window (+/- maxlag) is rejected, because the
+        # cross-correlation has then most likely failed (or the flexure exceeds maxlag).
         ww = slice(max(imax - 2, 0), min(imax + 3, xcorr_max.size))
         wgt = np.clip(xcorr_max[ww], 0, None)
-        det_spat_flexure = round(np.sum(wgt * lags_max[ww]) / np.sum(wgt), 3)
-        peak_beyond_maxlag = np.abs(det_spat_flexure) > maxlag
+        peak = np.sum(wgt * lags_max[ww]) / np.sum(wgt)
+        if np.abs(lags_max[imax]) > maxlag or np.abs(peak) > maxlag:
+            side_beyond_maxlag[i] = True
+            continue
+        side_flexure[i] = peak
+    measured = np.isfinite(side_flexure)
+    # The biases of the left- and right-edge peaks are at most about a pixel
+    # each, so peaks that differ by more than this (in pixels) are
+    # inconsistent: at least one of them is spurious
+    max_side_diff = 4.
+    inconsistent = np.all(measured) \
+                    and np.absolute(side_flexure[0] - side_flexure[1]) > max_side_diff
+    if inconsistent:
+        # Use the stronger peak
+        weak = int(np.argmin([np.max(xc[_lo:_hi]) for xc in xcorr]))
+        log.warning(
+            f'The peaks of the cross-correlations of the left ({side_flexure[0]:.3f} pixels) '
+            f'and right ({side_flexure[1]:.3f} pixels) slit edges are inconsistent, so the '
+            f'weaker peak ({side_names[weak]} edges) is ignored.'
+        )
+        measured[weak] = False
+    peak_found = np.any(measured)
+    if peak_found:
+        det_spat_flexure = round(float(np.mean(side_flexure[measured])), 3)
+        if not one_sided and not np.all(measured) and not inconsistent:
+            log.warning(
+                f'No peak was found in the cross-correlation of the '
+                f'{side_names[int(np.where(~measured)[0][0])]} slit edges, so the detector-level '
+                f'spatial flexure is measured from the {side_names[int(np.where(measured)[0][0])]} '
+                'slit edges only, which can bias it by up to about a pixel.'
+            )
+
     # Check that the slit edges have been detected in the image, using the
     # fraction of the traced slit-edge pixels that coincide with a detected
     # edge at the measured flexure.  If too few edges match (e.g. because the
     # slit edges are not visible in a faint exposure), the peak of the
     # cross-correlation is not reliable.
     edges_detected = True
-    if peak_found and not peak_beyond_maxlag:
+    if peak_found:
         match_frac = spat_flexure_edge_match(sci_edges, slits_edges, det_spat_flexure)
         edges_detected = match_frac >= minfrac
     if not edges_detected:
@@ -285,9 +427,9 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
         )
         total_flexure = np.zeros((slits.nslits, 2), dtype=float)
         det_measured = False
-    elif not peak_found or peak_beyond_maxlag:
+    elif not peak_found:
         reason = 'The peak of the x-correlation is beyond the search window (+/- maxlag)' \
-                    if peak_beyond_maxlag else 'No peak found in the x-correlation'
+                    if np.any(side_beyond_maxlag) else 'No peak found in the x-correlation'
         log.warning(
             f'{reason} between the traced slits and the science/calibration image.\n'
             'Assuming there is NO GLOBAL SPATIAL FLEXURE.\nIf a flexure is expected, consider either changing:\n'
@@ -300,23 +442,29 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
         det_measured = False
     else:
         det_measured = True
-        log.info(f'Detector spatial flexure measured: {det_spat_flexure:5.3f} pixels '
-                 f'({100*match_frac:.1f}% of the traced slit-edge pixels are matched)')
+        msg = f'Detector spatial flexure measured: {det_spat_flexure:5.3f} pixels ' \
+              f'({100*match_frac:.1f}% of the traced slit-edge pixels are matched)'
+        if np.all(measured):
+            msg += f'; mean of the left-edge ({side_flexure[0]:.3f}) and right-edge ' \
+                   f'({side_flexure[1]:.3f}) cross-correlation peaks'
+        log.info(msg)
 
         # So far we have calculated the global flexure (method = detector)
         total_flexure = np.full((slits.nslits, 2), det_spat_flexure)
 
     if debug:
-        # 1D plot of the cross-correlation
+        # 1D plot of the cross-correlations
         plt.figure(figsize=(10, 6))
         plt.minorticks_on()
         plt.tick_params(axis='both', direction='in', top=True, right=True, which='both')
-        # plot xcorr_max but add a buffer of 20 pixels on each side
+        # plot the cross-correlations but add a buffer of 20 pixels on each side
         pad = 20
-        _xcorr_max = xcorr[lag0 - (maxlag+pad):lag0 + (maxlag+pad)]
-        _lags_max = lags[lag0 - (maxlag+pad):lag0 + (maxlag+pad)]
-        plt.plot(_lags_max, _xcorr_max, 'k-', lw=1)
-        plt.axvline(total_flexure[0, 0], color='r', linestyle='--', label=f'Measured average (detector) shift = {total_flexure[0, 0]:.1f} pixels')
+        _sl = slice(max(lag0 - (maxlag+pad), 0), lag0 + (maxlag+pad))
+        for i, color in enumerate(['C3', 'C1']):
+            if xcorr[i] is not None:
+                plt.plot(lags[_sl], xcorr[i][_sl], color=color, lw=1,
+                         label=f'{side_names[i]} edges')
+        plt.axvline(total_flexure[0, 0], color='k', linestyle='--', label=f'Measured average (detector) shift = {total_flexure[0, 0]:.1f} pixels')
         plt.axvline(maxlag, color='g', linestyle='--', label='Max lag')
         plt.axvline(-maxlag, color='g', linestyle='--')
         plt.xlabel('Lag (pixels)')
@@ -326,20 +474,18 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
         plt.tight_layout()
         plt.show()
 
-    # Slits excluded from the flexure calculation
-    bad_slits = slits.bitmask.flagged(slits.mask, and_not=slits.bitmask.exclude_for_flexure)
-
-    # If we're only calculating the detector flexure, or the slit edges were
-    # not detected, return now
-    if method == "detector" or not edges_detected:
-        gpm = np.tile(np.logical_not(bad_slits)[:, None], (1, 2)) & det_measured
+    # If the slit edges were not detected, return now
+    if not edges_detected:
+        gpm = np.zeros((slits.nslits, 2), dtype=bool)
         return (total_flexure, gpm) if return_gpm else total_flexure
 
-    # Compute the small correction to the flexure for each slit edge
-    log.info(f"Calculating the spatial flexure using the '{method}' method.")
-    # Store an array of the small correction to the flexure for each slit edge.
-    # NaN means that the edge was not (or could not be) refined.
-    delta_flexure = np.full((slits.nslits, 2), np.nan)
+    # If we're only calculating the detector flexure, return now (unless the
+    # traced edges are all on one side of the slits, for which the
+    # detector-level flexure is biased)
+    if method == "detector" and not one_sided:
+        gpm = traced & det_measured
+        return (total_flexure, gpm) if return_gpm else total_flexure
+
     # Set up the slits and image properties
     # NOTE: The global padding is removed, so that the edges are at the traced edges
     left, right, _ = slits.select_edges(initial=True, spat_flexure=total_flexure, pad=nopad)
@@ -347,31 +493,77 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
     # slits are also illuminated), so that their light is accounted for
     left_nbr, right_nbr = trace.facing_edges(left, right)
     spec = np.arange(_sciimg.shape[0])
-    # Only refine the edges that are needed
-    refine_left = method != 'rightedge'
-    refine_right = method != 'leftedge'
-    # Loop through all slits and calculate the flexure of each slit edge.
-    for slit_idx in range(slits.nslits):
-        if bad_slits[slit_idx]:
-            continue
+    mid = left.shape[0] // 2
+    edge_pos = np.column_stack((left[mid], right[mid]))
+
+    def _refine(slit_idx, i):
+        """Refine edge i (0 = left, 1 = right) of a slit; return NaN if it cannot be refined."""
         # Only use the spectral extent of the slit
         rows = (spec >= slits.specmin[slit_idx]) & (spec <= slits.specmax[slit_idx])
-        # Calculate the shift of each edge
-        for i, (refine, edge, nbr, side) in enumerate([(refine_left, left, left_nbr, 'left'),
-                                                       (refine_right, right, right_nbr, 'right')]):
-            if not refine:
-                continue
-            shift, refined = trace.refine_edge(_sciimg, bpm, edge[:, slit_idx], side, rows=rows,
-                                               max_rows=refine_max_rows,
-                                               neighbour=nbr[:, slit_idx], return_success=True)
-            if refined:
-                delta_flexure[slit_idx, i] = shift
+        edge, nbr = (left, left_nbr) if i == 0 else (right, right_nbr)
+        shift, refined = trace.refine_edge(_sciimg, bpm, edge[:, slit_idx], side_names[i],
+                                           rows=rows, max_rows=refine_max_rows,
+                                           neighbour=nbr[:, slit_idx], return_success=True)
+        return shift if refined else np.nan
+
+    if one_sided:
+        # The traced edges are all on one side of the slits (e.g. a long slit
+        # cut by the detector boundary), so the detector-level flexure is
+        # biased.  Refine the traced edges, and assign the shift of the traced
+        # edge of each slit to both of its edges.
+        iside = int(np.where(ntraced > 0)[0][0])
+        log.warning(
+            f'All of the traced slit edges on this detector are {side_names[iside]} edges (the '
+            f'{side_names[1-iside]} edges were inserted, e.g. at the detector boundary).  The '
+            'detector-level spatial flexure is biased in this case, so the spatial flexure is '
+            f'determined by refining the {side_names[iside]} edges, and each slit is assigned the '
+            f'spatial flexure of its {side_names[iside]} edge.\nThe result is relative to the '
+            'traced slit edges: unless they were refined to the steepest flux gradient '
+            '(refine_edges = True in the [calibrations][[slitedges]] parameter block), it can be '
+            'wrong by about a pixel.'
+        )
+        delta_flexure = np.full((slits.nslits, 2), np.nan)
+        for slit_idx in np.where(traced[:, iside])[0]:
+            delta_flexure[slit_idx, iside] = _refine(slit_idx, iside)
+        delta_flexure, rejected = reject_edge_flexure_outliers(delta_flexure, edge_pos,
+                                                               nsig=outlier_nsig,
+                                                               min_tol=outlier_min_tol)
+        if np.any(rejected):
+            log.warning(f'The spatial flexure of {np.sum(rejected)} refined slit edge(s) is '
+                        'inconsistent with that of the other slit edges; these are assigned the '
+                        'spatial flexure interpolated from the other slit edges.')
+        delta = delta_flexure[:, iside]
+        refined = np.isfinite(delta)
+        if not np.any(refined):
+            log.warning(f'None of the {side_names[iside]} slit edges could be refined, so the '
+                        'slit edges are deemed to be undetected.\nAssuming there is NO SPATIAL '
+                        'FLEXURE.\nIf the slit edges are visible in this frame, consider using '
+                        'the manual flexure correction.')
+            total_flexure = np.zeros((slits.nslits, 2), dtype=float)
+            gpm = np.zeros((slits.nslits, 2), dtype=bool)
+            return (total_flexure, gpm) if return_gpm else total_flexure
+        if not np.all(refined[traced[:, iside]]):
+            log.warning(f'The spatial flexure could not be refined for '
+                        f'{np.sum(~refined[traced[:, iside]])} slit edge(s); these are assigned '
+                        'the median spatial flexure of the refined edges.')
+        delta[np.logical_not(refined)] = np.median(delta[refined])
+        total_flexure = total_flexure + delta[:, None]
+        gpm = np.tile((refined & np.logical_not(rejected[:, iside]))[:, None], (1, 2))
+        return (total_flexure, gpm) if return_gpm else total_flexure
+
+    # Compute the small correction to the flexure for each slit edge
+    log.info(f"Calculating the spatial flexure using the '{method}' method.")
+    # Store an array of the small correction to the flexure for each slit edge.
+    # NaN means that the edge was not (or could not be) refined.
+    delta_flexure = np.full((slits.nslits, 2), np.nan)
+    # Only refine the edges that are needed, and that were traced
+    attempted = traced & np.array([method != 'rightedge', method != 'leftedge'])[None, :]
+    for slit_idx, i in zip(*np.where(attempted)):
+        delta_flexure[slit_idx, i] = _refine(slit_idx, i)
     # Check that the slit edges have been detected in the image: if too few of
     # the edges can be refined (i.e. no edge is found close to the edges
     # shifted by the detector-level flexure), the slit edges are not visible in
     # the image, or the detector-level flexure is spurious.
-    attempted = np.tile([refine_left, refine_right], (slits.nslits, 1))
-    attempted[bad_slits] = False
     nattempted = np.sum(attempted)
     nrefined = np.sum(np.isfinite(delta_flexure) & attempted)
     if nattempted > 0 and nrefined < min_refined_frac * nattempted:
@@ -386,7 +578,7 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
                 'matched at the detector-level spatial flexure, so the slit edges are visible.\n'
                 'Adopting the detector-level spatial flexure for all slit edges.'
             )
-            gpm = np.tile(np.logical_not(bad_slits)[:, None], (1, 2))
+            gpm = traced.copy()
             return (total_flexure, gpm) if return_gpm else total_flexure
         log.warning(
             f'{msg}\nThe slit edges are deemed to be undetected.\nAssuming there is NO SPATIAL '
@@ -401,8 +593,6 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
     # other edges on the same side of the slits (e.g. because an object or the
     # sky lines near the edge shift the refined position), and interpolate
     # their flexure from the remaining edges
-    mid = left.shape[0] // 2
-    edge_pos = np.column_stack((left[mid], right[mid]))
     delta_flexure, rejected = reject_edge_flexure_outliers(delta_flexure, edge_pos,
                                                            nsig=outlier_nsig,
                                                            min_tol=outlier_min_tol)
@@ -412,6 +602,13 @@ def spat_flexure_shift(sciimg, slits, method="detector", bpm=None, maxlag=20, si
                     'spatial flexure interpolated from the other slit edges.')
     # The slit edges where the spatial flexure was measured
     gpm = np.isfinite(delta_flexure) & np.logical_not(rejected)
+
+    # The inserted edges are not visible in the image: assign them the spatial
+    # flexure of the other edge of their slit
+    for i in range(2):
+        fill = inserted[:, i] & np.isfinite(delta_flexure[:, 1-i])
+        delta_flexure[fill, i] = delta_flexure[fill, 1-i]
+        gpm[fill, i] = gpm[fill, 1-i]
 
     if method == "slit":
         # Use the average flexure of both edges as the flexure for the slit

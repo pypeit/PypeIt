@@ -18,6 +18,10 @@ Breaking Changes
   alignment calibration frames now also store their spatial flexure (datamodel
   version 1.2.0).  Processed files from previous versions should be
   regenerated.
+- The slit-edge calibration files (``Slits``; datamodel version 1.1.7) now
+  record which slit edges were traced, as opposed to inserted (e.g., at the
+  detector boundary); see :ref:`flexure-spatial`.  Slit-edge files from
+  previous versions must be regenerated.
 
 Documentation Updates
 ---------------------
@@ -87,6 +91,23 @@ Functionality/Performance Improvements and Additions
   robust scatter about a linear fit across the detector, and at least 0.25
   pixels) are rejected, and their spatial flexure is interpolated from the
   neighbouring edges.
+- The detector-level spatial flexure is now the average of the peaks of the
+  cross-correlations of the left and right slit edges, computed separately.
+  The detected and traced edges are offset from the steepest flux gradient in
+  opposite directions for left and right edges, by up to about a pixel, so the
+  peak of the single cross-correlation of all edges (as before) was biased
+  when the numbers of left and right edges differed, and was unstable when its
+  left- and right-edge contributions were similar.  Only the traced slit edges
+  are used to measure the spatial flexure, for all methods: the edges inserted
+  by the slit-edge tracing (e.g., at the detector boundary, when only one edge
+  of a long slit is on the detector) are assigned the spatial flexure of the
+  other edge of their slit.  If the traced edges on a detector are all on one
+  side of the slits (e.g., a long slit cut by the detector boundary), the
+  detector-level spatial flexure would be biased by up to about a pixel, so
+  the traced edges are refined (for all methods), and each slit is assigned
+  the spatial flexure of its traced edge.  If none of the slit edges were
+  traced (e.g., if the slits were placed at the detector boundaries with
+  ``bound_detector = True``), no spatial flexure is applied.
 - The spatial flexure of each frame is accounted for when constructing
   datacubes (``pypeit_coadd_datacube``): the RA and Dec of each detector pixel,
   and the astrometric alignment traces, are now evaluated using the spatial
@@ -193,6 +214,10 @@ Functionality/Performance Improvements and Additions
 Instrument-specific Updates
 ---------------------------
 
+- Keck/LRIS: the traced slit edges of long-slit observations are now refined
+  to the steepest flux gradient (``refine_edges = True``), since the spatial
+  flexure of such frames (with one slit edge on each detector) is measured
+  from the refined slit edge; see :ref:`flexure-spatial`.
 - Keck/KCWI and Keck/KCRM: the spatial flexure is now determined by default
   for the arc, tilt, pixel-flat and illumination-flat frames (``edge``
   method) and for the science frames (``detector`` method, with

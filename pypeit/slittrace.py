@@ -95,7 +95,7 @@ class SlitTraceSet(calibframe.CalibFrame):
     calib_file_format = 'fits.gz'
     """File format for the calibration frame file."""
 
-    version = '1.1.6'
+    version = '1.1.7'
     """SlitTraceSet data model version."""
 
     bitmask = SlitTraceBitMask()
@@ -163,6 +163,17 @@ class SlitTraceSet(calibframe.CalibFrame):
                                      descr='Spatial coordinates (pixel indices) of all right '
                                            'edges, one per slit.  These traces have been adjusted '
                                            'by the flat-field.  Shape is Nspec by Nslits.'),
+                 'left_traced': dict(otype=np.ndarray, atype=(bool, np.bool_),
+                                     descr='Flags the left edges that were traced in the trace '
+                                           'image (True), as opposed to inserted (False); e.g., '
+                                           'by the left-right synchronization of the edges, or at '
+                                           'the detector boundaries if no edges were found.  '
+                                           'Shape is Nslits.  If None, all edges were traced.'),
+                 'right_traced': dict(otype=np.ndarray, atype=(bool, np.bool_),
+                                      descr='Flags the right edges that were traced in the trace '
+                                            'image (True), as opposed to inserted (False); see '
+                                            'left_traced.  Shape is Nslits.  If None, all edges '
+                                            'were traced.'),
                  'center': dict(otype=np.ndarray, atype=np.floating,
                                descr='Spatial coordinates of the slit centers from left_init, '
                                      'right_init.  Shape is Nspec by Nslits.'),
@@ -187,7 +198,7 @@ class SlitTraceSet(calibframe.CalibFrame):
                  pad=None, spat_id=None, maskdef_id=None, maskdef_designtab=None, maskfile=None,
                  maskdef_posx_pa=None, maskdef_offset=None, maskdef_objpos=None,
                  maskdef_slitcen=None, ech_order=None, nslits=None, left_tweak=None,
-                 right_tweak=None, center=None, mask=None):
+                 right_tweak=None, left_traced=None, right_traced=None, center=None, mask=None):
 
         # Instantiate the DataContainer
         args, values = utils.init_arg_values()
@@ -254,6 +265,17 @@ class SlitTraceSet(calibframe.CalibFrame):
             self.specmin = np.full(self.nslits, -1, dtype=float)
         if self.specmax is None:
             self.specmax = np.full(self.nslits, self.nspec, dtype=float)
+
+        # The flags of the traced edges
+        if (self.left_traced is None) != (self.right_traced is None):
+            raise PypeItError('Flags of the traced edges must be provided for both the left and '
+                              'the right edges, or for neither.')
+        if self.left_traced is not None:
+            self.left_traced = np.atleast_1d(self.left_traced).astype(bool)
+            self.right_traced = np.atleast_1d(self.right_traced).astype(bool)
+            if self.left_traced.size != self.nslits or self.right_traced.size != self.nslits:
+                raise PypeItError('Number of flags of the traced edges does not match the number '
+                                  'of slits.')
 
         # If the echelle order is provided, check that the number of
         # orders matches the number of provided "slits"
@@ -374,6 +396,23 @@ class SlitTraceSet(calibframe.CalibFrame):
             )
 
         return self
+
+    def traced_edges(self):
+        """
+        Flag the slit edges that were traced in the trace image, as opposed to
+        inserted (e.g., by the left-right synchronization of the edges, or at
+        the detector boundaries if no edges were found); see
+        :attr:`left_traced` and :attr:`right_traced`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array with shape :math:`(N_{\rm slits},
+            2)`, which is True for the traced left (first column) and right
+            (second column) edges.  All edges are flagged as traced if
+            :attr:`left_traced` and :attr:`right_traced` are not defined.
+        """
+        if self.left_traced is None or self.right_traced is None:
+            return np.ones((self.nslits, 2), dtype=bool)
+        return np.column_stack((self.left_traced, self.right_traced))
 
     def init_tweaked(self):
         """

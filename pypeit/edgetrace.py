@@ -5716,6 +5716,11 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # Parse the data for the SlitTraceSet
         left = self.edge_fit[:,gpm & self.is_left]
         right = self.edge_fit[:,gpm & self.is_right]
+        # Flag the edges that were traced, as opposed to inserted (e.g. by the
+        # left-right synchronization, or at the detector boundaries)
+        traced = np.logical_not(self.fully_masked_traces(flag=self.bitmask.insert_flags))
+        left_traced = traced[gpm & self.is_left]
+        right_traced = traced[gpm & self.is_right]
         binspec, binspat = parse.parse_binning(self.traceimg.detector.binning)
         ech_order = None if self.orderid is None else self.orderid[gpm][1::2]
         if self.par['trim_spec'] is not None:
@@ -5808,7 +5813,8 @@ class EdgeTraceSet(calibframe.CalibFrame):
                                        PYP_SPEC=self.spectrograph.name, specmin=specmin,
                                        specmax=specmax, binspec=binspec, binspat=binspat,
                                        pad=np.asarray(self.par['pad'], dtype=float),
-                                       mask_init=slit_msk,
+                                       mask_init=slit_msk, left_traced=left_traced,
+                                       right_traced=right_traced,
                                        maskdef_id=_maskdef_id, maskdef_designtab=_merged_designtab,
                                        maskdef_posx_pa=_posx_pa, maskfile=self.maskfile,
                                        ech_order=ech_order)

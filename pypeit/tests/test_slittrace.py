@@ -8,7 +8,9 @@ from IPython import embed
 import numpy as np
 
 from astropy.io import fits
+import pytest
 
+from pypeit import PypeItError
 from pypeit.slittrace import SlitTraceSet, SlitTraceBitMask
 from pypeit.par.pypeitpar import EdgeTracePar
 from pypeit.tests.tstutils import data_output_path
@@ -39,6 +41,34 @@ def test_init():
     left, right, _ = slits.select_edges()
     center = (left+right)/2
     assert np.all(center == 5), 'Bad center'
+
+
+@pytest.mark.parametrize('nslits', [1, 2, 3])
+def test_traced_edges(nslits, tmp_path):
+    left = np.tile(2. + 10. * np.arange(nslits), (100, 1))
+    right = left + 6.
+    slits = SlitTraceSet(left, right, 'MultiSlit', nspat=10 * nslits, PYP_SPEC='dummy')
+    assert slits.traced_edges().shape == (nslits, 2), 'Incorrect shape'
+    assert np.all(slits.traced_edges()), 'All edges should be traced by default'
+    left_traced = np.arange(nslits) > 0
+    right_traced = np.arange(nslits) < nslits - 1
+    slits = SlitTraceSet(left, right, 'MultiSlit', nspat=10 * nslits, PYP_SPEC='dummy',
+                         left_traced=left_traced, right_traced=right_traced)
+    assert np.array_equal(slits.traced_edges(), np.column_stack((left_traced, right_traced))), \
+        'Incorrect traced-edge flags'
+    # I/O
+    slits.set_paths(tmp_path, 'A', '1', 'DET01')
+    slits.to_file()
+    _slits = SlitTraceSet.from_file(slits.get_path())
+    assert np.array_equal(_slits.traced_edges(), slits.traced_edges()), \
+        'Bad traced-edge flags read'
+    # Flags for one side only, or for the wrong number of slits
+    with pytest.raises(PypeItError):
+        SlitTraceSet(left, right, 'MultiSlit', nspat=10 * nslits, left_traced=left_traced)
+    with pytest.raises(PypeItError):
+        SlitTraceSet(left, right, 'MultiSlit', nspat=10 * nslits,
+                     left_traced=np.ones(nslits + 1, dtype=bool),
+                     right_traced=np.ones(nslits + 1, dtype=bool))
 
 
 def test_io():

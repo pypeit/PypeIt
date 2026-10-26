@@ -142,6 +142,14 @@ There is substantial flexure in the LRIS instrument and
 the default settings attempts to characterize both the spectral
 and spatial effects.
 
+A long slit leaves only one of its edges on each detector (the other edge is
+beyond the detector), so the spatial flexure of a long-slit frame is measured
+from the refined position of that edge (see
+:ref:`flexure-spatial`).  For this reason, the traced slit edges of long-slit
+observations (i.e., when the decker name contains ``long``) are refined to the
+steepest flux gradient by default (``refine_edges = True`` in
+:ref:`edgetracepar`).
+
 See the :doc:`../calibrations/flexure` notes if you wish
 to turn either of these off.
 
