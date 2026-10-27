@@ -13,7 +13,8 @@ from pypeit.core import fitting
 from pypeit import wavecalib
 from pypeit import slittrace
 from pypeit.tests.tstutils import data_output_path
-from pypeit.core.wavecal import waveio
+from pypeit.core.wavecal import waveio, wvutils
+from pypeit.gui.identify import Identify
 
 
 @pytest.mark.remote_data
@@ -26,6 +27,88 @@ def test_load_template():
     wave, flux = waveio.load_template('gemini_gmos_r831_ham.fits', 1)[:2]
     assert wave[0] > 6200, 'Bad wavelength read'
     assert np.amax(flux) > 1e5, 'Bad flux read'
+
+
+def test_write_template_with_empty_line_ids(tmp_path):
+    """Templates can keep skipped orders aligned with empty line-ID arrays"""
+    wave = np.vstack((5000. + np.arange(10), np.full(10, np.nan)))
+    flux = np.ones_like(wave)
+    lines_pix = [np.array([2., 7.]), np.array([], dtype=float)]
+    lines_wav = [wave[0, [2, 7]], np.array([], dtype=float)]
+    outfile = tmp_path / 'test_empty_lines.fits'
+
+    wvutils.write_template(wave, flux, 1, str(tmp_path), outfile.name,
+                           order=np.array([10, 11]), lines_pix_arr=lines_pix,
+                           lines_wav_arr=lines_wav, lines_fit_ord=[1, 1])
+    _wave, _flux, _binspec, order, _lines_pix, _lines_wav, _lines_fit_ord = \
+        waveio.load_template(str(outfile), 1)
+
+    assert np.array_equal(order, np.array([10, 11]))
+    assert np.array_equal(_lines_pix[0], lines_pix[0])
+    assert len(_lines_pix[1]) == 0
+    assert len(_lines_wav[1]) == 0
+
+
+def test_identify_saveable_multi_solution_with_skipped_last_order():
+    """A skipped final order should not hide earlier multi-order fits."""
+    pypeitFit = fitting.PypeItFit(fitc=np.arange(5).astype(float))
+    good_fit = wv_fitting.WaveFit(232, pypeitfit=pypeitFit,
+                                  pixel_fit=np.arange(10).astype(float),
+                                  wave_fit=np.linspace(1., 10., 10))
+    skipped_fit = wv_fitting.WaveFit(949)
+    waveCalib = wavecalib.WaveCalib(wv_fits=np.asarray([good_fit, skipped_fit]),
+                                    nslits=2, spat_ids=np.asarray([232, 949]))
+
+    assert Identify.has_saveable_multi_solution(wvcalib=waveCalib)
+
+
+def test_identify_saveable_multi_solution_empty_orders():
+    """Empty orders are saveable only when an estimated wavelength row exists."""
+    skipped_fit = wv_fitting.WaveFit(949)
+    waveCalib = wavecalib.WaveCalib(wv_fits=np.asarray([skipped_fit]),
+                                    nslits=1, spat_ids=np.asarray([949]))
+
+    assert not Identify.has_saveable_multi_solution(wvcalib=waveCalib)
+    assert Identify.has_saveable_multi_solution(
+        wvcalib=waveCalib, custom_wav=np.linspace(1., 10., 10)[None, :])
+
+
+def test_identify_store_solution_multi_with_skipped_last_order(monkeypatch):
+    """The multi-order save path should not depend on the last order's fit."""
+    class LinearFit:
+        def eval(self, x):
+            return 5000. + x
+
+    ident = Identify.__new__(Identify)
+    ident.specname = 'test'
+    ident._spatid = '232'
+
+    pypeitFit = fitting.PypeItFit(fitc=np.arange(5).astype(float))
+    good_fit = wv_fitting.WaveFit(232, pypeitfit=pypeitFit,
+                                  pixel_fit=np.arange(10).astype(float),
+                                  wave_fit=np.linspace(1., 10., 10))
+    skipped_fit = wv_fitting.WaveFit(949)
+    waveCalib = wavecalib.WaveCalib(wv_fits=np.asarray([good_fit, skipped_fit]),
+                                    nslits=2, spat_ids=np.asarray([232, 949]),
+                                    strpar='{}')
+    written = {}
+
+    def fake_write_template(wavelengths, *args, **kwargs):
+        written['wavelengths'] = wavelengths.copy()
+
+    monkeypatch.setattr(wvutils, 'write_template', fake_write_template)
+    monkeypatch.setattr(wavecalib.WaveCalib, 'to_file', lambda *args, **kwargs: None)
+
+    wvarxiv_name = ident.store_solution(
+        {}, 1, force_save=True, wvcalib=waveCalib, multi=True,
+        fits_dicts=[{'full_fit': LinearFit()}, {'full_fit': None}],
+        specdata_multi=np.ones((2, 10)), lines_pix_arr=[np.arange(2), np.array([])],
+        lines_wav_arr=[np.arange(2), np.array([])], lines_fit_ord=[[1], [1]],
+        custom_wav=np.array([]), custom_wav_ind=np.array([], dtype=int))
+
+    assert wvarxiv_name.startswith('wvarxiv_test_')
+    assert np.all(np.isfinite(written['wavelengths'][0]))
+    assert np.all(np.isnan(written['wavelengths'][1]))
 
 
 def test_wavefit_hduprefix():
@@ -161,4 +244,3 @@ def test_wvcalib_no2d():
 
     # Finish
     ofile.unlink()
-
