@@ -7,11 +7,14 @@ dependencies:
   - astropy
   - scipy
   - matplotlib
+  - pillow
   - scikit-learn
   - ipython
   - pyside6
   - llvm-openmp
   - pip
+  - specutils>=2.0
+  - ginga
+  - bottleneck
   - pip:
     - pypeit
-    - specutils>=2.0

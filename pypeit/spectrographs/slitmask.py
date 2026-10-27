@@ -910,7 +910,6 @@ class SlitMask:
 # 
 #     return offset, slit_func_x, slit_func_y
 
-
 def positive_pa(pa:float):
     """ Modify input pa to be positive (0-360)
 

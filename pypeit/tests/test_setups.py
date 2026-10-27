@@ -21,6 +21,7 @@ def expected_file_extensions():
     return ['sorted']
 
 
+@pytest.mark.remote_data
 def test_read_list_rawfiles():
     """ Read in a file which is a 
     list of raw data files for setting up
@@ -53,6 +54,7 @@ def test_read_list_rawfiles():
         os.remove(tst_file)
 
 
+@pytest.mark.remote_data
 def test_run_setup():
     """ Test the setup script
     """

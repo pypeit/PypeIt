@@ -4,6 +4,8 @@ Module to run tests on simple fitting routines for arrays
 
 import numpy as np
 
+import pytest
+
 from pypeit.core import flexure
 from pypeit import dataPaths
 from pypeit.core.wavecal import autoid
@@ -12,6 +14,7 @@ from pypeit import onespec
 from IPython import embed
 
 
+@pytest.mark.remote_data
 def test_flex_shift():
     # Dummy slf
     # Read spectra

@@ -10,15 +10,14 @@ import inspect
 import numpy as np
 import os
 
-from astropy import stats
 from abc import ABCMeta
 
 from pypeit import log, utils
 from pypeit import PypeItError
 from pypeit.display import display
+from pypeit.qa import spec_flexure_qa
 from pypeit.core import skysub, extract, flexure, flat
 from pypeit.core.moment import moment1d
-from IPython import embed
 
 
 class Extract:
@@ -583,8 +582,8 @@ class Extract:
         if flex_list is not None:
             basename = f'{self.basename}_{mode}_{self.spectrograph.get_det_name(self.det)}'
             out_dir = os.path.join(self.par['rdx']['redux_path'], 'QA')
-            flexure.spec_flexure_qa(self.slits.slitord_id, self.extract_bpm, basename, flex_list,
-                                    specobjs=sobjs, out_dir=out_dir)
+            spec_flexure_qa(self.slits.slitord_id, self.extract_bpm, basename, flex_list,
+                            specobjs=sobjs, out_dir=out_dir)
 
     def show(self, attr, image=None, showmask=False, sobjs=None,
              chname=None, slits=False,clear=False):
@@ -621,10 +620,6 @@ class Extract:
             # global sky subtraction
             # sky subtracted image
             image = (self.sciImg.image - self.global_sky) * img_gpm.astype(float)
-            mean, med, sigma = stats.sigma_clipped_stats(image[img_gpm], sigma_lower=5.0,
-                                                         sigma_upper=5.0)
-            cut_min = mean - 1.0 * sigma
-            cut_max = mean + 4.0 * sigma
             ch_name = chname if chname is not None else f'global_sky_{detname}'
             viewer, ch = display.show_image(image, chname=ch_name, mask=mask_in, clear=clear,
                                             wcs_match=True)
@@ -633,10 +628,6 @@ class Extract:
             # local sky subtraction
             # sky subtracted image
             image = (self.sciImg.image - self.skymodel) * img_gpm.astype(float)
-            mean, med, sigma = stats.sigma_clipped_stats(image[img_gpm], sigma_lower=5.0,
-                                                         sigma_upper=5.0)
-            cut_min = mean - 1.0 * sigma
-            cut_max = mean + 4.0 * sigma
             ch_name = chname if chname is not None else f'local_sky_{detname}'
             viewer, ch = display.show_image(image, chname=ch_name, mask=mask_in, clear=clear,
                                             wcs_match=True)
@@ -952,3 +943,331 @@ class SlicerIFUExtract(MultiSlitExtract):
     #def __init__(self, sciImg, slits, sobjs_obj, spectrograph, par, objtype, **kwargs):
     #    # IFU doesn't extract, and there's no need for a super call here.
     #    return
+
+
+class FiberExtract(Extract):
+    """
+    Child of Extract for fiber-fed spectrographs.
+
+    Extracts 1D spectra from each fiber using boxcar and optimal (Horne 1986)
+    extraction. Skips local sky subtraction — the global sky model is used
+    directly.
+
+    See parent doc string for Args and Attributes.
+    """
+    def local_skysub_extract(self, global_sky, sobjs, bkg_redux_global_sky=None,
+                             spat_pix=None, model_noise=True,
+                             show_resids=False, show_profile=False, show=False):
+        """
+        Extract fiber spectra without local sky subtraction.
+
+        For each pseudo-slit group of fibers, performs Horne (1986) optimal extraction
+        for every fiber SpecObj using flat-derived empirical profiles. The global
+        sky model is used directly (no local sky subtraction). Boxcar extraction is
+        skipped for fibers whose ``BOX_COUNTS`` attribute is already populated (e.g., by
+        :class:`~pypeit.find_objects.FiberFindObjects`), which performs boxcar
+        extraction and 1D sky subtraction as part of object finding.
+
+        Parameters
+        ----------
+        global_sky : `numpy.ndarray`_
+            Global sky model, shape ``(nspec, nspat)``.
+        sobjs : :class:`~pypeit.specobjs.SpecObjs`
+            Objects to extract (multiple per block-slit from FiberFindObjects).
+        bkg_redux_global_sky : `numpy.ndarray`_, optional
+            Sky estimate without background subtraction.
+        spat_pix : `numpy.ndarray`_, optional
+            Image containing the spatial location of pixels.
+        model_noise : :obj:`bool`, optional
+            Not used for fiber extraction.
+        show_resids : :obj:`bool`, optional
+            Not used for fiber extraction.
+        show_profile : :obj:`bool`, optional
+            Not used for fiber extraction.
+        show : :obj:`bool`, optional
+            Show debugging plots.
+
+        Returns
+        -------
+        :obj:`tuple`
+            skymodel, bkg_redux_skymodel, objmodel, ivarmodel, outmask, sobjs
+        """
+        self.global_sky = global_sky
+        nspec, nspat = self.sciImg.image.shape
+
+        # Initialize output arrays
+        self.outmask = self.sciImg.fullmask.copy()
+        self.extractmask = self.sciImg.select_flag(invert=True)
+        self.objmodel = np.zeros_like(self.sciImg.image)
+        self.skymodel = np.copy(self.global_sky)
+        self.bkg_redux_skymodel = bkg_redux_global_sky.copy() \
+            if bkg_redux_global_sky is not None else None
+        self.ivarmodel = np.copy(self.sciImg.ivar)
+        self.sobjs = sobjs.copy()
+
+        # Build slit ID image
+        slitid_img = self.slits.slit_img(pad=0, flexure=self.spat_flexure_shift)
+
+        # Science image minus sky
+        inmask = self.sciImg.select_flag(invert=True)
+        imgminsky = self.sciImg.image - global_sky
+        extract_sky = global_sky if bkg_redux_global_sky is None \
+            else bkg_redux_global_sky
+
+        # Extract each fiber.  FiberExtract is only ever dispatched for the
+        # Fiber pypeline, so the pseudo-slit edges sit on the outermost
+        # fibers, not on a physical edge: the extraction aperture is allowed
+        # to spill into unassigned pixels (slitmask == -1, i.e. inter-block
+        # gaps and detector edges) to capture the fiber wings.  Pixels
+        # belonging to a different slit are always excluded.
+        #
+        # The flat-derived empirical profile for each fiber is built
+        # lazily per-iteration and discarded at the end of the iteration:
+        # For Binospec IFU, caching all of them at once costs ~134 MB per
+        # fiber on a 4k detector (~48 GB for 360 fibers).
+        n_opt = 0
+        # thismask depends only on SLITID, so cache it per slit rather than
+        # rebuilding a full-detector boolean array for every fiber.  Binospec
+        # has ~360 fibers spread over only ~21 block-slits per detector.
+        thismask_cache = {}
+        for sobj in self.sobjs:
+            thismask = thismask_cache.get(sobj.SLITID)
+            if thismask is None:
+                # Fiber apertures may spill into unassigned pixels
+                # (slitid_img == -1); only pixels owned by another slit
+                # are excluded.
+                thismask = np.logical_not((slitid_img != sobj.SLITID)
+                                          & (slitid_img != -1))
+                thismask_cache[sobj.SLITID] = thismask
+            sobj_inmask = inmask & thismask
+
+            sobj.extract_boxcar(
+                imgminsky, self.sciImg.ivar, sobj_inmask,
+                self.waveimg, extract_sky,
+                fwhmimg=self.fwhmimg, flatimg=self.flatimg,
+                base_var=self.sciImg.base_var,
+                count_scale=self.sciImg.img_scale,
+                noise_floor=self.sciImg.noise_floor)
+
+            oprof = None
+            if self.flatimg is not None:
+                oprof = self._build_empirical_profile(
+                    self.flatimg, slitid_img, sobj, nspec, nspat)
+            if oprof is not None:
+                sobj.extract_optimal(
+                    imgminsky, self.sciImg.ivar, sobj_inmask,
+                    self.waveimg, extract_sky, thismask, oprof,
+                    fwhmimg=self.fwhmimg, flatimg=self.flatimg,
+                    base_var=self.sciImg.base_var,
+                    count_scale=self.sciImg.img_scale,
+                    noise_floor=self.sciImg.noise_floor)
+                n_opt += 1
+            # Explicitly drop the per-fiber profile so peak memory stays
+            # constant rather than scaling with fiber count.
+            del oprof
+
+        if self.flatimg is not None:
+            log.info(f"Empirical-profile optimal extraction succeeded for "
+                     f"{n_opt}/{len(self.sobjs)} fibers")
+
+        # Divide out the per-fiber throughput scalar attached by
+        # FiberFindObjects.  No wavelength-dependent flat division is
+        # applied; spectral flattening is performed downstream by flux
+        # calibration.
+        n_thru = 0
+        for sobj in self.sobjs:
+            thru_raw = getattr(sobj, 'fiber_throughput', None)
+            # Treat only None as "unset" so a genuine zero throughput
+            # falls through to the thru <= 0 guard below rather than
+            # being silently treated as 1.0.
+            thru = float(thru_raw) if thru_raw is not None else 1.0
+            if not np.isfinite(thru) or thru <= 0 or thru == 1.0:
+                continue
+            if sobj.BOX_COUNTS is not None:
+                sobj.BOX_COUNTS = sobj.BOX_COUNTS / thru
+                sobj.BOX_COUNTS_IVAR = sobj.BOX_COUNTS_IVAR * thru**2
+                if sobj.BOX_COUNTS_SKY is not None:
+                    sobj.BOX_COUNTS_SKY = sobj.BOX_COUNTS_SKY / thru
+            if sobj.OPT_COUNTS is not None:
+                sobj.OPT_COUNTS = sobj.OPT_COUNTS / thru
+                sobj.OPT_COUNTS_IVAR = sobj.OPT_COUNTS_IVAR * thru**2
+                if sobj.OPT_COUNTS_SKY is not None:
+                    sobj.OPT_COUNTS_SKY = sobj.OPT_COUNTS_SKY / thru
+            n_thru += 1
+        log.info(f"Applied per-fiber throughput scalar to {n_thru} fibers")
+
+        # Re-apply the per-fiber wavelength refinement cached by
+        # FiberFindObjects._refine_fiber_wavelengths.  extract_boxcar /
+        # extract_optimal both reassign BOX_WAVE / OPT_WAVE from the global
+        # waveimg, so without this step the extracted spec1d wavelengths
+        # would not match the per-fiber wavelengths that the joint sky
+        # model was fit against.  Shift is the same scalar dlam offset for
+        # both BOX_WAVE and OPT_WAVE because they share the same fiber
+        # trace.
+        n_shift = 0
+        for sobj in self.sobjs:
+            shift_raw = getattr(sobj, 'wave_refine_shift_AA', None)
+            # Treat only None as "unset"; a real 0.0 shift is a no-op
+            # caught by the shift == 0.0 guard below.
+            shift = float(shift_raw) if shift_raw is not None else 0.0
+            if not np.isfinite(shift) or shift == 0.0:
+                continue
+            if sobj.BOX_WAVE is not None:
+                sobj.BOX_WAVE = sobj.BOX_WAVE + shift
+            if sobj.OPT_WAVE is not None:
+                sobj.OPT_WAVE = sobj.OPT_WAVE + shift
+            n_shift += 1
+        if n_shift:
+            log.info(f"Applied cached per-fiber wavelength refinement "
+                     f"to {n_shift} fibers")
+
+        # Set the bit for pixels masked by extraction
+        base_gpm = self.sciImg.select_flag(invert=True)
+        self.outmask.turn_on('EXTRACT',
+                             select=base_gpm & np.logical_not(self.extractmask))
+
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+
+        if show:
+            self.show('local', sobjs=self.sobjs, slits=True)
+            self.show('resid', sobjs=self.sobjs, slits=True)
+
+        return self.skymodel, self.bkg_redux_skymodel, self.objmodel, \
+            self.ivarmodel, self.outmask, self.sobjs
+
+    @staticmethod
+    def _build_empirical_profile(flatimg, slitmask, sobj, nspec, nspat):
+        """
+        Build one fiber's empirical spatial profile from the flat field.
+
+        This is the 2D ``oprof`` image that
+        :func:`~pypeit.core.extract.extract_optimal` requires -- the same
+        ``(nspec, nspat)`` profile interface the MultiSlit/Echelle pypelines
+        use, except it is populated empirically from the flat (each fiber's
+        measured spatial PSF, wings included) rather than from a fitted or
+        analytic Gaussian.
+
+        Algorithm, per spectral row:
+
+          1. Take the spatial aperture of half-width ``BOX_R_PIX`` centered
+             on the fiber trace, keeping only pixels on this fiber's slit
+             (or in the unassigned ``slitmask == -1`` gap; see below).
+          2. Weight each aperture pixel by its flat value and normalize the
+             row to unit sum -- the empirical PSF.  If too few aperture
+             pixels carry a usable flat value, fall back to a uniform
+             ``1 / n_aperture_pixels`` weight (see below).
+
+        The rest of the function is just a vectorized form of that per-row
+        loop (see "Vectorized across rows" below); it is bit-identical to
+        the legacy row-loop implementation.
+
+        Returns a fresh ``(nspec, nspat)`` profile each call so callers can
+        process and discard one fiber at a time -- caching the dense profile
+        for every fiber simultaneously would cost ~134 MB per fiber on a
+        4k detector (~48 GB for 360 fibers).
+
+        Fiber pseudo-slit edges are not hard apertures (they sit on the
+        outermost fiber, not a physical edge), so the per-row aperture
+        extends into unassigned pixels (``slitmask == -1`` -- inter-block
+        gaps and detector edges) to capture the fiber's PSF wings.  Pixels
+        belonging to a different slit are always excluded.
+
+        Per row, if too few pixels in the aperture have a usable flat value
+        (NaN / non-positive), the profile falls back to a uniform aperture
+        weight (``1 / n_aperture_pixels``).  This guards against BPM rows
+        and low-throughput wavelength regions, where a profile built from
+        a few positive flat outliers would concentrate the sky on 1-2
+        pixels and produce huge spurious spikes.
+
+        Vectorized across rows: assembles the per-row aperture in a
+        compact ``(nspec, max_aper)`` form, evaluates the slit and
+        flat-validity predicates with numpy, and scatters the normalized
+        weights into a fresh dense array.  Bit-identical to the legacy
+        row-loop implementation.
+
+        Parameters
+        ----------
+        flatimg : `numpy.ndarray`_
+            Raw (unnormalized) flat field image, shape ``(nspec, nspat)``.
+        slitmask : `numpy.ndarray`_
+            Slit ID image from ``slits.slit_img(pad=0)``, shape
+            ``(nspec, nspat)``.
+        sobj : :class:`~pypeit.specobj.SpecObj`
+            One fiber with ``SLITID``, ``TRACE_SPAT`` and ``BOX_R_PIX``
+            set.
+        nspec, nspat : int
+            Detector image shape.
+
+        Returns
+        -------
+        `numpy.ndarray`_ or None
+            Per-pixel profile normalized to unit sum per row in the
+            aperture, shape ``(nspec, nspat)``.  ``None`` when the fiber's
+            slit footprint is empty or no row has any valid data.
+        """
+        trace = np.asarray(sobj.TRACE_SPAT, dtype=float)
+        box_r = float(sobj.BOX_R_PIX)
+
+        # Compact per-row aperture (nspec, max_aper): center on the nearest
+        # integer column, then re-filter by the exact |col - trace|
+        # predicate so fractional traces match the legacy aperture
+        # selection bit-for-bit.
+        half = int(np.ceil(box_r))
+        offsets = np.arange(-half, half + 1)
+        trace_int = np.rint(trace).astype(int)
+        cols_2d = trace_int[:, None] + offsets[None, :]
+        in_image = (cols_2d >= 0) & (cols_2d < nspat)
+        cols_clipped = np.clip(cols_2d, 0, nspat - 1)
+
+        in_aper = (np.abs(cols_2d - trace[:, None]) <= box_r) & in_image
+        rows_idx = np.broadcast_to(np.arange(nspec)[:, None],
+                                   cols_2d.shape)
+        slit_at = slitmask[rows_idx, cols_clipped]
+        in_aper &= (slit_at == sobj.SLITID) | (slit_at == -1)
+
+        n_aper = in_aper.sum(axis=1).astype(int)
+        flat_vals = flatimg[rows_idx, cols_clipped]
+        good_flat = in_aper & np.isfinite(flat_vals) & (flat_vals > 0)
+        n_good = good_flat.sum(axis=1).astype(int)
+
+        # Per-row branch: flat-weighted if at least max(3, n_aper // 2)
+        # pixels carry a usable flat value; uniform aperture fallback
+        # otherwise.  Matches the legacy `good.sum() < max(3, ...)` check.
+        flat_min = np.maximum(3, n_aper // 2)
+        use_flat = (n_aper > 0) & (n_good >= flat_min)
+        use_uniform = (n_aper > 0) & np.logical_not(use_flat)
+
+        weights = np.zeros_like(flat_vals)
+
+        if np.any(use_flat):
+            flat_for_norm = np.where(good_flat, flat_vals, 0.0)
+            row_sum = flat_for_norm.sum(axis=1)
+            valid = use_flat & (row_sum > 0)
+            if np.any(valid):
+                weights[valid] = (flat_for_norm[valid]
+                                  / row_sum[valid][:, None])
+            # Rows where the flat-weighted aperture sums to zero (e.g. all
+            # good vals == 0) are skipped, matching the legacy
+            # `if row_sum > 0` guard.
+            use_flat = valid
+
+        if np.any(use_uniform):
+            uniform = 1.0 / np.maximum(n_aper, 1)[:, None]
+            weights[use_uniform] = np.where(
+                in_aper[use_uniform], uniform[use_uniform], 0.0)
+
+        if not np.any(use_flat | use_uniform):
+            return None
+
+        # Scatter compact (nspec, max_aper) weights into a fresh dense
+        # (nspec, nspat) image.  Only in-image entries are written; cols
+        # clipped to nspat-1 from off-image entries would otherwise
+        # overwrite a real aperture pixel with zero.
+        prof = np.zeros((nspec, nspat), dtype=float)
+        mask_flat = in_image.ravel()
+        rs = rows_idx.ravel()[mask_flat]
+        cs = cols_2d.ravel()[mask_flat]
+        ws = weights.ravel()[mask_flat]
+        prof[rs, cs] = ws
+        return prof

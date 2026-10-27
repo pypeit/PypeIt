@@ -899,7 +899,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
                 to be valid.
         """
         log.info('-'*50)
-        log.info('{0:^50}'.format('Initialize Edge Tracing'))
+        log.info(f'{"Initialize Edge Tracing":^50}')
         log.info('-'*50)
 
         if self.traceid is not None:
@@ -5759,7 +5759,8 @@ class EdgeTraceSet(calibframe.CalibFrame):
                                        detname=self.traceimg.detector.name, nspat=self.nspat,
                                        PYP_SPEC=self.spectrograph.name, specmin=specmin,
                                        specmax=specmax, binspec=binspec, binspat=binspat,
-                                       pad=self.par['pad'], mask_init=slit_msk,
+                                       pad=np.asarray(self.par['pad'], dtype=float),
+                                       mask_init=slit_msk,
                                        maskdef_id=_maskdef_id, maskdef_designtab=_merged_designtab,
                                        maskdef_posx_pa=_posx_pa, maskfile=self.maskfile,
                                        ech_order=ech_order)

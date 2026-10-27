@@ -7,16 +7,16 @@
 # TODO -- Consider moving the Object out of core
 
 import numpy as np
-import inspect
 from matplotlib import pyplot as plt
 
 
 from scipy.optimize import curve_fit
 
-from pypeit.core import pydl
-from pypeit.core import bspline
 from pypeit import log
+from pypeit import utils
 from pypeit import PypeItError
+from pypeit.core import bspline
+from pypeit.core import pydl
 from pypeit.datamodel import DataContainer
 
 from IPython import embed
@@ -253,7 +253,7 @@ class PypeItFit(DataContainer):
                  fitcov=None, func=None, minx=None, maxx=None, minx2=None,
                  maxx2=None, gpm=None, success=None):
         # Setup the DataContainer
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         _d = {k: values[k] for k in args[1:]}
         # Init
         super(PypeItFit, self).__init__(d=_d)
@@ -423,6 +423,86 @@ class PypeItFit(DataContainer):
         return np.sqrt(np.sum(weights * (yval - values) ** 2))
 
 
+DEFAULT_POLYFIT2D_CHUNK = 2**15
+"""
+Default value of :data:`POLYFIT2D_CHUNK`, and of the ``[rdx] fit2d_chunk``
+parameter.
+"""
+
+POLYFIT2D_CHUNK = DEFAULT_POLYFIT2D_CHUNK
+"""
+Maximum number of data points for which :func:`polyfit2d_general` builds the
+full design matrix; larger fits are solved in chunks of this many points by
+:func:`_chunked_lstsq2d`.  Also the chunk size used by :func:`_chunked_val2d`.
+:class:`~pypeit.pypeit.PypeIt` sets it from the ``[rdx] fit2d_chunk`` parameter
+using :func:`set_polyfit2d_chunk`; code that calls these functions outside of
+:class:`~pypeit.pypeit.PypeIt` uses :data:`DEFAULT_POLYFIT2D_CHUNK`.
+"""
+
+
+def set_polyfit2d_chunk(chunk):
+    """
+    Set the number of data points processed at a time by 2D polynomial fits
+    and evaluations.
+
+    This sets :data:`POLYFIT2D_CHUNK` for the whole process; see the
+    ``[rdx] fit2d_chunk`` parameter.  The fit results do not depend on it
+    beyond round-off; only the peak memory and speed do.
+
+    Args:
+        chunk (:obj:`int`):
+            Number of data points.  Must be positive.
+    """
+    global POLYFIT2D_CHUNK
+    if int(chunk) < 1:
+        raise PypeItError(f'2D fit chunk size must be a positive integer, not {chunk}.')
+    POLYFIT2D_CHUNK = int(chunk)
+
+
+def _chunked_val2d(val2d, x, y, c, chunk=None):
+    """
+    Evaluate a 2D polynomial series in chunks of points.
+
+    numpy's 2D evaluation functions (e.g.,
+    :func:`numpy.polynomial.legendre.legval2d`) evaluate one dimension at a
+    time, holding several temporary arrays with one row per coefficient in
+    the second dimension and one column per point.  For millions of points
+    these are GBs.  Every point is evaluated independently, so evaluating
+    ``chunk`` points at a time gives identical results with temporaries that
+    are only ``chunk`` points long.
+
+    Args:
+        val2d (callable):
+            2D evaluation function, e.g.,
+            :func:`numpy.polynomial.legendre.legval2d`.
+        x, y (`numpy.ndarray`_):
+            Coordinates at which to evaluate the series; broadcast against
+            each other.
+        c (`numpy.ndarray`_):
+            2D array of series coefficients.
+        chunk (:obj:`int`, optional):
+            Number of points to evaluate at a time.  If None, use
+            :data:`POLYFIT2D_CHUNK`.
+
+    Returns:
+        `numpy.ndarray`_: The series evaluated at ``(x, y)``.
+    """
+    _chunk = POLYFIT2D_CHUNK if chunk is None else chunk
+    x, y = np.broadcast_arrays(np.asarray(x), np.asarray(y))
+    if x.size <= _chunk:
+        return val2d(x, y, c)
+    xr, yr = x.ravel(), y.ravel()
+    # Take the output type from the first chunk, so that it matches the type
+    # returned by a single call to val2d (e.g., float32 for float32 input)
+    first = val2d(xr[:_chunk], yr[:_chunk], c)
+    out = np.empty(xr.size, dtype=first.dtype)
+    out[:_chunk] = first
+    for start in range(_chunk, xr.size, _chunk):
+        sl = slice(start, start + _chunk)
+        out[sl] = val2d(xr[sl], yr[sl], c)
+    return out.reshape(x.shape)
+
+
 def evaluate_fit(fitc, func, x, x2=None, minx=None,
                  maxx=None, minx2=None, maxx2=None):
     """
@@ -456,14 +536,14 @@ def evaluate_fit(fitc, func, x, x2=None, minx=None,
     if ('2d' in func) and (x2 is not None):
         # Is this a 2d fit?
         if func[:-2] == "polynomial":
-            return np.polynomial.polynomial.polyval2d(x, x2, fitc)
+            return _chunked_val2d(np.polynomial.polynomial.polyval2d, x, x2, fitc)
         elif func[:-2] in ["legendre", "chebyshev"]:
             # Scale x-direction
             xv, _, _ = scale_minmax(x, minx=minx, maxx=maxx)
             # Scale x2-direction
             x2v, _, _ = scale_minmax(x2, minx=minx2, maxx=maxx2)
-            return (np.polynomial.legendre.legval2d(xv, x2v, fitc) if func[:-2] == "legendre"
-                    else np.polynomial.chebyshev.chebval2d(xv, x2v, fitc))
+            return _chunked_val2d(np.polynomial.legendre.legval2d if func[:-2] == "legendre"
+                                  else np.polynomial.chebyshev.chebval2d, xv, x2v, fitc)
         else:
             raise PypeItError("Function {0:s} has not yet been implemented for 2d fits".format(func))
         # TODO: Why is this return here?  The code will never reach this point
@@ -605,6 +685,14 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
         else:
             weights = np.ones(xarray.size, dtype=float)
 
+    # Convert the inputs to float once.  The PypeItFit objects below all share
+    # these copies (PypeItFit never modifies its inputs), rather than each
+    # making its own on every iteration.
+    _xarray = np.array(xarray, dtype=float)
+    _yarray = np.array(yarray, dtype=float)
+    _x2 = None if x2 is None else np.array(x2, dtype=float)
+    _weights = np.array(weights, dtype=float)
+
     # Iterate, and mask out new values on each iteration
     iIter = 0
     qdone = False
@@ -616,10 +704,10 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
             log.warning("More parameters than data points - fit might be undesirable")
         if not np.any(this_gpm):
             log.warning("All points were masked. Returning current fit and masking all points. Fit is likely undesirable")
-        pypeitFit = PypeItFit(xval=xarray.astype(float), yval=yarray.astype(float),
+        pypeitFit = PypeItFit(xval=_xarray, yval=_yarray,
                               func=function, order=np.atleast_1d(order),
-                              x2=x2.astype(float) if x2 is not None else x2,
-                              weights=weights.astype(float), gpm=this_gpm.astype(int),
+                              x2=_x2,
+                              weights=_weights, gpm=this_gpm.astype(int),
                               minx=float(minx) if minx is not None else minx,
                               maxx=float(maxx) if maxx is not None else maxx,
                               minx2=float(minx2) if minx2 is not None else minx2,
@@ -637,10 +725,10 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
         log.warning(f'Maximum number of iterations maxiter={maxiter} reached in robust_polyfit_djs')
 
     # Do the final fit
-    pypeitFit = PypeItFit(xval=xarray.astype(float), yval=yarray.astype(float),
+    pypeitFit = PypeItFit(xval=_xarray, yval=_yarray,
                           func=function, order=np.atleast_1d(order),
-                          x2=x2.astype(float) if x2 is not None else x2,
-                          weights=weights.astype(float), gpm=this_gpm.astype(int),
+                          x2=_x2,
+                          weights=_weights, gpm=this_gpm.astype(int),
                           minx=float(minx) if minx is not None else minx,
                           maxx=float(maxx) if maxx is not None else maxx,
                           minx2=float(minx2) if minx2 is not None else minx2,
@@ -1011,12 +1099,13 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
     deg = np.asarray(deg)
     # Vander
     if function == 'polynomial':
-        vander = np.polynomial.polynomial.polyvander2d(x, y, deg)
+        xv, yv = x, y
+        vander2d = np.polynomial.polynomial.polyvander2d
     elif function == 'legendre' or function == 'chebyshev':
         xv, minx, maxx = scale_minmax(x, minx=minx, maxx=maxx)
         yv, miny, maxy = scale_minmax(y, minx=miny, maxx=maxy)
-        vander = np.polynomial.legendre.legvander2d(xv, yv, deg) if function == 'legendre' \
-            else np.polynomial.chebyshev.chebvander2d(xv, yv, deg)
+        vander2d = np.polynomial.legendre.legvander2d if function == 'legendre' \
+            else np.polynomial.chebyshev.chebvander2d
     else:
         raise PypeItError("Not ready for this type of {:s}".format(function))
     # Weights
@@ -1026,13 +1115,81 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
             log.debug("fitting.polyfit2d - Expected 1D vector for weights")
         if len(x) != len(w) or len(y) != len(w) or len(x) != len(y):
             log.debug("fitting.polyfit2d - Expected x, y and weights to have same length")
-        z = z * w
-        vander = vander * w[:,np.newaxis]
-    # Reshape
-    vander = vander.reshape((-1,vander.shape[-1]))
-    z = z.reshape((vander.shape[0],))
-    c = np.linalg.lstsq(vander, z, rcond=None)[0]
+
+    if xv.size <= POLYFIT2D_CHUNK:
+        # Small enough to build the full design matrix
+        vander = vander2d(xv, yv, deg)
+        if w is not None:
+            z = z * w
+            vander = vander * w[:,np.newaxis]
+        # Reshape
+        vander = vander.reshape((-1,vander.shape[-1]))
+        z = z.reshape((vander.shape[0],))
+        c = np.linalg.lstsq(vander, z, rcond=None)[0]
+    else:
+        c = _chunked_lstsq2d(vander2d, xv.ravel(), yv.ravel(), z.ravel(), deg,
+                             w=None if w is None else w.ravel())
     return c.reshape(deg+1), minx, maxx, miny, maxy
+
+
+def _chunked_lstsq2d(vander2d, x, y, z, deg, w=None, chunk=None):
+    """
+    Solve a weighted 2D linear least-squares fit without forming the full
+    design matrix.
+
+    The full design matrix has one row per data point and one column per
+    coefficient, which for a fit over a whole detector (millions of points) is
+    several GB, and :func:`numpy.linalg.lstsq` makes another copy of it.  Here
+    the rows are processed in chunks with a sequential ("tall-skinny") QR
+    decomposition: each chunk is stacked under the triangular factor of the
+    previous ones and re-factored, so only an ``ncoeff x ncoeff`` triangular
+    matrix, its projected right-hand side, and one chunk are ever held in
+    memory.  Because the design matrix and its triangular factor have the same
+    null space, solving the final small system with
+    :func:`numpy.linalg.lstsq` gives the same (minimum-norm) least-squares
+    solution as solving the full system, to within round-off.
+
+    Args:
+        vander2d (callable):
+            2D pseudo-Vandermonde function, e.g.
+            :func:`numpy.polynomial.legendre.legvander2d`.
+        x, y (`numpy.ndarray`_):
+            1D arrays with the (already scaled) coordinates of the data.
+        z (`numpy.ndarray`_):
+            1D array with the data values.
+        deg (`numpy.ndarray`_):
+            Degree of the fit in each dimension, ``[nx, ny]``.
+        w (`numpy.ndarray`_, optional):
+            1D array of weights.  As in :func:`polyfit2d_general`, both the
+            design matrix and the data are multiplied by ``w`` (not its
+            square root).
+        chunk (:obj:`int`, optional):
+            Number of data points to process at a time.  If None, use
+            :data:`POLYFIT2D_CHUNK`.
+
+    Returns:
+        `numpy.ndarray`_: The flattened fit coefficients.
+    """
+    chunk = POLYFIT2D_CHUNK if chunk is None else chunk
+    ncoeff = int(np.prod(np.asarray(deg) + 1))
+    # Factor the design matrix augmented by the data as its last column.  The
+    # first ncoeff rows of the last column of the triangular factor are then
+    # Q^T z, so the orthogonal factor Q itself never has to be formed.
+    r = np.zeros((0, ncoeff+1), dtype=float)
+    for start in range(0, x.size, chunk):
+        sl = slice(start, start + chunk)
+        aug = np.empty((min(chunk, x.size - start), ncoeff+1), dtype=float)
+        aug[:,:-1] = vander2d(x[sl], y[sl], deg)
+        aug[:,-1] = z[sl]
+        if w is not None:
+            aug *= w[sl,np.newaxis]
+        r = np.linalg.qr(np.concatenate((r, aug)), mode='r')
+    # The triangular factor has the same singular values as the full design
+    # matrix, so use the singular-value cutoff that numpy.linalg.lstsq would
+    # have applied to the full matrix (rcond=None means eps*max(M,N)).  This
+    # matters for poorly conditioned fits, e.g. unscaled 'polynomial' bases.
+    rcond = np.finfo(float).eps * max(x.size, ncoeff)
+    return np.linalg.lstsq(r[:ncoeff,:ncoeff], r[:ncoeff,-1], rcond=rcond)[0]
 
 
 def twoD_Gaussian(tup, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
@@ -1069,448 +1226,54 @@ def twoD_Gaussian(tup, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
     g = offset + amplitude*np.exp( - (a*((x-xo)**2) + 2*b*(x-xo)*(y-yo) + c*((y-yo)**2)))
     return g.ravel()
 
-# Below here are codes related to b-spline fitting
-def iterfit(xdata, ydata, invvar=None, inmask=None, upper=5, lower=5, x2=None,
-            maxiter=10, nord=4, bkpt=None, fullbkpt=None, kwargs_bspline={}, kwargs_reject={}):
-    """Iteratively fit a b-spline set to data, with rejection.
-    This is a utility function that allows
-    the bspline to be used via a direct function call.
+
+def bspline_qa(xdata, ydata, sset, gpm, yfit, xlabel=None, ylabel=None, title=None, show=True):
+    """
+    Construct a QA plot of the B-spline fit.
+
+    .. warning::
+
+        This function has not been tested with
+        :class:`~pypeit.core.bspline.BSpline2D` fits.  The call to
+        :meth:`~pypeit.core.bspline.BSpline.value` at the breakpoints
+        may fail or produce unexpected results for 2D fits.
 
     Parameters
     ----------
     xdata : :class:`numpy.ndarray`
-        Independent variable.
+        Independent variable.  Regardless of shape, data is treated as
+        one-dimensional.
     ydata : :class:`numpy.ndarray`
-        Dependent variable.
-    invvar : :class:`numpy.ndarray`, optional
-        Inverse variance of `ydata`.  If not set, it will be calculated based
-        on the standard deviation.
-    inmask : :class:`numpy.ndarray`, optional
-        Input Good Pixel Mask for performing the fit.  If not set, it will be
-        set to the locus of positive ``invvar`` points.
-    upper : :class:`int` or :class:`float`, optional
-        Upper rejection threshold in units of sigma, defaults to 5 sigma.
-    lower : :class:`int` or :class:`float`, optional
-        Lower rejection threshold in units of sigma, defaults to 5 sigma.
-    x2 : :class:`numpy.ndarray`, optional
-        Orthogonal dependent variable for 2d fits.
-    maxiter : :class:`int`, optional
-        Maximum number of rejection iterations, default 10.  Set this to
-        zero to disable rejection.
-    nord : :class:`int`, optional
-        Order of the b-spline, default 4.
-    bkpt : :class:`numpy.ndarray`, optional
-        Breakpoints for the b-spline, default None.
-    fullbkpt : :class:`numpy.ndarray`, optional
-        Full breakpoints for the b-spline, default None.
-    kwargs_bspline : :class:`dict`, optional
-        Keyword arguments for the b-spline, default {}.
-    kwargs_reject : :class:`dict`, optional
-        Keyword arguments passed to :func:`pypeit.core.pydl.djs_reject`, default {}.
+        Dependent variable.  Regardless of shape, data is treated as
+        one-dimensional.
+    sset : :class:`~pypeit.core.bspline.BSpline`
+        Fitted B-spline object, as returned by
+        :func:`~pypeit.core.fitting.iterative_bspline_fit`.
+    gpm : :class:`numpy.ndarray`
+        Boolean array with the same size as ``xdata``.  Points
+        rejected during the fit have ``gpm=False``.
+    yfit : :class:`numpy.ndarray`
+        Best-fitting model sampled at ``xdata``, as returned by
+        :func:`~pypeit.core.fitting.iterative_bspline_fit`.
+    xlabel : str, optional
+        Label for the abscissa.  If None, no label is added.
+    ylabel : str, optional
+        Label for the ordinate.  If None, no label is added.
+    title : str, optional
+        Title for the plot.  If None, no title is added.
+    show : bool, optional
+        If True, display the plot with the legend, axis labels, and
+        title applied.  If False, return the
+        :class:`~matplotlib.axes.Axes` instance immediately, before
+        the legend, axis labels, or title are added.
 
     Returns
     -------
-    outputs: tuple
-        A tuple containing the fitted bspline object and an output mask.
+    ax : :class:`matplotlib.axes.Axes`
+        Axes instance with the data, model, and breakpoints plotted.
+        Only returned when ``show`` is False.
     """
-    # from .math import djs_reject
-    nx = xdata.size
-    if ydata.size != nx:
-        raise ValueError('Dimensions of xdata and ydata do not agree.')
-    if invvar is not None:
-        if invvar.size != nx:
-            raise ValueError('Dimensions of xdata and invvar do not agree.')
-    else:
-        #
-        # This correction to the variance makes it the same
-        # as IDL's variance()
-        #
-        var = ydata.var() * (float(nx) / float(nx - 1))
-        if var == 0:
-            var = 1.0
-        invvar = np.ones(ydata.shape, dtype=ydata.dtype) / var
-
-    if inmask is None:
-        inmask = invvar > 0.0
-
-    if x2 is not None:
-        if x2.size != nx:
-            raise ValueError('Dimensions of xdata and x2 do not agree.')
-    yfit = np.zeros(ydata.shape)
-    if invvar.size == 1:
-        outmask = True
-    else:
-        outmask = np.ones(invvar.shape, dtype='bool')
-    xsort = xdata.argsort(kind='stable')
-    maskwork = (outmask & inmask & (invvar > 0.0))[xsort]  # `maskwork` is in xsort order
-    if 'oldset' in kwargs_bspline:
-        sset = kwargs_bspline['oldset']
-        sset.mask[:] = True
-        sset.coeff[:] = 0.
-    else:
-        if not maskwork.any():
-            raise ValueError('No valid data points.')
-            # return (None,None)
-        # JFH comment this out for now
-        #        if 'fullbkpt' in kwargs:
-        #            fullbkpt = kwargs['fullbkpt']
-        else:
-            sset = bspline.bspline(xdata[xsort[maskwork]], nord=nord, bkpt=bkpt, fullbkpt=fullbkpt, **kwargs_bspline)
-            if maskwork.sum() < sset.nord:
-                print('Number of good data points fewer than nord.')
-                return (sset, outmask)
-            if x2 is not None:
-                if 'xmin' in kwargs_bspline:
-                    xmin = kwargs_bspline['xmin']
-                else:
-                    xmin = x2.min()
-                if 'xmax' in kwargs_bspline:
-                    xmax = kwargs_bspline['xmax']
-                else:
-                    xmax = x2.max()
-                if xmin == xmax:
-                    xmax = xmin + 1
-                sset.xmin = xmin
-                sset.xmax = xmax
-                if 'funcname' in kwargs_bspline:
-                    sset.funcname = kwargs_bspline['funcname']
-    xwork = xdata[xsort]
-    ywork = ydata[xsort]
-    invwork = invvar[xsort]
-    if x2 is not None:
-        x2work = x2[xsort]
-    else:
-        x2work = None
-    iiter = 0
-    error = -1
-    qdone = False
-    while (error != 0 or qdone is False) and iiter <= maxiter:
-        goodbk = sset.mask.nonzero()[0]
-        if maskwork.sum() <= 1 or not sset.mask.any():
-            sset.coeff[:] = 0.
-            iiter = maxiter + 1  # End iterations
-        else:
-            if 'requiren' in kwargs_bspline:
-                i = 0
-                while xwork[i] < sset.breakpoints[goodbk[sset.nord]] and i < nx - 1:
-                    i += 1
-                ct = 0
-                for ileft in range(sset.nord, sset.mask.sum() - sset.nord + 1):
-                    while (xwork[i] >= sset.breakpoints[goodbk[ileft]] and
-                           xwork[i] < sset.breakpoints[goodbk[ileft + 1]] and
-                           i < nx - 1):
-                        ct += invwork[i] * maskwork[i] > 0
-                        i += 1
-                    if ct >= kwargs_bspline['requiren']:
-                        ct = 0
-                    else:
-                        sset.mask[goodbk[ileft]] = False
-            error, yfit = sset.fit(
-                xwork,  # x-sorted x data array
-                ywork,  # x-sorted y data array
-                invwork * maskwork,  # masked x-sorted invvar array
-                x2=x2work  # x-sorted x2 array
-            )
-        iiter += 1
-        inmask_rej = maskwork
-        if error == -2:
-
-            return (sset, outmask)
-        elif error == 0:
-            # ToDO JFH by setting inmask to be tempin which is maskwork, we are basically implicitly enforcing sticky rejection
-            # here. See djs_reject.py. I'm leaving this as is for consistency with the IDL version, but this may require
-            # further consideration. I think requiring sticky to be set is the more transparent behavior.
-            maskwork, qdone = pydl.djs_reject(ywork, yfit, invvar=invwork, inmask=inmask_rej, outmask=maskwork,
-                                              upper=upper, lower=lower, **kwargs_reject)
-        else:
-            pass
-    outmask[xsort] = maskwork
-    # TODO: TPEB 2/2/23. Why do these next two lines exist?  They don't seem to do anything.
-    temp = yfit
-    yfit[xsort] = temp
-    return (sset, outmask)
-
-
-def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lower=5, maxiter=25,
-                    nord=4, bkpt=None, fullbkpt=None, relative=None, kwargs_bspline={},
-                    kwargs_reject={}, quiet=False):
-    """
-    Fit a B-spline in the least squares sense with rejection to the
-    provided data and model profiles.
-
-    .. todo::
-        Fully describe procedure.
-
-    Parameters
-    ----------
-    xdata : `numpy.ndarray`_
-        Independent variable.
-    ydata : `numpy.ndarray`_
-        Dependent variable.
-    invvar : `numpy.ndarray`_
-        Inverse variance of `ydata`.
-    profile_basis : `numpy.ndarray`_
-        Model profiles.
-    ingpm : `numpy.ndarray`_, optional
-        Input good-pixel mask. Values to fit in ``ydata`` should be
-        True.
-    upper : :obj:`int` or :obj:`float`, optional
-        Upper rejection threshold in units of sigma, defaults to 5
-        sigma.
-    lower : :obj:`int` or :obj:`float`, optional
-        Lower rejection threshold in units of sigma, defaults to 5
-        sigma.
-    maxiter : :obj:`int`, optional
-        Maximum number of rejection iterations, default 10. Set this
-        to zero to disable rejection.
-    nord : :obj:`int`, optional
-        Order of B-spline fit
-    bkpt : `numpy.ndarray`_, optional
-        Array of breakpoints to be used for the b-spline
-    fullbkpt : `numpy.ndarray`_, optional
-        Full array of breakpoints to be used for the b-spline,
-        without letting the b-spline class append on any extra bkpts
-    relative : `numpy.ndarray`_, optional
-        Array of integer indices to be used for computing the reduced
-        chi^2 of the fits, which then is used as a scale factor for
-        the upper,lower rejection thresholds
-    kwargs_bspline : :obj:`dict`, optional
-        Keyword arguments used to instantiate
-        :class:`pypeit.bspline.bspline`
-    kwargs_reject : :obj:`dict`, optional
-        Keyword arguments passed to :func:`pypeit.core.pydl.djs_reject`
-    quiet : :obj:`bool`, optional
-        Suppress output to the screen
-
-    Returns
-    -------
-    sset : :class:`pypeit.bspline.bspline`
-        Result of the fit.
-    gpm : `numpy.ndarray`_
-        Output good-pixel mask which the same size as ``xdata``. The
-        values in this array for the corresponding data are not used in
-        the fit, either because the input data was masked or the data
-        were rejected during the fit, if they are False. Data
-        rejected during the fit (if rejection is performed) are::
-
-            rejected = ingpm & np.logical_not(gpm)
-
-    yfit : `numpy.ndarray`_
-        The best-fitting model; shape is the same as ``xdata``.
-    reduced_chi : :obj:`float`
-        Reduced chi-square of the best-fitting model.
-    exit_status : :obj:`int`
-        Indication of the success/failure of the fit.  Values are:
-
-            - 0 = fit exited cleanly
-            - 1 = maximum iterations were reached
-            - 2 = all points were masked
-            - 3 = all break points were dropped
-            - 4 = Number of good data points fewer than nord
-
-    """
-    # Checks
-    nx = xdata.size
-    if ydata.size != nx:
-        raise PypeItError('Dimensions of xdata and ydata do not agree.')
-
-    # TODO: invvar and profile_basis should be optional
-
-    # ToDO at the moment invvar is a required variable input
-    #    if invvar is not None:
-    #        if invvar.size != nx:
-    #            raise ValueError('Dimensions of xdata and invvar do not agree.')
-    #        else:
-    #            #
-    #            # This correction to the variance makes it the same
-    #            # as IDL's variance()
-    #            #
-    #            var = ydata.var()*(float(nx)/float(nx-1))
-    #            if var == 0:
-    #                var = 1.0
-    #            invvar = np.ones(ydata.shape, dtype=ydata.dtype)/var
-
-    npoly = int(profile_basis.size / nx)
-    if profile_basis.size != nx * npoly:
-        raise PypeItError('Profile basis is not a multiple of the number of data points.')
-
-    # Init
-    yfit = np.zeros(ydata.shape)
-    reduced_chi = 0.
-
-    # TODO: Instantiating these place-holder arrays can be expensive.  Can we avoid doing this?
-    outmask = True if invvar.size == 1 else np.ones(invvar.shape, dtype=bool)
-
-    if ingpm is None:
-        ingpm = invvar > 0
-
-    if not quiet:
-        termwidth = 80 - 13
-        log.info('B-spline fit:')
-        log.info('    npoly = {0} profile basis functions'.format(npoly))
-        log.info('    ngood = {0}/{1} measurements'.format(np.sum(ingpm), ingpm.size))
-        log.info(' {0:>4}  {1:>8}  {2:>7}  {3:>6} '.format(
-            'Iter', 'Chi^2', 'N Rej', 'R. Fac').center(termwidth, '*'))
-        hlinestr = ' {0}  {1}  {2}  {3} '.format('-' * 4, '-' * 8, '-' * 7, '-' * 6)
-        nullval = '  {0:>8}  {1:>7}  {2:>6} '.format('-' * 2, '-' * 2, '-' * 2)
-        log.info(hlinestr.center(termwidth))
-
-    maskwork = outmask & ingpm & (invvar > 0)
-    if not maskwork.any():
-        raise PypeItError('No valid data points in bspline_profile!.')
-
-    # Init bspline class
-    sset = bspline.bspline(xdata[maskwork], nord=nord, npoly=npoly, bkpt=bkpt, fullbkpt=fullbkpt,
-                   funcname='Bspline longslit special', **kwargs_bspline)
-    if maskwork.sum() < sset.nord:
-        if not quiet:
-            log.warning('Number of good data points fewer than nord.')
-        # TODO: Why isn't maskwork returned?
-        return sset, outmask, yfit, reduced_chi, 4
-
-    # This was checked in detail against IDL for identical inputs
-    # KBW: Tried a few things and this was about as fast as you can get.
-    outer = np.outer(np.ones(nord, dtype=float), profile_basis.flatten('F')).T
-    action_multiple = outer.reshape((nx, npoly * nord), order='F')
-    # --------------------
-    # Iterate spline fit
-    iiter = 0
-    error = -1  # Indicates that the fit should be done
-    qdone = False  # True if rejection iterations are done
-    exit_status = 0
-    relative_factor = 1.0
-    nrel = 0 if relative is None else len(relative)
-    # TODO: Why do we need both maskwork and tempin?
-    tempin = np.copy(ingpm)
-    while (error != 0 or qdone is False) and iiter <= maxiter and exit_status == 0:
-        ngood = maskwork.sum()
-        goodbk = sset.mask.nonzero()[0]
-        if ngood <= 1 or not sset.mask.any():
-            sset.coeff[:] = 0.
-            exit_status = 2  # This will end iterations
-        else:
-            # Do the fit. Return values from workit for error are as follows:
-            #    0 if fit is good
-            #   -1 if some breakpoints are masked, so try the fit again
-            #   -2 if everything is screwed
-
-            # we'll do the fit right here..............
-            if error != 0:
-                bf1, laction, uaction = sset.action(xdata)
-                if np.any(bf1 == -2) or bf1.size != nx * nord:
-                    raise PypeItError("BSPLINE_ACTION failed!")
-                action = np.copy(action_multiple)
-                for ipoly in range(npoly):
-                    action[:, np.arange(nord) * npoly + ipoly] *= bf1
-                del bf1  # Clear the memory
-
-            if np.any(np.logical_not(np.isfinite(action))):
-                raise PypeItError('Infinities in action matrix.  B-spline fit faults.')
-
-            error, yfit = sset.workit(xdata, ydata, invvar * maskwork, action, laction, uaction)
-
-        iiter += 1
-
-        if error == -2:
-            if not quiet:
-                log.warning('All break points lost!!  Bspline fit failed.')
-            exit_status = 3
-            return sset, np.zeros(xdata.shape, dtype=bool), np.zeros(xdata.shape), reduced_chi, \
-                   exit_status
-
-        if error != 0:
-            if not quiet:
-                log.info((' {0:4d}'.format(iiter) + nullval).center(termwidth))
-            continue
-
-        # Iterate the fit -- next rejection iteration
-        chi_array = (ydata - yfit) * np.sqrt(invvar * maskwork)
-        reduced_chi = np.sum(np.square(chi_array)) / (ngood - npoly * (len(goodbk) + nord) - 1)
-
-        relative_factor = 1.0
-        if relative is not None:
-            this_chi2 = reduced_chi if nrel == 1 \
-                else np.sum(np.square(chi_array[relative])) \
-                     / (nrel - (len(goodbk) + nord) - 1)
-            relative_factor = max(np.sqrt(this_chi2), 1.0)
-
-        # Rejection
-
-        # TODO: JFH by setting ingpm to be tempin which is maskwork, we
-        #  are basically implicitly enforcing sticky rejection here. See
-        #  djs_reject.py. I'm leaving this as is for consistency with
-        #  the IDL version, but this may require further consideration.
-        #  I think requiring sticky to be set is the more transparent
-        #  behavior.
-        maskwork, qdone = pydl.djs_reject(ydata, yfit, invvar=invvar, inmask=tempin,
-                                          outmask=maskwork, upper=upper * relative_factor,
-                                          lower=lower * relative_factor, **kwargs_reject)
-        tempin = np.copy(maskwork)
-        if not quiet:
-            log.info(' {0:4d}  {1:8.3f}  {2:7d}  {3:6.2f} '.format(iiter,
-                                                                    reduced_chi, np.sum(maskwork == 0),
-                                                                    relative_factor).center(termwidth))
-
-    if iiter == (maxiter + 1):
-        exit_status = 1
-
-    # Exit status:
-    #    0 = fit exited cleanly
-    #    1 = maximum iterations were reached
-    #    2 = all points were masked
-    #    3 = all break points were dropped
-    #    4 = Number of good data points fewer than nord
-
-    if not quiet:
-        log.info(' {0:>4}  {1:8.3f}  {2:7d}  {3:6.2f} '.format('DONE',
-                                                                reduced_chi, np.sum(maskwork == 0),
-                                                                relative_factor).center(termwidth))
-        log.info('*' * termwidth)
-
-    # Finish
-    # TODO: Why not return maskwork directly
-    outmask = np.copy(maskwork)
-    # Return
-    return sset, outmask, yfit, reduced_chi, exit_status
-
-
-def bspline_qa(xdata, ydata, sset, gpm, yfit, xlabel=None, ylabel=None, title=None, show=True):
-    """
-    Construct a QA plot of the bspline fit.
-
-    Args:
-        xdata (`numpy.ndarray`_):
-            Array with the independent variable. Regardless of shape,
-            data is treated as one-dimensional.
-        ydata (`numpy.ndarray`_):
-            Array with the dependent variable. Regardless of shape,
-            data is treated as one-dimensional.
-        sset (:class:`pypeit.bspline.bspline`):
-            Object with the results of the fit. (First object
-            returned by :func:`bspline_profile`).
-        gpm (`numpy.ndarray`_):
-            Boolean array with the same size as ``xdata``.
-            Measurements rejected during the fit have ``gpm=False``.
-            (Second object returned by :func:`bspline_profile`).
-        yfit (`numpy.ndarray`_):
-            Best-fitting model sampled at ``xdata``. (Third object
-            returned by :func:`bspline_profile`).
-        xlabel (:obj:`str`, optional):
-            Label for the ordinate.  If None, none given.
-        ylabel (:obj:`str`, optional):
-            Label for the abcissa.  If None, none given.
-        title (:obj:`str`, optional):
-            Label for the plot.  If None, none given.
-        show (:obj:`bool`, optional):
-            Plot the result. If False, the axis instance is returned.
-            This is done before any labels or legends are added to
-            the plot.
-
-    Returns:
-        `matplotlib.axes.Axes`_: Axes instance with the data, model,
-        and breakpoints.  Only returned if ``show`` is False.
-    """
-    goodbk = sset.mask
+    goodbk = sset.bkpt_gpm
     bkpt, _ = sset.value(sset.breakpoints[goodbk])
     was_fit_and_masked = np.logical_not(gpm)
 
@@ -1536,3 +1299,215 @@ def bspline_qa(xdata, ydata, sset, gpm, yfit, xlabel=None, ylabel=None, title=No
         plt.title(title)
     plt.show()
 
+
+def iterative_bspline_fit(
+    x, y, ivar=None, gpm=None, nord=4, basis=None, npoly=1, basis_x=None, xmin=None, xmax=None,
+    kwargs_knots={}, relative=None, upper=5, lower=5, maxiter=25, kwargs_reject={}
+):
+    """
+    Fit a B-spline with iterative sigma-clipping rejection.
+
+    Parameters
+    ----------
+    x : :class:`numpy.ndarray`
+        Independent variable.  Should be sorted in ascending order;
+        :meth:`~pypeit.core.bspline.BSpline.fit` sorts internally, but
+        the default ``stride`` knot strategy places breakpoints at
+        evenly-spaced indices of ``x``, which is only meaningful when
+        ``x`` is sorted.
+    y : :class:`numpy.ndarray`
+        Dependent variable.
+    ivar : :class:`numpy.ndarray`, optional
+        Inverse variance of ``y``.  Points with ``ivar <= 0`` are
+        excluded from the fit regardless of ``gpm``.
+    gpm : :class:`numpy.ndarray` of bool, optional
+        Additional input mask; True for pixels to include in the fit.
+        When None (default), all pixels with positive ``ivar`` are
+        used; if ``ivar`` is also None, all pixels are used.
+    nord : int, optional
+        B-spline order.
+    basis : str or :class:`numpy.ndarray` or None, optional
+        Polynomial basis specification for the second variable.  When a
+        string, it must be one of ``'legendre'``, ``'chebyshev'``,
+        ``'poly'``, or ``'poly1'``; ``basis_x`` must also be provided.
+        When a :class:`numpy.ndarray`, it is used directly as the
+        pre-built polynomial basis matrix; a 1D array of size
+        ``x.size * npoly`` is reshaped to ``(x.size, npoly)``
+        automatically.  When ``None`` (default), a 1D
+        :class:`~pypeit.core.bspline.BSpline` fit is performed.
+    npoly : int, optional
+        Number of polynomial terms; forwarded to
+        :meth:`~pypeit.core.bspline.BSpline2D.fit` and ignored when
+        ``basis`` is an array or ``None``.
+    basis_x : :class:`numpy.ndarray` or None, optional
+        Second variable.  Required when ``basis`` is a string; ignored
+        when ``basis`` is ``None`` or a pre-built array.
+    xmin : float, optional
+        Minimum value of ``basis_x`` for normalisation; forwarded to
+        :meth:`~pypeit.core.bspline.BSpline2D.fit` and ignored when
+        ``basis`` is an array or ``None``.
+    xmax : float, optional
+        Maximum value of ``basis_x`` for normalisation; forwarded to
+        :meth:`~pypeit.core.bspline.BSpline2D.fit` and ignored when
+        ``basis`` is an array or ``None``.
+    kwargs_knots : dict, optional
+        Keyword arguments forwarded to :class:`~pypeit.core.bspline.Knots`
+        to control knot placement.  See :class:`~pypeit.core.bspline.Knots`
+        for the available strategies and their default values.
+    relative : array-like or None, optional
+        Index array for computing the relative chi-squared used to
+        rescale the rejection thresholds.  When ``None`` (default) the
+        thresholds are not rescaled.
+    upper : float, optional
+        Upper sigma-clipping threshold.
+    lower : float, optional
+        Lower sigma-clipping threshold.
+    maxiter : int, optional
+        Maximum number of fit-reject iterations.
+    kwargs_reject : dict, optional
+        Additional keyword arguments forwarded to
+        :func:`~pypeit.core.pydl.djs_reject`.
+
+    Returns
+    -------
+    bspl : :class:`~pypeit.core.bspline.BSpline`, :class:`~pypeit.core.bspline.BSpline2D`
+        Fitted spline object.  A
+        :class:`~pypeit.core.bspline.BSpline2D` is returned when
+        ``basis`` is provided; a
+        :class:`~pypeit.core.bspline.BSpline` is returned otherwise.
+        ``None`` is returned on catastrophic failure (exit status 4
+        with no valid input points).
+    outmask : :class:`numpy.ndarray` of bool
+        Final good-pixel mask after all rejection iterations.
+    yfit : :class:`numpy.ndarray`
+        Best-fit model values at ``x``.
+    reduced_chi : float
+        Reduced chi-squared of the final fit.
+    exit_status : int
+        Convergence status code that will be one of the following:
+
+            - 0 — converged normally
+            - 1 — maximum iterations reached
+            - 2 — too few good points during iteration
+            - 3 — singular or degenerate fit (all breakpoints lost)
+            - 4 — fewer good points than ``nord`` on entry
+
+    """
+    _basis = basis
+    if basis is None:
+        _npoly = 1
+        bspl_cls = bspline.BSpline
+    elif isinstance(basis, np.ndarray):
+        _basis = np.asarray(basis)
+        if basis.ndim == 1:
+            nx = x.size
+            _npoly = basis.size // nx
+            if basis.size != nx * _npoly:
+                raise PypeItError('basis array size is not a multiple of x.size.')
+            _basis = _basis.reshape(nx, _npoly).copy()
+        else:
+            _npoly = _basis.shape[1]
+        bspl_cls = bspline.BSpline2D
+    else:
+        _npoly = npoly
+        bspl_cls = bspline.BSpline2D
+
+    outmask = np.ones(y.shape, dtype=bool)
+    maskwork = outmask.copy()
+    if gpm is not None:
+        maskwork &= gpm
+    if ivar is not None:
+        maskwork &= ivar > 0
+    if not maskwork.any():
+        return None, outmask, np.zeros(y.shape), 0., 4
+
+    bspl = bspl_cls(x=x[maskwork], knots=bspline.Knots(**kwargs_knots), nord=nord)
+    if maskwork.sum() < bspl.nord:
+        log.warning(
+            f'B-spline fit failed: Number of good data points ({maskwork.sum()}) fewer than '
+            f'order of the fit ({bspl.nord}).'
+        )
+        # TODO: Should this return outmask or maskwork?  Seems odd to return a
+        # fully True gpm for a failed fit.
+        return bspl, outmask, np.zeros(y.shape), 0., 4
+
+    err = -1
+    qdone = False
+    iiter = 0
+    exit_status = 0
+    reduced_chi = 0.
+    relative_factor = 1.0
+    nrel = 0 if relative is None else len(relative)
+    _gpm = None if gpm is None else gpm.copy()
+
+    termwidth = 80 - 13
+    log.info('B-spline fit:')
+    log.info(f'    npoly = {_npoly} profile basis functions')
+    log.info(f'    ngood = {maskwork.sum()}/{maskwork.size} measurements')
+    log.info(
+        f' {"Iter":>4}  {"Chi^2":>8}  {"N Rej":>7}  {"R. Fac":>6} '.center(termwidth, '*')
+    )
+    log.info(f' {"-"*4}  {"-"*8}  {"-"*7}  {"-"*6} '.center(termwidth))
+    nullval = f'  {"--":>8}  {"--":>7}  {"--":>6} '
+
+    while (err != 0 or not qdone) and iiter <= maxiter and exit_status == 0:
+        if maskwork.sum() <= 1:
+            exit_status = 2
+            break
+
+        _ivar = maskwork.astype(float)
+        if ivar is not None:
+            _ivar *= ivar
+
+        if _basis is None:
+            err, yfit = bspl.fit(x=x, y=y, ivar=_ivar)
+        else:
+            err, yfit = bspl.fit(
+                x=x, y=y, ivar=_ivar, basis=_basis, basis_x=basis_x,
+                npoly=_npoly, xmin=xmin, xmax=xmax,
+            )
+
+        # WARNING: Because we count the iteration here, before assessing err,
+        # loop iterations include fits that are redone because of breakpoints
+        # being masked.
+        # TODO: Consider altering `BSpline(2D).fit` such that it accepts a
+        # number of iterations it is allowed to perform while masking bad
+        # breakpoints.
+        iiter += 1
+
+        if err == -2:
+            log.warning('B-spline fit failed: All break points lost!')
+            return bspl, np.zeros(x.shape, dtype=bool), np.zeros(x.shape), reduced_chi, 3
+        if err != 0:
+            log.info(f' {iiter:4d}{nullval}'.center(termwidth))
+            continue
+
+        ngood = maskwork.sum()
+        goodbk_count = bspl.bkpt_gpm[bspl.nord:].sum()
+        chi_array = (y - yfit) * np.sqrt(_ivar)
+        reduced_chi = np.sum(chi_array**2) / (ngood - _npoly * (goodbk_count + bspl.nord) - 1)
+        if relative is not None:
+            if nrel == 1:
+                this_chi2 = reduced_chi
+            else:
+                this_chi2 = np.sum(chi_array[relative]**2) / (
+                    nrel - (goodbk_count + bspl.nord) - 1
+                )
+            relative_factor = max(np.sqrt(this_chi2), 1.0)
+        maskwork, qdone = pydl.djs_reject(
+            y, yfit, invvar=_ivar, inmask=_gpm, outmask=maskwork,
+            upper=upper * relative_factor, lower=lower * relative_factor,
+            **kwargs_reject
+        )
+        _gpm = np.copy(maskwork)
+        log.info((
+            f' {iiter:4d}  {reduced_chi:8.3f}  {maskwork.sum():7d}  {relative_factor:6.2f} '
+        ).center(termwidth))
+
+    log.info((
+        f' {"DONE":>4}  {reduced_chi:8.3f}  {maskwork.sum():7d}  {relative_factor:6.2f} '
+    ).center(termwidth))
+
+    if iiter == maxiter + 1:
+        exit_status = 1
+    return bspl, maskwork.copy(), yfit, reduced_chi, exit_status

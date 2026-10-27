@@ -273,3 +273,20 @@ class ScriptBase:
 
 
 
+def configure_matplotlib(show):
+    """Configure the matplotlib backend for a reduction script.
+
+    Interactive backends are only needed when a reduction is explicitly run
+    with ``--show``.  Otherwise, force a non-interactive backend before any
+    module imports :mod:`matplotlib.pyplot`, allowing QA plots to be written
+    without connecting to a display server.
+
+    Args:
+        show (:obj:`bool`):
+            If True, preserve the user's configured matplotlib backend.
+    """
+    if show:
+        return
+
+    import matplotlib
+    matplotlib.use('Agg', force=True)

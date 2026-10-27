@@ -5,8 +5,9 @@ import copy
 import os
 import pathlib
 
+import numpy as np
 import pytest
-import astropy.table 
+import astropy.table
 
 from pypeit import dataPaths
 from pypeit import PypeItError
@@ -19,6 +20,7 @@ from pypeit.tests.tstutils import data_output_path
 from IPython import embed
 
 
+@pytest.mark.remote_data
 def test_shanekastblue():
     s = spectrographs.shane_kast.ShaneKastBlueSpectrograph()
     example_file = dataPaths.tests.get_file_path('b1.fits.gz')
@@ -30,6 +32,7 @@ def test_shanekastblue():
     assert bpm.shape == (2048,350)
 
 
+@pytest.mark.remote_data
 def test_select_detectors_pypeit_file():
     # Generate a PypeIt file
     tstutils.install_shane_kast_blue_raw_data()
@@ -154,6 +157,7 @@ def test_atmext():
     atmext = spec.get_atmospheric_extinction('mkoextinct.dat')
     assert atmext.file == 'mkoextinct.dat', 'Used wrong extinction file'
 
+@pytest.mark.remote_data
 def test_load_spectrograph():
 
     # Basic test
@@ -177,7 +181,7 @@ def test_load_spectrograph():
 
     # Test the allowed extensions for an oddball spectrograph
     spec5 = load_spectrograph('soar_goodman_red')
-    assert spec5.allowed_extensions == [".fz"], 'Found wrong extensions'
+    assert spec5.allowed_extensions == [".fits.fz"], 'Found wrong extensions'
 
     # Call as it from a post-processing script
     spec6 = load_spectrograph('soar_goodman_red', pypeit_fits=True)
@@ -210,6 +214,7 @@ def fitstbl():
     setupc.fitstbl.finalize_usr_build(None, 'A')
     return setupc.fitstbl
 
+@pytest.mark.remote_data
 def test_config_specific_par(fitstbl):
     # Grab a science file for configuration specific parameters
     indx = fitstbl.find_frames('science', index=True)[0]
@@ -269,3 +274,40 @@ def test_apf_levy_final_config_frametypes():
         "Wideflat frame should NOT be changed when decker is not 3.0"
     assert table2['frametype'][1] == 'trace', \
         "Narrowflat frame should remain unchanged"
+
+
+def test_ifu_get_datacube_bins_wavelength_axis_first():
+    """`get_datacube_bins()` must return its three bin-edge arrays in
+    `(spec_bins, ybins, xbins)` order -- i.e. wavelength first -- for every
+    `SlicerIFU` spectrograph that implements it.
+
+    `pypeit.core.datacube.subpixellate()` always treats `bins[0]` as the
+    wavelength axis (see `outshape = (bins[0].size-1, ...)`), regardless of
+    what `get_datacube_bins()` actually returns; the per-pixel voxel
+    coordinates it bins against are independently, always ordered
+    `(wave_pix, dec_pix, ra_pix)`. `keck_kcwi.py`'s `get_datacube_bins()` was
+    updated to this order when `datacube.py`'s cube-axis convention was
+    reworked, but `gemini_gnirs.py`'s `GNIRSIFUSpectrograph` and
+    `gtc_osiris.py`'s `GTCMAATSpectrograph` were not (a TODO to that effect
+    was left in `keck_kcwi.py` but never actioned).
+    `num_wave` and `slitlength` are chosen distinct from every spectrograph's
+    (fixed) number of IFU slices, so a bin-order swap is guaranteed to be
+    caught by a bin-count mismatch rather than accidentally matching.
+    """
+    num_wave = 1234
+    slitlength = 50
+    minmax = np.array([[-25.0, 25.0]])
+
+    for spec_name, num_slices in [
+        ('keck_kcwi', 24), ('keck_kcrm', 24), ('gemini_gnirs_ifu', 21), ('gtc_maat', 23)
+    ]:
+        spectrograph = load_spectrograph(spec_name)
+        spec_bins, ybins, xbins = spectrograph.get_datacube_bins(slitlength, minmax, num_wave)
+        assert spec_bins.size - 1 == num_wave, \
+            f"{spec_name}: get_datacube_bins()[0] should be the {num_wave} wavelength bins, " \
+            f"not the {spec_bins.size - 1} slice bins"
+        assert ybins.size - 1 == slitlength, \
+            f"{spec_name}: get_datacube_bins()[1] should be the {slitlength} along-slit bins"
+        assert xbins.size - 1 == num_slices, \
+            f"{spec_name}: get_datacube_bins()[2] should be the {num_slices} slice bins, " \
+            f"not the {xbins.size - 1} wavelength bins"

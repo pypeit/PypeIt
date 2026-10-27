@@ -10,6 +10,7 @@ from astropy.io import fits
 
 from pypeit import dataPaths
 from pypeit.tracepca import TracePCA
+from pypeit.core import pca
 from pypeit.core.fitting import PypeItFit
 
 @pytest.fixture
@@ -50,6 +51,7 @@ def test_prediction(vec_coo, bogus_vectors):
     # TODO: More checks?
 
 
+@pytest.mark.remote_data
 def test_rms():
     """Test on some real data."""
     center = np.load(dataPaths.tests.get_file_path('example_trace_deimos_1200G_M_7750.npz'))['center']
@@ -129,3 +131,41 @@ def test_read_two(vec_coo, bogus_vectors):
     for i in range(pca.npca):
         assert np.array_equal(pca.pca_coeffs_model[i].fitc, _pca.pca_coeffs_model[i].fitc), \
                 'Bad read'
+
+
+def test_decomposition_reproducible():
+    """
+    Repeated PCA decompositions of the same data must be bit-identical,
+    regardless of the memory alignment of the input (Issue #2208).
+    """
+    # Smooth, slit-edge-like traces with the shape typical of a multi-slit
+    # trace PCA: (ntrace, nspec)
+    rng = np.random.default_rng(2208)
+    ntrace, nspec = 28, 2048
+    spec_coo = np.linspace(-1, 1, nspec)
+    coo = np.sort(rng.uniform(10, 1000, ntrace))
+    vectors = coo[:,None] + (1e-3*coo[:,None] + 2.)*spec_coo[None,:] \
+                + 0.5*np.square(spec_coo)[None,:] + rng.normal(scale=0.01, size=(ntrace, nspec))
+
+    # Make sure this input exercises the solver at issue: sklearn's default
+    # (svd_solver='auto') picks its randomized, unseeded solver for it.
+    from sklearn.decomposition import PCA
+    assert PCA(n_components=2).fit(vectors - coo[:,None])._fit_svd_solver == 'randomized', \
+        'Test input no longer exercises the randomized solver; choose a different shape.'
+
+    def at_offset(a, offset):
+        # Copy into a buffer that starts offset bytes past 64-byte alignment
+        raw = np.empty(a.nbytes + 128, dtype=np.uint8)
+        start = (-raw.ctypes.data) % 64 + offset
+        out = raw[start:start+a.nbytes].view(a.dtype).reshape(a.shape)
+        out[...] = a
+        return out
+
+    ref = pca.pca_decomposition(vectors, npca=2, mean=coo)
+    for offset in [0, 8, 24, 40]:
+        for _ in range(3):
+            test = pca.pca_decomposition(at_offset(vectors, offset), npca=2,
+                                         mean=at_offset(coo, offset))
+            for r, t in zip(ref, test):
+                assert np.array_equal(r, t), 'PCA decomposition is not reproducible'
+

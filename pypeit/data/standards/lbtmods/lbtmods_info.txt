@@ -1,0 +1,46 @@
+# This directory contains the 10-A bin flux tables for the original set of 
+# MODS spectrophotometric standards, which was quickly separated into 
+# Primary and Secondary standards, and the Secondary standards were soon 
+# removed because their spectra had features or gaps which inhibited
+# fits to the dichroic wiggles in the sensitivity function in dual grating mode.
+# The Primary list has since been further whittled down.
+#
+# pypeit_sensfunc selects the flux table by coordinate matching 
+# within catalogs searched in this order: 
+# ['xshooter', 'calspec', 'esofil', 'noao', 'ing', 'lbtmods']
+#
+# The higher resolution calspec spectra should be used in favor of the 10-A flux 
+# tables in lbtmods, except for red channel spectra of Feige66, Feige67, HZ44 and 
+# BD+33 2642, where the calspec spectra stop at 9200 angstroms and do not cover the 
+# full MODS spectral range (3200-10500 angstroms). 
+#
+# GD140 (3200-10200A), Hiltner600 (3200-10200A), PG0823+546 (3200-10200) 
+# and Wolf1346 (3400-8370A) are in the noao archives also with spectral ranges
+# as indicated in parenthesis. The noao tables are binned at 50-Angstroms, and
+# for Wolf1346, the spectral range does not extend far enough to the blue or to the red.
+#
+# Hiltner 600 is also in the esofil archives, but again only at 50-A bin resolution 
+# instead of 10-A for the lbtmods table. 
+#
+# 
+## 
+# The columns are wavelength(Angstroms; Air), ABmag, bin width(Angstroms)
+#
+# https://scienceops.lbto.org/mods/instrument-calibration/spectrophotometric-standards-updated-oct2024/spectrophotometric-standards-updated-oct-2023/
+#
+  File                Name        RA_2000    DEC_2000	 V-MAG   TYPE
+g191b2b_10a.dat       G191-B2B  05:05:30.613 +52:49:51.96  11.85  DA.8
+gd71_10a.dat          GD71      05:52:27.614 +15:53:13.75  13.03  DA1.5
+hilt600_10a.dat       Hiltner   06:45:13.371 +02:08:14.70  10.44  B1
+pg0823_10a.dat        PG0823+546 08:26:50.4 +54:28:06      14.32  sdOC
+feige34_10a.dat       Feige34   10:39:36.740 +43:06:09.26 11.25   sdO
+gd140_10a.dat         GD140     11:37:05.104 +29:47:58.34  12.45  DA2.2
+feige66_10a.dat       Feige66   12:37:23.517 +25:03:59.88 10.54   sdO
+feige67_10a.dat       Feige67   12:41:51.791 +17:31:19.76 11.89   sdO
+gd153_10a.dat         GD153     12:57:02.337 +22:01:52.68  13.35  DA1.2
+hz43_10a.dat          HZ43      13:16:21.853 +29:05:55.38  12.91  DA
+hz44_10a.dat          HZ44      13:23:35.258 +36:07:59.51  11.47  sdB
+bd33d2642_10a.dat     BD+332642 15:51:59.886 +32:56:54.33 10.80   B2IV
+wolf1346_10a.dat      Wolf1346  20:34:21.883 +25:03:49.74  11.546 DA2.4
+bd28d4211_10a.dat     BD+284211 21:51:11.021 +28:51:50.36 10.56   sdOp
+feige110_10a.dat      Feige110  23:19:58.398 -05:09:56.16 11.88   sdO

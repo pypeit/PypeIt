@@ -19,8 +19,8 @@ from astropy import units
 
 from pypeit import log
 from pypeit import dataPaths
-from pypeit.core import arc, wave_modeling
-from pypeit import utils # for plotting utils.pyplot_rcparams() and utils.pyplot_rcparams_default()
+from pypeit.core import arc
+from pypeit.core.plot import pyplot_rcparams, pyplot_rcparams_default
 from pypeit.core.wave import airtovac
 #from pypeit import io # for io.load_thar_spec()
 
@@ -60,7 +60,7 @@ def blackbody(wavelength, T_BB=250., debug=False):
                  * np.power(RADIAN_PER_ARCSEC, 2.)
 
     if debug:
-        utils.pyplot_rcparams()
+        pyplot_rcparams()
         log.info("Plot of the blackbody spectrum.")
         plt.figure()
         plt.plot(wavelength, blackbody,
@@ -73,7 +73,7 @@ def blackbody(wavelength, T_BB=250., debug=False):
         log.info("Close the Figure to continue.")
         plt.show(block=True)
         plt.close()
-        utils.pyplot_rcparams_default()
+        pyplot_rcparams_default()
 
     return blackbody_flux, blackbody_counts
 
@@ -121,7 +121,7 @@ def addlines2spec(wavelength, wl_line, fl_line, resolution,
                      np.exp(-np.power((wl_line_good[ii]-wavelength),2.)/(2.*np.power(sigma[ii],2.)))
 
     if debug:
-        utils.pyplot_rcparams()
+        pyplot_rcparams()
         log.info("Plot of the line spectrum.")
         plt.figure()
         plt.plot(wavelength, line_spec,
@@ -133,7 +133,7 @@ def addlines2spec(wavelength, wl_line, fl_line, resolution,
         log.info("Close the Figure to continue.")
         plt.show(block=True)
         plt.close()
-        utils.pyplot_rcparams_default()
+        pyplot_rcparams_default()
 
     return line_spec
 
@@ -193,7 +193,7 @@ def transparency(wavelength, debug=False):
     transmission[transmission>1.] = 1.
 
     if debug:
-        utils.pyplot_rcparams()
+        pyplot_rcparams()
         log.info("Plot of the sky transmission template")
         plt.figure()
         plt.plot(wave_mod, tran_mod,
@@ -209,7 +209,7 @@ def transparency(wavelength, debug=False):
         log.info("Close the Figure to continue.")
         plt.show(block=True)
         plt.close()
-        utils.pyplot_rcparams_default()
+        pyplot_rcparams_default()
 
     # Returns
     return transmission
@@ -410,7 +410,7 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
         hdu.writeto(nirsky_outfile, overwrite = True)
 
     if debug:
-        utils.pyplot_rcparams()
+        pyplot_rcparams()
         log.info("Plot of the sky emission at R={}".format(resolution))
         plt.figure()
         plt.plot(wave, sky_model,
@@ -435,7 +435,7 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
         log.info("Close the Figure to continue.")
         plt.show(block=True)
         plt.close()
-        utils.pyplot_rcparams_default()
+        pyplot_rcparams_default()
 
     return np.array(wave*10000.), np.array(sky_model)
 
@@ -535,7 +535,7 @@ def optical_modelThAr(resolution, waveminmax=(3000.,10500.), dlam=40.0,
         hdu.writeto(thar_outfile, overwrite = True)
 
     if debug:
-        utils.pyplot_rcparams()
+        pyplot_rcparams()
         log.info("Plot of the Murphy et al. template at R={}".format(resolution))
         plt.figure()
         plt.plot(th_wv, th_fx,
@@ -554,9 +554,77 @@ def optical_modelThAr(resolution, waveminmax=(3000.,10500.), dlam=40.0,
         log.info("Close the Figure to continue.")
         plt.show(block=True)
         plt.close()
-        utils.pyplot_rcparams_default()
+        pyplot_rcparams_default()
 
     return np.array(wave), np.array(thar_spec)
+
+
+def conv2res(wavelength, flux, resolution, central_wl='midpt',
+             debug=False):
+    """Convolve an imput spectrum to a specific resolution. This is only
+    approximate. It takes a fix FWHM for the entire spectrum given by:
+    fwhm = wl_cent / resolution
+
+    Parameters
+    ----------
+    wavelength : `numpy.ndarray`_
+        wavelength
+    flux : `numpy.ndarray`_
+        flux
+    resolution : float
+        resolution of the spectrograph
+    central_wl 
+        if 'midpt' the central pixel of wavelength is used, otherwise
+        the central_wl will be used.
+    debug : bool
+        If True will show debug plots
+
+    Returns
+    -------
+    flux_convolved : `numpy.ndarray`_
+        Resulting flux after convolution
+    px_sigma : float
+        Size of the sigma in pixels at central_wl
+    px_bin : float
+        Size of one pixel at central_wl
+    """
+
+    if central_wl == 'midpt':
+        wl_cent = np.median(wavelength)
+    else:
+        wl_cent = float(central_wl)
+    wl_sigma =  wl_cent / resolution / 2.355
+    wl_bin = np.abs((wavelength - np.roll(wavelength,1))[np.where( np.abs(wavelength-wl_cent) == np.min(np.abs(wavelength-wl_cent)) )])
+    log.info("The binning of the wavelength array at {} is: {}".format(wl_cent, wl_bin[0]))
+    px_bin = wl_bin[0]
+    px_sigma = wl_sigma / px_bin
+
+    log.info("Covolving with a Gaussian kernel with sigma = {} pixels".format(px_sigma))
+    gauss_kernel = Gaussian1DKernel(px_sigma)
+
+    flux_convolved = convolve(flux, gauss_kernel)
+
+    if debug:
+        pyplot_rcparams()
+        log.info("Spectrum Convolved at R = {}".format(resolution))
+        plt.figure()
+        plt.plot(wavelength, flux,
+                 color='navy', linestyle='-', alpha=0.8,
+                 label=r'Original')
+        plt.plot(wavelength, flux_convolved, 
+                 color='crimson', linestyle='-', alpha=0.8,
+                 label=r'Convolved')
+        plt.legend()
+        plt.xlabel(r'Wavelength')
+        plt.ylabel(r'Flux')
+        plt.title(r'Spectrum Convolved at R = {}'.format(resolution))
+        log.info("Close the Figure to continue.")
+        plt.show(block=True)
+        plt.close()
+        pyplot_rcparams_default()
+
+    return flux_convolved, px_sigma, px_bin
+
 
 def iraf_datareader(database_dir, id_file):
     """

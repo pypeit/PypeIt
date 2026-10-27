@@ -3,7 +3,7 @@
     $ pypeit_extract_datacube -h
     usage: pypeit_extract_datacube [-h] [-v VERBOSITY] [--log_file LOG_FILE]
                                    [--log_level LOG_LEVEL] [-e EXT_FILE] [-s SAVE]
-                                   [-o] [-b BOXCAR_RADIUS]
+                                   [-o] [-b BOXCAR_RADIUS] [--debug]
                                    file
     
     Read in a datacube, extract a spectrum of a point source, and save it as a
@@ -29,10 +29,13 @@
       -e, --ext_file EXT_FILE
                             Configuration file with extraction parameters (default:
                             None)
-      -s, --save SAVE       Output spec1d filename (default: None)
+      -s, --save SAVE       Basename for output files, i.e. outputs will be written
+                            to spec1d_basename.fits and spec2d_basename.fits
+                            (default: None)
       -o, --overwrite       Overwrite any existing files/directories (default:
                             False)
       -b, --boxcar_radius BOXCAR_RADIUS
                             Radius of the circular boxcar (in arcseconds) to use for
                             the extraction. (default: None)
+      --debug               Run in debugging mode (default: False)
     
