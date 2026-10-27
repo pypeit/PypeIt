@@ -124,8 +124,8 @@ def geomotion_velocity(time, skycoord, frame="heliocentric"):
     velocity = ev + ov
     if frame == "heliocentric":
         # ICRS position and velocity of the Sun
-        sp, sv = solar_system.get_body_barycentric_posvel('sun', time)
-        velocity += sv
+        _, sv = solar_system.get_body_barycentric_posvel('sun', time)
+        velocity -= sv
 
     # Get unit ICRS vector in direction of SkyCoord
     sc_cartesian = skycoord.icrs.represent_as(UnitSphericalRepresentation).represent_as(CartesianRepresentation)
