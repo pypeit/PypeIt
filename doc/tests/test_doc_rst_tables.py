@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 
 
-DOC_SCRIPTS = Path(__file__).resolve().parents[2] / 'doc' / 'scripts'
+DOC_SCRIPTS = Path(__file__).resolve().parents[1] / 'scripts'
 PROJECT_FILE = DOC_SCRIPTS.parents[1] / 'pyproject.toml'
 
 
@@ -128,7 +128,7 @@ def test_bitmask_table(monkeypatch, tmp_path):
 
 def test_cache_data_table(monkeypatch, tmp_path):
     script = load_script(monkeypatch, 'build_cache_data_tbl')
-    from pypeit.pypeitdata import PypeItDataPaths
+    from pypeit.pkg.pypeitdata import PypeItDataPaths
 
     output = tmp_path / 'data_dir.rst'
     script.write_table(output)
