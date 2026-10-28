@@ -147,6 +147,39 @@ def test_pad():
     ofile.unlink()
 
 
+def test_slit_img_split_overlap():
+    # Three slits: the first two are 3.5 pixels apart, the last two overlap
+    nspec, nspat = 20, 60
+    left = np.tile([5.5, 21.0, 33.5], (nspec, 1))
+    right = np.tile([17.5, 35.5, 50.5], (nspec, 1))
+    slits = SlitTraceSet(left, right, 'MultiSlit', nspat=nspat, PYP_SPEC='dummy')
+    spat_id = slits.spat_id
+    # Without padding, the pixels where the last two slits overlap are
+    # assigned to the last slit, unless the overlap is split at its midpoint
+    # (x = 34.5)
+    nopad = slits.slit_img(pad=0)
+    assert np.all(nopad[:, 18:21] == -1), 'Gap pixels should not be assigned'
+    assert np.all(nopad[:, 34:36] == spat_id[2]), 'Overlap pixels should be overwritten'
+    split = slits.slit_img(pad=0, split_overlap=True)
+    assert np.all(split[:, 33:36] == spat_id[[1, 1, 2]]), 'Overlap not split at its midpoint'
+    # With padding, the padding of the second slit also covers the right edge
+    # of the first slit, unless the overlap is split: then, the pixels on the
+    # first slit stay on it, and the gap between the slits (17.5 to 21.0) is
+    # split at its midpoint (x = 19.25)
+    pad = 5
+    padded = slits.slit_img(pad=pad)
+    assert np.all(padded[:, 17:23] == spat_id[1]), 'Padded pixels should be overwritten'
+    split = slits.slit_img(pad=pad, split_overlap=True)
+    assert np.all(split[:, 15:23] == spat_id[[0, 0, 0, 0, 0, 1, 1, 1]]), \
+        'Padded overlap not split at the midpoint of the gap'
+    assert np.all(split[:, 33:37] == spat_id[[1, 1, 2, 2]]), \
+        'Padded overlap not split at the midpoint of the overlapping slits'
+    # Pixels in only one (padded) slit are not affected
+    nslit = np.sum([slits.slit_img(pad=pad, slitidx=i) != -1 for i in range(slits.nslits)],
+                   axis=0)
+    assert np.array_equal(split[nslit < 2], padded[nslit < 2]), 'Pixels in a single slit changed'
+
+
 def test_io_single():
     # NOTE this is just a test string. The file itself is not actually read, so it is not required to run the test.
     file = '/home/xavier/Projects/PypeIt-development-suite/RAW_DATA/keck_deimos/830G_M_8500/DE.20100913.57006.fits.gz'

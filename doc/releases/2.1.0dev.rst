@@ -105,9 +105,15 @@ Functionality/Performance Improvements and Additions
   side of the slits (e.g., a long slit cut by the detector boundary), the
   detector-level spatial flexure would be biased by up to about a pixel, so
   the traced edges are refined (for all methods), and each slit is assigned
-  the spatial flexure of its traced edge.  If none of the slit edges were
-  traced (e.g., if the slits were placed at the detector boundaries with
-  ``bound_detector = True``), no spatial flexure is applied.
+  the spatial flexure of its traced edge (or, if none of them can be refined,
+  the detector-level spatial flexure, provided that the slit edges are clearly
+  detected).  If none of the slit edges were traced (e.g., if the slits were
+  placed at the detector boundaries with ``bound_detector = True``), no
+  spatial flexure is applied.  If the left- and right-edge peaks differ by
+  more than 2.5 pixels (e.g., because the edges of one side are poorly
+  detected), the peak of the single cross-correlation of all edges is used
+  instead.  Each peak, and the fraction of the traced edge pixels of its side
+  that it matches, are printed in the log.
 - The spatial flexure of each frame is accounted for when constructing
   datacubes (``pypeit_coadd_datacube``): the RA and Dec of each detector pixel,
   and the astrometric alignment traces, are now evaluated using the spatial
@@ -515,7 +521,13 @@ Bug Fixes
   was not evaluated, so that the pixel flat of up to about two pixels per
   spectral row near the slit edge could be wrong by up to a factor of 2.  The
   wavelength tilts and the spectral and spatial models of each slit are now
-  evaluated over its own padded footprint.
+  evaluated over its own padded footprint.  Also, the pixels of each slit are
+  now always used to fit its spatial (illumination) response (they could be
+  assigned to the padding of the neighbouring slit, so that the illumination
+  profile of their slit was extrapolated there), and the gap between two
+  slits whose padded footprints overlap is split at its midpoint (it was
+  assigned to the second slit).  See the new ``split_overlap`` option of
+  :func:`~pypeit.slittrace.SlitTraceSet.slit_img`.
 - ``pypeit_coadd_datacube``: dedicated sky frames (``skysub_frame``) and
   relative scale-correction frames (``scale_corr``) are now remapped to the
   slits of each science frame, accounting for the spatial flexure of both

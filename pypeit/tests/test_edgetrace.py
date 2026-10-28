@@ -196,3 +196,47 @@ def test_spat_flexure_detector_balanced():
         spat_flexure = flexure.spat_flexure_shift(sci, slits, method='detector', maxlag=20,
                                                   sigdetect=5.)
         assert np.allclose(spat_flexure, shift, atol=0.1), 'Incorrect detector-level flexure'
+
+
+@pytest.mark.parametrize('fallback_match_frac', [0.5, 1.1])
+def test_spat_flexure_single_edge_not_refined(monkeypatch, fallback_match_frac):
+    # A long slit with only its right edge on the detector, whose edge cannot
+    # be refined.  If the edge is clearly detected by the detector-level
+    # cross-correlation (i.e. at least fallback_match_frac of the traced
+    # edge pixels are matched; 1.1 is impossible), the detector-level flexure
+    # is adopted; otherwise, no flexure is applied.
+    edges = [(None, 200.37)]
+    slits = _trace_slits(_longslit_image(edges, seed=2), refine=True)
+    sci = _longslit_image(edges, sig=1.6, level=500., shift=0.8, seed=10)
+    monkeypatch.setattr(trace, 'refine_edge', lambda *args, **kwargs: (0., False))
+    spat_flexure, gpm = flexure.spat_flexure_shift(sci, slits, method='edge', maxlag=20,
+                                                   sigdetect=5., return_gpm=True,
+                                                   fallback_match_frac=fallback_match_frac)
+    if fallback_match_frac > 1:
+        assert np.all(spat_flexure == 0.) and not np.any(gpm), \
+            'No spatial flexure should be applied if the edges are not clearly detected'
+        return
+    assert np.allclose(spat_flexure, 0.8, atol=0.35), 'The detector-level flexure should be used'
+    assert np.array_equal(gpm, slits.traced_edges()), 'Incorrect good-pixel mask'
+
+
+def test_spat_flexure_detector_inconsistent_sides():
+    # Six slits, shifted by 1 pixel, except for the right edges of the last
+    # four slits, which are shifted by 4.5 pixels (e.g. a spurious feature).
+    # The left edges of the last three slits are masked, so that the peak of
+    # the right-edge cross-correlation (4.5 pixels, four edges) is stronger
+    # than that of the left-edge cross-correlation (1 pixel, three edges).
+    # The peaks are inconsistent, so the cross-correlation of all edges is
+    # used, which peaks at 1 pixel (five edges).
+    edges = [(40.3 + 100 * i, 90.7 + 100 * i) for i in range(6)]
+    nspat = 660
+    slits = _trace_slits(_longslit_image(edges, seed=2, nspat=nspat), refine=True)
+    assert np.all(slits.traced_edges()) and slits.nslits == 6, 'Incorrect traced slits'
+    sci_edges = [(left + 1., right + (1. if i < 2 else 4.5)) for i, (left, right) in enumerate(edges)]
+    sci = _longslit_image(sci_edges, level=500., seed=10, nspat=nspat)
+    bpm = np.zeros(sci.shape, dtype=int)
+    for left, _ in edges[3:]:
+        bpm[:, int(left) - 6:int(left) + 8] = 1
+    spat_flexure = flexure.spat_flexure_shift(sci, slits, bpm=bpm, method='detector', maxlag=20,
+                                              sigdetect=5.)
+    assert np.allclose(spat_flexure, 1., atol=0.3), 'Incorrect detector-level flexure'

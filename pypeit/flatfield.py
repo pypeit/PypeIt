@@ -1117,8 +1117,19 @@ class FlatField:
         slitid_img_init = self.slits.slit_img(initial=True, spat_flexure=self.spat_flexure)
         #   - an image that uses the extra padding defined by
         #     self.flatpar. This was always 5 pixels in the previous
-        #     version.
-        padded_slitid_img = self.slits.slit_img(initial=True, spat_flexure=self.spat_flexure, pad=pad)
+        #     version.  The padding only extends each slit slightly
+        #     beyond its edges: the pixels on a slit always belong to
+        #     that slit (as in slitid_img_init, which also assigns the
+        #     pixels where two slits overlap, consistently with the
+        #     final flat-field images), and where the padded footprints
+        #     of neighbouring slits overlap, the gap between the slits
+        #     is split at its midpoint.  The pixels of each slit (and
+        #     those of its half of the gap) are therefore used to fit
+        #     its spatial (illumination) response.
+        padded_slitid_img = self.slits.slit_img(initial=True, spat_flexure=self.spat_flexure, pad=pad,
+                                                split_overlap=True)
+        on_slit = slitid_img_init != -1
+        padded_slitid_img[on_slit] = slitid_img_init[on_slit]
         #   - and an image that trims the width of the slit using the
         #     parameter in self.flatpar. This was always 3 pixels in
         #     the previous version.
@@ -1231,11 +1242,12 @@ class FlatField:
             # The padded footprint of this slit, independent of the other
             # slits.  Where the padded footprints of neighbouring slits
             # overlap, padded_slitid_img assigns the overlapping pixels to only
-            # one of the slits (the pixels used to fit the spectral and spatial
-            # response of each slit are selected with padded_slitid_img), but
-            # some of them are within the other slit (e.g. its trimmed and
-            # tweaked pixels).  The tilts and the models of this slit are
-            # therefore evaluated over its own padded footprint.
+            # one of the slits (the pixels used to fit the spatial response of
+            # each slit are selected with padded_slitid_img), but the models of
+            # this slit are needed over all of its pixels (e.g. its tweaked
+            # pixels, if the slits themselves overlap).  The tilts and the
+            # models of this slit are therefore evaluated over its own padded
+            # footprint.
             own_padded_img = self.slits.slit_img(slitidx=slit_idx, initial=True,
                                                  spat_flexure=self.spat_flexure, pad=pad)
             onslit_own = own_padded_img == slit_spat

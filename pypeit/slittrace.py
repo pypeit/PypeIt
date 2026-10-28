@@ -735,7 +735,7 @@ class SlitTraceSet(calibframe.CalibFrame):
         return left.copy()-_pad[0], right.copy()+_pad[1], self.mask.copy()
 
     def slit_img(self, pad=None, slitidx=None, initial=False, spat_flexure=None, exclude_flag=None,
-                 use_spatial=True):
+                 use_spatial=True, split_overlap=False):
         r"""
         Construct an image identifying each pixel with its associated
         slit.
@@ -753,9 +753,10 @@ class SlitTraceSet(calibframe.CalibFrame):
 
         .. warning::
 
-            - The function does not check that pixels end up in
-              multiple pixels or that the padding is sensible given
-              the separation between slit edges!
+            - Unless ``split_overlap`` is True, the function does not
+              check that pixels end up in multiple slits or that the
+              padding is sensible given the separation between slit
+              edges!
             - All slits are identified in the image, even if they are
               masked with :attr:`mask`.
 
@@ -793,6 +794,19 @@ class SlitTraceSet(calibframe.CalibFrame):
                 where the first column is the shift to apply to the
                 left edge of each slit and the second column is the
                 shift to apply to the right edge of each slit.
+            split_overlap (:obj:`bool`, optional):
+                How to assign the pixels that belong to more than one
+                (padded) slit.  If False, they are assigned to the last of
+                these slits (in the order of ``slitidx``).  If True, they
+                are assigned to the slit whose (padded) edges are the
+                farthest from the pixel, i.e. the slit that the pixel is
+                deepest inside of.  If the padding is the same for all
+                slits and for both of their edges, a pixel on a slit is
+                therefore never assigned to the padding of another slit, and
+                where the padded footprints of two neighbouring slits
+                overlap, the overlap is split at the midpoint between the
+                facing edges of the two slits.  Pixels that belong to only
+                one slit are not affected.
 
         Returns:
             `numpy.ndarray`_: The image with the slit index
@@ -825,11 +839,25 @@ class SlitTraceSet(calibframe.CalibFrame):
         # Find the pixels in each slit, limited by the minimum and
         # maximum spectral position.
         slitid_img = np.full((self.nspec,self.nspat), -1, dtype=int)
+        if split_overlap:
+            # The (signed) distance of each assigned pixel from the nearest
+            # (padded) edge of its slit; negative inside the slit
+            depth = np.full((self.nspec,self.nspat), np.inf)
         for i in slitidx:
             slit_id = self.spat_id[i] if use_spatial else i
             indx = (spat[None,:] > left[:,i,None]) \
                         & (spat[None,:] < right[:,i,None]) \
                         & (spec > self.specmin[i])[:,None] & (spec < self.specmax[i])[:,None]
+            if split_overlap:
+                # Only assign the pixels that are deeper inside this slit
+                # than inside the slit they are already assigned to (if any)
+                rows, cols = np.where(indx)
+                d = np.maximum(left[rows,i] - cols, cols - right[rows,i])
+                deeper = d < depth[rows,cols]
+                rows, cols = rows[deeper], cols[deeper]
+                depth[rows,cols] = d[deeper]
+                slitid_img[rows,cols] = slit_id
+                continue
             slitid_img[indx] = slit_id
         # Return
         return slitid_img

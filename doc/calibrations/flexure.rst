@@ -70,11 +70,17 @@ The algorithm proceeds as follows:
        :ref:`edgetracepar`), so the peaks of the left- and right-edge
        cross-correlations are biased in opposite directions, by up to about a
        pixel; their average cancels these biases, whatever the number of left
-       and right edges.  If the peaks of the two cross-correlations differ by
-       more than 4 pixels, the weaker one is ignored, with a warning.  If no
-       peak is found in either cross-correlation, or if the peaks are beyond
-       the maximum shift, the code assumes there is no spatial flexure and
-       prints a warning.
+       and right edges.  The peak of each cross-correlation, and the fraction
+       of the traced left (right) edge pixels that coincide with a detected
+       left (right) edge at that peak (see the next step), are printed in the
+       log.  If the peaks of the two cross-correlations differ by more than
+       2.5 pixels, at least one of them is spurious (e.g., because the edges
+       of one side are poorly detected), and the peak of the
+       cross-correlation of all edges (left and right edges together, where
+       a match of a left with a right edge counts negatively) is used
+       instead, with a warning.  If no peak is found in either
+       cross-correlation, or if the peaks are beyond the maximum shift, the
+       code assumes there is no spatial flexure and prints a warning.
 
     #. After shifting the traced slit edges by the measured shift, the code
        calculates the fraction of the traced slit-edge pixels that coincide
@@ -136,9 +142,11 @@ The algorithm proceeds as follows:
        case, *all* methods (including ``detector``) refine the traced edges (as
        in the previous step), starting from the ``detector`` value, and each
        slit is assigned the spatial flexure of its traced edge (traced edges
-       that cannot be
-       refined are assigned the median of the refined edges, and if none can be
-       refined, no spatial flexure is applied), with a warning.  The result is
+       that cannot be refined are assigned the median of the refined edges),
+       with a warning.  If none of the traced edges can be refined, the
+       ``detector`` value is adopted if at least 50% of the traced slit-edge
+       pixels are matched at that value (as in the previous step); otherwise,
+       no spatial flexure is applied.  The result is
        measured relative to the traced edges, so these should be refined to the
        steepest flux gradient (``refine_edges = True``; see below); otherwise,
        the result can be wrong by about a pixel.

@@ -217,11 +217,10 @@ def test_flatfield_fit_padded_slits(tmp_path):
 
 
 def test_flatfield_fit_touching_slits(tmp_path):
-    # Where the padded footprints of two slits overlap, padded_slitid_img
-    # assigns the overlapping pixels to the second slit, but some of them are
-    # within the first slit.  The tilts and the spectral model of each slit
-    # must be evaluated over its own footprint, so that the flat-field model of
-    # these pixels is that of the first slit.
+    # Where the padded footprints of two slits overlap, the padding of the
+    # second slit covers some pixels of the first slit.  These pixels must be
+    # fit and modelled with the first slit (with its own tilts), so that the
+    # flat-field model of these pixels is that of the first slit.
     from scipy.special import erf
     from pypeit.images.detector_container import DetectorContainer
     from pypeit.images.pypeitimage import PypeItImage
@@ -274,3 +273,63 @@ def test_flatfield_fit_touching_slits(tmp_path):
         'Incorrect pixel flat of the pixels shared with the neighbouring slit'
     assert np.std(flatField.flat_model[trimmed0] / model[trimmed0]) < 0.01, \
         'Incorrect flat-field model of the first slit'
+
+
+def test_flatfield_fit_padded_touching_slits(tmp_path):
+    # Three slits, 1.5 pixels apart, with a global padding of 2 pixels (as for
+    # the orders of some echelle spectrographs), so that the padded slits
+    # overlap.  The pixels of each slit (even those in the padding of its
+    # neighbour) must be used to fit its spectral and spatial response, so
+    # that the pixel flat is unity up to the slit edges.
+    # NOTE: The pixels within slit_trim of the edges are set to 1, so a small
+    # slit_trim is used.
+    from scipy.special import erf
+    from pypeit.images.detector_container import DetectorContainer
+    from pypeit.images.pypeitimage import PypeItImage
+    from pypeit.par.pypeitpar import FlatFieldPar
+    from pypeit.slittrace import SlitTraceSet
+    from pypeit.tests import tstutils
+    from pypeit.wavetilts import WaveTilts
+    nspec, nspat, width, gap, nslit = 300, 80, 14., 1.5, 3
+    spec = np.arange(nspec)
+    left = np.column_stack([10.3 + k * (width + gap) + 0.01 * spec for k in range(nslit)])
+    right = left + width
+    slits = SlitTraceSet(left_init=left, right_init=right, pypeline='MultiSlit', nspat=nspat,
+                         PYP_SPEC='dummy', pad=np.array([2., 2.]))
+    slits.set_paths(tmp_path, 'A', '1', 'DET01')
+    slits.to_file()
+    # The tilts of neighbouring slits are offset by 30 spectral pixels
+    offset = 30.
+    coeffs = np.zeros((2, 2, nslit))
+    coeffs[:2, 0, :] = 0.5
+    coeffs[0, 0, :] += offset * np.arange(nslit) / (nspec - 1)
+    wvtilts = WaveTilts(coeffs=coeffs, nslit=nslit, spat_id=slits.spat_id,
+                        spat_order=np.ones(nslit, dtype=int), spec_order=np.ones(nslit, dtype=int),
+                        func2d='legendre2d', slits_filename=Path(slits.get_path()).name)
+    wvtilts.set_paths(tmp_path, 'A', '1', 'DET01')
+    # The spectral shape of each slit is a function of its own tilts
+    sig = 0.8
+    xx = np.arange(nspat)[None, :]
+    model = np.full((nspec, nspat), 5.)
+    for i in range(nslit):
+        blaze = 1e4 * (1.2 + np.sin(2 * np.pi * (spec + i * offset) / 150.))
+        model += blaze[:, None] * 0.5 * (erf((xx - left[:, i, None]) / (np.sqrt(2) * sig))
+                                         - erf((xx - right[:, i, None]) / (np.sqrt(2) * sig)))
+    rng = np.random.default_rng(1)
+    rawflat = PypeItImage(rng.normal(model, np.sqrt(model)), ivar=1 / model)
+    rawflat.detector = DetectorContainer(**tstutils.default_detector())
+    flatpar = FlatFieldPar()
+    flatpar['slit_trim'] = 1
+    flatpar['tweak_slits'] = False
+    flatField = flatfield.FlatField(rawflat, load_spectrograph('shane_kast_blue'), flatpar, slits,
+                                    wavetilts=wvtilts)
+    flatField.fit(doqa=False)
+    # The (median) pixel flat of the middle slit, 1 to 5 pixels inside its
+    # edges, must be unity
+    rows = np.arange(50, nspec - 50)
+    for inside in range(1, 5):
+        for edge, col in [('left', np.ceil(left[rows, 1]) + inside),
+                          ('right', np.floor(right[rows, 1]) - inside)]:
+            pixflat = np.median(flatField.mspixelflat[rows, col.astype(int)])
+            assert np.absolute(pixflat - 1) < 0.03, \
+                f'Incorrect pixel flat {inside}-{inside+1} pixels inside the {edge} edge'
