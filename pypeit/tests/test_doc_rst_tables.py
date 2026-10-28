@@ -216,3 +216,22 @@ def test_dependency_table(monkeypatch, tmp_path):
     assert 'pytest' in rows[0][2][1]
     assert not list(publish_doctree(source).findall(nodes.thead))
     assert all(line == line.rstrip() for line in source.splitlines())
+
+
+def test_parset_rst_tables():
+    from pypeit.par.parset import ParSet
+
+    class ChildPar(ParSet):
+        pass
+
+    child = ChildPar(['beta'], values=[2], dtypes=[int])
+    par = ParSet(['process', 'alpha'], values=[child, 1],
+                 dtypes=[ChildPar, int], descr=['Image processing', 'A value'])
+    source = '\n'.join(par.to_rst_table())
+    rows = table_rows(source)
+
+    assert len(rows) == 2
+    assert rows[0][0] == ['Key', 'Type', 'Options', 'Default', 'Description']
+    assert {row[0] for row in rows[0][1:]} == {'alpha', 'process'}
+    assert rows[1][0] == ['Key', 'Type', 'Options', 'Default', 'Description']
+    assert {row[0] for row in rows[1][1:]} == set(child.keys())
