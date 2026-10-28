@@ -51,6 +51,16 @@ def test_astropy_rst_writer(monkeypatch):
     assert all(line == line.rstrip() for line in source.splitlines())
 
 
+def test_headerless_rst_writer(monkeypatch):
+    writer = load_script(monkeypatch, 'rst_table')
+    data = np.array([['First', '``one``'], ['Second', '``two``']], dtype=object)
+
+    source = writer.format_rst_table(data, has_header=False)
+    assert table_rows(source) == [[['First', 'one'], ['Second', 'two']]]
+    assert not list(publish_doctree(source).findall(nodes.thead))
+    assert all(line == line.rstrip() for line in source.splitlines())
+
+
 def test_afterburn_datamodel_tables(monkeypatch, tmp_path):
     script = load_script(monkeypatch, 'build_afterburn_datamodels_rst')
     script.sens_datamodel(tmp_path)
@@ -191,3 +201,18 @@ def test_telluric_grid_table(monkeypatch, tmp_path):
     rows = table_rows(output.read_text())
     assert rows == [[['File', 'Size', 'Last Modified (UTC)'],
                      ['example.fits', '2.0 GiB', '2026-01-01 00:00:00']]]
+
+
+def test_dependency_table(monkeypatch, tmp_path):
+    script = load_script(monkeypatch, 'build_dependency_rst')
+    script.write_dependency_table(PROJECT_FILE, tmp_path)
+    source = (tmp_path / 'dependencies_table.rst').read_text()
+    rows = table_rows(source)
+
+    assert len(rows) == 1
+    assert [row[0] for row in rows[0]] == [
+        'Python Version', 'Required for users', 'Required for developers']
+    assert 'astropy' in rows[0][1][1]
+    assert 'pytest' in rows[0][2][1]
+    assert not list(publish_doctree(source).findall(nodes.thead))
+    assert all(line == line.rstrip() for line in source.splitlines())
