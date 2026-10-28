@@ -476,3 +476,14 @@ Bug Fixes
 - ``BSpline2D.fit`` now rebuilds its cached design matrix when ``npoly``,
   ``xmin`` or ``xmax`` change between calls with the same ``x`` and
   ``basis_x``; previously it reused the matrix built with the old basis.
+- Keck/LRIS blue (``keck_lris_blue_orig``, data taken before May 2009): fixed
+  :func:`~pypeit.spectrographs.keck_lris.KeckLRISBOrigSpectrograph.get_rawimage`,
+  which attached the detector parameters of the other detector to the data it
+  read (since version 1.1.0).  The gains of detector 2 (1.63, 1.70 e-/ADU) were
+  applied to detector 1 and vice versa, so counts in electrons were wrong by
+  5-9% and the noise model was wrong by the same factor, and the outputs of
+  detector 1 were labelled ``DET02`` (and vice versa).  Calibration files were
+  named after the correct detector, but the spec2d extensions and spec1d object
+  names were not: they now change (``DET01`` <-> ``DET02``), so coadd1d or
+  fluxing files that list the spec1d objects of existing reductions need the
+  new names.
