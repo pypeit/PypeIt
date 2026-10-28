@@ -259,22 +259,22 @@ class PypeItSetup:
     def __repr__(self):
         return '<{:s}: nfiles={:d}>'.format(self.__class__.__name__, self.nfiles)
 
-    def build_fitstbl(self, strict=True):
+    def build_fitstbl(self, strict:bool=True):
         """
         Construct the table with metadata for the frames to reduce.
 
         Largely a wrapper for :class:`~pypeit.metadata.PypeItMetaData`.
+
+        Builds the metadata `astropy.table.Table`_ for each fits file
+        to reduce.  Note this is different from :attr:`fitstbl`, which is a
+        :class:`~pypeit.metadata.PypeItMetaData` object, but is rather the
+        ``table`` attribute thereof.
 
         Args:
             strict (:obj:`bool`, optional):
                 Function will fault if `astropy.io.fits.getheader`_ fails to
                 read the headers of any of the files in :attr:`file_list`.  Set
                 to False to only report a warning and continue.
-
-        Returns:
-            `astropy.table.Table`_: Table with the metadata for each fits file
-            to reduce.  Note this is different from :attr:`fitstbl`, which is a
-            :class:`~pypeit.metadata.PypeItMetaData` object.
         """
         # Build and sort the table
         self.fitstbl = PypeItMetaData(self.spectrograph, par=self.par, 
@@ -284,8 +284,8 @@ class PypeItSetup:
         if 'time' in self.fitstbl.keys():
             self.fitstbl.sort('time')
 
-        # Return the table
-        return self.fitstbl.table
+        # Validate and save the table in the ``table`` atrribute
+        self.fitstbl.table = self.spectrograph.validate_fitstbl(self.fitstbl.table)
 
     def get_frame_types(self, flag_unknown=False):
         """
