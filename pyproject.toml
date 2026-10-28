@@ -64,7 +64,7 @@ specutils = [
 ]
 test = [
     "pygit2",
-    "pytest>=7.0.0",
+    "pytest>=7.0.0,<9.2",
     "pytest-astropy",
     "tox",
     "pytest-cov",
@@ -88,7 +88,7 @@ dev = [
     "photutils>=3.0",
     "specutils>=2.0",
     "pygit2",
-    "pytest>=7.0.0",
+    "pytest>=7.0.0,<9.2",
     "pytest-astropy",
     "tox",
     "pytest-cov",
