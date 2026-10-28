@@ -406,6 +406,12 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             # it's useful to associate science frames to calibrations taken with different MASKNAME
             maskname = headarr[0].get('MASKNAME')
             if 'LONGSLIT' in maskname and ('LONGSLIT-46x' not in maskname) and ('x' in maskname):
+                # A PypeIt product header (spec1d, spec2d) carries the SLITRANGE card written from the
+                # metadata table but not the CSU bar cards that find_longslit_pos reads; use it, so that
+                # pypeit_sensfunc (config_specific_par on the spec1d header) works on a short long slit
+                # such as LONGSLIT-3x0.7 (keck-etcs plan S23d, 2026-10-27).
+                if headarr[0].get('SLITRANGE') is not None:
+                    return str(headarr[0]['SLITRANGE'])
                 # find the spat pixel positions where the longslit starts and ends
                 pix_start, pix_end = self.find_longslit_pos(headarr[0])
             elif 'long2pos' in maskname:
