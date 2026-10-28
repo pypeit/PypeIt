@@ -14,6 +14,7 @@ from astropy import units
 
 from pypeit import log
 from pypeit import PypeItError
+from pypeit import qaWriter
 from pypeit.calibframe import CalibFrame
 from pypeit.images import buildimage
 from pypeit import specobjs
@@ -249,6 +250,9 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
             f'Calibrations for detector {det} were unsuccessful!  The step that failed was '
             f'{caliBrate.failed_step}.  Continuing to next detector.'
         )
+
+    # Ensure this detector's deferred QA figures are on disk before returning
+    qaWriter.flush()
 
     return caliBrate
 

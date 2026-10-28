@@ -32,6 +32,7 @@ Submodules
    pypeit.scripts.dashboard
    pypeit.scripts.edge_inspector
    pypeit.scripts.extract_datacube
+   pypeit.scripts.fit_ramp
    pypeit.scripts.flux_calib
    pypeit.scripts.flux_setup
    pypeit.scripts.identify

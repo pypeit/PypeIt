@@ -4,7 +4,6 @@
 .. include:: ../include/links.rst
 
 """
-import inspect
 import pathlib
 
 from astropy.io import ascii
@@ -15,6 +14,7 @@ import numpy as np
 
 from pypeit import dataPaths
 from pypeit import log
+from pypeit import utils
 from pypeit import specobjs
 from pypeit.core import fitting
 from pypeit.datamodel import DataContainer
@@ -183,7 +183,7 @@ class MultiSlitFlexure(DataContainer):
                  indiv_fit_los=None):
 
         # Setup the DataContainer
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         _d = {k: values[k] for k in args[1:]}
         # Init
         super().__init__(d=_d)

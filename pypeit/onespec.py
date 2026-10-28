@@ -4,7 +4,6 @@ Provides a simple datamodel for a single spectrum.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import inspect
 
 import astropy
 from IPython import embed
@@ -133,7 +132,7 @@ class OneSpec(datamodel.DataContainer):
     def __init__(self, wave, wave_grid_mid, flux, PYP_SPEC=None, ivar=None, sigma=None, mask=None, telluric=None,
                  obj_model=None, ext_mode=None, fluxed=None):
 
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         _d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)

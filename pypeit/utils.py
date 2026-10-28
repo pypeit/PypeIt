@@ -1592,12 +1592,10 @@ def yamlify(obj, debug=False):
     #    elif isinstance(obj, bytes):
     #        obj = obj.decode('utf-8')
     elif isinstance(obj, (np.str_, str)):
+        # NOTE: Strings with colons do not need to be quoted here; yaml.dump
+        # quotes them as needed.  Adding quotes here causes the quotes to be
+        # included in the value when the yaml is read back in (Issue #2099).
         obj = str(obj)
-        # Worry about colons!
-        if ':' in obj:
-            # Do not add quotes if they've already been added
-            if not obj.startswith('"'):
-                obj = '"' + str(obj) + '"'
     elif isinstance(obj, units.Quantity):
         try:
             obj = obj.value.tolist()
@@ -2356,3 +2354,34 @@ def eval_list(inp:list[str]) -> list[list]:
         A list of lists with the converted elements.
     """
     return _eval_iter(inp, '[', ']', list)
+
+
+def init_arg_values():
+    """
+    Return the argument names and values of the calling function.
+
+    This replaces the ``inspect.getargvalues(inspect.currentframe())`` idiom
+    used by many ``__init__`` methods to collect their arguments.  Since Python
+    3.13 (`PEP 667`_), a frame's ``f_locals`` is a proxy that holds a reference
+    back to the frame.  Assigning that proxy to a local variable of the same
+    frame creates a reference cycle (frame -> proxy -> frame), so ``self`` and
+    every argument (often large arrays) survive until the cyclic garbage
+    collector happens to run.  Here, the proxy only lives in *this* function's
+    frame and only a plain :obj:`dict` is returned, so no cycle is formed.
+
+    .. _PEP 667: https://peps.python.org/pep-0667/
+
+    Returns
+    -------
+    args : :obj:`list`
+        The names of the calling function's positional-or-keyword arguments,
+        in order, including ``self`` for a method.
+    values : :obj:`dict`
+        The values of those arguments, keyed by name.
+    """
+    frame = inspect.currentframe().f_back
+    try:
+        args, _, _, values = inspect.getargvalues(frame)
+        return args, {k: values[k] for k in args}
+    finally:
+        del frame
