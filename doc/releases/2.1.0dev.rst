@@ -390,7 +390,13 @@ Under-the-hood Improvements
   spectra with many lines that ``curve_fit`` fails on.  Fits that failed with NaN
   values now return the -999 sentinel.  Setting
   ``pypeit.core.arc.USE_VECTORIZED_ARCFIT = False`` restores the previous
-  implementation.
+  implementation.  Known limitation, not introduced by this change: the
+  shift-and-stretch step of the ``full_template`` wavelength calibration
+  (:func:`~pypeit.core.wavecal.wvutils.xcorr_shift_stretch`) can switch
+  between optima for changes in the line centroids far below the 0.001 pixel
+  level.  Of the 38 wavelength calibrations in the development-suite
+  comparison, one Keck/DEIMOS 600ZD slit moved in this way, by 30 pixels at
+  its blue end, from a misidentified solution to the correct one.
 - The spectral FWHM of the archived sky spectrum used by the spectral flexure
   correction (:func:`~pypeit.core.flexure.get_archive_spectrum`) is now
   measured once per sky file and cached, instead of once per slit/object.  The
