@@ -190,6 +190,21 @@ def test_standard_star_tables(monkeypatch, tmp_path):
         assert len(rows[0]) > 1
 
 
+def test_contributors_table(monkeypatch, tmp_path):
+    script = load_script(monkeypatch, 'write_contributors_table')
+    doc_root = tmp_path / 'doc'
+    (doc_root / 'scripts').mkdir(parents=True)
+    (doc_root / 'include').mkdir()
+    (doc_root / 'scripts' / 'contributors.csv').write_text(
+        'first,First Contributor,True\nsecond,Second Contributor,False\n')
+    monkeypatch.setattr(script.resources, 'files', lambda _: tmp_path / 'pypeit')
+
+    script.main()
+
+    rows = table_rows((doc_root / 'include' / 'contributors.rst').read_text())
+    assert rows == [[['Name', 'GitHub handle'], ['First Contributor', '@first']]]
+
+
 def test_telluric_grid_table(monkeypatch, tmp_path):
     script = load_script(monkeypatch, 'build_telluric_table')
     monkeypatch.setattr(script.subprocess, 'run', lambda *args, **kwargs: SimpleNamespace(
