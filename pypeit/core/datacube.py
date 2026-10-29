@@ -770,9 +770,80 @@ def gaussian2D(tup, intflux, xo, yo, sigma_x, sigma_y, theta, offset):
     b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
     c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)
     # Normalise so that the integrated flux is a parameter, instead of the amplitude
-    norm = 1/(2*np.pi*np.sqrt(a*c-b*b))
+    # (the integral of exp(-(a x^2 + 2 b x y + c y^2)) is pi/sqrt(ac-b^2), i.e.
+    # 2 pi sigma_x sigma_y)
+    norm = np.sqrt(a*c-b*b)/np.pi
     gtwod = offset + norm*intflux*np.exp(-(a*((x-xo)**2) + 2*b*(x-xo)*(y-yo) + c*((y-yo)**2)))
     return gtwod.ravel()
+
+
+def _circular_gaussian2D(tup, intflux, xo, yo, sigma, offset):
+    """
+    A circular 2D Gaussian; see :func:`gaussian2D`.
+
+    Args:
+        tup (:obj:`tuple`):
+            A two element tuple containing the x and y coordinates of each pixel
+            in the image
+        intflux (float):
+            The integrated flux of the 2D Gaussian
+        xo (float):
+            The centre of the Gaussian along the x-coordinate (units of pixels)
+        yo (float):
+            The centre of the Gaussian along the y-coordinate (units of pixels)
+        sigma (float):
+            The standard deviation of the Gaussian (units of pixels)
+        offset (float):
+            Constant offset
+
+    Returns:
+        `numpy.ndarray`_: The 2D Gaussian evaluated at the coordinate (x, y)
+    """
+    return gaussian2D(tup, intflux, xo, yo, sigma, sigma, 0., offset)
+
+
+def _brightest_pixel_centroid(image, gpm, xx, yy, x0, y0, radius):
+    """
+    Return the flux-weighted centroid of the brightest good pixel within a
+    given distance of a position, and of its 8 neighbours.
+
+    This provides a robust starting position for the fit of a poorly sampled
+    object, whose position measured by e.g. DAOStarFinder can be wrong by a
+    pixel or more.
+
+    Args:
+        image (`numpy.ndarray`_):
+            The background-subtracted image.
+        gpm (`numpy.ndarray`_):
+            Good pixel mask of the image (True = good).
+        xx (`numpy.ndarray`_):
+            The x coordinate of each pixel of the image.
+        yy (`numpy.ndarray`_):
+            The y coordinate of each pixel of the image.
+        x0 (:obj:`float`):
+            The x coordinate of the approximate position.
+        y0 (:obj:`float`):
+            The y coordinate of the approximate position.
+        radius (:obj:`float`):
+            Only good pixels within this distance (in pixels) of the
+            approximate position are searched for the brightest pixel.
+
+    Returns:
+        :obj:`tuple`: The (x, y) position of the centroid.  If there is no
+        good pixel within ``radius``, or no positive flux around the brightest
+        pixel, the input position (or the position of the brightest pixel) is
+        returned.
+    """
+    near = gpm & ((xx - x0)**2 + (yy - y0)**2 <= radius**2)
+    if not np.any(near):
+        return x0, y0
+    ibright = np.argmax(np.where(near, image, -np.inf))
+    xb, yb = xx.flat[ibright], yy.flat[ibright]
+    box = gpm & (np.absolute(xx - xb) <= 1.5) & (np.absolute(yy - yb) <= 1.5)
+    wgt = np.where(box, np.clip(image, 0., None), 0.)
+    if np.sum(wgt) <= 0:
+        return xb, yb
+    return np.sum(wgt*xx)/np.sum(wgt), np.sum(wgt*yy)/np.sum(wgt)
 
 
 def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None, 
@@ -804,8 +875,15 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
         the image has shape (ny, nx), a position (x, y) refers to image[y, x].
         If set, the 2D Gaussian fit will be performed with the position
         constrainted to be within plus or minus fwhm/3 in x and y. If not set,
-        the position will be determined by running DAOStarFinder on the image.
-        Default is None.
+        the brightest object is detected by running DAOStarFinder on the
+        image.  The DAOStarFinder position of a poorly sampled object can be
+        wrong by a pixel or more (in particular if ``fwhm`` is smaller than
+        the FWHM of the object), so the fit then starts from the flux-weighted
+        centroid of the brightest good pixel within the larger of 3*fwhm and 3
+        pixels of the DAOStarFinder position (and of its 8 neighbours), and
+        the fitted position is constrained to be within plus or minus the
+        larger of fwhm and 1 pixel of this starting position.  Default is
+        None.
     fwhm : float, optional
         The FWHM of the image in pixels. This is used to estimate the initial
         guess for the Gaussian fit, the fit bounds, and the median filter kernel
@@ -834,16 +912,25 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
        The optimum parameters of the Gaussian in the following order:
        integrated flux, x center, y center, sigma_x, sigma_y, theta, offset.
        See :func:`~pypeit.core.datacube.gaussian2D` for a more detailed
-       description of the model.
+       description of the model.  The fit is performed in two stages: a
+       circular Gaussian is fit first, and the elliptical Gaussian is then fit
+       starting from the circular one.  If the elliptical fit fails, the
+       circular fit is returned (with sigma_x = sigma_y and theta = 0).  If
+       both fits fail, a warning is printed, and these are the initial
+       guesses: the initial position, a circular Gaussian with the input FWHM,
+       and the integrated flux and offset estimated from the image.
     pcov : `numpy.ndarray`_
-        Corresponding covariance matrix
+        Corresponding covariance matrix.  If only the circular fit succeeded,
+        the elements involving theta are infinite; if both fits fail, all
+        elements are infinite.
     model : `numpy.ndarray`_
         The 2D Gaussian model evaluated at the input image pixel locations
     _init_obj_position : tuple
-        If the init_obj_position input parameter is None, this will be the
-        initial guess for the object position in (x, y) image coordinates,
-        determined by running DAOStarFinder on the image. Otherwise it will be
-        the input value.
+        The initial guess for the object position in (x, y) image
+        coordinates.  If the init_obj_position input parameter is None, this
+        is the centroid of the brightest pixel near the object detected by
+        DAOStarFinder (see ``init_obj_position``).  Otherwise it is the input
+        value.
     flux_opt : float
         The optimally extracted object flux of the brightest source in the image
     sigma_opt : float
@@ -871,6 +958,13 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
             _ivar = np.ones_like(image)
     else:
         _ivar = ivar
+
+    # Setup the coordinates
+    x = np.linspace(0, image.shape[1] - 1, image.shape[1])
+    y = np.linspace(0, image.shape[0] - 1, image.shape[0])
+    xx, yy = np.meshgrid(x, y, indexing='xy')
+    # The background level of the image is its (sigma-clipped) median
+    mean_image, median_image, std_image = sigma_clipped_stats(image[np.logical_not(totmask)], sigma=3.0)
 
     if init_obj_position is None: 
         if DAOStarFinder is None:
@@ -912,24 +1006,70 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
                     sources[col].info.format = '%.2f'  # for consistent table output
             sources.pprint(max_width=76)
 
-        _init_obj_position = sources['x_centroid'][0], sources['y_centroid'][0]
+        # The DAOStarFinder position of a poorly sampled object can be wrong by
+        # a pixel or more, so start the fit from the centroid of the brightest
+        # pixel near the detected object, and allow the fitted position a wider
+        # range
+        _init_obj_position = _brightest_pixel_centroid(
+            image - median_image, np.logical_not(totmask), xx, yy,
+            sources['x_centroid'][0], sources['y_centroid'][0], max(3.0*fwhm, 3.0))
+        dpos = max(fwhm, 1.0)
     else:
         _init_obj_position = init_obj_position
-        
-    initial_guess = (1, _init_obj_position[0], _init_obj_position[1], fwhm*fwhm2sigma, fwhm*fwhm2sigma, 0, 0)
-    bounds = ([0,      _init_obj_position[0]-fwhm/3.0, _init_obj_position[1]-fwhm/3.0, fwhm/6.0, fwhm/6.0, -np.pi, -np.inf],
-              [np.inf, _init_obj_position[0]+fwhm/3.0, _init_obj_position[1]+fwhm/3.0, fwhm    , fwhm    , np.pi , np.inf])
+        dpos = fwhm/3.0
+
+    # Estimate the initial integrated flux and offset from the image: the offset
+    # is the background level of the image, and the integrated flux is the
+    # flux above the offset within a few FWHM of the initial position.
+    near_obj = np.sqrt((xx - _init_obj_position[0])**2 + (yy - _init_obj_position[1])**2) \
+                    <= max(3.0*fwhm, 3.0)
+    init_flux = np.sum((image - median_image)[near_obj & _gpm]) / wlscl
+    if not np.isfinite(init_flux) or init_flux <= 0:
+        init_flux = 1.0
+    init_offset = median_image / wlscl if np.isfinite(median_image) else 0.0
+    initial_guess = (init_flux, _init_obj_position[0], _init_obj_position[1], sigma, sigma, 0, init_offset)
+    bounds = ([0,      _init_obj_position[0]-dpos, _init_obj_position[1]-dpos, fwhm/6.0, fwhm/6.0, -np.pi, -np.inf],
+              [np.inf, _init_obj_position[0]+dpos, _init_obj_position[1]+dpos, fwhm    , fwhm    , np.pi , np.inf])
 
     # Perform the fit
     # TODO :: May want to generate the image on a finer pixel scale first
     # TODO JFH: The 2D Gaussian fitting should be using the noise and the gpm. This should be
     # implemented with scipy.optimize and a loss function instead of curve_fit
-    # Setup the coordinates
-    x = np.linspace(0, image.shape[1] - 1, image.shape[1])
-    y = np.linspace(0, image.shape[0] - 1, image.shape[0])
-    xx, yy = np.meshgrid(x, y, indexing='xy')
-    popt, pcov = opt.curve_fit(gaussian2D, (xx, yy), image.ravel() / wlscl,
-                               bounds=bounds, p0=initial_guess)
+    # The fit is performed in two stages.  A circular Gaussian is fit first,
+    # because the orientation of an elliptical Gaussian is undetermined at a
+    # circular initial guess, which can prevent the fit from converging.  The
+    # elliptical Gaussian is then fit starting from the circular one.
+    data = image.ravel() / wlscl
+    # The parameters of the circular Gaussian (integrated flux, x, y, sigma,
+    # offset) are these parameters of the elliptical Gaussian
+    circ = [0, 1, 2, 3, 6]
+    try:
+        popt_circ, pcov_circ = opt.curve_fit(
+            _circular_gaussian2D, (xx, yy), data, p0=np.asarray(initial_guess)[circ],
+            bounds=(np.asarray(bounds[0])[circ], np.asarray(bounds[1])[circ]))
+    except RuntimeError as err:
+        log.warning(f'The 2D Gaussian fit failed ({err}).\nAdopting the initial position, '
+                    f'(x, y) = ({_init_obj_position[0]:.2f}, {_init_obj_position[1]:.2f}), and a '
+                    f'symmetric Gaussian with FWHM = {fwhm:.2f} pixels.')
+        popt = np.array(initial_guess, dtype=float)
+        pcov = np.full((popt.size, popt.size), np.inf)
+    else:
+        # The equivalent elliptical Gaussian, with sigma_x = sigma_y and an
+        # undetermined orientation (theta = 0, with an infinite variance)
+        ell = [0, 1, 2, 3, 4, 6]
+        expand = [0, 1, 2, 3, 3, 4]
+        popt = np.zeros(len(initial_guess))
+        popt[ell] = popt_circ[expand]
+        pcov = np.full((popt.size, popt.size), np.inf)
+        pcov[np.ix_(ell, ell)] = pcov_circ[np.ix_(expand, expand)]
+        # Start slightly elongated, so that the orientation is defined
+        p0 = popt.copy()
+        p0[3] = popt[3]*1.05 if popt[3]*1.05 <= bounds[1][3] else popt[3]/1.05
+        try:
+            popt, pcov = opt.curve_fit(gaussian2D, (xx, yy), data, bounds=bounds, p0=p0)
+        except RuntimeError as err:
+            log.info(f'The elliptical 2D Gaussian fit failed ({err}).  Adopting the circular '
+                     '2D Gaussian fit.')
     _, xobj, yobj, sigma_x_gauss, sigma_y_gauss, theta_gauss, _ = popt
     log.info("Gaussian fit gives:")
     log.info("--------------------------------")
@@ -956,7 +1096,6 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
     optkern = gauss_profile*apodization_window
     optkern /= np.sum(optkern)
     # Optimally extract at the object position
-    mean_image, median_image, std_image = sigma_clipped_stats(image[np.logical_not(totmask)], sigma=3.0)
     image_skysub = image - median_image
     ivar_denom = np.sum(_gpm*optkern)
     var_denom = utils.inverse(ivar_denom)
@@ -2298,7 +2437,8 @@ def compute_weights_frompix(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg, 
                             ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                             sn_smooth_npix=None, weight_method='auto',
                             reference_image=None, whitelight_range=None,
-                            correct_dar=True, specname="PYPSPEC", init_obj_position=None, show_qa=False):
+                            correct_dar=True, specname="PYPSPEC", init_obj_position=None, show_qa=False,
+                            spat_flexure=None, initial=False):
     r"""
     Calculate wavelength dependent optimal weights. The weighting is currently
     based on a relative :math:`(S/N)^2` at each wavelength. Note, this function
@@ -2411,6 +2551,20 @@ def compute_weights_frompix(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg, 
         Default is None.
     show_qa : bool, optional
         If True, show QA plots in ginga. 
+    spat_flexure : `numpy.ndarray`_, list, optional
+        The spatial flexure of each frame relative to its slits, which is used
+        to define the slit edges when computing the RA and Dec of each pixel.
+        This should be the same spatial flexure that was used to construct
+        ``slitidImg`` and the alignment splines.  This can be a single
+        array (or None) that is applied to all frames, or a list with one array
+        (or None) per frame.  Each array has shape (nslits, 2); see
+        :func:`~pypeit.slittrace.SlitTraceSet.select_edges`.  If None, no
+        spatial flexure is applied.
+    initial : bool, optional
+        If True, use the initial slit edges (instead of the tweaked edges, if
+        they are available) when computing the RA and Dec of each pixel.  This
+        should be consistent with the slit edges used to construct
+        ``slitidImg`` and the alignment splines.
 
     Returns
     -------
@@ -2437,7 +2591,7 @@ def compute_weights_frompix(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg, 
     wl_full, wl_sig, wl_bpm = generate_image_subpixel(image_wcs, voxedge, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtsImg,
                                       all_wcs, all_tilts, all_slits, all_align, all_dar, ra_offsets, dec_offsets,
                                       spec_subpixel=1, spat_subpixel=1, slice_subpixel=1, combine=True,
-                                      correct_dar=correct_dar)
+                                      correct_dar=correct_dar, spat_flexure=spat_flexure, initial=initial)
 
     # Compute the weights
     return compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
@@ -2445,7 +2599,8 @@ def compute_weights_frompix(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg, 
                            wl_full, wl_sig, wl_bpm, dspat, dwv,
                            ra_min=ra_min, ra_max=ra_max, dec_min=dec_min, dec_max=dec_max, wave_min=wave_min,
                            sn_smooth_npix=sn_smooth_npix, weight_method=weight_method, correct_dar=correct_dar, 
-                           init_obj_position=init_obj_position, show_qa=show_qa)
+                           init_obj_position=init_obj_position, show_qa=show_qa,
+                           spat_flexure=spat_flexure, initial=initial)
 
 # TODO Refactor this, it should not be done this way, instead we should be computing the weights from the final aligned
 # cubes, after sigma clipping is performed. See my notes in coadd3d.run()
@@ -2453,7 +2608,8 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
                     all_wcs, all_tilts, all_slits, all_align, all_dar, ra_offsets, dec_offsets,
                     whitelight_img, whitelight_sigma, whitelight_bpm, dspat, dwv,
                     ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
-                    sn_smooth_npix=None, weight_method='auto', correct_dar=True, fwhm=1.5, init_obj_position=None, show_qa=False):
+                    sn_smooth_npix=None, weight_method='auto', correct_dar=True, fwhm=1.5, init_obj_position=None, show_qa=False,
+                    spat_flexure=None, initial=False):
     r"""
     Calculate wavelength dependent optimal weights. The weighting is currently
     based on a relative :math:`(S/N)^2` at each wavelength
@@ -2556,6 +2712,20 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
             determined by running DAOStarFinder on the image. Default is None.
         show_qa : bool, optional
             If True, show the object detection QA plot in ginga. Default is False. 
+    spat_flexure : `numpy.ndarray`_, list, optional
+        The spatial flexure of each frame relative to its slits, which is used
+        to define the slit edges when computing the RA and Dec of each pixel.
+        This should be the same spatial flexure that was used to construct
+        ``slitidImg`` and the alignment splines.  This can be a single
+        array (or None) that is applied to all frames, or a list with one array
+        (or None) per frame.  Each array has shape (nslits, 2); see
+        :func:`~pypeit.slittrace.SlitTraceSet.select_edges`.  If None, no
+        spatial flexure is applied.
+    initial : bool, optional
+        If True, use the initial slit edges (instead of the tweaked edges, if
+        they are available) when computing the RA and Dec of each pixel.  This
+        should be consistent with the slit edges used to construct
+        ``slitidImg`` and the alignment splines.
 
     Returns
     -------
@@ -2571,6 +2741,7 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
             check_inputs([raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
                           all_wcs, all_tilts, all_slits, all_align, all_dar, ra_offsets, dec_offsets])
     numframes = len(_sciImg)
+    _spat_flexure = spat_flexure_per_frame(spat_flexure, numframes)
 
     # If there's only one frame, use uniform weighting
     if numframes == 1:
@@ -2629,7 +2800,8 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
                                    _all_tilts[ff], _all_slits[ff], _all_align[ff], _all_dar[ff],
                                    _ra_offsets[ff], _dec_offsets[ff],
                                    spec_subpixel=1, spat_subpixel=1, slice_subpixel=1,
-                                   skip_subpix_weights=True, correct_dar=correct_dar)
+                                   skip_subpix_weights=True, correct_dar=correct_dar,
+                                   spat_flexure=_spat_flexure[ff], initial=initial)
         # Store the flux and ivar spectra of the highest S/N object.
         # TODO :: This is the flux per spectral pixel, and not per detector pixel.  Is this correct?
         flux_stack[:, ff] = flxcube[:, 0, 0]
@@ -2657,9 +2829,64 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
     return all_wghts
 
 
+def spat_flexure_per_frame(spat_flexure, numframes):
+    """
+    Return a list with the spatial flexure of each frame.
+
+    Parameters
+    ----------
+    spat_flexure : `numpy.ndarray`_, list, None
+        The spatial flexure.  This can be a single array (or None) that applies
+        to all frames, or a list with one array (or None) per frame.
+    numframes : int
+        The number of frames.
+
+    Returns
+    -------
+    list
+        A list of length ``numframes`` with the spatial flexure of each frame.
+    """
+    if isinstance(spat_flexure, list):
+        if len(spat_flexure) != numframes:
+            raise PypeItError(f'The spatial flexure list has {len(spat_flexure)} elements, but '
+                              f'there are {numframes} frames.')
+        return spat_flexure
+    return [spat_flexure] * numframes
+
+
+def spat_flexure_header(hdr, spat_flexure, index):
+    """
+    Record the spatial flexure of an input frame in a datacube header.
+
+    The mean spatial flexure (in pixels) of all slit edges of the frame is
+    written to the ``SPFLXnnn`` keyword, where ``nnn`` is the (1-based) index
+    of the frame in the list of input frames.  The range of the spatial flexure
+    of the slit edges is given in the comment.
+
+    Parameters
+    ----------
+    hdr : `astropy.io.fits.Header`_
+        The header to update (in place).
+    spat_flexure : `numpy.ndarray`_, None
+        The spatial flexure of the frame, with shape (nslits, 2).  None means
+        that the spatial flexure was not determined (i.e., it is zero).
+    index : int
+        The (1-based) index of the frame.
+    """
+    key = f'SPFLX{index:03d}'
+    if spat_flexure is None:
+        hdr[key] = (0.0, f'Spat. flexure (pix) of frame {index}: none')
+        return
+    _spat_flexure = np.asarray(spat_flexure, dtype=float)
+    hdr[key] = (float(np.round(np.mean(_spat_flexure), 3)),
+                f'Mean spat. flexure (pix) of frame {index}; range '
+                f'{np.min(_spat_flexure):.2f} to {np.max(_spat_flexure):.2f}')
+
+
 def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg,
                             all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
-                            spec_subpixel=5, spat_subpixel=5, slice_subpixel=5, combine=False, correct_dar=True):
+                            spec_subpixel=5, spat_subpixel=5, slice_subpixel=5, combine=False, correct_dar=True,
+                            spat_flexure=None, initial=False):
     """
     Generate a white light image from the input pixels
 
@@ -2729,6 +2956,20 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
         If True, the DAR correction will be applied to the input images
         before generating the white light images. If False, the DAR
         correction will not be applied.
+    spat_flexure : `numpy.ndarray`_, list, optional
+        The spatial flexure of each frame relative to its slits, which is used
+        to define the slit edges when computing the RA and Dec of each pixel.
+        This should be the same spatial flexure that was used to construct
+        ``slitid_img_gpm`` and the alignment splines.  This can be a single
+        array (or None) that is applied to all frames, or a list with one array
+        (or None) per frame.  Each array has shape (nslits, 2); see
+        :func:`~pypeit.slittrace.SlitTraceSet.select_edges`.  If None, no
+        spatial flexure is applied.
+    initial : bool, optional
+        If True, use the initial slit edges (instead of the tweaked edges, if
+        they are available) when computing the RA and Dec of each pixel.  This
+        should be consistent with the slit edges used to construct
+        ``slitid_img_gpm`` and the alignment splines.
 
     Returns
     -------
@@ -2745,6 +2986,7 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
     # Perform some checks on the input -- note, more complete checks are performed in subpixellate()
     _sciImg, _ivarImg, _waveImg, _slitid_img_gpm, _wghtImg, _all_wcs, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset = \
         check_inputs([sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset])
+    _spat_flexure = spat_flexure_per_frame(spat_flexure, len(_sciImg))
 
     # Generate the white light images
     if combine:
@@ -2752,7 +2994,8 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
         img, sigimg, bpmimg, _ = subpixellate(image_wcs, bins, _sciImg, _ivarImg, _waveImg, _slitid_img_gpm, _wghtImg,
                                  _all_wcs, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset,
                                  spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel,
-                                 skip_subpix_weights=True, correct_dar=correct_dar)
+                                 skip_subpix_weights=True, correct_dar=correct_dar,
+                                 spat_flexure=_spat_flexure, initial=initial)
         return img[0, :, :], sigimg[0, :, :], bpmimg[0, :, :]
     else:
         # Prepare the array of white light images to be stored
@@ -2769,7 +3012,8 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
             img, sigimg, bpmimg, _ = subpixellate(image_wcs, bins, _sciImg[fr], _ivarImg[fr], _waveImg[fr], _slitid_img_gpm[fr], _wghtImg[fr],
                                      _all_wcs[fr], _tilts[fr], _slits[fr], _astrom_trans[fr], _all_dar[fr], _ra_offset[fr], _dec_offset[fr],
                                      spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel,
-                                     skip_subpix_weights=True, correct_dar=correct_dar)
+                                     skip_subpix_weights=True, correct_dar=correct_dar,
+                                     spat_flexure=_spat_flexure[fr], initial=initial)
             all_wl_imgs[:, :, fr] = img[0, :, :]
             all_sig_imgs[:, :, fr] = sigimg[0, :, :]
             all_bpm_imgs[:, :, fr] = bpmimg[0, :, :]
@@ -2781,7 +3025,8 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
 def generate_cube_subpixel(
     output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts, slits,
     astrom_trans, all_dar, ra_offset, dec_offset, spec_subpixel=5, spat_subpixel=5,
-    slice_subpixel=5, skip_subpix_weights=False, correct_dar=True
+    slice_subpixel=5, skip_subpix_weights=False, correct_dar=True, spat_flexure=None,
+    initial=False
 ):
     """
     Save a datacube using the subpixel algorithm. Refer to the
@@ -2858,6 +3103,20 @@ def generate_cube_subpixel(
     correct_dar : bool, optional
         If True, the DAR correction will be applied to the datacube. If the DAR
         correction is not available, the datacube will not be corrected.
+    spat_flexure : `numpy.ndarray`_, list, optional
+        The spatial flexure of each frame relative to its slits, which is used
+        to define the slit edges when computing the RA and Dec of each pixel.
+        This should be the same spatial flexure that was used to construct
+        ``slitid_img_gpm`` and the alignment splines.  This can be a single
+        array (or None) that is applied to all frames, or a list with one array
+        (or None) per frame.  Each array has shape (nslits, 2); see
+        :func:`~pypeit.slittrace.SlitTraceSet.select_edges`.  If None, no
+        spatial flexure is applied.
+    initial : bool, optional
+        If True, use the initial slit edges (instead of the tweaked edges, if
+        they are available) when computing the RA and Dec of each pixel.  This
+        should be consistent with the slit edges used to construct
+        ``slitid_img_gpm`` and the alignment splines.
 
     Returns
     -------
@@ -2885,7 +3144,8 @@ def generate_cube_subpixel(
         output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts,
         slits, astrom_trans, all_dar, ra_offset, dec_offset, spec_subpixel=spec_subpixel,
         spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel,
-        skip_subpix_weights=skip_subpix_weights, correct_dar=correct_dar
+        skip_subpix_weights=skip_subpix_weights, correct_dar=correct_dar,
+        spat_flexure=spat_flexure, initial=initial
     )
 
     # Get wavelength of each pixel
@@ -2895,13 +3155,15 @@ def generate_cube_subpixel(
 
     return flxcube, sigcube, bpmcube, normcube, wave
 
-# DEVELOPER NOTES: RJC is working towards making subpixellate a faster routine, and sometimes uses this decorator
+
+# DEVELOPER NOTES: RJC is working towards making subpixellate a faster routine, and sometimes uses this decorator to
 # find out the bottlenecks and how to speed things up. Please leave this decorator in for the time-being, uncommented.
 # @line_profiler.profile
 def subpixellate(
     output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts, slits,
     astrom_trans, all_dar, ra_offset, dec_offset, spec_subpixel=5, spat_subpixel=5,
-    slice_subpixel=5, skip_subpix_weights=False, correct_dar=True, verbose=False
+    slice_subpixel=5, skip_subpix_weights=False, correct_dar=True, verbose=False,
+    spat_flexure=None, initial=False
 ):
     r"""
     Subpixellate the input data into a datacube. This algorithm splits each
@@ -2993,6 +3255,20 @@ def subpixellate(
         is True.
     verbose : bool, optional
         If True, the code will print out more information. The default is False.
+    spat_flexure : `numpy.ndarray`_, list, optional
+        The spatial flexure of each frame relative to its slits, which is used
+        to define the slit edges when computing the RA and Dec of each pixel.
+        This should be the same spatial flexure that was used to construct
+        ``slitid_img_gpm`` and the alignment splines.  This can be a single
+        array (or None) that is applied to all frames, or a list with one array
+        (or None) per frame.  Each array has shape (nslits, 2); see
+        :func:`~pypeit.slittrace.SlitTraceSet.select_edges`.  If None, no
+        spatial flexure is applied.
+    initial : bool, optional
+        If True, use the initial slit edges (instead of the tweaked edges, if
+        they are available) when computing the RA and Dec of each pixel.  This
+        should be consistent with the slit edges used to construct
+        ``slitid_img_gpm`` and the alignment splines.
 
     Returns
     -------
@@ -3015,6 +3291,7 @@ def subpixellate(
     _sciImg, _ivarImg, _waveImg, _gpmImg, _wghtImg, _all_wcs, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset = \
         check_inputs([sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset])
     numframes = len(_sciImg)
+    _spat_flexure = spat_flexure_per_frame(spat_flexure, numframes)
 
     # Prepare the output arrays
     outshape = (bins[0].size-1, bins[1].size-1, bins[2].size-1)
@@ -3049,9 +3326,12 @@ def subpixellate(
         raimg_slc = np.zeros(slshape, dtype=float)
         decimg_slc = np.zeros(slshape, dtype=float)
         for ss in range(slice_subpixel):
-            # Generate an RA/Dec image for this subslice
+            # Generate an RA/Dec image for this subslice.  NOTE: The slit edges
+            # (initial/tweaked and spatial flexure) must be the same as those
+            # used to construct the slit image and the alignment splines.
             raimg_slc[:, :, ss], decimg_slc[:, :, ss], _ = this_slits.get_radec_image(
-                this_wcs, this_astrom_trans, this_tilts, slice_offset=slice_offs[ss]
+                this_wcs, this_astrom_trans, this_tilts, slice_offset=slice_offs[ss],
+                initial=initial, spat_flexure=_spat_flexure[fr]
             )
         # Loop through all slits
         for sl, spatid in enumerate(this_slits.spat_id):

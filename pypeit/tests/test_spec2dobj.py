@@ -25,8 +25,9 @@ from pypeit.images import imagebitmask
 def init_dict():
     sciimg = np.ones((1000,1000)).astype(float)
     # Slits
-    left = np.full((1000, 3), 2, dtype=float)
-    right = np.full((1000, 3), 8, dtype=float)
+    nslits = 3
+    left = np.full((1000, nslits), 2, dtype=float)
+    right = np.full((1000, nslits), 8, dtype=float)
     left[:,1] = 15.
     right[:,1] = 21.
     left[:,2] = 25.
@@ -37,6 +38,7 @@ def init_dict():
     spec_flex_table = Table()
     spec_flex_table['spat_id'] = slits.spat_id
     spec_flex_table['sci_spec_flexure'] = np.zeros(left.shape[1])
+    spat_flexure = np.full((nslits, 2), 3.5)
     #
     return dict(sciimg = sciimg,
                 ivarraw = 0.1 * np.ones_like(sciimg),
@@ -52,7 +54,7 @@ def init_dict():
                 maskdef_designtab=None,
                 tilts=np.ones_like(sciimg).astype(float),
                 #tilts=wavetilts.WaveTilts(**test_wavetilts.instant_dict),
-                sci_spat_flexure=3.5,
+                sci_spat_flexure=spat_flexure,
                 sci_spec_flexure=spec_flex_table,
                 vel_type='HELIOCENTRIC',
                 vel_corr=1.0+1.0e-5)

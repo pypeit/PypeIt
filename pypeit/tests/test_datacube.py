@@ -10,12 +10,13 @@ from IPython import embed
 import numpy as np
 import pytest
 
+from pypeit import PypeItError
 from pypeit import utils
 from pypeit import slittrace
 from pypeit import alignframe
 from pypeit.core import datacube
 from pypeit.core.flexure import calculate_image_phase
-from pypeit.coadd3d import DataCube
+from pypeit.coadd3d import DataCube, SlicerIFUCoAdd3D
 
 
 def make_test_datacube(whitelight_range=None):
@@ -387,6 +388,98 @@ def test_fitgaussian2d_ginga_xy_convention():
         'manual_position did not lock the fit onto the faint source in x (column)'
     assert np.isclose(popt_manual[2], faint_row, atol=0.2), \
         'manual_position did not lock the fit onto the faint source in y (row)'
+
+
+def test_gaussian2d_integrated_flux():
+    """The ``intflux`` parameter of `gaussian2D` must be the integrated flux,
+    including for an asymmetric and rotated Gaussian."""
+    yy, xx = np.mgrid[-30:30:0.05, -30:30:0.05]
+    model = datacube.gaussian2D((xx, yy), 250.0, 0.3, -0.2, 1.7, 0.8, 0.6, 0.0)
+    assert np.isclose(np.sum(model) * 0.05**2, 250.0, rtol=1e-6), \
+        'gaussian2D is not normalised to its integrated flux'
+
+
+def _undersampled_star(x0, y0, sigma, flux, shape, noise, seed):
+    """Image of a pixel-integrated, circular Gaussian star plus Gaussian noise."""
+    from scipy.special import erf
+    ny, nx = shape
+    xedge, yedge = np.arange(nx + 1) - 0.5, np.arange(ny + 1) - 0.5
+    fx = np.diff(0.5 * (1 + erf((xedge - x0) / np.sqrt(2) / sigma)))
+    fy = np.diff(0.5 * (1 + erf((yedge - y0) / np.sqrt(2) / sigma)))
+    return flux * np.outer(fy, fx) + np.random.default_rng(seed).normal(0, noise, shape)
+
+
+@photutils_required
+@pytest.mark.parametrize('fwhm', [0.81, 1.1])
+def test_fitgaussian2d_undersampled_star(fwhm):
+    """An undersampled star (most of its flux in two pixels, as for the KCWI
+    GD50 datacube) must be fit at its position, with its integrated flux,
+    without normalising the image.  The input FWHM of 0.81 pixels (the
+    1.1 arcsec of the dev-suite extraction) is smaller than the FWHM of the
+    star, so the DAOStarFinder position can be wrong by more than a pixel."""
+    for seed in range(4):
+        image = _undersampled_star(10.5, 7.1, 0.45, 700.0, (17, 24), 1.0, seed)
+        popt, pcov, *_ = datacube.fitGaussian2D(image, fwhm=fwhm, norm=False)
+        assert np.all(np.isfinite(pcov)), 'the 2D Gaussian fit of an undersampled star failed'
+        assert np.isclose(popt[1], 10.5, atol=0.05) and np.isclose(popt[2], 7.1, atol=0.05), \
+            'wrong position of an undersampled star'
+        assert np.isclose(popt[0], 700.0, rtol=0.03), 'wrong integrated flux of an undersampled star'
+        # The (pixel-integrated) width is sqrt(0.45**2 + 1/12) = 0.54 pixels
+        assert np.allclose(popt[3:5], 0.54, atol=0.05), 'wrong width of an undersampled star'
+
+
+@photutils_required
+@pytest.mark.parametrize('x0, y0', [(9.70, 6.76), (9.83, 7.29), (10.25, 6.78)])
+def test_fitgaussian2d_undersampled_star_positions(x0, y0):
+    """Undersampled stars at positions where the DAOStarFinder position (with
+    an input FWHM of 0.81 pixels) is more than 1.5 pixels from the star."""
+    image = _undersampled_star(x0, y0, 0.45, 700.0, (17, 24), 1.0, 1)
+    popt, pcov, *_ = datacube.fitGaussian2D(image, fwhm=0.81, norm=False)
+    assert np.all(np.isfinite(pcov)), 'the 2D Gaussian fit of an undersampled star failed'
+    assert np.isclose(popt[1], x0, atol=0.05) and np.isclose(popt[2], y0, atol=0.05), \
+        'wrong position of an undersampled star'
+    assert np.isclose(popt[0], 700.0, rtol=0.03), 'wrong integrated flux of an undersampled star'
+
+
+@photutils_required
+def test_fitgaussian2d_circular_fit(monkeypatch):
+    """If the elliptical 2D Gaussian fit fails, the circular fit is adopted."""
+    image = _undersampled_star(10.5, 7.1, 0.45, 700.0, (17, 24), 1.0, 0)
+    curve_fit = datacube.opt.curve_fit
+
+    def circular_only(func, xdata, ydata, p0=None, **kwargs):
+        if len(p0) == 7:
+            raise RuntimeError('Optimal parameters not found')
+        return curve_fit(func, xdata, ydata, p0=p0, **kwargs)
+
+    monkeypatch.setattr(datacube.opt, 'curve_fit', circular_only)
+    popt, pcov, *_ = datacube.fitGaussian2D(image, fwhm=1.1, norm=False)
+    assert np.isclose(popt[1], 10.5, atol=0.05) and np.isclose(popt[2], 7.1, atol=0.05), \
+        'wrong position of the circular fit'
+    assert np.isclose(popt[3], popt[4]) and popt[5] == 0, 'the circular fit was not adopted'
+    assert np.isclose(popt[0], 700.0, rtol=0.03), 'wrong integrated flux of the circular fit'
+    assert np.all(np.isfinite(np.delete(np.delete(pcov, 5, axis=0), 5, axis=1))), \
+        'the covariance of the circular fit should be finite'
+    assert np.all(np.isinf(pcov[5])), 'the orientation of the circular fit is undetermined'
+
+
+@photutils_required
+def test_fitgaussian2d_failed_fit(monkeypatch):
+    """If the 2D Gaussian fit fails, the initial position and a symmetric
+    Gaussian with the input FWHM are adopted (rather than raising an error)."""
+    image = _undersampled_star(10.5, 7.1, 0.45, 700.0, (17, 24), 1.0, 0)
+
+    def failed_fit(*args, **kwargs):
+        raise RuntimeError('Optimal parameters not found')
+
+    monkeypatch.setattr(datacube.opt, 'curve_fit', failed_fit)
+    popt, pcov, model, init_pos, flux_opt, sigma_opt = datacube.fitGaussian2D(
+        image, init_obj_position=(10.4, 7.0), fwhm=1.1, norm=False)
+    assert np.allclose(popt[1:3], (10.4, 7.0)), 'the initial position was not adopted'
+    fwhm2sigma = 1.0 / (2 * np.sqrt(2 * np.log(2)))
+    assert np.allclose(popt[3:5], 1.1 * fwhm2sigma), 'the input FWHM was not adopted'
+    assert np.all(np.isinf(pcov)), 'the covariance of a failed fit should be infinite'
+    assert flux_opt > 0 and np.isfinite(sigma_opt), 'the optimal extraction failed'
 
 
 @photutils_required
@@ -832,6 +925,77 @@ def _build_synthetic_single_exposure_cube():
     return cube_wcs, flxcube, raimg, decimg, bright, faint, dspat_cube
 
 
+
+def test_generate_cube_subpixel_slit_dependent_flexure():
+    """A different spatial flexure for each slit (including a negative shift)
+    must reproduce the datacube built without flexure: the flux at the slice
+    edges is conserved, and the RA/Dec of each pixel is unchanged."""
+    from pypeit.core import flexure
+    slits, tilts, astrom_trans, sciImg, ivarImg, wghtImg, waveImg, wave0, dwv, bright, faint = \
+        _make_synthetic_three_slit_detector()
+    frame_wcs = _make_synthetic_frame_wcs(150.0, 10.0, wave0, dwv)
+    subpix = dict(spec_subpixel=2, spat_subpixel=3, slice_subpixel=1, skip_subpix_weights=True,
+                  correct_dar=False)
+
+    # Reference cube, without any spatial flexure
+    gpm = slits.slit_img(pad=0)
+    gpm[gpm < 0] = 0
+    raimg, decimg, _ = slits.get_radec_image(frame_wcs, astrom_trans, tilts)
+    onslit = gpm > 0
+    dspat_cube = 0.15 / 3600.0
+    pad = 3 * dspat_cube
+    cube_wcs, voxedges, _ = datacube.create_wcs(
+        raimg, decimg, waveImg, gpm, dspat_cube, dwv,
+        ra_min=raimg[onslit].min() - pad/np.cos(np.radians(10.0)),
+        ra_max=raimg[onslit].max() + pad/np.cos(np.radians(10.0)),
+        dec_min=decimg[onslit].min() - pad, dec_max=decimg[onslit].max() + pad)
+    flx_ref = datacube.generate_cube_subpixel(
+        cube_wcs, voxedges, sciImg, ivarImg, waveImg, gpm, wghtImg, frame_wcs, tilts, slits,
+        astrom_trans, None, 0.0, 0.0, **subpix)[0]
+
+    # Each slit is shifted by a different (integer) number of pixels.  The
+    # frame is constructed by remapping the reference images to the shifted
+    # slits, which is exact for integer shifts.
+    spat_flexure = np.array([[2., 2.], [-1., -1.], [1., 1.]])
+    remap = lambda img: flexure.spat_flexure_remap(img, slits, spat_flexure=spat_flexure,
+                                                   initial=True)
+    gpm_flex = slits.slit_img(pad=0, spat_flexure=spat_flexure)
+    gpm_flex[gpm_flex < 0] = 0
+    tilts_flex = remap(tilts)
+    traces = np.stack(slits.select_edges(initial=True)[:2], axis=1)
+    astrom_flex = alignframe.AlignmentSplines(
+        SlicerIFUCoAdd3D.shift_alignment_traces(traces, [0.0, 1.0], spat_flexure),
+        np.array([0.0, 1.0]), tilts_flex)
+    # The RA/Dec of each pixel is the same as that of the corresponding
+    # pixel in the reference frame
+    raimg_flex, decimg_flex, _ = slits.get_radec_image(frame_wcs, astrom_flex, tilts_flex,
+                                                       initial=True, spat_flexure=spat_flexure)
+    onslit_flex = gpm_flex > 0
+    assert np.allclose(raimg_flex[onslit_flex], remap(raimg)[onslit_flex], rtol=0, atol=1e-9)
+    assert np.allclose(decimg_flex[onslit_flex], remap(decimg)[onslit_flex], rtol=0, atol=1e-9)
+    # The datacube is the same, including the flux at the slice edges
+    flx_flex = datacube.generate_cube_subpixel(
+        cube_wcs, voxedges, remap(sciImg), remap(ivarImg), remap(waveImg), gpm_flex,
+        remap(wghtImg), frame_wcs, tilts_flex, slits, astrom_flex, None, 0.0, 0.0,
+        spat_flexure=spat_flexure, initial=True, **subpix)[0]
+    assert np.isclose(np.sum(flx_flex), np.sum(flx_ref), rtol=1e-6), 'Flux is not conserved'
+    assert np.allclose(flx_flex, flx_ref, rtol=1e-6, atol=1e-10 * np.max(flx_ref)), \
+        'Datacube built with slit-dependent spatial flexure does not match the reference'
+    # The test is sensitive to the flexure of each slit: assigning the
+    # flexure to the wrong slits gives a different datacube (or an error)
+    wrong = spat_flexure[::-1]
+    try:
+        flx_wrong = datacube.generate_cube_subpixel(
+            cube_wcs, voxedges, remap(sciImg), remap(ivarImg), remap(waveImg), gpm_flex,
+            remap(wghtImg), frame_wcs, tilts_flex, slits, astrom_flex, None, 0.0, 0.0,
+            spat_flexure=wrong, initial=True, **subpix)[0]
+    except PypeItError:
+        pass
+    else:
+        assert not np.allclose(flx_wrong, flx_ref, rtol=1e-6, atol=1e-10 * np.max(flx_ref)), \
+            'Test is not sensitive to the spatial flexure of each slit'
+
+
 def test_generate_cube_subpixel_recovers_injected_source_position():
     """End-to-end synthetic-cube test of `subpixellate`/`generate_cube_subpixel`.
 
@@ -879,6 +1043,100 @@ def test_generate_cube_subpixel_recovers_injected_source_position():
     assert 0.15 * flux_bright_peak < flux_faint_at_expected < 0.7 * flux_bright_peak, \
         "flux at the faint source's expected cube position does not match its known " \
         "amplitude relative to the bright source"
+
+
+def test_shift_alignment_traces():
+    """The alignment traces are shifted by the spatial flexure, linearly
+    interpolated between the left and right slit edges."""
+    nspec, ntrace, nslits = 10, 3, 2
+    traces = np.tile(np.array([10., 15., 20.])[None, :, None], (nspec, 1, nslits))
+    locations = [0.0, 0.5, 1.0]
+    spat_flexure = np.array([[1.0, 3.0], [-2.0, -2.0]])
+    shifted = SlicerIFUCoAdd3D.shift_alignment_traces(traces, locations, spat_flexure)
+    assert np.allclose(shifted[:, :, 0] - traces[:, :, 0], [1.0, 2.0, 3.0]), \
+        'Alignment traces not shifted by the interpolated left/right edge flexure'
+    assert np.allclose(shifted[:, :, 1] - traces[:, :, 1], -2.0), \
+        'Alignment traces not shifted by a uniform flexure'
+    # No flexure means no shift
+    assert SlicerIFUCoAdd3D.shift_alignment_traces(traces, locations, None) is traces
+    # Inconsistent shapes raise an error
+    with pytest.raises(PypeItError):
+        SlicerIFUCoAdd3D.shift_alignment_traces(traces, locations, spat_flexure[:1])
+    # The traces are shifted by the flexure relative to that of the alignment frame
+    align_flexure = np.array([[0.5, 0.5], [-1.0, 1.0]])
+    shifted = SlicerIFUCoAdd3D.shift_alignment_traces(traces, locations, spat_flexure,
+                                                      align_spat_flexure=align_flexure)
+    assert np.allclose(shifted[:, :, 0] - traces[:, :, 0], [0.5, 1.5, 2.5]), \
+        'Alignment traces not shifted by the relative flexure'
+    assert np.allclose(shifted[:, :, 1] - traces[:, :, 1], [-1.0, -2.0, -3.0]), \
+        'Alignment traces not shifted by the relative flexure'
+    # Only the alignment frame has a spatial flexure
+    shifted = SlicerIFUCoAdd3D.shift_alignment_traces(traces, locations, None,
+                                                      align_spat_flexure=align_flexure)
+    assert np.allclose(shifted[:, :, 1] - traces[:, :, 1], [1.0, 0.0, -1.0]), \
+        'Alignment traces not shifted by the alignment frame flexure'
+
+
+def test_generate_cube_subpixel_spatial_flexure():
+    """A datacube built from a frame with a known spatial flexure must match the
+    datacube built from the same data without flexure, provided the spatial
+    flexure is passed to `generate_cube_subpixel` (see `subpixellate`)."""
+    slits, tilts, astrom_trans, sciImg, ivarImg, wghtImg, waveImg, wave0, dwv, bright, faint = \
+        _make_synthetic_three_slit_detector()
+    frame_wcs = _make_synthetic_frame_wcs(150.0, 10.0, wave0, dwv)
+    # Common sub-pixel sampling, so that the RA/Dec interpolation is exercised
+    subpix = dict(spec_subpixel=2, spat_subpixel=3, slice_subpixel=1, skip_subpix_weights=True,
+                  correct_dar=False)
+
+    # Reference cube, without any spatial flexure
+    gpm = slits.slit_img(pad=0)
+    gpm[gpm < 0] = 0
+    raimg, decimg, _ = slits.get_radec_image(frame_wcs, astrom_trans, tilts)
+    onslit = gpm > 0
+    dspat_cube = 0.15 / 3600.0
+    pad = 3 * dspat_cube
+    cube_wcs, voxedges, _ = datacube.create_wcs(
+        raimg, decimg, waveImg, gpm, dspat_cube, dwv,
+        ra_min=raimg[onslit].min() - pad/np.cos(np.radians(10.0)),
+        ra_max=raimg[onslit].max() + pad/np.cos(np.radians(10.0)),
+        dec_min=decimg[onslit].min() - pad, dec_max=decimg[onslit].max() + pad)
+    flx_ref = datacube.generate_cube_subpixel(
+        cube_wcs, voxedges, sciImg, ivarImg, waveImg, gpm, wghtImg, frame_wcs, tilts, slits,
+        astrom_trans, None, 0.0, 0.0, **subpix)[0]
+    assert np.sum(flx_ref) > 0, 'Reference cube is empty'
+
+    # The same frame, shifted spatially by an integer number of pixels.  The
+    # slits object is unchanged (as for a spec2d file); the shift is provided as
+    # the spatial flexure.
+    dx = 2
+    spat_flexure = np.full((slits.nslits, 2), float(dx))
+    shift = lambda img: np.roll(img, dx, axis=1)
+    gpm_flex = slits.slit_img(pad=0, spat_flexure=spat_flexure)
+    gpm_flex[gpm_flex < 0] = 0
+    assert np.array_equal(gpm_flex, shift(gpm)), 'Slit image not shifted by the spatial flexure'
+    # Alignment splines built from the (flexure-shifted) traces of this frame
+    traces = np.stack(slits.select_edges(initial=True)[:2], axis=1)
+    astrom_flex = alignframe.AlignmentSplines(
+        SlicerIFUCoAdd3D.shift_alignment_traces(traces, [0.0, 1.0], spat_flexure),
+        np.array([0.0, 1.0]), shift(tilts))
+    args = (cube_wcs, voxedges, shift(sciImg), shift(ivarImg), shift(waveImg), gpm_flex,
+            shift(wghtImg), frame_wcs, shift(tilts), slits, astrom_flex, None, 0.0, 0.0)
+    flx_flex = datacube.generate_cube_subpixel(*args, spat_flexure=spat_flexure, initial=True,
+                                               **subpix)[0]
+    assert np.allclose(flx_flex, flx_ref, rtol=1e-6, atol=1e-10 * np.max(flx_ref)), \
+        'Datacube built with spatial flexure does not match the unshifted datacube'
+
+    # Ignoring the spatial flexure when computing the RA/Dec of each pixel
+    # (the previous behavior) assigns RA=Dec=0 to the pixels at the edge of
+    # each shifted slit, which either leads to non-finite voxel coordinates
+    # (raising an error) or loses/misplaces the flux at the slit edges.
+    try:
+        flx_noflex = datacube.generate_cube_subpixel(*args, **subpix)[0]
+    except PypeItError:
+        pass
+    else:
+        assert not np.allclose(flx_noflex, flx_ref, rtol=1e-6, atol=1e-10 * np.max(flx_ref)), \
+            'Test is not sensitive to the spatial flexure'
 
 
 def test_generate_cube_subpixel_combines_offset_frames_correctly():
@@ -1449,3 +1707,53 @@ def test_resample_spec_to_grid_masked_native_pixels_drop_out():
     # utils.inverse semantics: zero ivar -> zero variance contribution
     assert np.all(utils.inverse(ig) == 0.0), \
         "utils.inverse of zero ivar should be zero"
+
+
+def test_remap_frame_image():
+    # A sky (or scale-correction) image from another frame is remapped to the
+    # slits of the science frame, accounting for the spatial flexure of both
+    from types import SimpleNamespace
+    from pypeit.core import flexure
+    nspec, nspat = 50, 100
+    left = np.full((nspec, 2), 10.) + np.array([0., 45.])[None, :]
+    right = left + 35.
+    slits = slittrace.SlitTraceSet(left_init=left, right_init=right, pypeline='SlicerIFU',
+                                   nspat=nspat, PYP_SPEC='dummy')
+    sci_flexure = np.full((2, 2), 1.5)
+    sky_flexure = np.full((2, 2), -0.5)
+    spec2DObj = SimpleNamespace(slits=slits, sci_spat_flexure=sci_flexure)
+    coadd = SimpleNamespace(initial_slits=True)
+    sky = np.tile(np.arange(nspat, dtype=float), (nspec, 1))
+    remap = SlicerIFUCoAdd3D.remap_frame_image(coadd, sky, spec2DObj, slits, sky_flexure, 'sky')
+    assert np.array_equal(remap, flexure.spat_flexure_remap(sky, slits, spat_flexure=sci_flexure,
+                                                            src_spat_flexure=sky_flexure)), \
+        'Incorrect remapping'
+    # A uniform shift of the slits: the pixels in the interior of the slits are
+    # shifted by the relative flexure (sky - science = -2 pixels)
+    onslit = slits.slit_img(pad=0, initial=True, spat_flexure=sci_flexure) != -1
+    onslit &= np.roll(onslit, 2, axis=1) & np.roll(onslit, -2, axis=1)
+    assert np.allclose((remap - sky)[onslit], -2.), 'Incorrect remapping for a uniform shift'
+    # Single values (e.g. no sky subtraction) are not changed
+    assert np.array_equal(SlicerIFUCoAdd3D.remap_frame_image(coadd, np.array([0.]), spec2DObj,
+                                                             slits, sky_flexure, 'sky'), [0.])
+    # Frames with different slits cannot be remapped, and the image is returned unchanged
+    slits3 = slittrace.SlitTraceSet(left_init=np.tile(left[:, :1], (1, 3)) + [0., 30., 60.],
+                                    right_init=np.tile(left[:, :1], (1, 3)) + [25., 55., 85.],
+                                    pypeline='SlicerIFU', nspat=nspat, PYP_SPEC='dummy')
+    assert SlicerIFUCoAdd3D.remap_frame_image(coadd, sky, spec2DObj, slits3, None, 'sky') is sky
+
+
+def test_spat_flexure_header(tmp_path):
+    # The spatial flexure of each input frame is recorded in the datacube header
+    hdr = make_test_cube_wcs().to_header()
+    datacube.spat_flexure_header(hdr, np.array([[1.0, 2.0], [0.5, 1.5]]), 1)
+    datacube.spat_flexure_header(hdr, None, 2)
+    assert np.isclose(hdr['SPFLX001'], 1.25), 'Incorrect mean spatial flexure'
+    assert '0.50 to 2.00' in hdr.comments['SPFLX001'], 'Incorrect spatial flexure range'
+    assert hdr['SPFLX002'] == 0.0, 'Undetermined spatial flexure should be recorded as zero'
+    # The keywords are written to the datacube file
+    ofile = tmp_path / 'spec3d_test.fits'
+    make_test_datacube().to_file(str(ofile), hdr=hdr, overwrite=True)
+    with fits.open(ofile) as hdus:
+        assert np.isclose(hdus['FLUX'].header['SPFLX001'], 1.25), \
+            'Spatial flexure not written to the datacube'

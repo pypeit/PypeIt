@@ -867,7 +867,15 @@ class SpecObjs:
                     for line in str(subheader[key.upper()]).split('\n'):
                         header[key.upper()] = line
             else:
-                header[key.upper()] = subheader[key]
+                # Find the value and check if it is masked
+                if isinstance(subheader[key], (tuple, list)):
+                    # value + comment
+                    _value = ('', subheader[key][1]) if np.ma.is_masked(subheader[key][0]) else subheader[key]
+                else:
+                    # value only
+                    _value = '' if np.ma.is_masked(subheader[key]) else subheader[key]
+                # Update the header card with the corresponding value
+                header[key.upper()] = _value
                 # Also store the datetime in ISOT format
                 if key.upper() == 'MJD':
                     if isinstance(subheader[key], (list, tuple)):
@@ -1103,15 +1111,15 @@ class SpecObjs:
         """    
         spec_flex = Table()
         spec_flex['NAME'] = self.NAME
-        spec_flex['global_spec_shift'] = self.FLEX_SHIFT_GLOBAL
-        if np.all(spec_flex['global_spec_shift'] != None):
-            spec_flex['global_spec_shift'].format = '0.3f'
-        spec_flex['local_spec_shift'] = self.FLEX_SHIFT_LOCAL
-        if np.all(spec_flex['local_spec_shift'] != None):
-            spec_flex['local_spec_shift'].format = '0.3f'
-        spec_flex['total_spec_shift'] = self.FLEX_SHIFT_TOTAL
-        if np.all(spec_flex['total_spec_shift'] != None):
-            spec_flex['total_spec_shift'].format = '0.3f'
+        spec_flex['global_spec_flexure'] = self.SPEC_FLEXURE_GLOBAL
+        if np.all(spec_flex['global_spec_flexure'] != None):
+            spec_flex['global_spec_flexure'].format = '0.3f'
+        spec_flex['local_spec_flexure'] = self.SPEC_FLEXURE_LOCAL
+        if np.all(spec_flex['local_spec_flexure'] != None):
+            spec_flex['local_spec_flexure'].format = '0.3f'
+        spec_flex['total_spec_flexure'] = self.SPEC_FLEXURE_TOTAL
+        if np.all(spec_flex['total_spec_flexure'] != None):
+            spec_flex['total_spec_flexure'].format = '0.3f'
         # print the table
         spec_flex.pprint_all()
         # return the table

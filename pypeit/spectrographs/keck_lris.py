@@ -103,8 +103,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Always correct for spatial flexure on science images
         # TODO -- Decide whether to make the following defaults
         #   May not want to do them for LongSlit
-        par['scienceframe']['process']['spat_flexure_correct'] = True
-        par['calibrations']['standardframe']['process']['spat_flexure_correct'] = True
+        par['scienceframe']['process']['spat_flexure_method'] = "detector"
+        par['calibrations']['standardframe']['process']['spat_flexure_method'] = "detector"
 
         par['scienceframe']['exprng'] = [61, None]
 
@@ -148,6 +148,11 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         #  But they would then need to over-ride in their PypeIt file
         if 'long' in decker:
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+            # The long slit leaves only one slit edge on each detector, so the
+            # spatial flexure is measured from the refined position of that
+            # edge, relative to the traced edge.  The traced edge must
+            # therefore be at the steepest flux gradient.
+            par['calibrations']['slitedges']['refine_edges'] = True
             # This might only be required for det=2, but we'll see..
             # TODO: Why is this here and not in KeckLRISRSpectrograph???
             if self.name == 'keck_lris_red':

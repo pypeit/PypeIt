@@ -132,3 +132,18 @@ def test_io(sobj1, sobj2, sobj3, sobj4):
 
 
 
+
+
+def test_flexure_diagnostics(sobj1, sobj2):
+    sobjs = specobjs.SpecObjs([sobj1, sobj2])
+    sobjs[0].SPEC_FLEXURE_GLOBAL, sobjs[0].SPEC_FLEXURE_LOCAL = 1.2345, 0.1
+    sobjs[1].SPEC_FLEXURE_GLOBAL, sobjs[1].SPEC_FLEXURE_LOCAL = -0.5, 0.
+    sobjs.SPEC_FLEXURE_TOTAL = sobjs.SPEC_FLEXURE_GLOBAL + sobjs.SPEC_FLEXURE_LOCAL
+    tbl = sobjs.flexure_diagnostics()
+    assert tbl.colnames == ['NAME', 'global_spec_flexure', 'local_spec_flexure',
+                            'total_spec_flexure'], 'Incorrect columns'
+    assert np.array_equal(tbl['NAME'], sobjs.NAME), 'Incorrect object names'
+    assert np.allclose(tbl['global_spec_flexure'], [1.2345, -0.5]), 'Incorrect global flexure'
+    assert np.allclose(tbl['local_spec_flexure'], [0.1, 0.]), 'Incorrect local flexure'
+    assert np.allclose(tbl['total_spec_flexure'], [1.3345, -0.5]), 'Incorrect total flexure'
+    assert tbl['global_spec_flexure'].format == '0.3f', 'Incorrect format'

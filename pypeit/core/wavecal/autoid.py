@@ -364,7 +364,7 @@ def match_qa(arc_spec, tcent, line_list, IDs, scores, outfile = None, title=None
 
 def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
                nreid_min, cont_sub=True, det_arxiv=None, detections=None,
-               cc_shift_range=None, cc_thresh=0.8, cc_local_thresh=0.8,
+               cc_shift_range=None, cc_thresh=0.8, cc_local_thresh=0.8, cc_synth_arc=True,
                match_toler=2.0, nlocal_cc=11, nonlinear_counts=1e10,
                sigdetect=5.0, fwhm=4.0, percent_ceil=50, max_lag_frac=1.0,
                debug_xcorr=False, debug_reid=False, debug_peaks = False, stretch_func = 'linear'):
@@ -421,6 +421,10 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
        reidentification. The local cross-correlation is evaluated at each candidate reidentified line
        (using a window of nlocal_cc), and is then used to score the the reidentified lines to arrive at the final set of
        good reidentifications
+
+    cc_synth_arc: bool, default = True
+        If True, a synthetic arc spectrum is generated from the line list and used for the cross-correlation instead of
+        the continuum subtracted arc spectrum. This is useful for cases where the arc spectrum is very noisy.
 
     match_toler: float, default = 2.0
        Matching tolerance in pixels for a line reidentification. A good line match must match within this tolerance to
@@ -580,7 +584,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
         this_det_arxiv = det_arxiv[str(iarxiv)]
         # Match the peaks between the two spectra. This code attempts to compute the stretch if cc > cc_thresh
         success, shift_vec[iarxiv], stretch_vec[iarxiv], stretch2_vec[iarxiv], ccorr_vec[iarxiv], _, _ = \
-            wvutils.xcorr_shift_stretch(use_spec, use_spec_arxiv[:, iarxiv], sigdetect=sigdetect,
+            wvutils.xcorr_shift_stretch(use_spec, use_spec_arxiv[:, iarxiv], sigdetect=sigdetect, cc_synth_arc=cc_synth_arc,
                                         lag_range=cc_shift_range, cc_thresh=cc_thresh, fwhm=fwhm, seed=random_state,
                                         debug=debug_xcorr, percent_ceil=percent_ceil, max_lag_frac=max_lag_frac,
                                         stretch_func=stretch_func)
@@ -599,6 +603,8 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
                                                    stretch_vec[iarxiv], stretch2_vec[iarxiv], stretch_func=stretch_func)
 
         if debug_xcorr:
+            plt.close('all')
+            plt.switch_backend('TkAgg')
             plt.figure(figsize=(14, 6))
             tampl_slit = np.interp(detections, xrng, use_spec)
             plt.plot(xrng, use_spec, color='red', drawstyle='steps-mid', label='input arc',linewidth=1.0, zorder=10)
@@ -681,6 +687,8 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
     patt_dict_slit['sigdetect'] = sigdetect
 
     if debug_reid:
+        plt.close('all')
+        plt.switch_backend('TkAgg')
         plt.figure(figsize=(14, 6))
         # Plot a summary of the local x-correlation values for each line on each slit
         for iarxiv in range(narxiv):
@@ -699,7 +707,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
         # plt.ylim((0.0, 1.2))
         plt.legend()
         plt.show()
-        # QA Plot ofthe reidentifications
+        # QA Plot of the reidentifications
         match_qa(use_spec, detections, line_list, patt_dict_slit['IDs'], patt_dict_slit['scores'])
 
     # Use only the perfect IDs
@@ -1173,7 +1181,9 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
                 log.info(f'An arxived solution exists! Loading those line IDs for slit {slit+1}/{nslits}')
                 log.info('Checking for possible shifts')
                 shift_cc, corr_cc = wvutils.xcorr_shift(temp_spec_og[slit,:], obs_spec_i, debug=debug, fwhm=fwhm, 
-                                                        percent_ceil=50.0, lag_range=par['cc_shift_range'])#par['cc_percent_ceil'])
+                                                        percent_ceil=50.0,  #par['cc_percent_ceil'])
+                                                        cc_synth_arc=par['cc_synth_arc'],
+                                                        lag_range=par['cc_shift_range'])
                 log.info(f'Shift = {shift_cc} pixels! Shifting detections now')
                 pix_arxiv_ss = lines_pix[slit] - shift_cc
                 bdisp = np.nanmedian(np.abs(temp_wv - np.roll(temp_wv, 1)))
@@ -1240,15 +1250,18 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
 
         # Cross-correlate
         shift_cc, corr_cc = wvutils.xcorr_shift(tspec, pad_spec, debug=debug, fwhm=fwhm,
-                                                percent_ceil=x_percentile, lag_range=par['cc_shift_range'])
+                                                percent_ceil=x_percentile,
+                                                cc_synth_arc=par['cc_synth_arc'],
+                                                lag_range=par['cc_shift_range'])
         log.info(f"Shift = {shift_cc:.2f}; cc = {corr_cc:.4f}")
         if debug:
             xvals = np.arange(tspec.size)
-            plt.clf()
-            ax = plt.gca()
-            #
-            ax.plot(xvals, tspec, label='template')  # Template
-            ax.plot(xvals, np.roll(pad_spec, int(shift_cc)), 'k', label='input')  # Input
+            plt.close('all')
+            plt.switch_backend('TkAgg')
+
+            fig, ax = plt.subplots()  # new figure, created under TkAgg
+            ax.plot(xvals, tspec, label='template')
+            ax.plot(xvals, np.roll(pad_spec, int(shift_cc)), 'k', label='input')
             ax.legend()
             plt.show()
         i0 = npad // 2 + int(shift_cc)
@@ -2374,7 +2387,7 @@ class HolyGrail:
                 # dwvc_val[cntr] = (sort_wvc[gc]-sort_wvc[gd]) / (0.5*(sort_dsp[gc]+sort_dsp[gd])) - (amax - self._spec.shape[0] // 2)
                 # JFH replaced with more robust xcorr
                 shift_val[cntr], ccorr_val[cntr]= wvutils.xcorr_shift(self._spec[:, sort_idx[gd]],self._spec[:, sort_idx[gc]],
-                                                                      percent_ceil=50.0)
+                                                                      percent_ceil=50.0, cc_synth_arc=self._par['cc_synth_arc'])
                 #dwvc_val[cntr] = (sort_wvc[gc]-sort_wvc[gd]) / (0.5*(sort_dsp[gc]+sort_dsp[gd])) - shift
                 # JFH TESTING
                 dwvc_val[cntr] = (sort_wvc_jfh[gc]-sort_wvc_jfh[gd]) / (0.5*(sort_dsp_jfh[gc]+sort_dsp_jfh[gd])) - shift_val[cntr]
@@ -2466,9 +2479,9 @@ class HolyGrail:
                 # Match the peaks between the two spectra.
                 # spec_gs_adj is the stretched spectrum
                 success, shift_vec[cntr], stretch_vec[cntr], _, ccorr_vec[cntr], _, _ =  \
-                    wvutils.xcorr_shift_stretch(self._spec[:, bs],self._spec[:, gs],
-                                                cc_thresh=cc_thresh, fwhm=fwhm, debug=self._debug,
-                                                stretch_func=self._par['stretch_func'])
+                    wvutils.xcorr_shift_stretch(self._spec[:, bs], self._spec[:, gs],
+                                                cc_synth_arc=self._par['cc_synth_arc'], cc_thresh=cc_thresh,
+                                                fwhm=fwhm, debug=self._debug, stretch_func=self._par['stretch_func'])
                 if success != 1:
                     log.warning('cross-correlation failed or cc<cc_thresh.')
                     continue
