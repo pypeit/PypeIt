@@ -18,6 +18,10 @@ Breaking Changes
   alignment calibration frames now also store their spatial flexure (datamodel
   version 1.2.0).  Processed files from previous versions should be
   regenerated.
+- The slit-edge calibration files (``Slits``; datamodel version 1.1.7) now
+  record which slit edges were traced, as opposed to inserted (e.g., at the
+  detector boundary); see :ref:`flexure-spatial`.  Slit-edge files from
+  previous versions must be regenerated.
 
 Documentation Updates
 ---------------------
@@ -61,12 +65,55 @@ Functionality/Performance Improvements and Additions
 - The spatial flexure of each input frame is recorded in the header of the
   datacubes constructed by ``pypeit_coadd_datacube`` (``SPFLXnnn`` keywords);
   see :ref:`coadd3d_spatflex`.
+- Added the ``refine_edges`` slit-edge tracing parameter, which shifts each
+  traced slit edge to the position of the steepest flux gradient (the traced
+  edges are a fraction of a pixel to about a pixel outside it), accounting for
+  the light of the neighbouring slit; the traced edge is kept (with a warning)
+  if an edge cannot be refined.  It is ``True`` by default for all
+  ``SlicerIFU`` spectrographs, so that the edge-based spatial flexure is
+  measured relative to the steepest gradient, and a warning is printed if the
+  ``edge``, ``leftedge`` or ``rightedge`` spatial flexure method is used with
+  ``refine_edges = False``.
 - Added the ``spat_flexure_minfrac`` image-processing parameter: if less than
-  this fraction (10% by default) of the traced slit-edge pixels coincide with
-  an edge detected in the frame at the measured spatial flexure, the slit edges
-  are deemed to be undetected, and no spatial flexure is applied to the frame
-  (e.g., for a short exposure of a standard star, where the slit edges are
-  not visible).
+  this fraction of the traced slit-edge pixels coincide with an edge detected
+  in the frame at the measured spatial flexure, the slit edges are deemed to
+  be undetected, and no spatial flexure is applied to the frame.  The check is
+  disabled by default.  For the ``slit``, ``edge``, ``leftedge`` and
+  ``rightedge`` methods, the slit edges are deemed to be undetected (and no
+  spatial flexure is applied) if fewer than 25% of the slit edges can be
+  refined (e.g., for a short exposure of a standard star, where the slit edges
+  are not visible), unless at least 50% of the traced slit-edge pixels are
+  matched at the detector-level flexure, in which case the detector-level
+  flexure is adopted for all edges.  An edge is refined if its model is a
+  significant (10 sigma) improvement over a constant flux, and if its position
+  is measured to better than 0.1 pixels.  Refined edges whose spatial flexure
+  is inconsistent with that of the other edges (by more than 4 times their
+  robust scatter about a linear fit across the detector, and at least 0.25
+  pixels) are rejected, and their spatial flexure is interpolated from the
+  neighbouring edges.
+- The detector-level spatial flexure is now the average of the peaks of the
+  cross-correlations of the left and right slit edges, computed separately.
+  The detected and traced edges are offset from the steepest flux gradient in
+  opposite directions for left and right edges, by up to about a pixel, so the
+  peak of the single cross-correlation of all edges (as before) was biased
+  when the numbers of left and right edges differed, and was unstable when its
+  left- and right-edge contributions were similar.  Only the traced slit edges
+  are used to measure the spatial flexure, for all methods: the edges inserted
+  by the slit-edge tracing (e.g., at the detector boundary, when only one edge
+  of a long slit is on the detector) are assigned the spatial flexure of the
+  other edge of their slit.  If the traced edges on a detector are all on one
+  side of the slits (e.g., a long slit cut by the detector boundary), the
+  detector-level spatial flexure would be biased by up to about a pixel, so
+  the traced edges are refined (for all methods), and each slit is assigned
+  the spatial flexure of its traced edge (or, if none of them can be refined,
+  the detector-level spatial flexure, provided that the slit edges are clearly
+  detected).  If none of the slit edges were traced (e.g., if the slits were
+  placed at the detector boundaries with ``bound_detector = True``), no
+  spatial flexure is applied.  If the left- and right-edge peaks differ by
+  more than 2.5 pixels (e.g., because the edges of one side are poorly
+  detected), the peak of the single cross-correlation of all edges is used
+  instead.  Each peak, and the fraction of the traced edge pixels of its side
+  that it matches, are printed in the log.
 - The spatial flexure of each frame is accounted for when constructing
   datacubes (``pypeit_coadd_datacube``): the RA and Dec of each detector pixel,
   and the astrometric alignment traces, are now evaluated using the spatial
@@ -152,9 +199,62 @@ Functionality/Performance Improvements and Additions
   ``reference_slit`` or, if not set, chosen automatically.  A QA plot of the
   solution of the combined spectrum is written to
   ``QA/PNGs/Arc_1dfit_*_stack.png``.  See :ref:`wvcalib-stack-slits`.
+- ``fitting.robust_fit`` now converts its inputs to float once per call
+  rather than copying them on every rejection iteration, reducing memory use
+  for large fits (e.g., the flat-field fine spatial-illumination correction).
+- ``fitting.polyfit2d_general`` now solves fits with more than
+  ``[rdx] fit2d_chunk`` (default 32768) points in chunks, using a sequential QR
+  decomposition, instead of building the full design matrix.  For fits over a
+  whole detector (e.g., the wavelength tilts and the flat-field fine
+  correction), this removes several GB of temporary arrays: the tilts stage of
+  a Binospec long-slit reduction drops from a 16.1 to a 6.9 GiB peak and runs
+  faster.  The coefficients agree with the previous solution to round-off;
+  smaller fits are computed exactly as before.
+- Reduced the memory used by B-spline fits, with no change to the results
+  beyond round-off: the weighted design matrix is formed one B-spline span at
+  a time; for 2D fits (``BSpline2D``), the polynomial basis is only
+  recomputed when the design matrix must be rebuilt, and the cached design
+  matrix stores its B-spline and polynomial factors instead of their product.
+  2D models (including ``BSpline2D.value``) are evaluated directly from these
+  factors, without forming the design matrix, so the fits are as fast as
+  before.  For the 2D flat-field fit of a Binospec long-slit detector, this
+  removes ~5 GiB of temporary arrays.
+- ``fitting.evaluate_fit`` now evaluates 2D fits in chunks of points.  The
+  results are identical, but numpy's 2D evaluation functions no longer
+  allocate temporaries over all points at once (~2 GiB for the flat-field
+  fine correction of a Binospec detector), and the evaluation is faster.
+- Added the expert ``[rdx] fit2d_chunk`` parameter, which sets the number of
+  points processed at a time by the chunked 2D polynomial fits and
+  evaluations above.  It trades peak memory for speed and does not change the
+  results beyond round-off.
 
 Instrument-specific Updates
 ---------------------------
+
+- Keck/LRIS: the traced slit edges of long-slit observations are now refined
+  to the steepest flux gradient (``refine_edges = True``), since the spatial
+  flexure of such frames (with one slit edge on each detector) is measured
+  from the refined slit edge; see :ref:`flexure-spatial`.
+- Keck/KCWI and Keck/KCRM: the spatial flexure is now determined by default
+  for the arc, tilt, pixel-flat and illumination-flat frames (``edge``
+  method) and for the science frames (``detector`` method, with
+  ``spat_flexure_minfrac = 0.25``); the slit edges of science frames are only
+  illuminated by the sky, and the edges of individual slits cannot be
+  measured reliably, whereas the detector-level shift is consistent to a few
+  thousandths of a pixel between consecutive exposures.  The traced slit
+  edges are refined to the steepest flux gradient (``refine_edges = True``),
+  and the slit edges are no longer
+  tweaked (``tweak_slits = False``), so that everything is relative to the
+  initial slits.  Other changes to the KCWI/KCRM defaults:
+
+  - The wavelength calibration cross-correlates the arc spectra directly
+    with the templates (``cc_synth_arc = False``), instead of synthetic arc
+    spectra.
+  - KCWI: the non-linearity correction (``correct_nonlinear``) and the
+    subtraction of the scattered light from the pixel and illumination flats
+    (``subtract_scattlight``) are no longer applied by default; they can be
+    switched on by the user.  The default ``spat_samp`` and
+    ``tweak_slits_thresh`` of :ref:`flatfieldpar` are now used.
 
 - Magellan/LDSS3: support for the VPH-Blue and VPH-Red grisms, and a rework of
   how the two amplifier files are handled:
@@ -328,6 +428,8 @@ Testing
   writes are pixel-identical to serial writes, queued figures are isolated
   from later pyplot-state plotting, and writer-thread exceptions re-raise on
   the main thread.
+- Added a test that :func:`~pypeit.core.pca.pca_decomposition` is
+  bit-reproducible across repeated calls and input memory alignments.
 
 Under-the-hood Improvements
 ---------------------------
@@ -383,6 +485,31 @@ Bug Fixes
   slit given by ``reference_slit`` could not be calibrated; a clear error
   message is now raised instead.  Also fixed a crash in the echelle wavelength
   calibration when the fit of an order fails.
+- Fixed the 2D Gaussian fit of the white-light image of a datacube
+  (:func:`~pypeit.core.datacube.fitGaussian2D`), used to find point sources in
+  ``pypeit_extract_datacube`` and to determine the datacube weights and
+  alignment.  The model was not normalised to its integrated flux, the initial
+  flux and offset did not depend on the image, and the position of a
+  DAOStarFinder detection was constrained to within one third of the FWHM, so
+  that the fit of a poorly sampled object often failed (or ended at the
+  bounds).  The fit now starts from the centroid of the brightest pixel near
+  the DAOStarFinder detection (whose position can be wrong by more than a
+  pixel for a poorly sampled object), the position is constrained to within
+  the larger of the FWHM and one pixel, and a circular Gaussian is fit before
+  the elliptical one (whose orientation is undetermined at a circular initial
+  guess).  If the elliptical fit fails, the circular fit is adopted; if both
+  fail, the initial position and the input FWHM are adopted with a warning.
+
+- Make reductions reproducible run to run (Issue #2208).
+  :func:`~pypeit.core.pca.pca_decomposition` now uses the exact
+  (``svd_solver='full'``) SVD solver.  With sklearn's default (``'auto'``), the
+  PCA decompositions used in slit-edge tracing, wide-slit tilt tracing, and
+  echelle object tracing were computed with sklearn's unseeded randomized
+  solver, so repeated reductions of the same data gave slightly different
+  results; the difference was amplified downstream, up to ~100% in low-S/N
+  extracted pixels of multi-slit data.  Results of these PCAs now change
+  at the level of the previous run-to-run scatter (~1e-6 pixels in the edge
+  traces).
 - Magellan/LDSS3: fixed the telescope (was MMT), the MJD (was the ``JD`` card,
   unconverted), ``dataext`` (1 to 0), the binning axis used to scale the
   wavelength FWHM (spatial to spectral), and ``default_pypeit_par``, which is
@@ -416,6 +543,23 @@ Bug Fixes
   applied at the spatial flexure of each flat-fielded frame.  It was applied
   at the spatial flexure of the pixel flat, which gave the wrong correction
   near the slit edges when the two flexures differed.
+- Fix the flat-field model of slits (or echelle orders) whose edges are closer
+  than about the ``slit_illum_pad`` padding of :ref:`flatfieldpar` to the edges
+  of the neighbouring slit.  Where the padded footprints of two slits overlap,
+  the overlapping pixels are assigned to only one of the slits, but some of
+  them are within the other slit.  For those pixels, the fit of the spectral
+  response of their slit used the spectral coordinate of the first spectral
+  row (instead of their wavelength tilts), and the spectral model of their slit
+  was not evaluated, so that the pixel flat of up to about two pixels per
+  spectral row near the slit edge could be wrong by up to a factor of 2.  The
+  wavelength tilts and the spectral and spatial models of each slit are now
+  evaluated over its own padded footprint.  Also, the pixels of each slit are
+  now always used to fit its spatial (illumination) response (they could be
+  assigned to the padding of the neighbouring slit, so that the illumination
+  profile of their slit was extrapolated there), and the gap between two
+  slits whose padded footprints overlap is split at its midpoint (it was
+  assigned to the second slit).  See the new ``split_overlap`` option of
+  :func:`~pypeit.slittrace.SlitTraceSet.slit_img`.
 - ``pypeit_coadd_datacube``: dedicated sky frames (``skysub_frame``) and
   relative scale-correction frames (``scale_corr``) are now remapped to the
   slits of each science frame, accounting for the spatial flexure of both
@@ -550,3 +694,13 @@ Bug Fixes
 - Spectral flexure was not previously included when generating a wavelength
   image for a spec2d file during ``global_skysub``. This caused a multiple
   correction to the spectral flexure, and only affected IFU data reduction.
+- Fix a memory leak on Python 3.13 and later: the
+  ``inspect.getargvalues(inspect.currentframe())`` idiom used by many
+  ``__init__`` methods to collect their arguments created a reference cycle
+  (PEP 667 made ``frame.f_locals`` a proxy that refers back to the frame), so
+  every ``DataContainer`` (e.g., ``PypeItImage``, ``PypeItFit``) and ``ParSet``
+  was kept alive, along with its arrays, until the cyclic garbage collector
+  ran.  The idiom is replaced by the new :func:`~pypeit.utils.init_arg_values`.
+- ``BSpline2D.fit`` now rebuilds its cached design matrix when ``npoly``,
+  ``xmin`` or ``xmax`` change between calls with the same ``x`` and
+  ``basis_x``; previously it reused the matrix built with the old basis.

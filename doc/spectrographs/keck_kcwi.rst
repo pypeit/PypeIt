@@ -234,9 +234,15 @@ Similarly, there is a slice dependent spatial flexure. Given that the spatial il
 profile of KCWI is also slice dependent, this spatial flexure could cause a problem with the
 relative illumination across the KCWI field-of-view in the reconstructed datacube. By default,
 the spatial flexure of each slice edge is therefore measured separately
-(``spat_flexure_method = edge``) for the science, arc, tilt, and flat-field frames, and the
-values for the science frames are fit with a linear function across the slices
-(``spat_flexure_polyord = 1``).  The spatial flexure is accounted for when constructing
+(``spat_flexure_method = edge``) for the arc, tilt, and flat-field frames.  The slice edges
+of the science frames are only illuminated by the sky, and the edges of individual slices
+cannot be measured reliably (sky lines and objects near the edges can shift them by a pixel
+or more), so a single shift is measured for the detector (``spat_flexure_method =
+detector``).  This shift is consistent to a few thousandths of a pixel between consecutive
+exposures.  If fewer than 25% of the traced slice-edge pixels are matched by an edge in the
+science frame (``spat_flexure_minfrac = 0.25``), e.g. in a short exposure of a standard
+star, the slice edges are deemed to be undetected, and no spatial flexure is applied to that
+frame.  The spatial flexure is accounted for when constructing
 datacubes.  See :ref:`flexure-spatial` for more details, and inspect the spatial flexure QA
 plots (:ref:`qa-spat-flex`) to check the correction.
 

@@ -279,6 +279,127 @@ def test_spat_flexure_shift_undetected_edges(method):
     assert np.allclose(spat_flexure, dx, atol=0.3), 'Incorrect spatial flexure with minfrac=0'
 
 
+@pytest.mark.parametrize('method', ['slit', 'edge'])
+def test_spat_flexure_shift_refined_edges(method):
+    # With the default minfrac (0), the slit edges are deemed to be detected if
+    # enough of them can be refined.  A genuine flexure is therefore measured
+    # even if the slit edges are only visible in a few spectral rows (e.g. sky
+    # lines in a near-IR frame)...
+    dx = 3.
+    sciimg, slits = _synthetic_slit_image(dx, dx, nslit=3)
+    bpm = np.zeros(sciimg.shape, dtype=bool)
+    rng = np.random.default_rng(1)
+    _sciimg = sciimg.copy()
+    _sciimg[10:] = rng.normal(0, 1, _sciimg[10:].shape)
+    spat_flexure, gpm = flexure.spat_flexure_shift(_sciimg, slits, method=method, bpm=bpm,
+                                                   maxlag=10, sigdetect=5., return_gpm=True)
+    assert np.allclose(spat_flexure, dx, atol=0.1), 'Incorrect spatial flexure'
+    assert np.all(gpm), 'All slit edges should be refined'
+    # ... but not if the slit edges are not visible, and the peak of the
+    # cross-correlation is spurious (here, from a bright object close to the
+    # left edge of one slit)
+    xx = np.arange(sciimg.shape[1])[None, :]
+    _sciimg = rng.normal(0, 1, sciimg.shape) \
+                + 1000. * np.exp(-0.5 * ((xx - slits.left_init[:, :1] - 6.) / 1.3) ** 2)
+    spat_flexure = flexure.spat_flexure_shift(_sciimg, slits, method='detector', bpm=bpm,
+                                              maxlag=10, sigdetect=5.)
+    assert np.all(np.absolute(spat_flexure) > 1), 'Test is not sensitive'
+    spat_flexure, gpm = flexure.spat_flexure_shift(_sciimg, slits, method=method, bpm=bpm,
+                                                   maxlag=10, sigdetect=5., return_gpm=True)
+    assert np.all(spat_flexure == 0.), 'Undetected slit edges should give no flexure'
+    assert not np.any(gpm), 'Undetected slit edges should be flagged'
+    # The check can be disabled
+    spat_flexure = flexure.spat_flexure_shift(_sciimg, slits, method=method, bpm=bpm,
+                                              maxlag=10, sigdetect=5., min_refined_frac=0.)
+    assert np.all(np.absolute(spat_flexure) > 1), 'The check should be disabled'
+
+
+
+@pytest.mark.parametrize('method', ['slit', 'edge'])
+def test_spat_flexure_shift_detector_fallback(method):
+    # If too few slit edges can be refined (forced here by requiring more
+    # refined edges than there are), but the cross-correlation matched most of
+    # the traced slit-edge pixels, the edges are visible and the detector-level
+    # flexure is adopted for all edges...
+    dx = 1.7
+    sciimg, slits = _synthetic_slit_image(dx, dx, nslit=3)
+    bpm = np.zeros(sciimg.shape, dtype=bool)
+    det_flexure = flexure.spat_flexure_shift(sciimg, slits, method='detector', bpm=bpm,
+                                             maxlag=10, sigdetect=5.)
+    assert np.allclose(det_flexure, dx, atol=0.4), 'Incorrect detector-level flexure'
+    spat_flexure, gpm = flexure.spat_flexure_shift(sciimg, slits, method=method, bpm=bpm,
+                                                   maxlag=10, sigdetect=5., min_refined_frac=1.01,
+                                                   return_gpm=True)
+    assert np.array_equal(spat_flexure, det_flexure), 'The detector-level flexure should be used'
+    assert np.all(gpm), 'The detector-level flexure is measured for all edges'
+    # ... unless too few of the edge pixels are matched
+    spat_flexure, gpm = flexure.spat_flexure_shift(sciimg, slits, method=method, bpm=bpm,
+                                                   maxlag=10, sigdetect=5., min_refined_frac=1.01,
+                                                   fallback_match_frac=1.01, return_gpm=True)
+    assert np.all(spat_flexure == 0.) and not np.any(gpm), \
+        'Undetected slit edges should give no flexure'
+
+
+def test_reject_edge_flexure_outliers():
+    # A smooth trend of the spatial flexure across the detector, with a
+    # different trend for the left and right edges, small scatter, two
+    # outliers, and an edge that was not refined
+    rng = np.random.default_rng(1)
+    nslits = 12
+    pos = np.column_stack((np.linspace(30., 1900., nslits), np.linspace(70., 1940., nslits)))
+    truth = np.column_stack((0.1 + 1e-4 * pos[:, 0], 0.3 - 5e-5 * pos[:, 1]))
+    delta = truth + rng.normal(0, 0.02, truth.shape)
+    delta[4, 0] += 1.5
+    delta[9, 1] -= 0.8
+    delta[2, 1] = np.nan
+    new, rejected = flexure.reject_edge_flexure_outliers(delta, pos)
+    assert np.array_equal(np.where(rejected), ([4, 9], [0, 1])), 'Wrong edges rejected'
+    # The rejected edges are interpolated from the neighbouring edges on the same side
+    assert np.isclose(new[4, 0], 0.5 * (delta[3, 0] + delta[5, 0]), atol=1e-6)
+    assert np.isclose(new[9, 1], 0.5 * (delta[8, 1] + delta[10, 1]), atol=1e-6)
+    assert np.allclose(new[rejected], truth[rejected], atol=0.05)
+    # The other edges are unchanged, and unrefined edges stay unrefined
+    keep = np.logical_not(rejected) & np.isfinite(delta)
+    assert np.array_equal(new[keep], delta[keep]) and np.isnan(new[2, 1])
+    # Differences smaller than the minimum tolerance are not rejected
+    delta[4, 0] = truth[4, 0] + 0.2
+    delta[9, 1] = truth[9, 1]
+    assert not np.any(flexure.reject_edge_flexure_outliers(delta, pos)[1])
+    # Too few edges on one side to reject outliers
+    few = np.full(delta.shape, np.nan)
+    few[:4] = delta[:4]
+    few[1, 0] += 2.
+    assert not np.any(flexure.reject_edge_flexure_outliers(few, pos)[1])
+
+
+@pytest.mark.parametrize('method', ['slit', 'edge'])
+def test_spat_flexure_shift_outlier_edge(method, monkeypatch):
+    # A refined edge that is inconsistent with the other edges (forced here by
+    # adding 1.5 pixels to the refined shift of the left edge of one slit) is
+    # rejected, and its flexure is interpolated from the other left edges
+    dx = 1.7
+    sciimg, slits = _synthetic_slit_image(dx, dx, nslit=8)
+    refine_edge = flexure.trace.refine_edge
+    calls = []
+
+    def bad_left_edge(*args, **kwargs):
+        shift, success = refine_edge(*args, **kwargs)
+        calls.append(args[3])
+        if args[3] == 'left' and calls.count('left') == 4:
+            shift += 1.5
+        return shift, success
+
+    monkeypatch.setattr(flexure.trace, 'refine_edge', bad_left_edge)
+    spat_flexure, gpm = flexure.spat_flexure_shift(sciimg, slits, method=method,
+                                                   bpm=np.zeros(sciimg.shape, dtype=bool),
+                                                   maxlag=10, sigdetect=5., return_gpm=True)
+    assert np.allclose(spat_flexure, dx, atol=0.15), 'The outlier edge was not rejected'
+    if method == 'edge':
+        assert not gpm[3, 0] and np.sum(gpm) == gpm.size - 1, \
+            'Only the rejected edge should be flagged as not measured'
+    else:
+        assert np.all(gpm), 'The slit with a rejected edge is measured by its other edge'
+
 
 def _fractional_slit_image(slits, spat_flexure, offslit=1e6):
     """

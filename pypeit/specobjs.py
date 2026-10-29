@@ -1112,7 +1112,7 @@ class SpecObjs:
         spec_flex = Table()
         spec_flex['NAME'] = self.NAME
         spec_flex['global_spec_flexure'] = self.SPEC_FLEXURE_GLOBAL
-        if np.all(spec_flex['global_spec_spexure'] != None):
+        if np.all(spec_flex['global_spec_flexure'] != None):
             spec_flex['global_spec_flexure'].format = '0.3f'
         spec_flex['local_spec_flexure'] = self.SPEC_FLEXURE_LOCAL
         if np.all(spec_flex['local_spec_flexure'] != None):

@@ -198,9 +198,11 @@ class Spectrograph:
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = cls.name
-        # Arc/tilt emission lines don't cover much of the slit, but the lines are usually good enough to get the correct spatial flexure.
-        par['calibrations']['arcframe']['process']['spat_flexure_minfrac'] = 0.0
-        par['calibrations']['tiltframe']['process']['spat_flexure_minfrac'] = 0.0
+        if cls.pypeline == 'SlicerIFU':
+            # Place the slit edges at the steepest flux gradient, so that the
+            # spatial flexure (measured with the edge-based methods) is relative
+            # to the steepest gradient (the slits are not tweaked)
+            par['calibrations']['slitedges']['refine_edges'] = True
         return par
 
     def config_specific_par(

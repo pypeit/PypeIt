@@ -304,7 +304,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
 
         # Set the slit edge parameters
         par['calibrations']['slitedges']['fit_order'] = 4
-        par['calibrations']['slitedges']['pad'] = 0  # Do not pad the slits - this ensures that the tweak_edges method=gradient guarantees that the edges are defined at the maximum gradient.
+        par['calibrations']['slitedges']['pad'] = 0  # Do not pad the slits, so that the slit edges are at the steepest flux gradient (see refine_edges, which is True for all SlicerIFU spectrographs)
         par['calibrations']['slitedges']['edge_thresh'] = 5  # 5 works well with a range of setups tested by RJC (mostly 1x1 binning)
 
         # KCWI has non-uniform spectral resolution across the field-of-view
@@ -340,8 +340,17 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         # Illumination corrections
         par['scienceframe']['process']['use_illumflat'] = True  # illumflat is applied when building the relative scale image in reduce.py, so should be applied to scienceframe too.
         par['scienceframe']['process']['use_specillum'] = True  # apply relative spectral illumination
-        par['scienceframe']['process']['spat_flexure_method'] = "edge"  # Slice dependent spatial flexure; see above
-        par['scienceframe']['process']['spat_flexure_polyord'] = 1  # Fit the spatial flexure of the slit edges with a linear function.
+        # Spatial flexure of the science frames.  Their slit edges are only
+        # illuminated by the sky, and the edges of individual slits cannot be
+        # refined reliably (sky lines and objects near the edges can shift the
+        # refined edge by a pixel or more), so a single shift is measured for
+        # the detector.  This is consistent to a few thousandths of a pixel
+        # between consecutive exposures.  If fewer than 25% of the traced
+        # slit-edge pixels are matched by an edge in the image (e.g. because
+        # the frame is too faint), the cross-correlation is not reliable, and
+        # no spatial flexure is applied.
+        par['scienceframe']['process']['spat_flexure_method'] = "detector"
+        par['scienceframe']['process']['spat_flexure_minfrac'] = 0.25
         par['scienceframe']['process']['use_biasimage'] = True  # Need to use bias frames for KCWI, because the bias level varies monotonically with spatial and spectral direction
         par['scienceframe']['process']['use_darkimage'] = False
 

@@ -44,57 +44,146 @@ following valid methods:
     - ``rightedge`` - this will calculate the spatial flexure of the right edge of each
       slit, and assign the same value to the left edge
 
+Only the slit edges that were traced in the trace frame are used.  Some slit
+edges are *inserted* by the slit-edge tracing instead: e.g., if only one edge
+of a long slit is on the detector, the other edge is inserted close to the
+detector boundary, and if no slit edges are found and ``bound_detector =
+True`` (see :ref:`edgetracepar`), the slit is bounded by edges inserted at both
+detector boundaries.  The inserted edges are not visible in the frame, so
+they are not used to measure the spatial flexure, and they are assigned the
+spatial flexure of the other edge of their slit.  If none of the slit edges on
+a detector were traced, no spatial flexure is applied, with a warning.  The
+slit-edge calibration file records which edges were traced (see
+:ref:`slits`).
+
 The algorithm proceeds as follows:
 
-    #. The slit edges detected in the frame (using a Sobel filter, with a
-       detection threshold set by ``spat_flexure_sigdetect``) are
-       cross-correlated with the traced slit edges, within a maximum shift of
-       ``spat_flexure_maxlag`` pixels.  The centroid of the peak of the
-       cross-correlation provides a single (sub-pixel) spatial shift for the
-       detector (the ``detector`` method).  If no peak is found in the
-       cross-correlation, or if the peak is beyond the maximum shift, the code
-       assumes there is no spatial flexure and prints a warning.
+    #. The left (right) slit edges detected in the frame (using a Sobel
+       filter, with a detection threshold set by ``spat_flexure_sigdetect``)
+       are cross-correlated with the traced left (right) slit edges, within a
+       maximum shift of ``spat_flexure_maxlag`` pixels.  The centroid of the
+       peak of each cross-correlation provides a (sub-pixel) spatial shift,
+       and their average is the single spatial shift for the detector (the
+       ``detector`` method).  Both the detected and the traced edges are
+       offset from the steepest flux gradient, outwards, by amounts that depend
+       on the width of the edges (and on the ``refine_edges`` parameter of
+       :ref:`edgetracepar`), so the peaks of the left- and right-edge
+       cross-correlations are biased in opposite directions, by up to about a
+       pixel; their average cancels these biases, whatever the number of left
+       and right edges.  The peak of each cross-correlation, and the fraction
+       of the traced left (right) edge pixels that coincide with a detected
+       left (right) edge at that peak (see the next step), are printed in the
+       log.  If the peaks of the two cross-correlations differ by more than
+       2.5 pixels, at least one of them is spurious (e.g., because the edges
+       of one side are poorly detected), and the peak of the
+       cross-correlation of all edges (left and right edges together, where
+       a match of a left with a right edge counts negatively) is used
+       instead, with a warning.  If no peak is found in either
+       cross-correlation, or if the peaks are beyond the maximum shift, the
+       code assumes there is no spatial flexure and prints a warning.
 
-    #. The code then checks that the slit edges are detected in the frame:
-       after shifting the traced slit edges by the measured shift, it
+    #. After shifting the traced slit edges by the measured shift, the code
        calculates the fraction of the traced slit-edge pixels that coincide
        (within 2 pixels) with an edge of the same type (left or right) detected
        in the frame.  This fraction is printed in the log.  If it is less than
-       ``spat_flexure_minfrac`` (10% by default), the slit edges are deemed to
-       be undetected (e.g., in a short exposure of a standard star, where the
-       sky is too faint to show the slit edges), and the peak of the
-       cross-correlation is not trusted.  In this case, no spatial flexure is
-       applied to the frame for *any* method (the following steps are
-       skipped), and a warning is printed.  The slit edges only appear in the
-       spectral rows where the frame is illuminated, so frames with sparse
-       emission lines (e.g., arc frames with few lines) can have a small
-       fraction, even if the shift is well measured.  If needed, decrease
-       ``spat_flexure_minfrac`` for these frames, or set it to 0 to disable
-       this check.
+       ``spat_flexure_minfrac``, the slit edges are deemed to be undetected,
+       and the peak of the cross-correlation is not trusted.  In this case, no
+       spatial flexure is applied to the frame for *any* method (the following
+       steps are skipped), and a warning is printed.  By default
+       (``spat_flexure_minfrac = 0``), this check is disabled: the slit edges
+       only appear in the spectral rows where the frame is illuminated, so
+       frames with a genuine flexure can have a small fraction (e.g., near-IR
+       frames where the slit edges are only visible in the sky lines, or arc
+       frames with few lines).
 
     #. For all other methods, each slit edge is refined, starting from the
-       ``detector`` value.  The flux near the edge is modeled in each spectral
+       ``detector`` value: the refined edge is at the steepest flux gradient
+       across the edge.  The flux near the edge is modeled in each spectral
        row as a step function convolved with a Gaussian (allowing for a
        gradient of the slit illumination), with a common sub-pixel offset for
-       all rows, which is constrained to be within :math:`\pm 2` pixels.  The
+       all rows, which is constrained to be within :math:`\pm 2` pixels.  If
+       the neighbouring slit is only a few pixels away, its facing edge is
+       modeled as well, so that its light does not bias the edge.  The
        ``slit`` method uses the average of the left and right edges of each
        slit, and the ``leftedge`` (``rightedge``) method uses the left (right)
        edge for both edges.  Only the spectral rows within the spectral extent
-       of the slit and where the edge is on the detector are used.  If an edge
-       cannot be refined (e.g., if no edge is detected, or if the slit is
-       excluded from the reduction), the ``detector`` value is adopted for that
-       edge.
+       of the slit and where the edge is on the detector are used (at most
+       1000 rows, evenly spaced; fewer rows can miss the brightest rows of
+       arc frames, which makes the refined edges less reliable).  An edge is
+       refined only if the model is a significant improvement over a
+       constant flux in each row (by more than 10 standard deviations), and
+       if the (formal) uncertainty of its position is less than 0.1 pixels.
+       The model describes continuum-illuminated edges (e.g., in flat-field
+       frames) well.  However, in frames whose slit edges are only
+       illuminated by emission lines (e.g., the sky lines of science frames),
+       the edges of individual slits can be shifted by a pixel or more (e.g.,
+       by objects or sky lines near the edges), while the formal uncertainty
+       remains small.  For such frames (in particular faint science frames),
+       the ``detector`` method is recommended: it is much more precise than
+       the refined edges, and its reliability can be checked with
+       ``spat_flexure_minfrac``.  Inserted edges are not refined: they are
+       assigned the spatial flexure of the other edge of their slit.  If an
+       edge cannot be refined (e.g., if no edge is detected, or if the slit is
+       excluded from the reduction), the ``detector`` value is adopted for
+       that edge.  If fewer than 25% of the traced slit edges can be refined,
+       the slit edges are deemed to be undetected (e.g., in a short exposure
+       of a standard star, where the sky
+       is too faint to show the slit edges, so that the peak of the
+       cross-correlation is spurious), and no spatial flexure is applied to
+       the frame, with a warning.  The exception is when at least 50% of the
+       traced slit-edge pixels are matched at the ``detector`` value (see
+       the previous step): the slit edges are then clearly visible, but too
+       faint to refine, and the ``detector`` value is adopted for all edges.
+
+    #. If the traced edges on the detector are all on one side of the slits
+       (e.g., a long slit cut by the detector boundary, where only one of its
+       edges is on the detector), the biases of the first step cannot cancel,
+       so the ``detector`` value can be wrong by up to about a pixel.  In this
+       case, *all* methods (including ``detector``) refine the traced edges (as
+       in the previous step), starting from the ``detector`` value, and each
+       slit is assigned the spatial flexure of its traced edge (traced edges
+       that cannot be refined are assigned the median of the refined edges),
+       with a warning.  If none of the traced edges can be refined, the
+       ``detector`` value is adopted if at least 50% of the traced slit-edge
+       pixels are matched at that value (as in the previous step); otherwise,
+       no spatial flexure is applied.  The result is
+       measured relative to the traced edges, so these should be refined to the
+       steepest flux gradient (``refine_edges = True``; see below); otherwise,
+       the result can be wrong by about a pixel.
+
+    #. Refined edges whose spatial flexure is inconsistent with that of the
+       other edges are rejected.  For the left and right edges separately, a
+       straight line is fit to the spatial flexure of the refined edges as a
+       function of their spatial position, with iterative rejection; an edge
+       is rejected if its difference from the fit is larger than 4 times the
+       (robust) scatter of the differences, or 0.25 pixels if that is larger
+       (provided that at least 5 edges were refined on that side).  The
+       spatial flexure of a rejected edge is interpolated from the
+       neighbouring edges on the same side, and a warning is printed.
 
     #. Optionally, the spatial flexure of the left and right slit edges can be
        fit with a polynomial as a function of the spatial position of the
        slits, with an order set by ``spat_flexure_polyord`` (this is only
        relevant for the ``slit``, ``edge``, ``leftedge`` and ``rightedge``
-       methods).  Only the edges that were refined are used in the fit, and
-       outliers are rejected.
+       methods).  Only the edges that were refined (and not rejected) are
+       used in the fit, and outliers are rejected.
 
 The spatial flexure is measured relative to the traced (initial) slit edges,
 without the padding of the slit edges set by the ``pad`` parameter of
-:ref:`edgetracepar`, and it is applied wherever the slit edges are used: to construct the slit
+:ref:`edgetracepar`.  The ``slit``, ``edge``, ``leftedge`` and ``rightedge``
+methods measure the position of the steepest flux gradient across each edge, so
+the traced slit edges should also be at the steepest flux gradient; otherwise,
+the frame used to trace the slits would itself have a non-zero spatial flexure.
+The slit edges are traced using a signal-to-noise weighted flux gradient, which
+places them a fraction of a pixel to about a pixel *outside* the steepest
+gradient.  Set ``refine_edges = True`` in :ref:`edgetracepar` to shift each
+traced edge to the steepest flux gradient (using the same model of the edge;
+the traced edge is kept if an edge cannot be refined).  This is the default for
+all ``SlicerIFU`` spectrographs and for Keck/LRIS long slits (whose slits
+leave only one edge on each detector; see above), and a warning is printed if
+the ``edge``, ``leftedge`` or ``rightedge`` method is used without it.  (The inward shifts of
+the two edges of a slit cancel for the ``slit`` method.)  The spatial flexure
+is applied wherever the slit edges are used: to construct the slit
 images, to evaluate the illumination flat, the wavelength tilts (which are
 evaluated at the same relative position along the slit in the frame used to
 determine the tilts), and the wavelength image, for sky subtraction and
@@ -196,6 +285,15 @@ This will:
 
     - Apply an offset to generate tilts and wavelengths for the associated
       science/standard images
+
+The tilts of a frame are evaluated at the spatial flexure of that frame
+relative to the tilt frame.  A frame whose spatial flexure is not determined
+(``spat_flexure_method = skip``, the default for standard frames) is assumed to
+have no spatial flexure relative to the traced slit edges, so its tilts are
+shifted by the spatial flexure of the tilt frame.  If such a frame was taken
+with the same spatial flexure as the tilt frame, also determine its spatial
+flexure (e.g., in the ``[[standardframe]]`` block), or provide it as a manual
+correction (see below).
 
 .. _flexure-spatial-manual:
 
