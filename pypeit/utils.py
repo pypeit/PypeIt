@@ -475,58 +475,6 @@ def to_string(data, use_repr=True, verbatim=False):
     return data.__repr__() if use_repr else str(data)
 
 
-def string_table(tbl, delimeter='print', has_header=True):
-    """
-    Provided the array of data, format it with equally spaced columns
-    and add a header (first row) and contents delimeter.
-
-    Args:
-        tbl (`numpy.ndarray`_):
-            Array of string representations of the data to print.
-        delimeter (:obj:`str`, optional):
-            If the first row in the table containts the column headers (see
-            ``has_header``), this sets the delimeter between first table row and
-            the column data. Use ``'print'`` for a simple line of hyphens,
-            anything else results in an ``rst`` style table formatting.
-        has_header (:obj:`bool`, optional):
-            The first row in ``tbl`` contains the column headers.
-
-    Returns:
-        :obj:`str`: Single long string with the data table.
-    """
-    nrows, ncols = tbl.shape
-    col_width = [np.amax([len(dij) for dij in dj]) for dj in tbl.T]
-
-    _nrows = nrows
-    start = 1
-    if delimeter != 'print':
-        _nrows += 2
-        start += 1
-    if has_header:
-        _nrows += 1
-        start += 1
-
-    row_string = [''] * _nrows
-
-    for i in range(start, nrows + start - 1):
-        row_string[i] = '  '.join([tbl[1 + i - start, j].ljust(col_width[j]) for j in range(ncols)])
-    if delimeter == 'print':
-        # Heading row
-        row_string[0] = '  '.join([tbl[0, j].ljust(col_width[j]) for j in range(ncols)])
-        # Delimiter
-        if has_header:
-            row_string[1] = '-' * len(row_string[0])
-        return '\n'.join(row_string) + '\n'
-
-    # For an rst table
-    row_string[0] = '  '.join(['=' * col_width[j] for j in range(ncols)])
-    row_string[1] = '  '.join([tbl[0, j].ljust(col_width[j]) for j in range(ncols)])
-    if has_header:
-        row_string[2] = row_string[0]
-    row_string[-1] = row_string[0]
-    return '\n'.join(row_string) + '\n'
-
-
 def spec_atleast_2d(wave, flux, ivar, gpm, log10_blaze_function=None, copy=False):
     """
     Force spectral arrays to be 2D.
@@ -2354,3 +2302,34 @@ def eval_list(inp:list[str]) -> list[list]:
         A list of lists with the converted elements.
     """
     return _eval_iter(inp, '[', ']', list)
+
+
+def init_arg_values():
+    """
+    Return the argument names and values of the calling function.
+
+    This replaces the ``inspect.getargvalues(inspect.currentframe())`` idiom
+    used by many ``__init__`` methods to collect their arguments.  Since Python
+    3.13 (`PEP 667`_), a frame's ``f_locals`` is a proxy that holds a reference
+    back to the frame.  Assigning that proxy to a local variable of the same
+    frame creates a reference cycle (frame -> proxy -> frame), so ``self`` and
+    every argument (often large arrays) survive until the cyclic garbage
+    collector happens to run.  Here, the proxy only lives in *this* function's
+    frame and only a plain :obj:`dict` is returned, so no cycle is formed.
+
+    .. _PEP 667: https://peps.python.org/pep-0667/
+
+    Returns
+    -------
+    args : :obj:`list`
+        The names of the calling function's positional-or-keyword arguments,
+        in order, including ``self`` for a method.
+    values : :obj:`dict`
+        The values of those arguments, keyed by name.
+    """
+    frame = inspect.currentframe().f_back
+    try:
+        args, _, _, values = inspect.getargvalues(frame)
+        return args, {k: values[k] for k in args}
+    finally:
+        del frame

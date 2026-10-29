@@ -14,6 +14,7 @@ from pypeit.core import findobj_skymask
 from pypeit import datamodel
 from pypeit import calibframe
 from pypeit import log
+from pypeit import utils
 from pypeit import PypeItError
 
 
@@ -49,7 +50,7 @@ class Alignments(calibframe.CalibFrame):
     def __init__(self, alignframe=None, nspec=None, nalign=None, nslits=None,
                  traces=None, PYP_SPEC=None, spat_id=None):
         # Parse
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)

@@ -5,7 +5,6 @@ Implements the objects used to hold slit edge data.
 .. include:: ../include/links.rst
 
 """
-import inspect
 
 from IPython import embed
 
@@ -19,6 +18,7 @@ from astropy.io import fits
 
 from pypeit import PypeItBitMaskError
 from pypeit import log
+from pypeit import utils
 from pypeit import PypeItError
 from pypeit import datamodel
 from pypeit import calibframe
@@ -190,7 +190,7 @@ class SlitTraceSet(calibframe.CalibFrame):
                  right_tweak=None, center=None, mask=None):
 
         # Instantiate the DataContainer
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         _d = dict([(k,values[k]) for k in args[1:]])
         # The dictionary passed to DataContainer.__init__ does not
         # contain self.

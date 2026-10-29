@@ -37,6 +37,11 @@ def pca_decomposition(vectors, npca=None, pca_explained_var=99.0, mean=None):
         length of the spectral axis. This means that, within PypeIt,
         arrays are typically transposed when passed to this function.
 
+        Both decompositions use the exact (``'full'``) SVD solver.  For
+        the array shapes typical in PypeIt, sklearn's default (``'auto'``)
+        would select its randomized solver, which is not seeded and makes
+        the results differ from run to run.
+
     Args:
         vectors (`numpy.ndarray`_):
             A 2D array with vectors to analyze with shape
@@ -88,8 +93,11 @@ def pca_decomposition(vectors, npca=None, pca_explained_var=99.0, mean=None):
         mean = np.mean(vectors, axis=1)
     vec_pca = vectors - mean[:,None]
 
-    # Perform unconstrained PCA of the vectors
-    pca = PCA()
+    # Perform unconstrained PCA of the vectors.  NOTE: The exact ('full') SVD
+    # solver is used here and below for reproducibility; for the array shapes
+    # typical in PypeIt, svd_solver='auto' selects sklearn's unseeded
+    # randomized solver (see PypeIt Issue #2208).
+    pca = PCA(svd_solver='full')
     pca.fit(vec_pca)
 
     # Compute the cumulative distribution of the variance explained by the PCA components.
@@ -117,7 +125,7 @@ def pca_decomposition(vectors, npca=None, pca_explained_var=99.0, mean=None):
 
     # Determine the PCA coefficients with the revised number of
     # components, and return the results
-    pca = PCA(n_components=npca)
+    pca = PCA(n_components=npca, svd_solver='full')
     pca_coeffs = pca.fit_transform(vec_pca)
     return pca_coeffs, pca.components_, pca.mean_, mean
 

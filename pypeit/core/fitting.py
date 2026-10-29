@@ -7,13 +7,13 @@
 # TODO -- Consider moving the Object out of core
 
 import numpy as np
-import inspect
 from matplotlib import pyplot as plt
 
 
 from scipy.optimize import curve_fit
 
 from pypeit import log
+from pypeit import utils
 from pypeit import PypeItError
 from pypeit.core import bspline
 from pypeit.core import pydl
@@ -253,7 +253,7 @@ class PypeItFit(DataContainer):
                  fitcov=None, func=None, minx=None, maxx=None, minx2=None,
                  maxx2=None, gpm=None, success=None):
         # Setup the DataContainer
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         _d = {k: values[k] for k in args[1:]}
         # Init
         super(PypeItFit, self).__init__(d=_d)
@@ -423,6 +423,86 @@ class PypeItFit(DataContainer):
         return np.sqrt(np.sum(weights * (yval - values) ** 2))
 
 
+DEFAULT_POLYFIT2D_CHUNK = 2**15
+"""
+Default value of :data:`POLYFIT2D_CHUNK`, and of the ``[rdx] fit2d_chunk``
+parameter.
+"""
+
+POLYFIT2D_CHUNK = DEFAULT_POLYFIT2D_CHUNK
+"""
+Maximum number of data points for which :func:`polyfit2d_general` builds the
+full design matrix; larger fits are solved in chunks of this many points by
+:func:`_chunked_lstsq2d`.  Also the chunk size used by :func:`_chunked_val2d`.
+:class:`~pypeit.pypeit.PypeIt` sets it from the ``[rdx] fit2d_chunk`` parameter
+using :func:`set_polyfit2d_chunk`; code that calls these functions outside of
+:class:`~pypeit.pypeit.PypeIt` uses :data:`DEFAULT_POLYFIT2D_CHUNK`.
+"""
+
+
+def set_polyfit2d_chunk(chunk):
+    """
+    Set the number of data points processed at a time by 2D polynomial fits
+    and evaluations.
+
+    This sets :data:`POLYFIT2D_CHUNK` for the whole process; see the
+    ``[rdx] fit2d_chunk`` parameter.  The fit results do not depend on it
+    beyond round-off; only the peak memory and speed do.
+
+    Args:
+        chunk (:obj:`int`):
+            Number of data points.  Must be positive.
+    """
+    global POLYFIT2D_CHUNK
+    if int(chunk) < 1:
+        raise PypeItError(f'2D fit chunk size must be a positive integer, not {chunk}.')
+    POLYFIT2D_CHUNK = int(chunk)
+
+
+def _chunked_val2d(val2d, x, y, c, chunk=None):
+    """
+    Evaluate a 2D polynomial series in chunks of points.
+
+    numpy's 2D evaluation functions (e.g.,
+    :func:`numpy.polynomial.legendre.legval2d`) evaluate one dimension at a
+    time, holding several temporary arrays with one row per coefficient in
+    the second dimension and one column per point.  For millions of points
+    these are GBs.  Every point is evaluated independently, so evaluating
+    ``chunk`` points at a time gives identical results with temporaries that
+    are only ``chunk`` points long.
+
+    Args:
+        val2d (callable):
+            2D evaluation function, e.g.,
+            :func:`numpy.polynomial.legendre.legval2d`.
+        x, y (`numpy.ndarray`_):
+            Coordinates at which to evaluate the series; broadcast against
+            each other.
+        c (`numpy.ndarray`_):
+            2D array of series coefficients.
+        chunk (:obj:`int`, optional):
+            Number of points to evaluate at a time.  If None, use
+            :data:`POLYFIT2D_CHUNK`.
+
+    Returns:
+        `numpy.ndarray`_: The series evaluated at ``(x, y)``.
+    """
+    _chunk = POLYFIT2D_CHUNK if chunk is None else chunk
+    x, y = np.broadcast_arrays(np.asarray(x), np.asarray(y))
+    if x.size <= _chunk:
+        return val2d(x, y, c)
+    xr, yr = x.ravel(), y.ravel()
+    # Take the output type from the first chunk, so that it matches the type
+    # returned by a single call to val2d (e.g., float32 for float32 input)
+    first = val2d(xr[:_chunk], yr[:_chunk], c)
+    out = np.empty(xr.size, dtype=first.dtype)
+    out[:_chunk] = first
+    for start in range(_chunk, xr.size, _chunk):
+        sl = slice(start, start + _chunk)
+        out[sl] = val2d(xr[sl], yr[sl], c)
+    return out.reshape(x.shape)
+
+
 def evaluate_fit(fitc, func, x, x2=None, minx=None,
                  maxx=None, minx2=None, maxx2=None):
     """
@@ -456,14 +536,14 @@ def evaluate_fit(fitc, func, x, x2=None, minx=None,
     if ('2d' in func) and (x2 is not None):
         # Is this a 2d fit?
         if func[:-2] == "polynomial":
-            return np.polynomial.polynomial.polyval2d(x, x2, fitc)
+            return _chunked_val2d(np.polynomial.polynomial.polyval2d, x, x2, fitc)
         elif func[:-2] in ["legendre", "chebyshev"]:
             # Scale x-direction
             xv, _, _ = scale_minmax(x, minx=minx, maxx=maxx)
             # Scale x2-direction
             x2v, _, _ = scale_minmax(x2, minx=minx2, maxx=maxx2)
-            return (np.polynomial.legendre.legval2d(xv, x2v, fitc) if func[:-2] == "legendre"
-                    else np.polynomial.chebyshev.chebval2d(xv, x2v, fitc))
+            return _chunked_val2d(np.polynomial.legendre.legval2d if func[:-2] == "legendre"
+                                  else np.polynomial.chebyshev.chebval2d, xv, x2v, fitc)
         else:
             raise PypeItError("Function {0:s} has not yet been implemented for 2d fits".format(func))
         # TODO: Why is this return here?  The code will never reach this point
@@ -605,6 +685,14 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
         else:
             weights = np.ones(xarray.size, dtype=float)
 
+    # Convert the inputs to float once.  The PypeItFit objects below all share
+    # these copies (PypeItFit never modifies its inputs), rather than each
+    # making its own on every iteration.
+    _xarray = np.array(xarray, dtype=float)
+    _yarray = np.array(yarray, dtype=float)
+    _x2 = None if x2 is None else np.array(x2, dtype=float)
+    _weights = np.array(weights, dtype=float)
+
     # Iterate, and mask out new values on each iteration
     iIter = 0
     qdone = False
@@ -616,10 +704,10 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
             log.warning("More parameters than data points - fit might be undesirable")
         if not np.any(this_gpm):
             log.warning("All points were masked. Returning current fit and masking all points. Fit is likely undesirable")
-        pypeitFit = PypeItFit(xval=xarray.astype(float), yval=yarray.astype(float),
+        pypeitFit = PypeItFit(xval=_xarray, yval=_yarray,
                               func=function, order=np.atleast_1d(order),
-                              x2=x2.astype(float) if x2 is not None else x2,
-                              weights=weights.astype(float), gpm=this_gpm.astype(int),
+                              x2=_x2,
+                              weights=_weights, gpm=this_gpm.astype(int),
                               minx=float(minx) if minx is not None else minx,
                               maxx=float(maxx) if maxx is not None else maxx,
                               minx2=float(minx2) if minx2 is not None else minx2,
@@ -637,10 +725,10 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
         log.warning(f'Maximum number of iterations maxiter={maxiter} reached in robust_polyfit_djs')
 
     # Do the final fit
-    pypeitFit = PypeItFit(xval=xarray.astype(float), yval=yarray.astype(float),
+    pypeitFit = PypeItFit(xval=_xarray, yval=_yarray,
                           func=function, order=np.atleast_1d(order),
-                          x2=x2.astype(float) if x2 is not None else x2,
-                          weights=weights.astype(float), gpm=this_gpm.astype(int),
+                          x2=_x2,
+                          weights=_weights, gpm=this_gpm.astype(int),
                           minx=float(minx) if minx is not None else minx,
                           maxx=float(maxx) if maxx is not None else maxx,
                           minx2=float(minx2) if minx2 is not None else minx2,
@@ -1011,12 +1099,13 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
     deg = np.asarray(deg)
     # Vander
     if function == 'polynomial':
-        vander = np.polynomial.polynomial.polyvander2d(x, y, deg)
+        xv, yv = x, y
+        vander2d = np.polynomial.polynomial.polyvander2d
     elif function == 'legendre' or function == 'chebyshev':
         xv, minx, maxx = scale_minmax(x, minx=minx, maxx=maxx)
         yv, miny, maxy = scale_minmax(y, minx=miny, maxx=maxy)
-        vander = np.polynomial.legendre.legvander2d(xv, yv, deg) if function == 'legendre' \
-            else np.polynomial.chebyshev.chebvander2d(xv, yv, deg)
+        vander2d = np.polynomial.legendre.legvander2d if function == 'legendre' \
+            else np.polynomial.chebyshev.chebvander2d
     else:
         raise PypeItError("Not ready for this type of {:s}".format(function))
     # Weights
@@ -1026,13 +1115,81 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
             log.debug("fitting.polyfit2d - Expected 1D vector for weights")
         if len(x) != len(w) or len(y) != len(w) or len(x) != len(y):
             log.debug("fitting.polyfit2d - Expected x, y and weights to have same length")
-        z = z * w
-        vander = vander * w[:,np.newaxis]
-    # Reshape
-    vander = vander.reshape((-1,vander.shape[-1]))
-    z = z.reshape((vander.shape[0],))
-    c = np.linalg.lstsq(vander, z, rcond=None)[0]
+
+    if xv.size <= POLYFIT2D_CHUNK:
+        # Small enough to build the full design matrix
+        vander = vander2d(xv, yv, deg)
+        if w is not None:
+            z = z * w
+            vander = vander * w[:,np.newaxis]
+        # Reshape
+        vander = vander.reshape((-1,vander.shape[-1]))
+        z = z.reshape((vander.shape[0],))
+        c = np.linalg.lstsq(vander, z, rcond=None)[0]
+    else:
+        c = _chunked_lstsq2d(vander2d, xv.ravel(), yv.ravel(), z.ravel(), deg,
+                             w=None if w is None else w.ravel())
     return c.reshape(deg+1), minx, maxx, miny, maxy
+
+
+def _chunked_lstsq2d(vander2d, x, y, z, deg, w=None, chunk=None):
+    """
+    Solve a weighted 2D linear least-squares fit without forming the full
+    design matrix.
+
+    The full design matrix has one row per data point and one column per
+    coefficient, which for a fit over a whole detector (millions of points) is
+    several GB, and :func:`numpy.linalg.lstsq` makes another copy of it.  Here
+    the rows are processed in chunks with a sequential ("tall-skinny") QR
+    decomposition: each chunk is stacked under the triangular factor of the
+    previous ones and re-factored, so only an ``ncoeff x ncoeff`` triangular
+    matrix, its projected right-hand side, and one chunk are ever held in
+    memory.  Because the design matrix and its triangular factor have the same
+    null space, solving the final small system with
+    :func:`numpy.linalg.lstsq` gives the same (minimum-norm) least-squares
+    solution as solving the full system, to within round-off.
+
+    Args:
+        vander2d (callable):
+            2D pseudo-Vandermonde function, e.g.
+            :func:`numpy.polynomial.legendre.legvander2d`.
+        x, y (`numpy.ndarray`_):
+            1D arrays with the (already scaled) coordinates of the data.
+        z (`numpy.ndarray`_):
+            1D array with the data values.
+        deg (`numpy.ndarray`_):
+            Degree of the fit in each dimension, ``[nx, ny]``.
+        w (`numpy.ndarray`_, optional):
+            1D array of weights.  As in :func:`polyfit2d_general`, both the
+            design matrix and the data are multiplied by ``w`` (not its
+            square root).
+        chunk (:obj:`int`, optional):
+            Number of data points to process at a time.  If None, use
+            :data:`POLYFIT2D_CHUNK`.
+
+    Returns:
+        `numpy.ndarray`_: The flattened fit coefficients.
+    """
+    chunk = POLYFIT2D_CHUNK if chunk is None else chunk
+    ncoeff = int(np.prod(np.asarray(deg) + 1))
+    # Factor the design matrix augmented by the data as its last column.  The
+    # first ncoeff rows of the last column of the triangular factor are then
+    # Q^T z, so the orthogonal factor Q itself never has to be formed.
+    r = np.zeros((0, ncoeff+1), dtype=float)
+    for start in range(0, x.size, chunk):
+        sl = slice(start, start + chunk)
+        aug = np.empty((min(chunk, x.size - start), ncoeff+1), dtype=float)
+        aug[:,:-1] = vander2d(x[sl], y[sl], deg)
+        aug[:,-1] = z[sl]
+        if w is not None:
+            aug *= w[sl,np.newaxis]
+        r = np.linalg.qr(np.concatenate((r, aug)), mode='r')
+    # The triangular factor has the same singular values as the full design
+    # matrix, so use the singular-value cutoff that numpy.linalg.lstsq would
+    # have applied to the full matrix (rcond=None means eps*max(M,N)).  This
+    # matters for poorly conditioned fits, e.g. unscaled 'polynomial' bases.
+    rcond = np.finfo(float).eps * max(x.size, ncoeff)
+    return np.linalg.lstsq(r[:ncoeff,:ncoeff], r[:ncoeff,-1], rcond=rcond)[0]
 
 
 def twoD_Gaussian(tup, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
