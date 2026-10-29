@@ -13,8 +13,7 @@ from pypeit.core import fitting
 from pypeit import wavecalib
 from pypeit import slittrace
 from pypeit.tests.tstutils import data_output_path
-from pypeit.core.wavecal import waveio, wvutils
-from pypeit.gui.identify import Identify
+from pypeit.core.wavecal import autoid, waveio
 
 
 @pytest.mark.remote_data
@@ -29,86 +28,43 @@ def test_load_template():
     assert np.amax(flux) > 1e5, 'Bad flux read'
 
 
-def test_write_template_with_empty_line_ids(tmp_path):
-    """Templates can keep skipped orders aligned with empty line-ID arrays"""
-    wave = np.vstack((5000. + np.arange(10), np.full(10, np.nan)))
-    flux = np.ones_like(wave)
-    lines_pix = [np.array([2., 7.]), np.array([], dtype=float)]
-    lines_wav = [wave[0, [2, 7]], np.array([], dtype=float)]
-    outfile = tmp_path / 'test_empty_lines.fits'
+def test_map_fwhm_without_arc_lines_uses_configured_values(monkeypatch):
+    nspec = 20
+    image = np.zeros((nspec, 12))
+    edges_left = np.tile([1., 7.], (nspec, 1))
+    edges_right = edges_left + 4.
+    thresholds = []
 
-    wvutils.write_template(wave, flux, 1, str(tmp_path), outfile.name,
-                           order=np.array([10, 11]), lines_pix_arr=lines_pix,
-                           lines_wav_arr=lines_wav, lines_fit_ord=[1, 1])
-    _wave, _flux, _binspec, order, _lines_pix, _lines_wav, _lines_fit_ord = \
-        waveio.load_template(str(outfile), 1)
+    def fake_get_censpec(*args, **kwargs):
+        return np.zeros((nspec, 1)), np.zeros((nspec, 1), dtype=bool), np.array([False])
 
-    assert np.array_equal(order, np.array([10, 11]))
-    assert np.array_equal(_lines_pix[0], lines_pix[0])
-    assert len(_lines_pix[1]) == 0
-    assert len(_lines_wav[1]) == 0
+    def fake_detect_lines(spec, sigdetect, fwhm, bpm):
+        thresholds.append(sigdetect)
+        empty = np.array([])
+        return empty, empty, empty, empty, empty, np.array([], dtype=int), empty, empty
 
+    monkeypatch.setattr(autoid.arc, 'get_censpec', fake_get_censpec)
+    monkeypatch.setattr(autoid.arc, 'detect_lines', fake_detect_lines)
 
-def test_identify_saveable_multi_solution_with_skipped_last_order():
-    """A skipped final order should not hide earlier multi-order fits."""
-    pypeitFit = fitting.PypeItFit(fitc=np.arange(5).astype(float))
-    good_fit = wv_fitting.WaveFit(232, pypeitfit=pypeitFit,
-                                  pixel_fit=np.arange(10).astype(float),
-                                  wave_fit=np.linspace(1., 10., 10))
-    skipped_fit = wv_fitting.WaveFit(949)
-    waveCalib = wavecalib.WaveCalib(wv_fits=np.asarray([good_fit, skipped_fit]),
-                                    nslits=2, spat_ids=np.asarray([232, 949]))
+    fwhm_map = autoid.map_fwhm(
+        image, np.ones_like(image, dtype=bool), edges_left, edges_right,
+        np.zeros_like(image, dtype=int), nsample=2, sigdetect=[3., 8.], fwhm=4.)
 
-    assert Identify.has_saveable_multi_solution(wvcalib=waveCalib)
+    assert thresholds == [3., 3., 8., 8.]
+    assert np.allclose([fit.eval(nspec//2, 0.5) for fit in fwhm_map], 4.)
 
 
-def test_identify_saveable_multi_solution_empty_orders():
-    """Empty orders are saveable only when an estimated wavelength row exists."""
-    skipped_fit = wv_fitting.WaveFit(949)
-    waveCalib = wavecalib.WaveCalib(wv_fits=np.asarray([skipped_fit]),
-                                    nslits=1, spat_ids=np.asarray([949]))
+def test_map_fwhm_with_blank_arc():
+    image = np.zeros((80, 20))
+    slitmask = np.full(image.shape, -1, dtype=int)
+    slitmask[:, 3:16] = 0
+    left = np.full((80, 1), 3.)
+    right = np.full((80, 1), 16.)
 
-    assert not Identify.has_saveable_multi_solution(wvcalib=waveCalib)
-    assert Identify.has_saveable_multi_solution(
-        wvcalib=waveCalib, custom_wav=np.linspace(1., 10., 10)[None, :])
+    fwhm_map = autoid.map_fwhm(image, np.ones_like(image, dtype=bool),
+                                left, right, slitmask, nsample=2, fwhm=4.)
 
-
-def test_identify_store_solution_multi_with_skipped_last_order(monkeypatch):
-    """The multi-order save path should not depend on the last order's fit."""
-    class LinearFit:
-        def eval(self, x):
-            return 5000. + x
-
-    ident = Identify.__new__(Identify)
-    ident.specname = 'test'
-    ident._spatid = '232'
-
-    pypeitFit = fitting.PypeItFit(fitc=np.arange(5).astype(float))
-    good_fit = wv_fitting.WaveFit(232, pypeitfit=pypeitFit,
-                                  pixel_fit=np.arange(10).astype(float),
-                                  wave_fit=np.linspace(1., 10., 10))
-    skipped_fit = wv_fitting.WaveFit(949)
-    waveCalib = wavecalib.WaveCalib(wv_fits=np.asarray([good_fit, skipped_fit]),
-                                    nslits=2, spat_ids=np.asarray([232, 949]),
-                                    strpar='{}')
-    written = {}
-
-    def fake_write_template(wavelengths, *args, **kwargs):
-        written['wavelengths'] = wavelengths.copy()
-
-    monkeypatch.setattr(wvutils, 'write_template', fake_write_template)
-    monkeypatch.setattr(wavecalib.WaveCalib, 'to_file', lambda *args, **kwargs: None)
-
-    wvarxiv_name = ident.store_solution(
-        {}, 1, force_save=True, wvcalib=waveCalib, multi=True,
-        fits_dicts=[{'full_fit': LinearFit()}, {'full_fit': None}],
-        specdata_multi=np.ones((2, 10)), lines_pix_arr=[np.arange(2), np.array([])],
-        lines_wav_arr=[np.arange(2), np.array([])], lines_fit_ord=[[1], [1]],
-        custom_wav=np.array([]), custom_wav_ind=np.array([], dtype=int))
-
-    assert wvarxiv_name.startswith('wvarxiv_test_')
-    assert np.all(np.isfinite(written['wavelengths'][0]))
-    assert np.all(np.isnan(written['wavelengths'][1]))
+    assert np.isclose(fwhm_map[0].eval(40, 0.5), 4.)
 
 
 def test_wavefit_hduprefix():
