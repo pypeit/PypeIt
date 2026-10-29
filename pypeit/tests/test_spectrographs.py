@@ -7,6 +7,7 @@ import pathlib
 
 import numpy as np
 import pytest
+import astropy.io.fits
 import astropy.table
 
 from pypeit import dataPaths
@@ -274,6 +275,57 @@ def test_apf_levy_final_config_frametypes():
         "Wideflat frame should NOT be changed when decker is not 3.0"
     assert table2['frametype'][1] == 'trace', \
         "Narrowflat frame should remain unchanged"
+
+
+def test_keck_lris_blue_orig_rawimage(tmp_path):
+    """
+    `get_rawimage` must return the data and the detector parameters of the
+    requested detector.  Until this test was added, it attached the parameters
+    of the other detector (`get_detector_par(det-1)`).
+    """
+    # Minimal raw frame in the original format: 4 amplifiers, with detector 1
+    # read by amplifiers 1-2 and detector 2 by amplifiers 3-4
+    nrows, namps, prepix, postpix = 16, 4, 12, 80
+    ncols = namps * (prepix + 1024 + postpix)
+    raw = np.zeros((nrows, ncols), dtype=np.float32)
+    # Set each data column to the number of the amplifier that reads it
+    datastart = namps * prepix
+    for iamp in range(namps):
+        raw[:, datastart + iamp*1024:datastart + (iamp+1)*1024] = iamp + 1
+    hdr = astropy.io.fits.Header()
+    hdr['NUMAMPS'] = namps
+    hdr['PREPIX'] = prepix
+    hdr['POSTPIX'] = postpix
+    hdr['BINNING'] = '1,1'
+    hdr['ELAPTIME'] = 100.
+    raw_file = tmp_path / 'lris_blue_orig.fits'
+    astropy.io.fits.PrimaryHDU(data=raw, header=hdr).writeto(raw_file)
+
+    spec = load_spectrograph('keck_lris_blue_orig')
+    gains = []
+    for det in [1, 2]:
+        detpar, image, hdul, exptime, rawdatasec_img, oscansec_img \
+                = spec.get_rawimage(str(raw_file), det)
+        expected = spec.get_detector_par(det, hdu=hdul)
+        hdul.close()
+
+        # Detector parameters
+        assert detpar.det == det, f'det = {det} returned the parameters of detector {detpar.det}'
+        assert detpar.name == f'DET{det:02d}'
+        assert np.array_equal(detpar.gain, expected.gain)
+        assert np.array_equal(detpar.ronoise, expected.ronoise)
+        gains += [detpar.gain]
+
+        # Data: amplifiers 1-2 (det 1) or 3-4 (det 2), numbered 1-2
+        assert exptime == 100.
+        assert np.array_equal(np.unique(rawdatasec_img), [0, 1, 2])
+        assert np.array_equal(np.unique(oscansec_img), [0, 1, 2])
+        for amp in [1, 2]:
+            assert np.sum(rawdatasec_img == amp) == nrows * 1024
+            assert np.all(image[rawdatasec_img == amp] == amp + 2*(det-1))
+
+    # The two detectors have different gains
+    assert not np.array_equal(gains[0], gains[1])
 
 
 def test_ifu_get_datacube_bins_wavelength_axis_first():
