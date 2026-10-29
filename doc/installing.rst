@@ -545,17 +545,60 @@ for more details.
 ginga Plugins
 -------------
 
-PypeIt requires the ``ginga`` viewer and uses at least one ``ginga`` plugin
+PypeIt requires the ``ginga`` viewer and uses a few ``ginga`` plugins
 to enable specific display functionality. No special considerations are needed
 to have these plugins installed; however, you can check that they're enabled by
 running the following script with the following result::
 
     $ pypeit_chk_plugins
-    [INFO]    :: All required plugins found: SlitWavelength, Spec1dView
+    [INFO]    :: All required plugins found: Spec1dView, Spec2dView
 
 If the check is unsuccessful, you will see an error message listing
 the missing plugins. If you have a problem, please `submit an issue
 <https://github.com/pypeit/PypeIt/issues>`__.
+
+.. _pypeit_ginga_viewer:
+
+The PypeIt ginga viewer
+-----------------------
+
+You do *not* need to start ``ginga`` yourself.  PypeIt scripts that display
+images (e.g., :ref:`pypeit_show_2dspec`, ``pypeit_view_fits``, the
+``pypeit_chk_*`` scripts), and the ``--show`` and debugging options of
+``run_pypeit``, open a ``ginga`` window that runs inside the PypeIt process.
+The images and overlays are passed to ``ginga`` directly, which is much faster
+than the remote connection used by previous versions of PypeIt.
+
+Displays pause the code that opens them:
+
+    - Scripts that only display data (e.g., :ref:`pypeit_show_2dspec`) exit
+      when you close the window.
+
+    - During a reduction (e.g., ``run_pypeit --show``), the reduction waits
+      until you close the window; the next display opens it again, with the
+      same tabs.
+
+The window title says what closing the window does (e.g., "PypeIt: close the
+window to continue").
+
+Displays do *not* wait for the window to be closed when nobody can close it:
+when Qt runs without a display (e.g., with ``QT_QPA_PLATFORM=offscreen``, as
+used for headless test runs), when running under ``pytest``, or when the
+``PYPEIT_VIEWER_NOWAIT`` environment variable is set to ``1``.  This allows
+automated runs (e.g., on remote or cloud machines) to proceed without user
+interaction.
+
+The viewer keeps its ``ginga`` preferences (window layout, etc.) separate from
+those of a standalone ``ginga`` session.  They are saved in the ``ginga``
+directory of PypeIt's configuration directory (e.g.,
+``~/.config/pypeit/ginga``), or in the directory set by the
+``PYPEIT_GINGA_HOME`` environment variable.
+
+The windows opened by :ref:`pypeit_show_2dspec` and ``pypeit_view_fits`` accept
+files sent by other calls to these scripts using their ``--no_clear`` option.
+The file name and options are sent through a local network port (9919 by
+default; set the ``PYPEIT_GINGA_PORT`` environment variable to change it);
+only connections from your own computer are accepted.
 
 ----
 

@@ -176,8 +176,8 @@ pypeit_show_pixflat = "pypeit.scripts.show_pixflat:ShowPixFlat.entry_point"
 
 [project.entry-points."ginga.rv.plugins"]
 
-SlitWavelength = "pypeit.display:setup_SlitWavelength"
 Spec1dView = "pypeit.display:setup_Spec1dView"
+Spec2dView = "pypeit.display:setup_Spec2dView"
 
 [project.entry-points."ginga_modes"]
 

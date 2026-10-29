@@ -7,7 +7,7 @@ import numpy
 
 from ginga.misc.Bunch import Bunch
 
-required_plugins = ['SlitWavelength', 'Spec1dView']
+required_plugins = ['Spec1dView', 'Spec2dView']
 
 def plugins_available(return_report=False):
     available_plugins = []
@@ -25,14 +25,29 @@ def plugins_available(return_report=False):
                    f'Missing plugins: {numpy.asarray(required_plugins)[numpy.logical_not(indx)]}',)
     return result
 
-def setup_SlitWavelength():
-    return Bunch(path=os.path.join(os.path.split(__file__)[0], 'slitwavelength.py'),
-                 module='slitwavelength', klass='SlitWavelength',
-                 ptype='global', workspace='right', start=False,
-                 category='PypeIt', menu='SlitWavelength', tab='SlitWavelength')
+def pypeit_plugin_specs():
+    """
+    Return the specifications of all PypeIt ginga plugins.
+
+    These are added directly to the in-process viewer (see
+    :mod:`pypeit.display.viewer`), so the viewer does not depend on the
+    entry points registered when PypeIt is installed.
+
+    Returns
+    -------
+    :obj:`list`
+        List of ``ginga.misc.Bunch.Bunch`` plugin specifications.
+    """
+    return [setup_Spec1dView(), setup_Spec2dView()]
 
 def setup_Spec1dView():
     return Bunch(path=os.path.join(os.path.split(__file__)[0], 'spec1dview.py'),
-                 module='spec1dview', klass='Spec1dView',
+                 name='Spec1dView', module='spec1dview', klass='Spec1dView',
                  ptype='local', workspace='right', start=False,
                  category='PypeIt', menu='Spec1dView', tab='Spec1dView')
+
+def setup_Spec2dView():
+    return Bunch(path=os.path.join(os.path.split(__file__)[0], 'spec2dview.py'),
+                 name='Spec2dView', module='spec2dview', klass='Spec2dView',
+                 ptype='global', workspace='right', start=False,
+                 category='PypeIt', menu='Spec2dView', tab='Spec2dView')

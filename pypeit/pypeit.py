@@ -45,9 +45,8 @@ class PypeIt:
         reuse_calibs (:obj:`bool`, optional):
             Reuse any pre-existing calibration files
         show: (:obj:`bool`, optional):
-            Show reduction steps via plots (which will block further
-            execution until clicked on) and outputs to ginga. Requires
-            remote control ginga session via ``ginga --modules=RC,SlitWavelength &``
+            Show reduction steps via plots and PypeIt's ginga viewer.
+            Execution is blocked until the plot or viewer window is closed.
         redux_path (:obj:`str`, optional):
             Over-ride reduction path in PypeIt file (e.g. Notebook usage)
         calib_only: (:obj:`bool`, optional):
@@ -337,10 +336,8 @@ def reduce_calibID(spectrograph, par, fitstbl, calib_ID:str,
         overwrite (:obj:`bool`, optional):
             Overwrite any existing files.
         show (:obj:`bool`, optional):
-            Show reduction steps via plots (which will block further
-            execution until clicked on) and outputs to ginga. Requires
-            remote control ginga session via
-            ``ginga --modules=RC,SlitWavelength &``
+            Show reduction steps via plots and PypeIt's ginga viewer.
+            Execution is blocked until the plot or viewer window is closed.
         run_state (:class:`~pypeit.state.run_state.RunPypeItState`, optional):
             The current state of the reduction.
         reuse_calibs (:obj:`bool`, optional):

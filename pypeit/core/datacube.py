@@ -901,6 +901,7 @@ def fitGaussian2D(image, ivar=None, gpm=None, init_obj_position=None,
         if sources is None:
             display.show_image((objfind_image*np.logical_not(totmask)*np.sqrt(ivar_objfind)),
                             chname='S/N objfind_image', cuts=(-2.0, 5.0))
+            display.show(message='no sources found; close the window to continue')
             raise PypeItError(
                 "No sources found in the image. Try lowering the significance threshold, "
                 f"nsigma = {nsigma:.1f} or adjust the DAOStarFinder parameters."
@@ -1446,6 +1447,7 @@ def extract_point_source(
         extract_chname = 'opt_prof_method:' + opt_prof_method
         viewer, ch_model = display.show_image(optkern_masked, chname=extract_chname, wcs_match=True,
                                                 cuts=(0.0, np.max(optkern_masked)))
+        display.show()
 
     # Return the specobjs object and the spec2d object
     return sobjs, spec2d, wl_img, wl_ivar, wl_gpm
@@ -2594,6 +2596,7 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
         whitelight_objfind_qa(whitelight_img, utils.inverse(np.square(whitelight_sigma)), 
                                 np.logical_not(whitelight_bpm), model, gaussian_position, 
                                 init_obj_position, channel_prefix = f'Weights_')
+        display.show()
     
     log.info(
         f"Highest S/N object located at spaxel (x, y) = {gaussian_position[0]:.2f}, "

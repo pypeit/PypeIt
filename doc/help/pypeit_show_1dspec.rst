@@ -9,8 +9,10 @@
     Show a 1D spectrum
     
     positional arguments:
-      file                  PypeIt spec1d file (this script does not work with
-                            coadd_1dspec output spectra).
+      file                  PypeIt spec1d file, or a file with a single spectrum
+                            (OneSpec), e.g. from pypeit_coadd_1dspec. For OneSpec
+                            files, the extension, object, and extraction options are
+                            ignored.
     
     options:
       -h, --help            show this help message and exit
