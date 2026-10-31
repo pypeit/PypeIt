@@ -1181,10 +1181,10 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
 
     # Pointing-separation tolerance (arcsec) below which two science/standard
     # frames are treated as the same pointing and coadded onto a shared
-    # comb_id (see get_comb_group).  The ra/dec metadata come from the catalog
-    # CATRA/CATDEC, so repeated visits to one position are byte-identical and a
-    # tight tolerance cleanly separates even sub-fiber sampling dithers into
-    # their own group.
+    # comb_id (see get_comb_group).  Binospec writes the commanded rotator-axis
+    # RA/DEC, so repeated visits to one position are byte-identical and a tight
+    # tolerance cleanly separates even sub-fiber sampling dithers into their
+    # own group.
     comb_pointing_tol = 0.1
 
     def configuration_keys(self):
@@ -1215,6 +1215,10 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         # comb_id in the pypeit file.
         self.meta['dithoff'] = dict(ext=1, card=None, default=0.0)
         self.meta['dithpos'] = dict(ext=1, card=None, default='None')
+        # On-sky offset of the rotator-axis pointing from the target; follows
+        # instrument-offset dithers, which leave CATRA/CATDEC unchanged.
+        self.meta['ra_off'] = dict(card=None, compound=True)
+        self.meta['dec_off'] = dict(card=None, compound=True)
         # IFU-specific metadata for Fiber pipeline
         self.meta['slitwid'] = dict(card=None, compound=True)
         self.meta['obstime'] = dict(card=None, compound=True, required=False)
@@ -1273,6 +1277,18 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
             except KeyError:
                 log.warning("Parallactic angle not in header - using default (0)")
                 return 0.0
+        elif meta_key in ['ra_off', 'dec_off']:
+            # Offset (arcsec, east/north) of the rotator-axis pointing (RA/DEC)
+            # from the target.  The mount folds the instrument offset
+            # (IAZOFF/IELOFF), including any dither made with it, into RA/DEC
+            # while CATRA/CATDEC stay fixed, as for MMIRS nods.
+            hdr = headarr[1]
+            try:
+                pointing = SkyCoord(hdr['RA'], hdr['DEC'], unit=(units.hourangle, units.deg))
+                dra, ddec = self.catalog_coord(hdr).spherical_offsets_to(pointing)
+            except (KeyError, TypeError, ValueError):
+                return 0.0
+            return dra.arcsec if meta_key == 'ra_off' else ddec.arcsec
         else:
             return super().compound_meta(headarr, meta_key)
 
@@ -1467,10 +1483,15 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         next_comb = 1
         for s in np.unique(setup_col[sci_std]):
             idx = np.where(sci_std & (setup_col == s))[0]
-            # get_meta_value already normalizes ra/dec to float degrees, so let
-            # SkyCoord handle the on-sky separations directly.
-            coords = SkyCoord(ra=fitstbl['ra'][idx], dec=fitstbl['dec'][idx],
+            # Cluster on the rotator-axis pointing, rebuilt as the target
+            # (ra/dec, float degrees) plus the ra_off/dec_off offset, so that
+            # instrument-offset dithers, which leave the target coordinates
+            # unchanged, still separate.
+            target = SkyCoord(ra=fitstbl['ra'][idx], dec=fitstbl['dec'][idx],
                               unit=units.deg)
+            coords = target.spherical_offsets_by(
+                np.asarray(fitstbl['ra_off'][idx], dtype=float) * units.arcsec,
+                np.asarray(fitstbl['dec_off'][idx], dtype=float) * units.arcsec)
             order = np.argsort(np.asarray(fitstbl['mjd'][idx], dtype=float))
 
             # Greedy single-pass clustering in time order: each frame joins the

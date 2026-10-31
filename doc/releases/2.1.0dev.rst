@@ -345,7 +345,10 @@ Bug Fixes
   hours, not degrees.  For the IFU, the datacube and fiber-extraction WCS no
   longer read the decimal-degree ``RA`` of spec1d/spec2d headers as hours, and
   ``POSANG`` is now propagated to those headers so the WCS is correctly
-  rotated.
+  rotated.  IFU combination groups are still built from the rotator-axis
+  pointing, now recorded as the ``ra_off``/``dec_off`` offset from the target,
+  so dithers made with the instrument offset (which leave
+  ``CATRA``/``CATDEC`` unchanged) still separate.
 
 - Make reductions reproducible run to run (Issue #2208).
   :func:`~pypeit.core.pca.pca_decomposition` now uses the exact

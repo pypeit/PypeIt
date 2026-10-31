@@ -354,7 +354,9 @@ def _comb_table(rows, setups=None):
     ``PypeItMetaData._build`` does from the ``init_meta`` definitions.
 
     Args:
-        rows (list): sequence of ``(frametype, ra_deg, dec_deg, mjd)`` tuples.
+        rows (list): sequence of ``(frametype, ra_deg, dec_deg, mjd)`` tuples,
+            optionally extended with ``(ra_off, dec_off)`` arcsec offsets of
+            the rotator-axis pointing from the target (default 0).
         setups (list, optional): per-row setup label; defaults to all ``'A'``.
     """
     n = len(rows)
@@ -370,6 +372,8 @@ def _comb_table(rows, setups=None):
     t['ra'] = [r[1] for r in rows]
     t['dec'] = [r[2] for r in rows]
     t['mjd'] = [r[3] for r in rows]
+    t['ra_off'] = [r[4] if len(r) > 4 else 0.0 for r in rows]
+    t['dec_off'] = [r[5] if len(r) > 5 else 0.0 for r in rows]
     t['comb_id'] = comb
     t['bkg_id'] = np.full(n, -1, dtype=int)
     t['dithoff'] = np.zeros(n, dtype=float)
@@ -490,6 +494,34 @@ def test_standard_at_own_pointing_separate():
         'a standard at a different pointing gets its own comb_id'
     assert np.all(np.asarray(t['bkg_id']) == -1), \
         'bkg_id must currently stay unset for the IFU'
+
+
+def test_instrument_offset_dither_splits_comb_id():
+    # A dither made with the instrument offset leaves CATRA/CATDEC (ra/dec)
+    # unchanged and moves only the rotator-axis pointing (ra_off/dec_off).
+    spec = load_spectrograph('mmt_binospec_ifu')
+    offs = [(296.0, -514.7), (296.0, -514.2), (296.0, -514.7), (296.0, -514.2)]
+    rows = [('science', RA0, DEC0, 60819.14 + 0.01 * i, e, n)
+            for i, (e, n) in enumerate(offs)]
+    t = spec.get_comb_group(_comb_table(rows))
+    comb = np.asarray(t['comb_id'])
+    assert comb[0] == comb[2] and comb[1] == comb[3], \
+        'frames at the same instrument offset must share a comb_id'
+    assert comb[0] != comb[1], \
+        'an instrument-offset dither must split into its own comb_id'
+    np.testing.assert_allclose(np.asarray(t['dithoff'], dtype=float)[1], 0.5, atol=1e-3)
+
+
+def test_same_offset_different_targets_separate():
+    # Identical instrument offsets on two different targets must not merge.
+    spec = load_spectrograph('mmt_binospec_ifu')
+    other = _offset(RA0, DEC0, 200.0, 0.0)
+    rows = [('science', RA0, DEC0, 60819.14, 296.0, -514.7),
+            ('science', other[0], other[1], 60819.15, 296.0, -514.7)]
+    t = spec.get_comb_group(_comb_table(rows))
+    comb = np.asarray(t['comb_id'])
+    assert comb[0] != comb[1], \
+        'different targets with the same instrument offset get different comb_ids'
 
 
 def test_calibration_frames_untouched():
@@ -623,6 +655,20 @@ def test_ra_dec_meta_uses_catalog_coords(spec_name):
     dec = spec.get_meta_value([Header(), hdr], 'dec')
     np.testing.assert_allclose(ra, 15 * (12 + 36 / 60 + 10.3 / 3600), atol=1e-6)
     np.testing.assert_allclose(dec, 62 + 16 / 60 + 31.1 / 3600, atol=1e-6)
+
+
+def test_pointing_offset_meta_matches_instrument_offset():
+    """ra_off/dec_off is the rotator-axis offset: IELOFF rotated by POSANG."""
+    hdr = Header()
+    hdr.update(_IFU_RAW_COORDS)
+    ra_off = _IFU_SPEC.get_meta_value([Header(), hdr], 'ra_off')
+    dec_off = _IFU_SPEC.get_meta_value([Header(), hdr], 'dec_off')
+    # Mount convention (offsets.c:update_chip_offsets) for the header offsets;
+    # the header coordinates are rounded to 0.1 s / 0.1 arcsec.
+    a = np.radians(-_IFU_RAW_COORDS['POSANG'])
+    az, el = _IFU_RAW_COORDS['IAZOFF'], _IFU_RAW_COORDS['IELOFF']
+    np.testing.assert_allclose(ra_off, -az * np.cos(a) - el * np.sin(a), atol=1.0)
+    np.testing.assert_allclose(dec_off, -az * np.sin(a) + el * np.cos(a), atol=1.0)
 
 
 def test_ra_dec_meta_decimal_hours():
