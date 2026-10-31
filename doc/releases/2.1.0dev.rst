@@ -125,6 +125,12 @@ Functionality/Performance Improvements and Additions
   points processed at a time by the chunked 2D polynomial fits and
   evaluations above.  It trades peak memory for speed and does not change the
   results beyond round-off.
+- The vectorized boxcar pre-extraction of the ``Fiber`` pypeline
+  (``FiberFindObjects._preextract_fibers``) now handles a different aperture
+  radius for each fiber, so it is used for the Binospec IFU instead of
+  falling back to the per-fiber loop (Issue #2222).  Pre-extraction of a
+  Binospec IFU detector is ~10x faster (about 70 s to 8 s) and its results
+  are unchanged.
 
 Instrument-specific Updates
 ---------------------------
@@ -337,6 +343,10 @@ Under-the-hood Improvements
 Bug Fixes
 ---------
 
+- :func:`~pypeit.core.moment.moment1d` no longer truncates the wider apertures
+  when called with an array of different widths; its integration window was
+  sized by the narrowest aperture (Issues #2158, #2222).  Calls with a single
+  width are unchanged.
 - MMT Binospec: the ``ra``/``dec`` metadata now come from the catalog
   ``CATRA``/``CATDEC`` header cards instead of ``RA``/``DEC``, which give the
   instrument rotator axis and are offset from the target by the instrument

@@ -230,7 +230,7 @@ flux calibration downstream.  The reduction proceeds as follows:
 
 Sky subtraction uses a single 2D B-spline rather than a per-fiber 1D
 model.  Every fiber is boxcar pre-extracted from the un-subtracted image,
-the aperture sums are divided by each fiber's throughput scalar onto a
+using the same aperture as its final extraction, the aperture sums are divided by each fiber's throughput scalar onto a
 common surface, and one B-spline in ``(wavelength, normalized spatial
 position)`` is fit — by default jointly over the sky *and* science fibers
 (see `Tuning the joint sky fit`_).  Each fiber's predicted sky spectrum is
