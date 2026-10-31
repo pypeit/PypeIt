@@ -599,6 +599,51 @@ def test_project_to_sky_missing_posang_defaults_to_zero():
     np.testing.assert_allclose(dec, 30.0 + 1.0 / 3600.0, atol=1e-7)
 
 
+def test_project_to_sky_numeric_ra_is_degrees():
+    """spec1d headers carry RA in decimal degrees; it must not be read as hours."""
+    hdr = _fake_header(ra=189.0429167, dec=62.2753056, posang=0.0)
+    ra, dec = project_to_sky(np.array([0.0]), np.array([0.0]), hdr, _IFU_SPEC)
+    np.testing.assert_allclose(ra, 189.0429167, atol=1e-9)
+    np.testing.assert_allclose(dec, 62.2753056, atol=1e-9)
+
+
+# Raw IFU header values from sci_img_2025.0524.034253 (JADES_1031022).  RA/DEC
+# is the rotator axis, ~594" from the target because of IELOFF.
+_IFU_RAW_COORDS = {'CATRA': '12:36:10.3', 'CATDEC': '62:16:31.1',
+                   'RA': '12:36:52.6', 'DEC': '62:07:56.6',
+                   'IAZOFF': -0.5, 'IELOFF': 593.8, 'POSANG': 150.05}
+
+
+@pytest.mark.parametrize('spec_name', ['mmt_binospec', 'mmt_binospec_ifu'])
+def test_ra_dec_meta_uses_catalog_coords(spec_name):
+    spec = load_spectrograph(spec_name)
+    hdr = Header()
+    hdr.update(_IFU_RAW_COORDS)
+    ra = spec.get_meta_value([Header(), hdr], 'ra')
+    dec = spec.get_meta_value([Header(), hdr], 'dec')
+    np.testing.assert_allclose(ra, 15 * (12 + 36 / 60 + 10.3 / 3600), atol=1e-6)
+    np.testing.assert_allclose(dec, 62 + 16 / 60 + 31.1 / 3600, atol=1e-6)
+
+
+def test_ra_dec_meta_decimal_hours():
+    """Pre-2019 headers store CATRA in decimal hours (J0439+1634, 2018 long slit)."""
+    spec = load_spectrograph('mmt_binospec')
+    hdr = Header()
+    hdr['CATRA'] = 4.66308278
+    hdr['CATDEC'] = 16.57105833
+    hdr['RA'] = 4.65756979
+    hdr['DEC'] = 16.62106728
+    ra = spec.get_meta_value([Header(), hdr], 'ra')
+    dec = spec.get_meta_value([Header(), hdr], 'dec')
+    np.testing.assert_allclose(ra, 15 * 4.66308278, atol=1e-6)
+    np.testing.assert_allclose(dec, 16.57105833, atol=1e-6)
+
+
+def test_posang_propagated_to_output_headers():
+    assert 'POSANG' in _IFU_SPEC.raw_header_cards(), \
+        'POSANG must reach spec1d/spec2d headers so ifu_sky_wcs can orient the IFU'
+
+
 def test_compute_fiber_fluxes_basic():
     """Sum over each fiber's wavelength range, ignoring sky lines."""
     # Two fibers, one wavelength grid, identical flat flux of 1.0 -> integral
