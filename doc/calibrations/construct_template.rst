@@ -48,7 +48,8 @@ Creating the Template
 =====================
 
 Once all of the slits and wavelength calibration files are selected, use
-:func:`~pypeit.core.wavecal.templates.build_template` to turn the
+the ``build_template`` function in the `PypeIt Development Suite`_
+(``pypeitdev/wavecal/templates.py``) to turn the
 list of slits, wavelength ranges, and :doc:`wvcalib` files into a final
 template.
 
@@ -70,15 +71,16 @@ you should also rename this file to match the current formatting:
     mv wvcalib.fits ${TELESCOPE}_${INSTRUMENT}_${GRATING}_${WAVECEN}.fits
 
 Now, open the
-``pypeit/core/wavecal/spectrographs/templ_TELESCOPE_INSTRUMENT.py`` file, and
+``pypeitdev/wavecal/spectrographs/templ_TELESCOPE_INSTRUMENT.py`` file in the
+Development Suite, and
 either (1) add a new setup if yours doesn't already exist or (2) edit a setup if
 you want to add your solution to a pre-existing setup.  The latter is only
 usually warranted if you are extending the wavelength coverage of a previous
 setup. The key information you will need is the spectral binning and the slit
 ``spatid``.  Both of these numbers are printed on the command line when you
 complete the fitting with the :ref:`pypeit_identify` utility.  Once this is
-setup, simply execute ``python templates.py`` from the directory that contains
-``templ_TELESCOPE_INSTRUMENT.py``.
+setup, simply execute ``python templ_TELESCOPE_INSTRUMENT.py`` from the
+``pypeitdev/wavecal/spectrographs`` directory.
 
 This will automatically put your solution into the ``reid_arxiv`` directory.
 Add all of these files to git, and submit a PR for both PypeIt and the PypeIt
@@ -91,15 +93,15 @@ script where the input looks like the following:
 
 .. code-block:: python
 
-    from pypeit.core.wavecal import templates
+    from pypeitdev.wavecal import templates
 
     templates.build_template(wfiles, slits, wv_cuts, binspec, outroot, ifiles=ifiles,
                              det_cut=det_cut, chk=True, normalize=False, lowredux=False,
                              subtract_conti=True, overwrite=overwrite, shift_wave=True)
 
-See :func:`~pypeit.core.wavecal.templates.build_template` for a description of
-all the parameters, and ``pypeit/core/wavecal/spectrographs`` for examples of
-the use of this function.
+See the docstring of ``build_template`` in
+``pypeitdev/wavecal/templates.py`` for a description of all the parameters, and
+``pypeitdev/wavecal/spectrographs`` for examples of the use of this function.
 
 This produces a file called ``outroot`` that contains the template. The templates are saved in
 ``pypeit/data/arc_lines/reid_arxiv``. It also produces a plot of the final product.
