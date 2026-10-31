@@ -560,5 +560,6 @@ FluxSpec Class
 ==============
 
 The guts of the flux algorithms are guided by the
-:func:`~pypeit.fluxcalibrate.apply_flux_calib` class.
+:func:`~pypeit.specobjs.SpecObjs.apply_flux_calib` method, which calls
+:func:`~pypeit.specobj.SpecObj.apply_flux_calib` for each spectrum.
 

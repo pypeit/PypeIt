@@ -27,6 +27,7 @@ from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit import utils
 from pypeit.core import framematch
+from pypeit.core import meta
 from pypeit.core import parse
 from pypeit.core import procimg
 from pypeit.core.moment import moment1d
@@ -124,8 +125,11 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         """
         self.meta = {}
         # Required (core)
-        self.meta['ra'] = dict(ext=1, card='RA')
-        self.meta['dec'] = dict(ext=1, card='DEC')
+        # RA/DEC cards are the rotator-axis pointing, which differs from the
+        # target by the instrument offset (IAZOFF/IELOFF) used to place it on
+        # the IFU or long slit; CATRA/CATDEC is the target itself.
+        self.meta['ra'] = dict(card=None, compound=True)
+        self.meta['dec'] = dict(card=None, compound=True)
         self.meta['target'] = dict(ext=1, card='OBJECT')
         self.meta['decker'] = dict(ext=1, card='MASK')
 
@@ -165,6 +169,34 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
             binspatial, binspec = parse.parse_binning(headarr[1]['CCDSUM'])
             binning = parse.binning2string(binspec, binspatial)
             return binning
+        if meta_key in ['ra', 'dec']:
+            coord = self.catalog_coord(headarr[1])
+            return coord.ra.deg if meta_key == 'ra' else coord.dec.deg
+
+    @staticmethod
+    def catalog_coord(hdr):
+        """
+        Return the catalog (target) coordinates from a raw Binospec header.
+
+        The ``RA``/``DEC`` cards record the pointing of the instrument rotator
+        axis, which is offset from the target by the instrument offset
+        (``IAZOFF``/``IELOFF``, rotated by ``POSANG``) used to put the target
+        on the IFU or long slit.  ``CATRA``/``CATDEC`` give the target itself.
+        ``AZOFF``/``ELOFF`` are pointing-model corrections, not target offsets,
+        so they are not applied.
+
+        Parameters
+        ----------
+        hdr : `astropy.io.fits.Header`_
+            Raw-frame header (extension 1) providing ``CATRA`` and ``CATDEC``.
+
+        Returns
+        -------
+        `astropy.coordinates.SkyCoord`_
+            Catalog coordinates.  ``CATRA`` is sexagesimal in recent data and
+            decimal hours in older data; both are read as hour angle.
+        """
+        return SkyCoord(hdr['CATRA'], hdr['CATDEC'], unit=(units.hourangle, units.deg))
 
     def configuration_keys(self):
         """
@@ -200,7 +232,8 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
             :obj:`list`: List of keywords from the raw data files that should
             be propagated in output files.
         """
-        return ['DISPERS1', 'MASK']
+        # POSANG orients the IFU on the sky (see ifu_sky_wcs).
+        return ['DISPERS1', 'MASK', 'POSANG']
 
     @classmethod
     def default_pypeit_par(cls):
@@ -1148,9 +1181,10 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
 
     # Pointing-separation tolerance (arcsec) below which two science/standard
     # frames are treated as the same pointing and coadded onto a shared
-    # comb_id (see get_comb_group).  Binospec writes the commanded RA/DEC, so
-    # repeated visits to one position are byte-identical and a tight tolerance
-    # cleanly separates even sub-fiber sampling dithers into their own group.
+    # comb_id (see get_comb_group).  Binospec writes the commanded rotator-axis
+    # RA/DEC, so repeated visits to one position are byte-identical and a tight
+    # tolerance cleanly separates even sub-fiber sampling dithers into their
+    # own group.
     comb_pointing_tol = 0.1
 
     def configuration_keys(self):
@@ -1181,6 +1215,10 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         # comb_id in the pypeit file.
         self.meta['dithoff'] = dict(ext=1, card=None, default=0.0)
         self.meta['dithpos'] = dict(ext=1, card=None, default='None')
+        # On-sky offset of the rotator-axis pointing from the target; follows
+        # instrument-offset dithers, which leave CATRA/CATDEC unchanged.
+        self.meta['ra_off'] = dict(card=None, compound=True)
+        self.meta['dec_off'] = dict(card=None, compound=True)
         # IFU-specific metadata for Fiber pipeline
         self.meta['slitwid'] = dict(card=None, compound=True)
         self.meta['obstime'] = dict(card=None, compound=True, required=False)
@@ -1239,6 +1277,18 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
             except KeyError:
                 log.warning("Parallactic angle not in header - using default (0)")
                 return 0.0
+        elif meta_key in ['ra_off', 'dec_off']:
+            # Offset (arcsec, east/north) of the rotator-axis pointing (RA/DEC)
+            # from the target.  The mount folds the instrument offset
+            # (IAZOFF/IELOFF), including any dither made with it, into RA/DEC
+            # while CATRA/CATDEC stay fixed, as for MMIRS nods.
+            hdr = headarr[1]
+            try:
+                pointing = SkyCoord(hdr['RA'], hdr['DEC'], unit=(units.hourangle, units.deg))
+                dra, ddec = self.catalog_coord(hdr).spherical_offsets_to(pointing)
+            except (KeyError, TypeError, ValueError):
+                return 0.0
+            return dra.arcsec if meta_key == 'ra_off' else ddec.arcsec
         else:
             return super().compound_meta(headarr, meta_key)
 
@@ -1433,10 +1483,15 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         next_comb = 1
         for s in np.unique(setup_col[sci_std]):
             idx = np.where(sci_std & (setup_col == s))[0]
-            # get_meta_value already normalizes ra/dec to float degrees, so let
-            # SkyCoord handle the on-sky separations directly.
-            coords = SkyCoord(ra=fitstbl['ra'][idx], dec=fitstbl['dec'][idx],
+            # Cluster on the rotator-axis pointing, rebuilt as the target
+            # (ra/dec, float degrees) plus the ra_off/dec_off offset, so that
+            # instrument-offset dithers, which leave the target coordinates
+            # unchanged, still separate.
+            target = SkyCoord(ra=fitstbl['ra'][idx], dec=fitstbl['dec'][idx],
                               unit=units.deg)
+            coords = target.spherical_offsets_by(
+                np.asarray(fitstbl['ra_off'][idx], dtype=float) * units.arcsec,
+                np.asarray(fitstbl['dec_off'][idx], dtype=float) * units.arcsec)
             order = np.argsort(np.asarray(fitstbl['mjd'][idx], dtype=float))
 
             # Greedy single-pass clustering in time order: each frame joins the
@@ -1580,8 +1635,10 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         Parameters
         ----------
         raw_hdr : `astropy.io.fits.Header`_
-            Primary header providing ``RA``, ``DEC`` and (optionally)
-            ``POSANG``.
+            Primary header of a PypeIt spec1d/spec2d file, providing ``RA``,
+            ``DEC`` and (optionally) ``POSANG``.  ``RA``/``DEC`` are the
+            target coordinates from the metadata table (see
+            :meth:`catalog_coord`): decimal degrees, or sexagesimal strings.
         scale_arcsec : :obj:`float`
             Spatial scale in arcsec per unit step along the WCS axes.
 
@@ -1592,12 +1649,10 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         cd : `numpy.ndarray`_
             2x2 CD matrix ``[[cd11, cd12], [cd21, cd22]]`` in degrees.
         """
-        raval = raw_hdr.get('RA', 0.0)
-        decval = raw_hdr.get('DEC', 0.0)
-        try:
-            coord = SkyCoord(raval, decval, unit=(units.hourangle, units.deg))
-        except Exception:
-            coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
+        # convert_radec reads sexagesimal strings as hour angle and numbers as
+        # degrees; a numeric RA must not be read as hours.
+        raval, decval = meta.convert_radec(raw_hdr.get('RA', 0.0), raw_hdr.get('DEC', 0.0))
+        coord = SkyCoord(raval, decval, unit=units.deg)
 
         crota = np.radians(-raw_hdr.get('POSANG', 0.0))
         cdelt1 = -scale_arcsec / 3600.0  # RA decreases with +x (east is +RA)
