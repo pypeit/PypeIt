@@ -347,7 +347,7 @@ The file has the following two extensions:
 HDU Name               HDU Type                        Data Type  Description                                                                                                  
 =====================  ==============================  =========  ==========================================================================
 ``PRIMARY``            `astropy.io.fits.PrimaryHDU`_   ...        Empty data HDU.  Contains basic header information.                                                          
-``FLEXURE``            `astropy.io.fits.BinTableHDU`_  ...        All data from the :class:`~pypeit.core.flexure.MultiSlitFlexure` datamodel
+``FLEXURE``            `astropy.io.fits.BinTableHDU`_  ...        All data from the :class:`~pypeit.multislit_flexure.MultiSlitFlexure` datamodel
 =====================  ==============================  =========  ==========================================================================
 
 Inspecting
