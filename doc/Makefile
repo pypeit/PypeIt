@@ -43,6 +43,7 @@ apirst:
 	python ./scripts/build_spectbl_rst.py
 	python ./scripts/build_telluric_table.py
 	python ./scripts/write_script_help.py
+	python ./scripts/build_atmexttbl_rst.py
 	python ./scripts/build_standardstbl_rst.py
 	python ./scripts/patch_apidoc_for_dataclasses.py
 	python ./scripts/write_contributors_table.py
