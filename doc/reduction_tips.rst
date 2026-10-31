@@ -59,17 +59,18 @@ modifications are being implemented the way you intend.
 - Modify the significance threshold for object finding (see above).
 
 - Modify the maximum number of objects that you expect to see in your frames.
-  The default is 10, but, for example, if your exposure only contains one object
-  of interest, you will want to change your :ref:`parameter_block`
+  The default is 10 for science frames (``maxnumber_sci``) and 5 for standard
+  stars (``maxnumber_std``), but, for example, if your exposure only contains
+  one object of interest, you will want to change your :ref:`parameter_block`
   to look like this:
 
   .. code-block:: ini
 	
     [reduce]
         [[findobj]]
-            maxnumber = 1
+            maxnumber_sci = 1
 
-- Modify the FWHM of your object of interest in pixels.  The default is 10, but
+- Modify the FWHM of your object of interest in pixels.  The default is 5, but
   you may want to increase or decrease this, depending on the number of pixels per
   spatial PSF:
 
