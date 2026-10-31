@@ -315,6 +315,10 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['cc_synth_arc'] = False  # The arcs are pretty stable, just use the templates directly (i.e. False uses the actual, not synthetic, arc)
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['FeI', 'ArI', 'ArII']
+        # All slices cover a similar wavelength range, so calibrate a stack of
+        # the arc spectra of all slices, and use it as the template for each
+        # slice.  This is more robust when the arc lines are weak.
+        par['calibrations']['wavelengths']['stack_slits'] = True
 
         # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'

@@ -188,6 +188,17 @@ Functionality/Performance Improvements and Additions
   the QA PNGs through a background thread pool (rendering stays on the main
   thread, which matplotlib requires); the figures are identical to a serial
   run.
+- Added the ``stack_slits`` wavelength-calibration parameter for the
+  ``full_template`` method.  For multislit, IFU, and fiber data, the arc
+  spectra of all slits are aligned to a reference slit and combined into a
+  single arc spectrum with a higher S/N, which is calibrated against the
+  archived template; the arc lines of each slit are then identified using the
+  solution of the combined spectrum.  This allows data with weak or few arc
+  lines to be calibrated with a high S/N template, without requiring any
+  single slit to be calibrated on its own.  The reference slit is set by
+  ``reference_slit`` or, if not set, chosen automatically.  A QA plot of the
+  solution of the combined spectrum is written to
+  ``QA/PNGs/Arc_1dfit_*_stack.png``.  See :ref:`wvcalib-stack-slits`.
 - ``fitting.robust_fit`` now converts its inputs to float once per call
   rather than copying them on every rejection iteration, reducing memory use
   for large fits (e.g., the flat-field fine spatial-illumination correction).
@@ -380,6 +391,16 @@ Instrument-specific Updates
   configuration handling for the ``H3000``/``H`` and ``HK``/``HK3`` grism/filter
   combinations, completing coverage of the observatory-recommended
   configurations.  See :ref:`mmt_mmirs`.
+- Keck/KCWI and Keck/KCRM: ``stack_slits`` is now used by default for the
+  wavelength calibration (see :ref:`wvcalib-stack-slits`).
+- Keck/KCRM: the RH3 and RM1 ``full_template`` templates
+  (``keck_kcrm_RH3.fits`` and ``keck_kcrm_RM1.fits``) have been rebuilt.  The
+  high S/N coadds used for part of these templates had been resampled onto a
+  linear wavelength grid, whereas the ``full_template`` method requires the
+  template to be sampled on the detector pixels; the coadds are now resampled
+  onto the detector pixel grid of the corresponding grating setting before the
+  templates are built.  The two settings that make up the RH3 template are
+  now joined at 8600 Angstroms (previously 8920 Angstroms).
 
 Script Changes
 --------------
@@ -453,6 +474,17 @@ Under-the-hood Improvements
 Bug Fixes
 ---------
 
+- Wavelength solutions that pass exactly through the identified arc lines
+  (i.e., with zero degrees of freedom and an RMS of zero) are no longer
+  accepted.  If there are too few lines for the requested ``n_final``, the
+  order of the final fit is reduced so that at least two degrees of freedom
+  remain (with a warning), and the fit fails if fewer than four lines are
+  available.  Previously, a handful of misidentified lines could produce an
+  apparently perfect, but incorrect, wavelength solution.
+- Fixed a crash (``AttributeError``) in the wavelength calibration when the
+  slit given by ``reference_slit`` could not be calibrated; a clear error
+  message is now raised instead.  Also fixed a crash in the echelle wavelength
+  calibration when the fit of an order fails.
 - Fixed the 2D Gaussian fit of the white-light image of a datacube
   (:func:`~pypeit.core.datacube.fitGaussian2D`), used to find point sources in
   ``pypeit_extract_datacube`` and to determine the datacube weights and

@@ -71,6 +71,9 @@ def set_qa_filename(
         case 'arc_fwhm_qa':
             outfile = 'PNGs/Arc_FWHMfit_{:s}_S{:04d}.png'.format(root, slit)
 
+        case 'arc_stack_fit_qa':
+            outfile = 'PNGs/Arc_1dfit_{:s}_stack.png'.format(root)
+
         case 'plot_orderfits_Arc':  # This is root for multiple PNGs
             outfile = 'QA/PNGs/Arc_lines_{:s}_S{:04d}_'.format(root, slit)
             # outfile = 'PNGs/Arc_lines_{:s}_S{:04d}_'.format(root, slit)

@@ -725,7 +725,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
 def match_to_arxiv(lamps:list, spec:np.ndarray, wv_guess:np.ndarray,
                    spec_arxiv:np.ndarray, wave_arxiv:np.ndarray, nreid_min:int,
                    match_toler=2.0, nonlinear_counts=1e10, sigdetect=5.0, fwhm=4.0,
-                   debug_peaks:bool=False, use_unknowns:bool=False):
+                   debug_peaks:bool=False, use_unknowns:bool=False, detections=None):
     """
     Algorithm to match an input arc spectrum to an archival arc spectrum using a
     set wavelength guess for the input.  This is an alternative to
@@ -773,6 +773,9 @@ def match_to_arxiv(lamps:list, spec:np.ndarray, wv_guess:np.ndarray,
         use_unknowns (bool, optional):
             If True, use the unknowns in the solution (not recommended).
             Defaults to False.
+        detections (`numpy.ndarray`_, optional):
+            Centroids (in pixels) of the arc lines in ``spec``.  If None, the
+            lines are detected in ``spec``.
 
     Returns:
         tuple: tcent (np.ndarray; centroid of lines), spec_cont_sub (np.ndarray;
@@ -792,6 +795,8 @@ def match_to_arxiv(lamps:list, spec:np.ndarray, wv_guess:np.ndarray,
         spec, sigdetect=sigdetect,
         nonlinear_counts=nonlinear_counts,
         fwhm=fwhm, debug=debug_peaks)
+    if detections is not None:
+        tcent = np.asarray(detections, dtype=float)
     # If there are no lines in the input arc, return
     if tcent.size == 0:
         return None, None, patterns.empty_patt_dict(tcent.size), None
@@ -1335,6 +1340,324 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
     return wvcalib, order
 
 
+def select_reference_slit(spec, ok_mask, sigdetect=5.0, fwhm=4.0, nonlinear_counts=1e10):
+    """
+    Select the slit with the highest S/N arc spectrum.
+
+    The arc lines of each slit are detected with :func:`~pypeit.core.arc.detect_lines`.
+    The selected slit is the one with the largest number of lines detected above
+    ``sigdetect``; ties are broken by the total significance of these lines.
+
+    Parameters
+    ----------
+    spec : `numpy.ndarray`_
+        Arc spectra of all slits.  Shape is (nspec, nslit).
+    ok_mask : array-like
+        Indices of the good slits.
+    sigdetect : float, array-like, optional
+        Detection threshold.  If array-like, this is the threshold for each
+        slit (shape is (nslit,)).
+    fwhm : float, array-like, optional
+        Spectral FWHM of the arc lines in pixels.  If array-like, this is the
+        FWHM for each slit (shape is (nslit,)).
+    nonlinear_counts : float, optional
+        Arc lines above this threshold are not used.
+
+    Returns
+    -------
+    int
+        Index of the selected slit.
+    """
+    best_idx, best_score = None, None
+    for slit in ok_mask:
+        _sigdetect = sigdetect if np.isscalar(sigdetect) else sigdetect[slit]
+        _fwhm = fwhm if np.isscalar(fwhm) else fwhm[slit]
+        _, _, _, _, _, good, _, nsig = arc.detect_lines(spec[:, slit], sigdetect=_sigdetect,
+                                                        fwhm=_fwhm,
+                                                        nonlinear_counts=nonlinear_counts)
+        nsig = nsig[good]
+        nsig = nsig[nsig > _sigdetect]
+        score = (nsig.size, np.sum(nsig))
+        if best_score is None or score > best_score:
+            best_idx, best_score = slit, score
+    return best_idx
+
+
+def stack_arc_spectra(spec, ok_mask, ref_idx, fwhm=4.0, cc_thresh=0.7, sigdetect=5.0,
+                      percent_ceil=50.0, cc_synth_arc=True, stretch_func='quadratic',
+                      nonlinear_counts=1e10, seed=1234):
+    """
+    Align the arc spectra of a set of slits to a reference slit and combine them
+    into a single arc spectrum with a higher S/N.
+
+    This is useful for multi-slit, IFU and fiber data, where all slits cover a
+    similar wavelength range but the arc spectrum of each slit has too few
+    detectable lines to be calibrated robustly on its own.
+
+    Each continuum-subtracted arc spectrum is aligned to that of the reference
+    slit using a shift and stretch (see
+    :func:`~pypeit.core.wavecal.wvutils.xcorr_shift_stretch`).  Slits whose
+    alignment fails, or whose cross-correlation coefficient is below
+    ``cc_thresh``, are not included.  The aligned spectra are scaled to match
+    the reference slit and averaged.  The stacked spectrum is sampled on the
+    pixel grid of the reference slit, extended at either end to cover the
+    wavelength range of all included slits.
+
+    Parameters
+    ----------
+    spec : `numpy.ndarray`_
+        Arc spectra of all slits.  Shape is (nspec, nslit).
+    ok_mask : array-like
+        Indices of the slits that may be included in the stack.
+    ref_idx : int
+        Index of the reference slit.  This slit is always included.
+    fwhm : float, optional
+        Spectral FWHM of the arc lines in pixels.
+    cc_thresh : float, optional
+        Minimum cross-correlation coefficient between a slit and the reference
+        slit, after alignment, for the slit to be included in the stack.
+    sigdetect : float, optional
+        Detection threshold used to identify the arc lines.
+    percent_ceil : float, optional
+        Percentile used to cap the line amplitudes in the cross-correlation;
+        see :func:`~pypeit.core.wavecal.wvutils.xcorr_shift_stretch`.
+    cc_synth_arc : bool, optional
+        If True, cross-correlate synthetic arc spectra built from the detected
+        lines.  Otherwise, cross-correlate the continuum-subtracted arc spectra.
+    stretch_func : str, optional
+        Use a linear (``'linear'``) or quadratic (``'quadratic'``) stretch.
+    nonlinear_counts : float, optional
+        Arc lines above this threshold are not used in the line detection.
+    seed : int, optional
+        Seed for the optimizer used to determine the shift and stretch.
+
+    Returns
+    -------
+    stack : `numpy.ndarray`_
+        The stacked arc spectrum.  Shape is (nstack,), with nstack >= nspec.
+    offset : int
+        Pixel of the reference slit corresponding to the first pixel of
+        ``stack``; i.e., pixel ``j`` of ``stack`` corresponds to pixel
+        ``j + offset`` of the reference slit.
+    used : `numpy.ndarray`_
+        Boolean array that is True for the slits included in the stack.  Shape
+        is (nslit,).
+    ref_pix : `numpy.ndarray`_
+        The pixel of the reference slit corresponding to each pixel of each
+        slit included in the stack (NaN for the other slits).  Shape is
+        (nspec, nslit).
+    """
+    nspec, nslit = spec.shape
+    pix = np.arange(nspec, dtype=float)
+    slits = np.unique(np.append(np.atleast_1d(ok_mask), ref_idx)).astype(int)
+
+    # Continuum-subtract the arc spectra
+    spec_cs = {}
+    for slit in slits:
+        _, _, _, _, spec_cs[slit] = wvutils.arc_lines_from_spec(
+            spec[:, slit], sigdetect=sigdetect, fwhm=fwhm, nonlinear_counts=nonlinear_counts)
+    ref = spec_cs[ref_idx]
+
+    # Determine the pixel of the reference slit corresponding to each pixel of each slit
+    xref = {ref_idx: pix}
+    for slit in slits:
+        if slit == ref_idx:
+            continue
+        success, shift, stretch, stretch2, cc, _, _ = wvutils.xcorr_shift_stretch(
+            ref, spec_cs[slit], cc_thresh=-1.0, percent_ceil=percent_ceil,
+            cc_synth_arc=cc_synth_arc, sigdetect=sigdetect, fwhm=fwhm, seed=seed,
+            stretch_func=stretch_func)
+        if success != 1 or cc < cc_thresh:
+            _cc = 'n/a' if cc is None else f'{cc:.3f}'
+            log.warning(f'Slit {slit+1}/{nslit} is not included in the arc stack '
+                        f'(cross-correlation with the reference slit: cc = {_cc}).')
+            continue
+        x = stretch2*pix**2 + stretch*pix + shift
+        if np.any(np.diff(x) <= 0):
+            log.warning(f'Slit {slit+1}/{nslit} is not included in the arc stack '
+                        '(the alignment is not monotonic).')
+            continue
+        log.info(f'Slit {slit+1}/{nslit} aligned to the reference slit: shift = {shift:.2f}, '
+                 f'stretch = {stretch:.4f}, cc = {cc:.3f}')
+        xref[slit] = x
+
+    # The stack covers the wavelength range of all included slits
+    offset = int(np.floor(min(x[0] for x in xref.values())))
+    stack_pix = np.arange(offset, int(np.ceil(max(x[-1] for x in xref.values()))) + 1,
+                          dtype=float)
+    in_ref = (stack_pix >= 0) & (stack_pix <= nspec - 1)
+    ref_stack = np.interp(stack_pix[in_ref], pix, ref)
+
+    # Resample each spectrum onto the stack pixels, scale it to the reference, and average
+    total = np.zeros(stack_pix.size, dtype=float)
+    count = np.zeros(stack_pix.size, dtype=int)
+    used = np.zeros(nslit, dtype=bool)
+    for slit, x in xref.items():
+        spix = np.interp(stack_pix, x, pix, left=np.nan, right=np.nan)
+        on = np.isfinite(spix)
+        flux = np.zeros(stack_pix.size, dtype=float)
+        flux[on] = np.interp(spix[on], pix, spec_cs[slit])
+        # Least-squares scale factor relative to the reference slit
+        denom = np.sum(flux[in_ref]**2)
+        scale = np.sum(ref_stack*flux[in_ref])/denom if denom > 0 else 0.0
+        if scale <= 0:
+            log.warning(f'Slit {slit+1}/{nslit} is not included in the arc stack '
+                        '(could not determine the flux scaling).')
+            continue
+        total[on] += scale*flux[on]
+        count[on] += 1
+        used[slit] = True
+    stack = np.zeros_like(total)
+    stack[count > 0] = total[count > 0]/count[count > 0]
+    ref_pix = np.full((nspec, nslit), np.nan)
+    for slit, x in xref.items():
+        if used[slit]:
+            ref_pix[:, slit] = x
+    log.info(f'Stacked the arc spectra of {np.sum(used)}/{slits.size} slits.')
+    return stack, offset, used, ref_pix
+
+
+def full_template_stack(spec, lamps, par, ok_mask, det, binspectral, ref_idx, measured_fwhms,
+                        slit_ids=None, nonlinear_counts=1e10):
+    """
+    Wavelength calibrate a set of slits using a stack of their arc spectra.
+
+    The steps are:
+
+        1. Align the arc spectra of all good slits to that of the reference
+           slit and combine them into a single arc spectrum with a higher S/N
+           (see :func:`stack_arc_spectra`).
+        2. Calibrate the stacked spectrum with the archived template, using
+           :func:`full_template`.
+        3. For each slit included in the stack, use its alignment to the
+           reference slit and the wavelength solution of the stack as a guess
+           of its wavelength solution; detect its arc lines (in ``nsnippet``
+           snippets, as done by :func:`full_template`) and identify them by
+           matching them to the lines in the stack (see
+           :func:`match_to_arxiv`); and fit the wavelength solution (see
+           :func:`~pypeit.core.wavecal.wv_fitting.fit_slit`).
+        4. Calibrate the good slits that were not included in the stack with
+           :func:`full_template`, using the calibrated stack as the template.
+
+    Parameters
+    ----------
+    spec : `numpy.ndarray`_
+        Arc spectra of all slits.  Shape is (nspec, nslit).
+    lamps : :obj:`list`
+        List of arc lamps used for the wavelength calibration.
+    par : :class:`~pypeit.par.pypeitpar.WavelengthSolutionPar`
+        Calibration parameters.
+    ok_mask : `numpy.ndarray`_
+        Indices of the good slits.
+    det : int
+        Detector index.
+    binspectral : int
+        Spectral binning of the arc spectra.
+    ref_idx : int
+        Index of the reference slit.
+    measured_fwhms : `numpy.ndarray`_
+        FWHM (in binned pixels) measured from the arc lines of each slit.
+        Shape is (nslit,).  See :func:`set_fwhm`.
+    slit_ids : `numpy.ndarray`_, optional
+        Slit IDs, used for logging.  Shape is (nslit,).
+    nonlinear_counts : float, optional
+        Arc lines above this saturation threshold are not used.
+
+    Returns
+    -------
+    wvcalib : dict
+        Wavelength solution of each slit (None for the slits that could not
+        be calibrated).  None is returned if the stack could not be
+        calibrated.
+    stack_fit : :class:`~pypeit.core.wavecal.wv_fitting.WaveFit`
+        Wavelength solution of the stacked spectrum (None if it failed).
+    used : `numpy.ndarray`_
+        Boolean array that is True for the slits included in the stack.
+    """
+    nspec, nslit = spec.shape
+    if slit_ids is None:
+        slit_ids = np.arange(nslit)
+    ref_id = slit_ids[ref_idx]
+
+    # Build the stack
+    fwhm = set_fwhm(par, measured_fwhm=measured_fwhms[ref_idx])
+    stack, offset, used, ref_pix = stack_arc_spectra(
+        spec, ok_mask, ref_idx, fwhm=fwhm, cc_thresh=wvutils.parse_param(par, 'cc_thresh', ref_idx),
+        sigdetect=wvutils.parse_param(par, 'sigdetect', ref_idx), percent_ceil=par['cc_percent_ceil'],
+        cc_synth_arc=par['cc_synth_arc'], stretch_func=par['stretch_func'],
+        nonlinear_counts=nonlinear_counts)
+
+    # Calibrate the stack using the archived template.  Parameters that can be
+    # set for each slit take the value of the reference slit.
+    stack_par = copy.deepcopy(par)
+    for key in ['sigdetect', 'n_final']:
+        stack_par[key] = wvutils.parse_param(par, key, ref_idx)
+    log.info('Wavelength calibrating the arc stack')
+    stack_fit, _ = full_template(stack, lamps, stack_par, [0], det, binspectral,
+                                 slit_ids=np.array([f'stack (reference {ref_id})']),
+                                 measured_fwhms=np.array([measured_fwhms[ref_idx]]),
+                                 nonlinear_counts=nonlinear_counts, nsnippet=par['nsnippet'],
+                                 x_percentile=par['cc_percent_ceil'])
+    stack_fit = stack_fit['0']
+    if stack_fit is None or stack_fit.pypeitfit is None:
+        log.warning('The wavelength calibration of the arc stack failed.')
+        return None, None, used
+    wave_rms_thresh = round(par['rms_thresh_frac_fwhm'] * fwhm, 3)
+    if stack_fit.rms > wave_rms_thresh:
+        log.warning(f'The RMS of the wavelength solution of the arc stack ({stack_fit.rms:.3f} pixels) '
+                    f'is above the threshold ({wave_rms_thresh:.3f} pixels).')
+        return None, stack_fit, used
+    log.info(f'Wavelength solution of the arc stack: {len(stack_fit.pixel_fit)} lines, '
+             f'RMS = {stack_fit.rms:.3f} pixels')
+
+    # Calibrate each slit included in the stack, using the wavelength solution
+    # of the stack and the alignment of the slit to the reference slit as a
+    # guess of its wavelength solution
+    log.info('Wavelength calibrating each slit using the arc stack')
+    wvcalib = {str(slit): None for slit in range(nslit)}
+    stack_pix = np.arange(stack.size, dtype=float)
+    for slit in np.where(used)[0]:
+        wv_guess = np.interp(ref_pix[:, slit] - offset, stack_pix, stack_fit.wave_soln)
+        sigdetect = wvutils.parse_param(par, 'sigdetect', slit)
+        slit_fwhm = set_fwhm(par, measured_fwhm=measured_fwhms[slit])
+        # Detect the arc lines in snippets of the spectrum, as done by full_template
+        nsub = nspec // par['nsnippet']
+        detections = []
+        for kk in range(par['nsnippet']):
+            j0, j1 = nsub*kk, min(nsub*(kk+1), nspec)
+            _, _, cut_tcent, _, _ = wvutils.arc_lines_from_spec(
+                spec[j0:j1, slit], sigdetect=sigdetect, fwhm=slit_fwhm,
+                nonlinear_counts=nonlinear_counts)
+            detections.append(j0 + cut_tcent)
+        tcent, _, patt_dict, tot_llist = match_to_arxiv(
+            lamps, spec[:, slit], wv_guess, stack, stack_fit.wave_soln, par['nreid_min'],
+            match_toler=par['match_toler'], nonlinear_counts=nonlinear_counts,
+            sigdetect=sigdetect, fwhm=slit_fwhm, detections=np.concatenate(detections))
+        if not patt_dict['acceptable']:
+            log.warning(f'Could not identify the arc lines of slit {slit_ids[slit]} using the arc stack.')
+            continue
+        wvcalib[str(slit)] = wv_fitting.fit_slit(
+            spec[:, slit], patt_dict, tcent, tot_llist, match_toler=par['match_toler'],
+            func=par['func'], n_first=par['n_first'], sigrej_first=par['sigrej_first'],
+            n_final=wvutils.parse_param(par, 'n_final', slit), sigrej_final=par['sigrej_final'])
+
+    # Calibrate the good slits that were not included in the stack, using the
+    # calibrated stack as the template
+    not_used = np.array([slit for slit in ok_mask if not used[slit]], dtype=int)
+    if not_used.size > 0:
+        log.info('Wavelength calibrating the slits not included in the arc stack, using the arc '
+                 'stack as the template')
+        template_dict = {'wave': stack_fit.wave_soln, 'spec': stack, 'bin': binspectral, 'order': None,
+                         'lines_pix': None, 'lines_wav': None, 'lines_fit_ord': None}
+        _wvcalib, _ = full_template(spec, lamps, par, not_used, det, binspectral, slit_ids=slit_ids,
+                                    measured_fwhms=measured_fwhms, nonlinear_counts=nonlinear_counts,
+                                    nsnippet=par['nsnippet'], x_percentile=par['cc_percent_ceil'],
+                                    template_dict=template_dict)
+        for slit in not_used:
+            wvcalib[str(slit)] = _wvcalib[str(slit)]
+    return wvcalib, stack_fit, used
+
+
 def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
                     ok_mask=None, measured_fwhms=None, use_unknowns=True, debug_all=False,
                     debug_peaks=False, debug_xcorr=False, debug_reid=False,
@@ -1493,9 +1816,10 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
             match_toler=par['match_toler'], func=par['func'], n_first=par['n_first'],
             sigrej_first=par['sigrej_first'], n_final=n_final, sigrej_final=par['sigrej_final']
         )
-        log.info(f"Number of lines used in fit: {len(final_fit['pixel_fit'])}")
         # Did the fit succeed?
-        if final_fit is None:
+        if final_fit is not None:
+            log.info(f"Number of lines used in fit: {len(final_fit['pixel_fit'])}")
+        else:
             # This pattern wasn't good enough
             wv_calib[str(iord)] = None
             bad_orders = np.append(bad_orders, iord)
@@ -3021,7 +3345,7 @@ class HolyGrail:
                 self._spec[:, slit], self._all_patt_dict[str(slit)], use_tcent, self._line_lists
             )
 
-            if self._outroot is not None:
+            if self._outroot is not None and best_final_fit is not None:
                 plot_fil = f'{self._outroot}{slittxt}_fit.pdf'
                 arc_fit_qa(best_final_fit, plot_fil)
                 log.info(f'Wrote: {plot_fil}')
