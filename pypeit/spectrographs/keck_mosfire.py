@@ -1287,6 +1287,79 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                 for r in mech if str(r['Slit_Number']).strip()]
         return sorted(bars, reverse=True)
 
+    LONG2POS_POSB_BAR = 23
+    """CSU bar of position B of the long2pos masks; it is centered on the reference spatial pixel ``CRPIX2``."""
+
+    @staticmethod
+    def long2pos_match_bars(bars, spat_id, crpix2, platescale):
+        """
+        Match the CSU bars of a ``long2pos_specphot`` mask to the traced slits
+        by spatial position.
+
+        The mask is CSU bars 20-26: bar 23 (position B) is centered on the
+        reference spatial pixel ``CRPIX2`` and bar ``n`` is ``23 - n`` bar
+        pitches (CSU length plus bar gap, 44 pixels) above it; the traced
+        slits of 2014-06-01 (``CRPIX2`` 1035) are bars 26..20 at spatial
+        pixels 902, 945, 989, 1033, 1078, 1122, 1165. A bar takes the traced
+        slit whose center is within a third of a pitch of its expected
+        position. A bar without a slit (bar 26 was not traced on 2014-06-01
+        in H) and a slit without a bar (an 847-pixel spurious slit above the
+        mask on 2015-09-17 in H) stay unmatched, where matching by count
+        alone refused the whole mask and left every 4-arcsec bar with its
+        own poor fit.
+
+        Args:
+            bars (:obj:`list`):
+                ``(slit_number, width, position)`` tuples from
+                :func:`long2pos_bar_widths`.
+            spat_id (array-like):
+                Spatial centers of the traced slits
+                (:attr:`~pypeit.slittrace.SlitTraceSet.spat_id`).
+            crpix2 (:obj:`float`):
+                Header ``CRPIX2``, the reference spatial pixel.
+            platescale (:obj:`float`):
+                Header ``PSCALE`` [arcsec/pixel].
+
+        Returns:
+            :obj:`list`: One index into ``spat_id`` per bar, ``None`` when
+            the bar has no traced slit. A slit serves at most one bar.
+        """
+        pitch = KeckMOSFIRESpectrograph._CSUlength(platescale) + KeckMOSFIRESpectrograph._slit_gap(platescale)
+        centers = np.atleast_1d(np.asarray(spat_id, dtype=float))
+        out, taken = [], set()
+        for num, _, _ in bars:
+            expect = float(crpix2) + (KeckMOSFIRESpectrograph.LONG2POS_POSB_BAR - int(num)) * pitch
+            best = None
+            for j in np.argsort(np.abs(centers - expect)):
+                if abs(centers[j] - expect) >= pitch / 3.:
+                    break
+                if int(j) not in taken:
+                    best = int(j)
+                    break
+            if best is not None:
+                taken.add(best)
+            out.append(best)
+        return out
+
+    @staticmethod
+    def long2pos_bar_slits(filename, spat_id):
+        """
+        The CSU bars of a ``long2pos_specphot`` frame with their traced slits.
+
+        Returns:
+            :obj:`list`: ``(slit_number, width, position, slit_index)``
+            tuples in decreasing slit number (increasing spatial pixel);
+            ``slit_index`` is ``None`` for a bar without a traced slit (see
+            :func:`long2pos_match_bars`). Empty for other masks.
+        """
+        bars = KeckMOSFIRESpectrograph.long2pos_bar_widths(filename)
+        if not bars:
+            return []
+        hdr = io.fits_open(filename)[0].header
+        idx = KeckMOSFIRESpectrograph.long2pos_match_bars(bars, spat_id, float(hdr['CRPIX2']),
+                                                           float(hdr['PSCALE']))
+        return [(n, w, p, i) for (n, w, p), i in zip(bars, idx)]
+
     def transfer_wavecal(self, final_fit, arccen, slits, par, lamps, arc_files=None):
         """
         Calibrate the 4-arcsec bars of ``long2pos_specphot`` from their
@@ -1303,8 +1376,9 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         cross-correlating the bar's arc spectrum with the neighbor's,
         smoothed by the 4-arcsec line width, and the neighbors' identified
         lines, moved by their shifts, are refit (``input_only``) on the
-        bar's pixel grid. The traced slits must match the mask's bars one to
-        one (in spatial order); otherwise nothing is changed.
+        bar's pixel grid. The bars are matched to the traced slits by
+        position (:func:`long2pos_match_bars`): a bar without a traced slit
+        is skipped and a traced slit that is not a bar is ignored.
 
         See :func:`~pypeit.spectrographs.spectrograph.Spectrograph.transfer_wavecal`.
         """
@@ -1312,21 +1386,26 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         from pypeit.core.wavecal import waveio, wv_fitting, wvutils
         if arc_files is None or len(arc_files) == 0:
             return final_fit
-        bars = []
+        matched = []
         for f in arc_files:
             try:
-                bars = self.long2pos_bar_widths(f)
+                matched = self.long2pos_bar_slits(f, slits.spat_id)
             except (OSError, KeyError, ValueError):
                 continue
-            if bars:
+            if matched:
                 break
-        nslits = arccen.shape[1]
-        if not bars or len(bars) != nslits:
-            if bars:
-                log.warning(f'long2pos_specphot: {nslits} traced slits for {len(bars)} bars; '
-                            'no wavelength transfer to the 4-arcsec bars.')
+        if not matched:
             return final_fit
-        order = np.argsort(slits.spat_id)
+        nslits = arccen.shape[1]
+        bars = [m[:3] for m in matched]
+        idx = [m[3] for m in matched]
+        missing = [m[0] for m in matched if m[3] is None]
+        extra = sorted(set(range(nslits)) - {i for i in idx if i is not None})
+        if missing or extra:
+            log.warning(f'long2pos_specphot: {len(bars)} bars, {nslits} traced slits; '
+                        + (f'bars without a traced slit: {missing}; ' if missing else '')
+                        + (f'traced slits that are not bars: {[int(slits.spat_id[i]) for i in extra]}'
+                           if extra else ''))
         line_lists, _, _ = waveio.load_line_lists(lamps, include_unknown=False,
                                                   lamps_wvrng=par['lamps_wvrng'])
         nspec = arccen.shape[0]
@@ -1338,15 +1417,16 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             return wvutils.arc_lines_from_spec(np.asarray(s, dtype=float))[4]
 
         for k, (num, width, pos) in enumerate(bars):
-            if width < 2.0:
+            if width < 2.0 or idx[k] is None:
                 continue
-            iw = order[k]
+            iw = idx[k]
             wide = contsub(arccen[:, iw])
             tcent, ids, used = [], [], []
             for kk in (k - 1, k + 1):
-                if kk < 0 or kk >= nslits or bars[kk][1] >= 2.0 or abs(bars[kk][2] - pos) > 1.0:
+                if kk < 0 or kk >= len(bars) or idx[kk] is None or bars[kk][1] >= 2.0 \
+                        or abs(bars[kk][2] - pos) > 1.0:
                     continue
-                inn = order[kk]
+                inn = idx[kk]
                 fit = final_fit.get(str(inn))
                 if fit is None or fit.pypeitfit is None:
                     continue
@@ -1390,6 +1470,14 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                 continue
             old = final_fit.get(str(iw))
             old_rms = 'none' if old is None else f'{old.rms:.3f}'
+            if old is not None and np.isfinite(old.rms) and old.rms <= new.rms:
+                # 2015-09-17 H: the arc spectra of two 4-arcsec bars cross-correlate poorly with
+                # their neighbors (cc 0.3) and the transferred fit is worse (RMS 1.5 and 5.9 pixels
+                # against 0.3 and 0.2); the bar keeps the better of the two
+                log.warning(f'long2pos_specphot: the fit transferred to the 4-arcsec bar {num} '
+                            f'(slit {slits.spat_id[iw]}) from {"; ".join(used)} has RMS {new.rms:.3f} pix, '
+                            f'worse than its own {old_rms}; its own solution is kept.')
+                continue
             final_fit[str(iw)] = new
             log.info(f'long2pos_specphot: 4-arcsec bar {num} (slit {slits.spat_id[iw]}) calibrated from '
                      f'{"; ".join(used)}: {len(ids)} lines, RMS {new.rms:.3f} pix (own fit {old_rms})')
