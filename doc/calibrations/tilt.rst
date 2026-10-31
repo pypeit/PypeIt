@@ -60,7 +60,7 @@ Current TiltImage Data Model
 ============================
 
 Internally, the image is held in
-:class:`pypeit.images.buildimage.tiltimage.TiltImage`
+:class:`pypeit.images.buildimage.TiltImage`
 which subclasses from :class:`pypeit.images.pypeitimage.PypeItImage` and
 :class:`pypeit.datamodel.DataContainer`.
 

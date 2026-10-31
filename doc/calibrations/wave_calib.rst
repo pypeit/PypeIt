@@ -586,7 +586,7 @@ procedure, when possible:
    * For gratings that tilt, one may need to splice together a series
      of arc spectra to cover the full spectral range.
    * Follow the guidance :doc:`here <construct_template>` and see examples in
-     :mod:`~pypeit.core.wavecal.templates` and
+     ``pypeitdev/wavecal/templates.py`` in the `PypeIt Development Suite`_ and
 
 - Augment the line list
    * We are very conservative about adding new lines to the existing line lists.
@@ -606,7 +606,7 @@ The preferred method for multi-slit calibration is now
 called ``full_template`` which
 cross-matches an input spectrum against an archived template.  The
 latter must be constructed by a developer, using
-:mod:`~pypeit.core.wavecal.templates`.  The following table
+``pypeitdev/wavecal/templates.py`` in the `PypeIt Development Suite`_.  The following table
 summarizes the existing ones (all of which are in the
 ``data/arc_lines/reid_arxiv`` folder):
 
@@ -640,7 +640,7 @@ shane_kast_blue  830_3460 grism, all lamps  shane_kast_blue_830.fits
 .. for further details.
 
 Follow the guidance :doc:`here <construct_template>` and see examples in
-:mod:`~pypeit.core.wavecal.templates` and
+``pypeitdev/wavecal/templates.py`` in the `PypeIt Development Suite`_ and
 
 One of the key parameters (and the only one that can be modified) for
 ``full_template`` is the number of snippets to break the input
