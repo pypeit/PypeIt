@@ -7,7 +7,7 @@ cosmic ray, or is saturated.  You can define the following:
 
 .. code-block:: python
 
-    from pypeit.bitmask import BitMask
+    from pypeit.core.bitmask import BitMask
 
     bits = {'BPM':'Pixel is part of a bad-pixel mask',
             'COSMIC':'Pixel is contaminated by a cosmic ray',
@@ -17,7 +17,7 @@ cosmic ray, or is saturated.  You can define the following:
 .. note::
 
     Consistency in the order of the dictionary keywords is *critical*
-    to the repeatability of the :class:`~pypeit.bitmask.BitMask`
+    to the repeatability of the :class:`~pypeit.core.bitmask.BitMask`
     instances. The above is possible because :obj:`dict` objects
     automatically maintain the order of the provided keywords since
     Python 3.7.
@@ -26,7 +26,7 @@ Or, better yet, define a derived class:
 
 .. code-block:: python
 
-    from pypeit.bitmask import BitMask
+    from pypeit.core.bitmask import BitMask
 
     class ImageBitMask(BitMask):
         def __init__(self):
@@ -57,7 +57,7 @@ running:
     ['BPM', 'COSMIC', 'SATURATED']
 
 Now you can define a `numpy.ndarray`_ to hold the mask value for each
-image pixel; the :func:`~pypeit.bitmask.BitMask.minimum_dtype`
+image pixel; the :func:`~pypeit.core.bitmask.BitMask.minimum_dtype`
 returns the smallest data type required to represent the list of
 defined bits. The maximum number of bits that can be defined is 64.
 Assuming you have an image ``img``:
@@ -115,7 +115,7 @@ Some other short usage examples:
 
         masked_img = numpy.ma.MaskedArray(img, mask=image_bm.flagged(mask))
 
-:class:`~pypeit.bitmask.BitMask` objects can be defined
+:class:`~pypeit.core.bitmask.BitMask` objects can be defined
 programmatically, as shown above for the ``ImageBitMask`` derived class,
 but they can also be defined by reading formatted files.  The current
 options are:

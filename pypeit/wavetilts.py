@@ -90,7 +90,7 @@ class WaveTilts(calibframe.CalibFrame):
                  tilt_traces=None):
 
         # Parse
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)

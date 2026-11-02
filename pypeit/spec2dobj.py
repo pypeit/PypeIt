@@ -7,7 +7,6 @@ Module for the Spec2DObj class
 """
 from pathlib import Path
 import os
-import inspect
 import datetime
 
 from copy import deepcopy
@@ -19,6 +18,7 @@ from astropy.stats import mad_std
 from astropy import table
 
 from pypeit import log
+from pypeit import utils
 from pypeit import PypeItError
 from pypeit import io
 from pypeit import datamodel
@@ -192,7 +192,7 @@ class Spec2DObj(datamodel.DataContainer):
                  scaleimg, waveimg, bpmmask, detector, sci_spat_flexure, sci_spec_flexure,
                  vel_type, vel_corr, slits, wavesol, tilts, maskdef_designtab):
         # Slurp
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         _d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
@@ -252,6 +252,13 @@ class Spec2DObj(datamodel.DataContainer):
                 d[0][key] = self[key]
         # Return
         return d
+
+    def _primary_header(self, hdr=None):
+        """Record electron units when gain correction was performed."""
+        _hdr = super()._primary_header(hdr=hdr)
+        if self.process_steps is not None and 'apply_gain' in self.process_steps:
+            _hdr['BUNIT'] = ('electron', 'Units of the processed image')
+        return _hdr
 
     def _base_header(self, hdr=None):
         """
@@ -559,7 +566,7 @@ class AllSpec2DObj:
 
         # Copy most of the information from the raw header
         # TODO: Does astropy provide a way to intelligently merge headers?
-        hdukeys = ['BUNIT', 'COMMENT', '', 'BITPIX', 'NAXIS', 'NAXIS1', 'NAXIS2',
+        hdukeys = ['COMMENT', '', 'BITPIX', 'NAXIS', 'NAXIS1', 'NAXIS2',
                    'HISTORY', 'EXTEND', 'DATASEC']
         for key in raw_header.keys():
             # Use new ones
@@ -576,6 +583,11 @@ class AllSpec2DObj:
         if subheader is not None:
             for key in subheader.keys():
                 hdr[key.upper()] = subheader[key]
+
+        if len(self.detectors) > 0 and all(
+                self[det].process_steps is not None
+                and 'apply_gain' in self[det].process_steps for det in self.detectors):
+            hdr['BUNIT'] = ('electron', 'Units of the processed image')
 
         # PYPEIT
         # TODO Should the spectrograph be written to the header?

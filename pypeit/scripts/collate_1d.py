@@ -75,9 +75,11 @@ def build_parameters(args):
         params = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(), 
                                                     merge_with=(cfg_lines,))
     else:
-        # No config file, use the defaults and supplement with command line args
+        # No config file, use the defaults and supplement with command line args.
+        # Keep any collate1d defaults the spectrograph itself defines (e.g. a
+        # spectrograph-specific outfile_from), rather than resetting to the
+        # generic Collate1DPar defaults.
         params = spectrograph_def_par
-        params['collate1d'] = pypeitpar.Collate1DPar()
 
     # command line arguments take precedence over config file parameters
     if args.tolerance is not None:
@@ -113,6 +115,9 @@ def build_parameters(args):
     if args.refframe is not None:
         params['collate1d']['refframe'] = args.refframe
 
+    if args.outfile_from is not None:
+        params['collate1d']['outfile_from'] = args.outfile_from
+
     if args.chk_version is True:
         params['rdx']['chk_version'] = True
 
@@ -147,6 +152,8 @@ class Collate1D(scriptbase.ScriptBase):
                                  'F|  exclude_serendip      If set serendipitous objects are skipped.\n'  
                                  'F|  match_using           Whether to match using "pixel" or\n'
                                  'F|                        "ra/dec"\n'
+                                 'F|  outfile_from          Whether to name coadd files from the\n'
+                                 'F|                        source "coord" or "maskdef_objname"\n'
                                  'F|  dry_run               If set the matches are displayed\n'
                                  'F|                        without any processing\n'
                                  'F|  flux                  Flux calibrate using archived sensfuncs.\n'
@@ -182,6 +189,9 @@ class Collate1D(scriptbase.ScriptBase):
         parser.add_argument("--wv_rms_thresh", type=float, default = None, help=blank_par.descr['wv_rms_thresh'])
         parser.add_argument("--refframe", type=str, default = None, choices = pypeitpar.WavelengthSolutionPar.valid_reference_frames(),
                             help=blank_par.descr['refframe'])
+        parser.add_argument('--outfile_from', type=str, default=None,
+                            choices=blank_par.options['outfile_from'],
+                            help=blank_par.descr['outfile_from'])
         parser.add_argument('--chk_version', action = 'store_true', help=blank_pypar['rdx'].descr['chk_version'])
         return parser
 
