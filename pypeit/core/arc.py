@@ -1141,7 +1141,10 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
             pmax = sz_a
         if pmin == pmax:
             continue
-        if (pmax - pmin) < (fit_interval):
+        # A 3-parameter Gaussian needs at least 3 pixels; a measured arc-line FWHM below one pixel
+        # (a spurious slit with no arc light: keck_mosfire long2pos_specphot, 2016-01-08) gives
+        # fit_interval = 0 and curve_fit raises TypeError on a single pixel.
+        if (pmax - pmin) < max(fit_interval, 3):
             continue # Probably won't be a good solution
 #       JFH Removed below
 #       if pixt[p]-pmin <= 1 or pmax-pixt[p] <= 1:
@@ -1151,7 +1154,7 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
             fitc, fitcov = fitting.fit_gauss(xarray[pmin:pmax], yarray[pmin:pmax])
             ampl[p], cent[p], widt[p] = fitc
             centerr[p] = fitcov[1, 1]
-        except RuntimeError:
+        except (RuntimeError, TypeError, ValueError):
             pass
     return ampl, cent, widt, centerr
 
