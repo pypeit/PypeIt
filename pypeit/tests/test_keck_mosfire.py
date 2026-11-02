@@ -7,7 +7,8 @@ import pytest
 from astropy.io import fits
 
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.spectrographs.keck_mosfire import mosfire_read_noise, MOSFIRE_READ_NOISE, KeckMOSFIRESpectrograph
+from pypeit.spectrographs.keck_mosfire import mosfire_read_noise, MOSFIRE_READ_NOISE, KeckMOSFIRESpectrograph, \
+    read_slit_list
 
 
 def _hdu(**cards):
@@ -69,3 +70,44 @@ def test_long2pos_match_bars():
     # a slit serves one bar only, and nothing matches far from the mask
     assert match(LONG2POS_BARS, [1033], 1035, 0.1799) == [None, None, None, 0, None, None, None]
     assert match(LONG2POS_BARS, [], 1035, 0.1799) == [None] * 7
+
+
+MECHANICAL_ROWS = [(20, 'posA', '10.00', '45.554', '0.700', '0.000'), (21, 'posAalign', '-1.00', '44.996', '4.000', '0.010'),
+                   (22, 'posA', '10.00', '44.438', '0.700', '0.000'), (23, 'posBalign', '-1.00', '-0.001', '4.000', '0.010'),
+                   (24, 'posC', '10.00', '-44.440', '0.700', '0.000'), (25, 'posCalign', '-1.00', '-44.998', '4.000', '0.010'),
+                   (26, 'posC', '10.00', '-45.556', '0.700', '0.000')]
+
+
+def _slit_list_file(path, shift=0):
+    """A long2pos_specphot frame with a Mechanical_Slit_List; ``shift`` moves the table bytes into the padding
+    (KOA 2016-01-06)."""
+    names = ['Slit_Number', 'Target_in_Slit', 'Target_Priority', 'Position_of_Slit', 'Slit_width',
+             'Target_to_center_of_slit_distance']
+    cols = [fits.Column(name=n, format=f, array=np.array([str(r[i]) for r in MECHANICAL_ROWS]))
+            for i, (n, f) in enumerate(zip(names, ['A2', 'A9', 'A5', 'A7', 'A5', 'A5']))]
+    hdr = fits.Header()
+    hdr['MASKNAME'] = 'long2pos_specphot'
+    tab = fits.TableHDU.from_columns(cols, name='Mechanical_Slit_List')
+    fits.HDUList([fits.PrimaryHDU(header=hdr), tab]).writeto(path, overwrite=True)
+    if shift:
+        with fits.open(path) as hdu:
+            off, size = hdu[1]._data_offset, hdu[1]._data_size
+        buf = bytearray(path.read_bytes())
+        block = bytes(buf[off:off + size])
+        buf[off:off + size] = (b' ' * shift + block)[:size]
+        path.write_bytes(bytes(buf))
+    return path
+
+
+@pytest.mark.parametrize('shift', [0, 80])
+def test_read_slit_list_shifted(tmp_path, shift):
+    path = _slit_list_file(tmp_path / f'm160106_{shift}.fits', shift)
+    with fits.open(path) as hdu:
+        tab = read_slit_list(hdu, 'Mechanical_Slit_List')
+        assert read_slit_list(hdu, 'Science_Slit_List') is not None and len(read_slit_list(hdu, 'Nope')) == 0
+    assert [int(r['Slit_Number']) for r in tab] == list(range(20, 27))
+    assert [r['Target_in_Slit'] for r in tab] == [r[1] for r in MECHANICAL_ROWS]
+    assert [r['Slit_width'] for r in tab] == [r[4] for r in MECHANICAL_ROWS]
+    bars = KeckMOSFIRESpectrograph.long2pos_bar_widths(str(path))
+    assert [b[0] for b in bars] == list(range(26, 19, -1))
+    assert [b[1] for b in bars] == [0.7, 4.0, 0.7, 4.0, 0.7, 4.0, 0.7]

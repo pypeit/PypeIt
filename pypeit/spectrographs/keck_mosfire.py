@@ -69,6 +69,93 @@ def mosfire_read_noise(sampmode, numreads):
     return float(np.interp(np.log2(nreads), np.log2(n), rn))
 
 
+def read_slit_list(hdu, extname):
+    """
+    Read a MOSFIRE slit-list extension (``Science_Slit_List``,
+    ``Mechanical_Slit_List`` or ``Alignment_Slit_List``) as a
+    :class:`~astropy.table.Table` of stripped strings, one column per
+    ``TTYPE``.
+
+    The extensions are FITS ASCII tables. In some KOA frames (e.g. MOSFIRE
+    2016-01-06, every frame of the night) the table bytes sit one 80-character
+    card further into the data block than the header says: the parsed columns
+    are then shifted garbage (blank or truncated slit numbers) and the last row
+    hides in the block padding. When the parsed ``Slit_Number`` and
+    ``Slit_width`` columns do not read as integers and floats (or blanks), the
+    rows are re-read from the raw data block, padding included, at the byte
+    shift at which the most rows parse. The astropy parse is returned
+    unchanged when it is consistent, or when the raw block cannot be read (an
+    in-memory HDU list).
+
+    Args:
+        hdu (`astropy.io.fits.HDUList`_): Open file.
+        extname (:obj:`str`): Extension name.
+
+    Returns:
+        `astropy.table.Table`_: Stripped strings; empty when the extension is
+        missing.
+    """
+    try:
+        tab = hdu[extname]
+    except KeyError:
+        return Table()
+    hdr = tab.header
+    names = [hdr[f'TTYPE{i}'] for i in range(1, hdr['TFIELDS'] + 1)]
+    if not isinstance(tab, fits.TableHDU):
+        # a binary table (not what MOSFIRE writes, but what a test may build): no byte layout to re-read
+        return Table([[str(v).strip() for v in tab.data[n]] for n in names], names=names, dtype=[str] * len(names))
+    spans = [(hdr[f'TBCOL{i}'] - 1, int(hdr[f'TFORM{i}'].strip()[1:])) for i in range(1, hdr['TFIELDS'] + 1)]
+    n1, n2 = hdr['NAXIS1'], hdr['NAXIS2']
+
+    def rows_at(raw, shift):
+        out = []
+        for r in range(n2):
+            line = raw[shift + r * n1:shift + (r + 1) * n1]
+            if len(line) < n1:
+                return None
+            out.append([line[a:a + w].decode('ascii', 'replace').strip() for a, w in spans])
+        return out
+
+    def score(rows):
+        """(rows that parse: integer number and float width, characters read), or (-1, 0) when a row is
+        inconsistent. The characters break ties between neighbouring shifts that truncate a field ('2' for '20')."""
+        if rows is None:
+            return (-1, 0)
+        n = 0
+        for r in rows:
+            num = r[names.index('Slit_Number')] if 'Slit_Number' in names else ''
+            wid = r[names.index('Slit_width')] if 'Slit_width' in names else ''
+            if num and not num.isdigit():
+                return (-1, 0)
+            try:
+                if wid:
+                    float(wid)
+            except ValueError:
+                return (-1, 0)
+            n += bool(num) and bool(wid)
+        return (n, sum(len(c) for r in rows for c in r))
+
+    raw = tab.data.tobytes()
+    rows = rows_at(raw, 0)
+    best = score(rows)
+    if best[0] <= 0 and getattr(tab, '_file', None) is not None:
+        block = tab._get_raw_data(tab._data_size, 'ubyte', tab._data_offset)
+        if block is not None:
+            block = bytes(block)
+            found = None
+            for shift in range(1, len(block) - n1 * n2 + 1):
+                cand = rows_at(block, shift)
+                sc = score(cand)
+                if sc > best:
+                    best, rows, found = sc, cand, shift
+            if found:
+                log.warning(f'{extname} of {hdu.filename()} is shifted by {found} bytes in its data block; '
+                            f'{best[0]} rows re-read from the raw block.')
+    rows = rows or []
+    return Table(rows=rows, names=names, dtype=[str] * len(names)) if rows \
+        else Table(names=names, dtype=[str] * len(names))
+
+
 class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/MOSFIRE specific code
@@ -1009,11 +1096,11 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
         # load slitmask info
         targs = hdu['Target_List'].data
-        ssl = hdu['Science_Slit_List'].data
-        msl = hdu['Mechanical_Slit_List'].data
-        # some needed cleanup
-        ssl = ssl[ssl['Slit_Number'] != ' ']
-        msl = msl[msl['Slit_Number'] != ' ']
+        ssl = read_slit_list(hdu, 'Science_Slit_List')
+        msl = read_slit_list(hdu, 'Mechanical_Slit_List')
+        # some needed cleanup (blank rows; the lists are padded to the CSU length)
+        ssl = ssl[ssl['Slit_Number'] != '']
+        msl = msl[msl['Slit_Number'] != '']
 
         # Book keeping: Count and check that the # of objects in the SSL matches that of the MSL
         # and if we recover the total number of CSUs
@@ -1267,6 +1354,9 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         """
         return 880, 1190
 
+    read_slit_list = staticmethod(read_slit_list)
+    """Tolerant reader of the slit-list extensions; see :func:`read_slit_list`."""
+
     @staticmethod
     def long2pos_bar_widths(filename):
         """
@@ -1278,13 +1368,9 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         hdu = io.fits_open(filename)
         if 'long2pos_specphot' not in str(hdu[0].header.get('MASKNAME', '')):
             return []
-        try:
-            mech = hdu['Mechanical_Slit_List'].data
-        except KeyError:
-            return []
-        bars = [(int(str(r['Slit_Number']).strip()), float(str(r['Slit_width']).strip()),
-                 float(str(r['Position_of_Slit']).strip()))
-                for r in mech if str(r['Slit_Number']).strip()]
+        mech = read_slit_list(hdu, 'Mechanical_Slit_List')
+        bars = [(int(r['Slit_Number']), float(r['Slit_width']), float(r['Position_of_Slit']))
+                for r in mech if r['Slit_Number']]
         return sorted(bars, reverse=True)
 
     LONG2POS_POSB_BAR = 23
