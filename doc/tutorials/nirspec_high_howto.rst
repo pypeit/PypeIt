@@ -319,16 +319,16 @@ of the ``sensfunc_Jband.inp`` file for this tutorial is simply:
         algorithm = IR
         star_mag = 5.333 
         star_type = PHOENIX
-        flatfile = Calibrations/Flat_A_0_DET01.fits
+        use_flat = True
         [[IR]]
             telgridfile = 'TellPCA_9300_55100_R60000.fits'
 
 We specify that the algorithm should be ``IR``, so that the telluric spectrum is
 jointly fitted to the data. This will not perform a telluric correction, it is
 just a first order approximation of the telluric contribution to enable reliable
-continuum fitting. The ``flatfile`` keyword is used to specify the Flat file
-from the calibration, so that the sensitivity function calculation knows the
-blaze function of the observation. 
+continuum fitting. The ``use_flat`` keyword tells the sensitivity function
+calculation to use the extracted spectrum of the flat field (saved in the
+spec1d file) to estimate the blaze function of the observation.
 
 Flux Calibration
 ----------------

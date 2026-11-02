@@ -337,6 +337,19 @@ Under-the-hood Improvements
 Bug Fixes
 ---------
 
+- MMT Binospec: the ``ra``/``dec`` metadata now come from the catalog
+  ``CATRA``/``CATDEC`` header cards instead of ``RA``/``DEC``, which give the
+  instrument rotator axis and are offset from the target by the instrument
+  offset (``IAZOFF``/``IELOFF``, ~594 arcsec for the IFU and ~337 arcsec for
+  the long slits).  Decimal ``CATRA`` values in older headers are now read as
+  hours, not degrees.  For the IFU, the datacube and fiber-extraction WCS no
+  longer read the decimal-degree ``RA`` of spec1d/spec2d headers as hours, and
+  ``POSANG`` is now propagated to those headers so the WCS is correctly
+  rotated.  IFU combination groups are still built from the rotator-axis
+  pointing, now recorded as the ``ra_off``/``dec_off`` offset from the target,
+  so dithers made with the instrument offset (which leave
+  ``CATRA``/``CATDEC`` unchanged) still separate.
+
 - Make reductions reproducible run to run (Issue #2208).
   :func:`~pypeit.core.pca.pca_decomposition` now uses the exact
   (``svd_solver='full'``) SVD solver.  With sklearn's default (``'auto'``), the
