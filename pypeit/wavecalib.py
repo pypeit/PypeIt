@@ -15,6 +15,7 @@ from astropy.table import Table
 from astropy.io import fits
 
 from pypeit import log
+from pypeit import utils
 from pypeit import PypeItError
 from pypeit import qa
 from pypeit.core import arc
@@ -83,7 +84,7 @@ class WaveCalib(calibframe.CalibFrame):
                  PYP_SPEC=None, strpar=None, wv_fit2d=None, arc_spectra=None, lamps=None,
                  det_img=None):
         # Parse
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
@@ -636,7 +637,8 @@ class BuildWaveCalib:
         # TODO nsample should be a parameter
         fwhm_map = autoid.map_fwhm(self.msarc.image, self.gpm, self.slits_left, self.slits_right, self.slitmask,
                                    nsample=10, slit_bpm=self.wvc_bpm, specord=self.par['fwhm_spec_order'],
-                                   spatord=self.par['fwhm_spat_order'])
+                                   spatord=self.par['fwhm_spat_order'],
+                                   sigdetect=self.par['sigdetect'], fwhm=self.par['fwhm'])
         # Calculate the typical spectral FWHM down the centre of the slit
         measured_fwhms = np.zeros(arccen.shape[1], dtype=object)
         for islit in range(arccen.shape[1]):

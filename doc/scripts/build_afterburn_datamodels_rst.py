@@ -6,7 +6,7 @@ from importlib import resources
 
 import numpy
 
-from pypeit.utils import string_table
+from rst_table import format_rst_table
 
 from IPython import embed
 
@@ -43,7 +43,7 @@ def single_table_datamodel(obj, output_root, ext, descr):
     data_table[2,:] = [f'``{ext}``', '`astropy.io.fits.BinTableHDU`_', '...', descr]
 
     lines = [''] + [f'Version {obj.version}'] + [''] \
-                + [string_table(data_table, delimeter='rst')]
+                + [format_rst_table(data_table)]
 
     ofile = output_root / f'datamodel_{obj.__name__.lower()}.rst'
     with open(ofile, 'w') as f:
@@ -91,11 +91,11 @@ def sens_datamodel(output_root):
         sens_table[i+1,:] = [f'``{key}``', column_type(sens[key]), sens[key].description]
 
     lines = [''] + [f'Version {SensFunc.version}'] + [''] \
-                + [string_table(hdu_table, delimeter='rst')] \
+                + [format_rst_table(hdu_table)] \
                 + [''] + ['TELLURIC table (if present)'] + [''] \
-                + [string_table(tell_table, delimeter='rst')] \
+                + [format_rst_table(tell_table)] \
                 + [''] + ['SENS table'] + [''] \
-                + [string_table(sens_table, delimeter='rst')]
+                + [format_rst_table(sens_table)]
 
     ofile = output_root / f'datamodel_{SensFunc.__name__.lower()}.rst'
     with open(ofile, 'w') as f:
@@ -122,9 +122,9 @@ def telluric_datamodel(output_root):
         tell_table[i+1,:] = [f'``{key}``', column_type(telluric[key]), telluric[key].description]
 
     lines = [''] + [f'Version {Telluric.version}'] + [''] \
-                + [string_table(hdu_table, delimeter='rst')] \
+                + [format_rst_table(hdu_table)] \
                 + [''] + ['TELLURIC table'] + [''] \
-                + [string_table(tell_table, delimeter='rst')]
+                + [format_rst_table(tell_table)]
 
     ofile = output_root / f'datamodel_{Telluric.__name__.lower()}.rst'
     with open(ofile, 'w') as f:

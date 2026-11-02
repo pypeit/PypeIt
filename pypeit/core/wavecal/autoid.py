@@ -27,6 +27,7 @@ from pypeit.core import fitting
 
 from pypeit.core import pca
 from pypeit import utils
+from pypeit import qaWriter
 
 from pypeit import log
 from pypeit import PypeItError
@@ -64,7 +65,6 @@ def arc_fit_qa(waveFit,
     arc_spec = waveFit['spec']
 
     # Begin
-    plt.close('all')
     if ids_only:
         nrows, ncols = 1,1
         figsize =(11,8.5)
@@ -87,7 +87,7 @@ def arc_fit_qa(waveFit,
 
 
     # Simple spectrum plot
-    ax_spec = plt.subplot(gs[:,0])
+    ax_spec = fig.add_subplot(gs[:,0])
     ax_spec.minorticks_on()
     ax_spec.plot(np.arange(len(arc_spec)), arc_spec)
     ymin, ymax = np.min(arc_spec), np.max(arc_spec)
@@ -145,16 +145,12 @@ def arc_fit_qa(waveFit,
 
     # If we're only plotting the ID panel, save the figure and return
     if ids_only:
-        plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-        if outfile is None:
-            plt.show()
-        else:
-            plt.savefig(outfile, dpi=800)
-        plt.close()
+        fig.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
+        qaWriter.save_figure(fig, outfile, show=outfile is None, dpi=800)
         return
 
     # Arc Fit
-    ax_fit = plt.subplot(gs[0, 1])
+    ax_fit = fig.add_subplot(gs[0, 1])
     # Points
     ax_fit.scatter(waveFit.pixel_fit,waveFit.wave_fit, marker='x')
     # Rejections?
@@ -181,7 +177,7 @@ def arc_fit_qa(waveFit,
     ax_fit.text(0.1, 0.9, r'$\Delta\lambda$={:.3f}$\AA$ (per pix)'.format(waveFit.cen_disp), size='small', transform=ax_fit.transAxes)
     ax_fit.text(0.1, 0.8, 'RMS={:.3f} (pixels)'.format(waveFit.rms), size='small', transform=ax_fit.transAxes)
     # Arc Residuals
-    ax_res = plt.subplot(gs[1,1])
+    ax_res = fig.add_subplot(gs[1,1])
     res = waveFit.wave_fit-wave_soln_fit
     ax_res.scatter(waveFit.pixel_fit[gpm], res[gpm]/waveFit.cen_disp, marker='x')
     ax_res.plot([xmin,xmax], [0.,0], 'k--')
@@ -192,12 +188,8 @@ def arc_fit_qa(waveFit,
     ax_res.tick_params(axis="y", which='both', right=True)
 
     # Finish
-    plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-    if outfile is None:
-        plt.show()
-    else:
-        plt.savefig(outfile, dpi=400)
-    plt.close('all')
+    fig.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
+    qaWriter.save_figure(fig, outfile, show=outfile is None, dpi=400)
 
     plt.rcdefaults()
 
@@ -239,7 +231,6 @@ def arc_fwhm_qa(fwhmFit, spat_id, slit_txt="slit", outfile=None, show_QA=False):
     colors = plt.cm.Spectral(unq)
     spec_vec = np.linspace(0, fwhmFit.xval.max(), 10)
     # Begin
-    plt.close('all')
     # Show the fit
     fig, ax = plt.subplots(figsize=(6, 9))
     ax.cla()
@@ -283,14 +274,8 @@ def arc_fwhm_qa(fwhmFit, spat_id, slit_txt="slit", outfile=None, show_QA=False):
         cbar.solids.set_edgecolor('black')
         cbar.set_label(label='Fraction along the slit in the spatial direction', weight='bold', fontsize=12)
 
-    plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-    if outfile is not None:
-        plt.savefig(outfile, dpi=400)
-
-    if show_QA:
-        plt.show()
-
-    plt.close()
+    fig.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
+    qaWriter.save_figure(fig, outfile, show=show_QA, dpi=400)
     plt.rcdefaults()
 
 
@@ -889,9 +874,10 @@ def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample
         nsample (int, optional):
             Number of positions along the spatial direction of the slit to estimate the FWHM.
             Only nsample or npixel should be specified. Precedence is given to nsample.
-        sigdetect (:obj:`float`, optional):
-            Sigma threshold above fluctuations for arc-line detection.
-            Used by :func:`~pypeit.core.arc.detect_lines`.
+        sigdetect (:obj:`float`, :obj:`list`, `numpy.ndarray`_, optional):
+            Sigma threshold above fluctuations for arc-line detection, either
+            for all slits or separately for each slit. Used by
+            :func:`~pypeit.core.arc.detect_lines`.
         specord (tuple, optional):
             The spectral polynomial order to use in the 2D polynomial fit to the
             FWHM of the arc lines. See also, spatord.
@@ -930,6 +916,7 @@ def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample
             resmap[sl] = fitting.PypeItFit()
             continue
         log.info(f"Calculating spectral resolution of slit {sl + 1}/{nslits}")
+        slit_sigdetect = sigdetect[sl] if isinstance(sigdetect, (list, np.ndarray)) else sigdetect
         # Fraction along the slit in the spatial direction to sample the arc line width
         nmeas = int(0.5+slit_lengths[sl]/_npixel) if nsample is None else nsample
         slitsamp = np.linspace(0.05, 0.95, nmeas)
@@ -942,10 +929,20 @@ def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample
                 log.warning('Failed to extract the arc at fractional location {0:.2f} along slit {1:d}'.format(slitsamp[ss], sl+1))
                 continue
             # Detect lines and store the spectral FWHM
-            _, _, cent, wdth, _, best, _, nsig = arc.detect_lines(arc_spec.squeeze(), sigdetect=sigdetect, fwhm=fwhm, bpm=arc_spec_bpm.squeeze())
+            _, _, cent, wdth, _, best, _, nsig = arc.detect_lines(arc_spec.squeeze(), sigdetect=slit_sigdetect, fwhm=fwhm, bpm=arc_spec_bpm.squeeze())
             this_cent = np.append(this_cent, cent[best])
             this_fwhm = np.append(this_fwhm, scale*wdth[best])  # Scale convert sig to spectral FWHM
             this_samp = np.append(this_samp, slitsamp[ss]*np.ones(wdth[best].size))
+        if this_cent.size == 0:
+            log.warning(f'No arc lines found for FWHM map in slit {sl+1}/{nslits}; '
+                        f'using a constant FWHM of {fwhm:.1f} pixels.')
+            this_cent = np.array([0.0, image.shape[0]/2.0, image.shape[0]-1.0])
+            this_samp = np.full(3, 0.5)
+            this_fwhm = np.full(3, fwhm)
+            resmap[sl] = fitting.robust_fit(this_cent, this_fwhm, (0, 0),
+                                            x2=this_samp, lower=3, upper=3,
+                                            function='polynomial2d')
+            continue
         # Perform a 2D robust fit on the measures for this slit
         resmap[sl] = fitting.robust_fit(this_cent, this_fwhm, _ord, x2=this_samp, lower=3, upper=3, function='polynomial2d')
 

@@ -319,9 +319,10 @@ class KECKHIRESBaseSpectrograph(spectrograph.Spectrograph):
         Define frame types that are independent of the fully defined
         instrument configuration.
 
-        Bias and dark frames are considered independent of a configuration,
-        but the DATE-OBS keyword is used to assign each to the most-relevant
-        configuration frame group. See
+        Bias, dark and slitless pixel-flat frames are considered independent
+        of a configuration.  Each is assigned to a configuration group by
+        matching only the ``dispname`` and ``binning`` metadata; no date
+        matching is performed.  See
         :func:`~pypeit.metadata.PypeItMetaData.set_configurations`.
 
         Returns:
@@ -564,7 +565,7 @@ class KECKHIRESBaseSpectrograph(spectrograph.Spectrograph):
         if _dateobs <= date_orig and self.name in ['keck_hires']:
             raise PypeItError("This is not the correct spectrograph. Use keck_hires_orig instead.")
         elif _dateobs > date_orig and self.name in ['keck_hires_orig']:
-            PypeItError('This is not the correct spectrograph. Use keck_hires instead.')
+            raise PypeItError('This is not the correct spectrograph. Use keck_hires instead.')
 
 
 class KECKHIRESSpectrograph(KECKHIRESBaseSpectrograph):
@@ -946,6 +947,41 @@ class KeckHIRESOrigSpectrograph(KECKHIRESBaseSpectrograph):
         # NOTE: This is the native keyword.  IMAGETYP is from KOA.
         self.meta['target'] = dict(ext=0, card='OBJECT')
 
+    def compound_meta(self, headarr, meta_key):
+        """
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
+
+        This overrides the base-class method for ``binning`` only; every other
+        key is delegated to
+        :func:`KECKHIRESBaseSpectrograph.compound_meta`.
+
+        The original Tektronix CCD is read with ``specaxis = 1``: the raw
+        ``NAXIS1`` (column) axis is the *spectral* direction and the raw
+        ``NAXIS2`` (row) axis is the *spatial* direction (on 1998 data the
+        echelle orders are stacked along the rows and dispersion runs along the
+        columns).  The ``BINNING`` header card is ``'<column>,<row>'``, so its
+        first value is the spectral binning and its second value is the
+        spatial binning.  This is the opposite of the post-2004 mosaic
+        convention implemented in the base class, where the first ``BINNING``
+        value is the spatial binning.
+
+        Args:
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
+
+        Returns:
+            object: Metadata value read from the header(s).
+        """
+        if meta_key == 'binning':
+            # parse_binning simply splits the string; for this detector the
+            # first value is the spectral binning and the second the spatial.
+            binspec, binspat = parse.parse_binning(headarr[0]['BINNING'])
+            return parse.binning2string(binspec, binspat)
+        return super().compound_meta(headarr, meta_key)
+
     @classmethod
     def default_pypeit_par(cls):
         """
@@ -962,6 +998,18 @@ class KeckHIRESOrigSpectrograph(KECKHIRESBaseSpectrograph):
 
         # Only one detector, so don't need to separate the 2D wavelength solution by detector
         par['calibrations']['wavelengths']['ech_separate_2d'] = False
+
+        # The base-class science floor (601 s) is a post-2004 faint-target
+        # assumption.  The original CCD was used for bright targets (e.g., the
+        # planet-search programs) with exposures of a few hundred seconds, so
+        # the floor is lowered to match the standard-star range.  Science and
+        # standard frames are both drawn from idname == 'Object'; a frame that
+        # satisfies both exposure ranges is resolved by
+        # :func:`~pypeit.spectrographs.spectrograph.Spectrograph.vet_assigned_ftypes`,
+        # which keeps the ``standard`` type only when the coordinates match an
+        # archived standard star.  Calibration frames have other idname values
+        # and cannot become science frames whatever the exposure range.
+        par['scienceframe']['exprng'] = [1, None]
 
         return par
 
@@ -1024,7 +1072,29 @@ class KeckHIRESOrigSpectrograph(KECKHIRESBaseSpectrograph):
         return [angle_fits_file, composite_arc_file]
 
     def get_rawimage(self, raw_file, det, spectrim=0):
-        """ Read the image
+        """
+        Read the raw image and construct the data and overscan section images.
+
+        The raw frame is laid out along ``NAXIS1`` as ``NUMAMPS`` blocks of
+        ``PREPIX`` prescan columns, then ``NUMAMPS`` blocks of data columns
+        (``WINDOW`` width divided by ``NUMAMPS``), then ``NUMAMPS`` blocks of
+        ``POSTPIX`` overscan columns, i.e.
+        ``NAXIS1 = NUMAMPS * (PREPIX + POSTPIX) + <data columns>``.  For a
+        single-amplifier 1998 frame this is ``21 + 2048 + 234 = 2303``, with
+        the data in columns ``21:2069`` (0-indexed, half-open).
+
+        Args:
+            raw_file (:obj:`str`):
+                File to read.
+            det (:obj:`int`):
+                1-indexed detector to read (this detector only has one).
+            spectrim (:obj:`int`, optional):
+                Unused; retained for signature compatibility with the parent
+                class.
+
+        Returns:
+            :obj:`tuple`: See
+            :func:`~pypeit.spectrographs.spectrograph.Spectrograph.get_rawimage`.
         """
         # Check for file; allow for extra .gz, etc. suffix
         if not Path(raw_file).is_file():
@@ -1035,7 +1105,8 @@ class KeckHIRESOrigSpectrograph(KECKHIRESBaseSpectrograph):
         # Number of AMPS
         namp = head0['NUMAMPS']
 
-        # Get post, pre-pix values
+        # Get post, pre-pix values.  PRELINE/POSTLINE are read for reference
+        # only; they are 0 for the Tektronix CCD and no row trimming is done.
         prepix = head0['PREPIX']
         postpix = head0['POSTPIX']
         preline = head0['PRELINE']
@@ -1047,13 +1118,15 @@ class KeckHIRESOrigSpectrograph(KECKHIRESBaseSpectrograph):
         oscansec_img = np.zeros_like(full_image, dtype=int)
 
         #
+        # All prescan blocks (one per amplifier) precede the data, and all
+        # overscan blocks follow it.
         nspat = int(head0['WINDOW'].split(',')[3]) // namp
         for amp in range(namp):
-            col0 = prepix * 2 + nspat * amp
+            col0 = prepix * namp + nspat * amp
             # Data
             rawdatasec_img[:, col0:col0 + nspat] = amp + 1
             # Overscan
-            o0 = prepix * 2 + nspat * namp + postpix * amp
+            o0 = prepix * namp + nspat * namp + postpix * amp
             oscansec_img[:, o0:o0 + postpix] = amp + 1
 
         return self.get_detector_par(1, hdu=hdu), \
@@ -1082,14 +1155,25 @@ class KeckHIRESOrigSpectrograph(KECKHIRESBaseSpectrograph):
             detector is read with ``specaxis = 1`` (i.e., the raw image is
             transposed by :func:`~pypeit.spectrographs.spectrograph.Spectrograph.orient_image`).
             MAKEE bins ``col`` by the first ``BINNING`` header value (the PypeIt
-            spatial binning) and ``row`` by the second (the PypeIt spectral
-            binning).
+            spectral binning; see :func:`compound_meta`) and ``row`` by the
+            second (the PypeIt spatial binning).
+
+            **Column origin.**  The MAKEE column numbers count columns of the
+            *raw* frame, prescan included: on 1998 frames the bad column pair
+            listed by MAKEE as 106--107 falls at 0-indexed raw columns 106 and
+            107, and the 1148 and 2027--2028 columns likewise.  Since
+            :func:`get_rawimage` trims the ``PREPIX`` prescan columns, MAKEE
+            column ``C`` maps onto 0-indexed *trimmed* spectral pixel
+            ``C - PREPIX``.  The ``PREPIX`` value is read from the example
+            file; if no file is provided the mask falls back to ``C - 1``
+            (i.e., no prescan correction) with a warning.  MAKEE row ``R`` maps
+            onto 0-indexed spatial pixel ``R - 1`` (``PRELINE = 0``).
 
         Args:
             filename (:obj:`str` or None):
-                An example file to use to get the image shape and binning.  Can
-                be None, but then ``shape`` must be provided (and 1x1 binning is
-                assumed).
+                An example file to use to get the image shape, binning and
+                prescan width.  Can be None, but then ``shape`` must be
+                provided (and 1x1 binning and no prescan offset are assumed).
             det (:obj:`int`):
                 1-indexed detector number.
             shape (:obj:`tuple`, optional):
@@ -1108,22 +1192,37 @@ class KeckHIRESOrigSpectrograph(KECKHIRESBaseSpectrograph):
 
         log.info("Using hard-coded (MAKEE) bad pixel mask for the Keck/HIRES Tektronix detector")
 
-        # Determine the binning of the frame.  The PypeIt binning string is in
+        # Determine the binning of the frame and the width of the prescan
+        # region that get_rawimage trims off.  The PypeIt binning string is in
         # the standard (binspec, binspat) order.
         if filename is None:
             log.warning("Assuming 1x1 binning for the hard-coded bad pixel mask because no example file was provided")
+            log.warning("Assuming no prescan offset for the hard-coded bad pixel mask because no example file "
+                        "was provided; the masked columns may be offset from the true bad columns by PREPIX")
             binspec, binspat = 1, 1
+            col_origin = 1
         else:
             hdu = io.fits_open(filename)
             binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+            prepix = hdu[0].header.get('PREPIX')
             hdu.close()
             binspec, binspat = parse.parse_binning(binning)
+            if prepix is None:
+                log.warning("PREPIX not found in the header; assuming no prescan offset for the hard-coded "
+                            "bad pixel mask")
+                col_origin = 1
+            else:
+                # MAKEE column C is 0-indexed raw column C, and the trimmed
+                # frame starts at raw column PREPIX (in the stored pixel units,
+                # exactly as used by get_rawimage).
+                col_origin = int(prepix)
 
         # Map the PypeIt binning onto the MAKEE binning convention.  MAKEE bins
         # the column (x) direction by ``xbin`` and the row (y) direction by
         # ``ybin``.  For this detector, the column direction is the PypeIt
-        # spatial axis and the row direction is the PypeIt spectral axis.
-        xbin, ybin = binspat, binspec
+        # spectral axis and the row direction is the PypeIt spatial axis (see
+        # compound_meta).
+        xbin, ybin = binspec, binspat
 
         # Bad regions at 1x1 binning, taken verbatim from the MAKEE
         # ``MaskHIRES_1x1.dat`` file.  Each entry is
@@ -1157,25 +1256,24 @@ class KeckHIRESOrigSpectrograph(KECKHIRESBaseSpectrograph):
             bsr = start_row // ybin if (start_row > 0 and ybin > 1) else start_row
             ber = int(end_row / ybin + 1) if (end_row > 0 and ybin > 1) else end_row
 
-            # Replace edge markers (-1) with the detector edges (1-indexed).
-            if bsc == -1:
-                bsc = 1
-            if bec == -1:
-                bec = ncol
-            if bsr == -1:
-                bsr = 1
-            if ber == -1:
-                ber = nrow
+            # Convert the inclusive MAKEE ranges into 0-indexed, half-open
+            # numpy slices in the trimmed frame.  Columns: MAKEE column C is
+            # raw column C, so trimmed column C - col_origin (see the note in
+            # the docstring).  Rows: MAKEE row R is trimmed row R - 1.  Edge
+            # markers (-1) become the detector edges.
+            c0 = 0 if bsc == -1 else bsc - col_origin
+            c1 = ncol if bec == -1 else bec - col_origin + 1
+            r0 = 0 if bsr == -1 else bsr - 1
+            r1 = nrow if ber == -1 else ber
 
             # Clip to the detector, following MAKEE's ``Mask_Bad_Regions``.
-            bsc = min(max(bsc, 1), ncol)
-            bec = min(max(bec, 1), ncol)
-            bsr = min(max(bsr, 1), nrow)
-            ber = min(max(ber, 1), nrow)
+            c0 = min(max(c0, 0), ncol)
+            c1 = min(max(c1, 0), ncol)
+            r0 = min(max(r0, 0), nrow)
+            r1 = min(max(r1, 0), nrow)
 
-            # Convert the inclusive, 1-indexed MAKEE ranges into 0-indexed
-            # (half-open) numpy slices and flag the region.
-            bpm_img[bsc-1:bec, bsr-1:ber] = 1
+            # Flag the region.
+            bpm_img[c0:c1, r0:r1] = 1
 
         return bpm_img
 

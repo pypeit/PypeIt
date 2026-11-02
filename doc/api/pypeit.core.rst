@@ -40,6 +40,7 @@ Submodules
    pypeit.core.plot
    pypeit.core.procimg
    pypeit.core.pydl
+   pypeit.core.ramp
    pypeit.core.sampling
    pypeit.core.scattlight
    pypeit.core.skyspec
