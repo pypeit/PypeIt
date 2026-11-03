@@ -9,14 +9,22 @@ from pypeit.core import fitting
 from pypeit.core import skyspec
 from pypeit.par.pypeitpar import PypeItPar, WavelengthSolutionPar
 from pypeit.wavecalib import BuildWaveCalib
+from pypeit.wavetilts import BuildWaveTilts
 
 
-def test_detect_lines():
+def test_detect_lines(monkeypatch):
     # Using Paranal night sky as an 'arc'
     arx_sky = skyspec.load_sky_spectrum('paranal_sky.fits')
     arx_amp_true, arx_amp, arx_cent, arx_wid, arx_centerr, arx_w, arx_yprep, _ \
             = arc.detect_lines(arx_sky.flux)
-    assert (len(arx_w) > 3275)
+    # The default rejects lines narrower than half the median width
+    assert 3300 < len(arx_w) < 3360
+    assert np.all(arx_wid[arx_w] > 0.5 * np.median(arx_wid[arx_w]) * 0.9)
+    # Previous behaviour (per-line fits, no lower bound on the width)
+    with monkeypatch.context() as m:
+        m.setattr(arc, 'USE_VECTORIZED_ARCFIT', False)
+        old = arc.detect_lines(arx_sky.flux)
+    assert len(old[5]) > 3700
 
 
 def _synthetic_arc(nspec=4096, spacing=20., fwhm=4.0, noise=1.0, seed=42):
@@ -156,7 +164,8 @@ def test_fit_arcspec_negative_wings(monkeypatch):
 
 
 def test_fit_arcspec_narrow_features(monkeypatch):
-    """Features much narrower than an arc line are left to curve_fit."""
+    """With ARCFIT_MATCH_CURVEFIT, very narrow features are left to curve_fit."""
+    monkeypatch.setattr(arc, 'ARCFIT_MATCH_CURVEFIT', True)
     x, y, _, cen, _ = _synthetic_arc(nspec=512)
     # A hot pixel between two lines
     hot = int(np.round(cen[5] + cen[6])) // 2
@@ -183,9 +192,11 @@ def test_fit_arcspec_narrow_features(monkeypatch):
 
 
 def test_detect_lines_matches_curve_fit(monkeypatch):
-    """With the default hand-off, the accepted lines are those of curve_fit."""
+    """With ARCFIT_MATCH_CURVEFIT, the accepted lines are those of curve_fit."""
     flux = skyspec.load_sky_spectrum('paranal_sky.fits').flux
-    new = arc.detect_lines(flux)
+    with monkeypatch.context() as m:
+        m.setattr(arc, 'ARCFIT_MATCH_CURVEFIT', True)
+        new = arc.detect_lines(flux)
     with monkeypatch.context() as m:
         m.setattr(arc, 'USE_VECTORIZED_ARCFIT', False)
         old = arc.detect_lines(flux)
@@ -204,24 +215,24 @@ def test_fit_arcspec_no_curve_fit_on_clean_data(monkeypatch):
 
 def test_arcfit_options():
     """The context manager sets the option temporarily, even on error."""
-    assert arc.ARCFIT_MATCH_CURVEFIT
-    with arc.arcfit_options(match_curvefit=False):
-        assert not arc.ARCFIT_MATCH_CURVEFIT
-    assert arc.ARCFIT_MATCH_CURVEFIT
-    with pytest.raises(ValueError):
-        with arc.arcfit_options(match_curvefit=False):
-            raise ValueError('test')
-    assert arc.ARCFIT_MATCH_CURVEFIT
-    with arc.arcfit_options():
+    assert not arc.ARCFIT_MATCH_CURVEFIT
+    with arc.arcfit_options(match_curvefit=True):
         assert arc.ARCFIT_MATCH_CURVEFIT
+    assert not arc.ARCFIT_MATCH_CURVEFIT
+    with pytest.raises(ValueError):
+        with arc.arcfit_options(match_curvefit=True):
+            raise ValueError('test')
+    assert not arc.ARCFIT_MATCH_CURVEFIT
+    with arc.arcfit_options():
+        assert not arc.ARCFIT_MATCH_CURVEFIT
 
 
 def test_fast_line_fit_par():
-    """The wavelength-solution parameter parses and defaults to the exact fit."""
-    assert WavelengthSolutionPar()['fast_line_fit'] is False
-    cfg = ['[calibrations]', '    [[wavelengths]]', '        fast_line_fit = True']
+    """The wavelength-solution parameter parses and defaults to the fast fit."""
+    assert WavelengthSolutionPar()['fast_line_fit'] is True
+    cfg = ['[calibrations]', '    [[wavelengths]]', '        fast_line_fit = False']
     par = PypeItPar.from_cfg_lines(merge_with=(cfg,))
-    assert par['calibrations']['wavelengths']['fast_line_fit'] is True
+    assert par['calibrations']['wavelengths']['fast_line_fit'] is False
 
 
 def test_wavecalib_applies_fast_line_fit(monkeypatch):
@@ -237,7 +248,89 @@ def test_wavecalib_applies_fast_line_fit(monkeypatch):
         with pytest.raises(RuntimeError):
             wvc.run()
         # Restored afterwards
-        assert arc.ARCFIT_MATCH_CURVEFIT
+        assert not arc.ARCFIT_MATCH_CURVEFIT
     assert seen == [False, True]
+
+
+def test_wavetilts_applies_fast_line_fit(monkeypatch):
+    """BuildWaveTilts.run applies fast_line_fit to the line fits it performs."""
+    seen = []
+    def _extract_arcs(self):
+        seen.append(arc.ARCFIT_MATCH_CURVEFIT)
+        raise RuntimeError('stop')
+    monkeypatch.setattr(BuildWaveTilts, 'extract_arcs', _extract_arcs)
+    for wavepar in [WavelengthSolutionPar(fast_line_fit=True),
+                    WavelengthSolutionPar(fast_line_fit=False), None]:
+        wvt = object.__new__(BuildWaveTilts)
+        wvt.wavepar = wavepar
+        with pytest.raises(RuntimeError):
+            wvt.run()
+        assert not arc.ARCFIT_MATCH_CURVEFIT
+    assert seen == [False, True, False]
+
+
+def _arc_with_spikes(nspec=2048, seed=3):
+    """A synthetic arc (sigma ~1.7 px) plus isolated single-pixel spikes."""
+    x, y, amp, cen, sig = _synthetic_arc(nspec=nspec, spacing=40., seed=seed)
+    # Spikes half-way between lines, bright enough to be detected
+    spikes = np.round(0.5 * (cen[1:] + cen[:-1])).astype(int)[::3]
+    y[spikes] += 300.
+    return y, cen, spikes
+
+
+def _found(cent, good, pos, tol=1.):
+    return np.array([np.any(np.absolute(cent[good] - p) < tol) for p in pos])
+
+
+def test_detect_lines_rejects_narrow_features(monkeypatch):
+    """By default, features narrower than half the median width are rejected."""
+    y, cen, spikes = _arc_with_spikes()
+    _, _, cent, wid, _, good, _, _ = arc.detect_lines(y, fwhm=4.)
+    assert np.all(_found(cent, good, cen))                 # every arc line is kept
+    assert not np.any(_found(cent, good, spikes))           # no spike survives
+    assert np.all(wid[good] > arc.ARCFIT_MIN_FRAC_MED_WIDTH * np.median(wid[good]))
+
+    # Without the floor, the vectorized fit accepts the spikes
+    _, _, cent, wid, _, good, _, _ = arc.detect_lines(y, fwhm=4., min_frac_med_width=0.)
+    assert np.all(_found(cent, good, spikes))
+
+    # With ARCFIT_MATCH_CURVEFIT, there is no floor by default (previous behaviour)
+    with monkeypatch.context() as m:
+        m.setattr(arc, 'ARCFIT_MATCH_CURVEFIT', True)
+        new = arc.detect_lines(y, fwhm=4.)
+    with monkeypatch.context() as m:
+        m.setattr(arc, 'USE_VECTORIZED_ARCFIT', False)
+        old = arc.detect_lines(y, fwhm=4.)
+    assert np.array_equal(new[5], old[5])
+    # ... but it can be requested explicitly
+    with monkeypatch.context() as m:
+        m.setattr(arc, 'ARCFIT_MATCH_CURVEFIT', True)
+        _, _, cent, _, _, good, _, _ = arc.detect_lines(y, fwhm=4., min_frac_med_width=0.5)
+    assert not np.any(_found(cent, good, spikes))
+
+
+def test_detect_lines_floor_needs_enough_lines():
+    """The median-width floor is not applied to spectra with very few lines."""
+    x = np.arange(256, dtype=float)
+    rng = np.random.default_rng(1)
+    # Three broad lines and one narrow one
+    y = sum(a * np.exp(-0.5 * ((x - c) / s)**2) for a, c, s in
+            [(500., 40., 3.), (400., 100., 3.), (600., 160., 3.), (500., 220., 1.)])
+    y += rng.normal(scale=1., size=x.size)
+    _, _, cent, wid, _, good, _, _ = arc.detect_lines(y, fwhm=7., cont_subtract=False,
+                                                      input_thresh=50.)
+    assert good.size < arc.ARCFIT_MIN_NLINES_MED_WIDTH
+    assert np.any(np.absolute(cent[good] - 220.) < 1.)
+
+
+def test_detect_lines_floor_explicit_value():
+    """An explicit min_frac_med_width sets the floor."""
+    y, cen, spikes = _arc_with_spikes()
+    _, _, cent, wid, _, good, _, _ = arc.detect_lines(y, fwhm=4., min_frac_med_width=0.)
+    med = np.median(wid[good])
+    for frac in [0.3, 0.5, 0.9]:
+        _, _, c, w, _, g, _, _ = arc.detect_lines(y, fwhm=4., min_frac_med_width=frac)
+        assert np.all(w[g] > frac * med)
+        assert np.array_equal(g, good[w[good] > frac * med])
 
 # Many more functions in pypeit.core.arc that need tests!

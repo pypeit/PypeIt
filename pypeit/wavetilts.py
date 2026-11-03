@@ -735,6 +735,15 @@ class BuildWaveTilts:
             :class:`WaveTilts`:
 
         """
+        # Gaussian fits of the arc lines (see WavelengthSolutionPar.fast_line_fit)
+        fast = True if self.wavepar is None else self.wavepar['fast_line_fit']
+        with arc.arcfit_options(match_curvefit=not fast):
+            return self._run(doqa=doqa, debug=debug, show=show)
+
+    def _run(self, doqa=True, debug=False, show=False):
+        """
+        Perform the work of :func:`run`; see that method.
+        """
         # Extract the arc spectra for all slits
         self.arccen, self.arccen_bpm = self.extract_arcs()
 

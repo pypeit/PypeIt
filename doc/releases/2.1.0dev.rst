@@ -34,12 +34,17 @@ Dependency Changes
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
 - The Gaussian fitting of arc lines (and of other features found by
-  :func:`~pypeit.core.arc.detect_lines`) is now vectorized, which roughly
-  halves its cost while detecting the same lines as before.  The new
-  ``[calibrations][wavelengths] fast_line_fit`` parameter further speeds up
-  the line fitting in the wavelength calibration (only), at the expense of
-  small changes in the detected lines that can alter the line
-  identifications; it is off by default.  See "Under-the-hood Improvements".
+  :func:`~pypeit.core.arc.detect_lines`) is now vectorized and many times
+  faster.  By default, :func:`~pypeit.core.arc.detect_lines` now also rejects
+  lines whose Gaussian sigma is less than half the median sigma of the lines
+  in the same spectrum (single hot pixels, noise spikes).  Together, these
+  change the detected arc lines slightly: a few saturated, flat-topped
+  features and sub-resolution spikes are no longer detected, which can change
+  the line identifications of the wavelength calibration.  The new
+  ``[calibrations][wavelengths] fast_line_fit`` parameter (default True)
+  controls this for the wavelength calibration and the tilts; setting it to
+  False detects the same lines as previous versions, at the cost of most of
+  the speed-up.  See "Under-the-hood Improvements".
 - PypeIt can now reduce detectors/mosaics concurrently.  With ``[rdx] ncpu``
   (or ``run_pypeit --ncpu``) greater than 1, the calibration build, the
   science-image processing, and the extraction are distributed over worker
@@ -330,10 +335,18 @@ Testing
   of synthetic lines, agreement with the per-line ``curve_fit`` fit, edge
   cases (truncated windows, negative wings, degenerate and NaN windows), that
   ``curve_fit`` is not called on clean data, that narrow features are handed
-  to ``curve_fit``, that :func:`~pypeit.core.arc.detect_lines` accepts the
-  same lines as with ``curve_fit`` on the Paranal sky spectrum, and that the
-  ``fast_line_fit`` parameter is parsed and applied by
-  :class:`~pypeit.wavecalib.BuildWaveCalib`.
+  to ``curve_fit`` when matching it, that :func:`~pypeit.core.arc.detect_lines`
+  then accepts the same lines as with ``curve_fit`` on the Paranal sky
+  spectrum, that the median-width floor of
+  :func:`~pypeit.core.arc.detect_lines` rejects single-pixel spikes but no arc
+  line, is skipped for spectra with few lines and is off when matching
+  ``curve_fit``, and that the ``fast_line_fit`` parameter is parsed and
+  applied by :class:`~pypeit.wavecalib.BuildWaveCalib` and
+  :class:`~pypeit.wavetilts.BuildWaveTilts`.
+- Added dev-suite ``vet_tests`` (``test_arcfit.py``) that the lines detected
+  in the stored arc spectra of the wavelength calibrations obey the
+  median-width floor, and that the Keck/DEIMOS ``830G_L_8100`` solution,
+  which sub-resolution spikes previously degraded, keeps a low RMS.
 - Added a test that the archived sky spectrum FWHM used by the spectral
   flexure correction is measured only once per sky file
   (:func:`~pypeit.core.flexure.get_archive_spectrum`).
@@ -368,26 +381,30 @@ Under-the-hood Improvements
   once: a weighted analytic log-parabola fit, polished with vectorized
   Gauss-Newton (Levenberg-Marquardt) iterations on the same objective as
   ``curve_fit``.  Lines the analytic fit cannot handle are fit with the same
-  vectorized iterations starting from the ``curve_fit`` initial guess.  By
-  default, lines for which the vectorized fit is not confident (it has not
-  converged, which is typical of saturated, flat-topped lines, or the fitted
-  line is much narrower than an arc line, e.g. a hot pixel) are still fit
-  with ``curve_fit``, so that :func:`~pypeit.core.arc.detect_lines` (used by
-  the wavelength calibration, tilt tracing, and object finding, among others)
-  accepts the same lines as before, with centroids that agree to better than
-  0.001 pixels.  The vectorized fit itself is many times faster than
-  ``curve_fit``, and with the shipped default the line fitting costs roughly
-  half as much as before; most of the remaining time is spent in
-  ``curve_fit`` on lines it ultimately fails to fit.  The new
-  ``[calibrations][wavelengths] fast_line_fit`` parameter (default False)
-  removes these remaining ``curve_fit`` hand-offs from the wavelength
-  calibration only; it then rejects a few saturated lines and accepts a few
-  narrow features, which can change the line identifications (see
-  :data:`~pypeit.core.arc.ARCFIT_MATCH_CURVEFIT`,
-  which sets the same option for all callers).  With the archived-sky FWHM
-  cache (next item) the hand-offs cost well under 1% of a serial Keck/DEIMOS
-  reduction, so the parameter buys little there; it matters most for
-  spectra with many lines that ``curve_fit`` fails on.  Fits that failed with NaN
+  vectorized iterations starting from the ``curve_fit`` initial guess, and
+  only the lines on which both fail are fit with ``curve_fit``.  The fit
+  itself is many times faster than ``curve_fit``, and the centroids of the
+  lines both fits accept agree to ~1e-6 pixels.  The two differ on which
+  lines they accept: the vectorized fit does not converge on saturated,
+  flat-topped features (mostly the edges of extended saturated regions, whose
+  ``curve_fit`` centroids are not line positions), so these now fail the
+  width cut, and it fits sub-resolution spikes on which ``curve_fit`` often
+  failed.  :func:`~pypeit.core.arc.detect_lines` therefore now rejects, by
+  default, lines whose Gaussian sigma is less than
+  :data:`~pypeit.core.arc.ARCFIT_MIN_FRAC_MED_WIDTH` (0.5) times the median
+  sigma of the lines in the same spectrum (new ``min_frac_med_width``
+  argument; skipped for spectra with fewer than five lines, and disabled for
+  the callers whose peaks are not arc or sky lines: slit edges, object
+  profiles and cross-correlations).  Over the development-suite arc spectra
+  this removes about 1% of the lines, nearly all outside the final wavelength
+  fits.  Setting ``[calibrations][wavelengths] fast_line_fit = False``
+  restores, for the wavelength calibration and the tilts, the previous set of
+  detected lines: lines for which the vectorized fit is not confident (it has
+  not converged, or the line is much narrower than an arc line) are then refit
+  with ``curve_fit``, and no lower bound is placed on the width.  Most of the
+  speed-up is then lost, because these are the lines on which ``curve_fit`` is
+  slowest.  :data:`~pypeit.core.arc.ARCFIT_MATCH_CURVEFIT` sets the same
+  option for all callers.  Fits that failed with NaN
   values now return the -999 sentinel.  Setting
   ``pypeit.core.arc.USE_VECTORIZED_ARCFIT = False`` restores the previous
   implementation.  Known limitation, not introduced by this change: the

@@ -49,19 +49,24 @@ iterations; this is only a cap.  Set to 0 to fit those lines with the
 per-line fit instead.
 """
 
-ARCFIT_MATCH_CURVEFIT = True
+ARCFIT_MATCH_CURVEFIT = False
 """
-If True, :func:`fit_arcspec` hands to the per-line `scipy.optimize.curve_fit`_
-fit every line for which the vectorized fit is not confident: lines whose
-vectorized fit has not converged within the allowed iterations (typically
-saturated, flat-topped lines and blends) and fits much narrower than an arc
-line (see :data:`ARCFIT_MIN_WIDTH`).  The set of accepted lines then matches
-the per-line fit, at the cost of most of the speed-up, because these are the
-lines on which ``curve_fit`` is slowest.  If False, the vectorized result is
-used for all lines it can fit, which is several times faster; centroids of the
-other lines are unchanged, but a few saturated lines are lost and a few
-narrow features are gained, which can change the line identifications of the
-wavelength calibration.
+If False (the default), :func:`fit_arcspec` uses the vectorized result for all
+lines it can fit, and :func:`detect_lines` rejects lines much narrower than
+the other lines in the same spectrum (see :data:`ARCFIT_MIN_FRAC_MED_WIDTH`).
+
+If True, :func:`fit_arcspec` reproduces the set of lines accepted by the
+previous, per-line `scipy.optimize.curve_fit`_ implementation: it hands to
+that fit every line for which the vectorized fit is not confident, i.e. lines
+whose vectorized fit has not converged within the allowed iterations
+(typically saturated, flat-topped features and blends) and fits much narrower
+than an arc line (see :data:`ARCFIT_MIN_WIDTH`), and :func:`detect_lines`
+applies no lower bound on the line width.  This costs most of the speed-up,
+because these are the lines on which ``curve_fit`` is slowest.
+
+For the wavelength calibration and the tilts, this is set by the
+``fast_line_fit`` parameter of
+:class:`~pypeit.par.pypeitpar.WavelengthSolutionPar`.
 """
 
 ARCFIT_MIN_WIDTH = 0.35
@@ -69,8 +74,24 @@ ARCFIT_MIN_WIDTH = 0.35
 If :data:`ARCFIT_MATCH_CURVEFIT` is True, vectorized fits in
 :func:`fit_arcspec` with a Gaussian sigma below this fraction of the fit
 half-width are refit with the per-line fit, which decides whether they
-succeed.  Such narrow features (e.g., hot pixels) are usually not arc lines,
-and the per-line fit often fails on them.
+succeed.
+"""
+
+ARCFIT_MIN_FRAC_MED_WIDTH = 0.5
+"""
+Default lower bound on the Gaussian sigma of the lines accepted by
+:func:`detect_lines` when :data:`ARCFIT_MATCH_CURVEFIT` is False, as a
+fraction of the median sigma of the lines in the same spectrum that pass all
+other cuts.  Arc lines share the instrumental profile, so features much
+narrower than the typical line (single hot pixels, cosmic rays, noise spikes)
+are not arc lines.  See the ``min_frac_med_width`` argument of
+:func:`detect_lines`.
+"""
+
+ARCFIT_MIN_NLINES_MED_WIDTH = 5
+"""
+Minimum number of lines passing the other cuts of :func:`detect_lines` for the
+median-width floor (:data:`ARCFIT_MIN_FRAC_MED_WIDTH`) to be applied.
 """
 
 ARCFIT_MIN_GOODPIX = 4
@@ -86,10 +107,11 @@ def arcfit_options(match_curvefit=None):
     Temporarily set the options of the vectorized arc-line fit,
     :func:`fit_arcspec`.
 
-    Used, e.g., by :class:`~pypeit.wavecalib.BuildWaveCalib` to apply the
-    ``fast_line_fit`` parameter of
-    :class:`~pypeit.par.pypeitpar.WavelengthSolutionPar` to the wavelength
-    calibration only.  The previous values are restored on exit.
+    Used by :class:`~pypeit.wavecalib.BuildWaveCalib` and
+    :class:`~pypeit.wavetilts.BuildWaveTilts` to apply the ``fast_line_fit``
+    parameter of :class:`~pypeit.par.pypeitpar.WavelengthSolutionPar` to the
+    wavelength calibration and the tilts.  The previous values are restored on
+    exit.
 
     Parameters
     ----------
@@ -952,7 +974,8 @@ def iter_continuum(spec, gpm=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_
 def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thresh=None,
                  cont_subtract=True, cont_frac_fwhm=1.0, max_frac_fwhm=3.0,
                  min_pkdist_frac_fwhm=0.75, cont_samp=30, nonlinear_counts=1e10, niter_cont=3,
-                 nfind=None, bpm=None, verbose=False, debug=False, debug_peak_find=False, debug_cont=False):
+                 nfind=None, bpm=None, min_frac_med_width=None, verbose=False, debug=False,
+                 debug_peak_find=False, debug_cont=False):
     """
     Identify peaks in an input arc spectrum that satisfy a series of criteria:
 
@@ -960,6 +983,8 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
       - Peak amplitude < nonlinear_counts
       - Peak amplitude > input_thresh (optional)
       - Measured FWHM < fwhm * max_frac_fwhm
+      - Measured width > min_frac_med_width * the median width of the lines
+        that pass the other criteria
 
     By default, the input spectrum has a continuum fitted to it and then 
     subtracted prior to peak finding.  
@@ -1035,6 +1060,17 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     bpm: `numpy.ndarray`_, optional
         Bad-pixel mask for input spectrum. If None, all pixels
         considered good. If passed in shape must match that of censpec
+
+    min_frac_med_width: float, optional
+       Minimum Gaussian sigma of a usable line, as a fraction of the median
+       sigma of the lines that pass all other criteria.  Lines narrower than
+       this are rejected.  The cut is only applied if at least
+       :data:`ARCFIT_MIN_NLINES_MED_WIDTH` lines pass the other criteria.  If
+       None, :data:`ARCFIT_MIN_FRAC_MED_WIDTH` is used when
+       :data:`ARCFIT_MATCH_CURVEFIT` is False and the vectorized fit is in use
+       (:data:`USE_VECTORIZED_ARCFIT`), and no cut is applied otherwise, as in
+       the previous implementation.  Set to 0 to disable the cut, e.g. for
+       peaks that are not arc lines.
 
     verbose: bool, default = False
        Output more stuff to the screen.
@@ -1138,6 +1174,12 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     good = np.logical_not(np.isnan(twid)) & (twid > 0.0) & (twid < fwhm_max/2.35) & (tcent > 0.0) \
                 & (tcent < xrng[-1]) & (tampl_true < nonlinear_counts) \
                 & (np.abs(tcent-pixt) < fwhm*0.75)
+    # Reject features much narrower than the typical line in this spectrum
+    if min_frac_med_width is None:
+        min_frac_med_width = ARCFIT_MIN_FRAC_MED_WIDTH \
+                                if USE_VECTORIZED_ARCFIT and not ARCFIT_MATCH_CURVEFIT else 0.
+    if min_frac_med_width > 0 and np.sum(good) >= ARCFIT_MIN_NLINES_MED_WIDTH:
+        good &= twid > min_frac_med_width * np.median(twid[good])
     # Get the indices of the good measurements
     ww = np.where(good)[0]
     # Compute the significance of each line, set the significance of bad lines to be -1
@@ -1195,13 +1237,13 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
     (:func:`_fit_arcspec_curvefit`); the fit parameters of lines for which
     that fit returns non-finite values are set to -999.
 
-    By default (:data:`ARCFIT_MATCH_CURVEFIT` is True), lines whose vectorized
-    fit has not converged, and fits much narrower than an arc line, are also
-    handed to the per-line fit, so that the lines that are detected are the
-    same as with the per-line fit.  Setting :data:`ARCFIT_MATCH_CURVEFIT` to
-    False is several times faster, but changes the set of detected lines
-    slightly.  Setting :data:`USE_VECTORIZED_ARCFIT` to False uses the per-line
-    fit for all lines, which is the previous implementation.
+    If :data:`ARCFIT_MATCH_CURVEFIT` is True, lines whose vectorized fit has
+    not converged, and fits much narrower than an arc line, are also handed to
+    the per-line fit, so that the lines that are detected are the same as with
+    the per-line fit.  The default (False) is several times faster, but
+    changes the set of detected lines slightly.  Setting
+    :data:`USE_VECTORIZED_ARCFIT` to False uses the per-line fit for all
+    lines, which is the previous implementation.
 
     Parameters
     ----------

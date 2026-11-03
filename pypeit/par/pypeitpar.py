@@ -3382,20 +3382,20 @@ class WavelengthSolutionPar(ParSet):
                         'binned pixels of the input arc image. Note that this is used also in the ' \
                         'wave tilts calibration.'
 
-        defaults['fast_line_fit'] = False
+        defaults['fast_line_fit'] = True
         dtypes['fast_line_fit'] = bool
-        descr['fast_line_fit'] = 'Use the fastest Gaussian fit of the arc lines when constructing ' \
-                                 'the wavelength solution.  By default, lines for which the ' \
-                                 'vectorized fit is not confident (it has not converged, which is ' \
-                                 'typical of saturated, flat-topped lines, or the line is much ' \
-                                 'narrower than an arc line, e.g. a hot pixel) are refit one at a ' \
-                                 'time with scipy.optimize.curve_fit, so that the same lines are ' \
-                                 'detected as with the per-line fit used in previous versions.  ' \
-                                 'If True, this refit is skipped, which makes the line fitting ' \
-                                 'several times faster, but a few saturated lines are rejected and ' \
-                                 'a few narrow features are accepted, which can change the line ' \
-                                 'identifications.  This only affects the wavelength calibration; ' \
-                                 'see :data:`~pypeit.core.arc.ARCFIT_MATCH_CURVEFIT`.'
+        descr['fast_line_fit'] = 'Use the fast, vectorized Gaussian fit of the arc lines when ' \
+                                 'constructing the wavelength solution and the tilts, and reject ' \
+                                 'lines whose Gaussian sigma is less than half the median sigma ' \
+                                 'of the lines in the same spectrum (single hot pixels, noise ' \
+                                 'spikes).  If False, lines for which the vectorized fit is not ' \
+                                 'confident (it has not converged, which is typical of saturated, ' \
+                                 'flat-topped features, or the line is much narrower than an arc ' \
+                                 'line) are refit one at a time with scipy.optimize.curve_fit, ' \
+                                 'and no lower bound is placed on the line width, so that the ' \
+                                 'same lines are detected as in previous versions, at the cost of ' \
+                                 'most of the speed-up.  See ' \
+                                 ':data:`~pypeit.core.arc.ARCFIT_MATCH_CURVEFIT`.'
 
         defaults['fwhm_fromlines'] = True
         dtypes['fwhm_fromlines'] = bool

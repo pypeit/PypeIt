@@ -88,7 +88,8 @@ def spat_flexure_shift(sciimg, slits, bpm=None, maxlag=20, sigdetect=10., debug=
     lags_max = lags[lag0 - maxlag:lag0 + maxlag]
 
     # detect the highest peak in the cross-correlation
-    _, _, pix_max, _, _, _, _, _ = arc.detect_lines(xcorr_max, cont_subtract=False, input_thresh=0., nfind=1, debug=debug)
+    _, _, pix_max, _, _, _, _, _ = arc.detect_lines(xcorr_max, cont_subtract=False, input_thresh=0., nfind=1,
+                                             min_frac_med_width=0., debug=debug)
     # No peak? -- e.g. data fills the entire detector
     if (len(pix_max) == 0) or pix_max[0] == -999.0:
         log.warning(

@@ -1464,7 +1464,7 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
         log.info('Searching for peaks.')
         peak, _, _cen, _, _, best, _, _ \
                 = arc.detect_lines(s*flux_smash_mean, cont_subtract=False, fwhm=fwhm_gaussian,
-                                   input_thresh=peak_thresh, max_frac_fwhm=4.0,
+                                   input_thresh=peak_thresh, max_frac_fwhm=4.0, min_frac_med_width=0.,
                                    min_pkdist_frac_fwhm=min_pkdist_frac_fwhm, debug=show_peaks)
 
         if len(_cen) == 0 or not np.any(best):

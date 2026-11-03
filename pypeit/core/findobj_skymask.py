@@ -2166,7 +2166,8 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
         # Search for spatial direction peaks in the smoothed snr image
         _, _, x_peaks_out, x_width, x_err, igood, _, _ = arc.detect_lines(
             snr_smash_smth, input_thresh=snr_thresh, fit_frac_fwhm=1.5, fwhm=fwhm, min_pkdist_frac_fwhm=0.75,
-            max_frac_fwhm=10.0, cont_subtract=False, debug_peak_find=False)
+            max_frac_fwhm=10.0, cont_subtract=False, min_frac_med_width=0.,
+            debug_peak_find=False)
 
         x_peaks_all = x_peaks_out[igood]
         #x_peaks_all = arc.detect_peaks(snr_smash_smth, mph=snr_thresh, mpd=fwhm*0.75, show=False)

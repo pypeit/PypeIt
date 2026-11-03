@@ -624,7 +624,7 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
     # Find the peak
     tampl_true, tampl, pix_max, twid, centerr, ww, arc_cont, nsig = arc.detect_lines(
         corr_norm, sigdetect=3.0, fit_frac_fwhm=1.5, fwhm=5.0,
-        cont_frac_fwhm=1.0, cont_samp=30, nfind=1,
+        cont_frac_fwhm=1.0, cont_samp=30, nfind=1, min_frac_med_width=0.,
         cont_subtract=cont_subtract)
 
     corr_max = np.interp(pix_max, np.arange(lags.shape[0]),corr_norm)
