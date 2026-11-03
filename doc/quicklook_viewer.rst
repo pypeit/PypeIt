@@ -24,8 +24,12 @@ night. It allows a user to inspect raw data as soon as it is written to disk and
 provided calibrations exists, reduce and inspect spectra with with a graphical
 interface provided through Ginga.
 
-[PIC HERE: Full QLView interface with raw tree, reduced tree, and reduction
-control panel visible side-by-side with an open DEIMOS raw frame]
+.. figure:: figures/qlview_figures/qlview_fullscreen_LRISR_MOS_raw.png
+   :alt: The full QLView interface with a raw frame open
+   :width: 90%
+
+   The QLView plugin (right) alongside Ginga's image viewer, with a raw LRIS
+   red multislit frame open.
 
 
 Installation and Requirements
@@ -178,9 +182,12 @@ requiring direct modification of the configuration each day.
 Interface Overview
 ==================
 
-[PIC HERE: Annotated screenshot labelling the four main UI sections:
-instrument selector, Raw Data frame, Reduced Calibrations frame, and
-Reduction Control frame]
+.. figure:: figures/qlview_figures/qlview_control_panel_LRISR_MOS.png
+   :alt: The QLView control panel
+   :width: 50%
+
+   The QLView control panel, with the instrument selector at the top, followed
+   by the "Raw Data", "Reduced Calibrations", and "Reduction Control" sections.
 
 Instrument Selector
 -------------------
@@ -250,8 +257,12 @@ when the Render Slits / Show Wavelengths buttons become enabled.
 Rendering Slits
 ===============
 
-[PIC HERE: Raw DEIMOS frame with green slit polygons overlaid; one slit
-highlighted in blue after being selected from the combo box]
+.. figure:: figures/qlview_figures/qlview_fullscreen_LRISR_MOS_zoomed.png
+   :alt: Slits rendered on a raw frame
+   :width: 90%
+
+   Slits rendered on a raw LRIS red frame.  The selected slit is drawn in
+   blue and the others in green.
 
 Render Slits Button
 --------------------
@@ -272,8 +283,12 @@ How to show/hide the polygon outlines and the slit-ID / object-name labels.
 Wavelength Display
 ------------------
 
-[PIC HERE: The Show Wavelengths cursor readout showing wavelength value in
-the Ginga info bar while hovering over a slit]
+.. figure:: figures/qlview_figures/qlview_wavelength_display_LRISR_MOS.png
+   :alt: Wavelength readout in the Ginga info bar
+   :width: 80%
+
+   After "Show Wavelengths", the wavelength under the cursor (here,
+   :math:`\lambda = 9649.49`) is shown at the lower left of the Ginga info bar.
 
 How the "Show Wavelengths" button builds a 2D wavelength map and enables
 per-pixel wavelength readout in the cursor info bar.
@@ -282,8 +297,12 @@ per-pixel wavelength readout in the cursor info bar.
 Running a Quicklook Reduction
 ==============================
 
-[PIC HERE: Reduction Control frame during an active reduction showing
-"Reducing S1234..." status label alongside disabled Show / Show CoAdd2D buttons]
+.. figure:: figures/qlview_figures/qlview_reducing_buttons.png
+   :alt: A reduction in progress in the reductions list
+   :width: 60%
+
+   A reduction in progress.  The "Show Traces" and "Show" buttons are disabled
+   until the reduction finishes.
 
 Selecting a Slit and Triggering Reduction
 ------------------------------------------
@@ -298,8 +317,17 @@ How the SNR threshold parameter affects automatic object detection.
 Manual Extraction
 -----------------
 
-[PIC HERE: Raw frame with a cyan crosshair marker placed on a target after
-clicking in manual extraction mode; Extract params entry shows det:spat:spec:fwhm]
+.. figure:: figures/qlview_figures/qlview_manual_extraction_control.png
+   :alt: Manual extraction controls
+   :width: 60%
+
+   The manual extraction controls.
+
+.. figure:: figures/qlview_figures/qlview_manual_extract_boxcar_marker.png
+   :alt: Manual extraction marker on the raw image
+   :width: 50%
+
+   The yellow marker placed on the raw image in manual extraction mode.
 
 Enabling click-to-extract mode and setting the FWHM.
 
@@ -312,8 +340,11 @@ CoAdd2D.
 Monitoring Reduction Progress
 ------------------------------
 
-[PIC HERE: A completed reduction row with the Show and Show CoAdd2D buttons
-enabled]
+.. figure:: figures/qlview_figures/qlview_reduced_buttons.png
+   :alt: A completed reduction in the reductions list
+   :width: 60%
+
+   A completed reduction, with the "Show Traces" and "Show" buttons enabled.
 
 How the status label updates and what each terminal state (Reduced, Extraction
 failed, Error, Timed out) means.
@@ -322,8 +353,12 @@ failed, Error, Timed out) means.
 Viewing Results
 ===============
 
-[PIC HERE: Spec1dView plugin open in its own channel showing the extracted
-1D spectrum for S1234]
+.. figure:: figures/qlview_figures/qlview_spec1D_LRISR.png
+   :alt: Spec1dView showing an extracted spectrum
+   :width: 80%
+
+   The Spec1dView plugin, open in its own channel, showing the spectrum
+   extracted from LRIS red slit S1706.
 
 Showing Extracted Spectra
 --------------------------
@@ -334,8 +369,13 @@ with the Spec1dView plugin.
 Trace Overlay
 --------------
 
-[PIC HERE: Raw frame with orange TRACE_SPAT paths drawn for all extracted
-objects; the selected object's trace highlighted in cyan]
+.. figure:: figures/qlview_figures/qlview_highlighted_slit.png
+   :alt: An object trace drawn on the raw image
+   :width: 50%
+
+   An object trace drawn on the raw image with "Show Traces", labeled with the
+   object's name.  If more than one object was detected, the trace selected
+   in the Spec1D viewer is drawn in cyan and the others in orange.
 
 Using "Show Traces" to overlay per-object extraction traces on the raw image,
 and how the active trace tracks selection in the paired Spec1dView channel.
@@ -368,8 +408,11 @@ Brief pointer to the server component documentation.
 Settings Dialog
 ===============
 
-[PIC HERE: Settings dialog showing backend selector, reduction output path,
-poll cadence, file-filter checkboxes, and the API key field]
+.. figure:: figures/qlview_figures/qlview_settings_dialog.png
+   :alt: The Settings dialog
+   :width: 50%
+
+   The Settings dialog.
 
 Description of each setting: backend type, redux path, reduction timeout,
 poll cadence, and file-visibility filters for raw and reduced trees.
