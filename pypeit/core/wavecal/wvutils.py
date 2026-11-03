@@ -504,8 +504,8 @@ def zerolag_shift_stretch(theta, y1, y2, stretch_func='quadratic'):
     -------
     corr_norm : float
         Negative of the zero lag cross-correlation coefficient.  By minimizing
-        this value using :func:`scipy.optimize.differential_evolution`), we
-        determine the best fitting shift and stretch parameters.
+        this value (see :func:`xcorr_shift_stretch`), we determine the best
+        fitting shift and stretch parameters.
     """
     shift, stretch, stretch2 = theta
     y2_corr = shift_and_stretch(y2, shift, stretch, stretch2, stretch_func=stretch_func)
@@ -731,23 +731,146 @@ def xcorr_shift(
     return lag_max[0], corr_max[0]
 
 
+def _zerolag_free_params(p, y1, y2, stretch_func):
+    """
+    Wrapper for :func:`zerolag_shift_stretch` that only takes the free
+    parameters of the shift/stretch model.
+
+    This is the objective function used by the local optimization in
+    :func:`xcorr_shift_stretch`.  For a linear stretch, the second-order
+    stretch term is fixed to 0 and excluded from the optimized parameters.
+
+    Parameters
+    ----------
+    p : :class:`numpy.ndarray`
+        Free parameters: (shift, stretch) if ``stretch_func`` is
+        ``'linear'``, or (shift, stretch, stretch2) if ``stretch_func`` is
+        ``'quadratic'``.
+    y1 : :class:`numpy.ndarray`
+        Reference spectrum.
+    y2 : :class:`numpy.ndarray`
+        Spectrum to shift and stretch to match ``y1``.
+    stretch_func : str
+        Stretch parametrization; must be ``'linear'`` or ``'quadratic'``.
+
+    Returns
+    -------
+    float
+        Negative of the zero-lag cross-correlation coefficient.  Returns 0 if
+        the transformed spectrum is zero everywhere.
+    """
+    theta = p if stretch_func == 'quadratic' else np.append(p, 0.0)
+    try:
+        return zerolag_shift_stretch(theta, y1, y2, stretch_func=stretch_func)
+    except PypeItError:
+        # Transformed spectrum is zero everywhere
+        return 0.0
+
+
+def _grid_shift_stretch(y1, y2, lag_range, stretch_mnmx, fwhm, max_nstretch=1001):
+    """
+    Find the shift and linear stretch that maximize the zero-lag
+    cross-correlation using an exhaustive grid search.
+
+    For each stretch, :func:`shift_and_stretch` places pixel ``j`` of ``y2`` at
+    pixel ``shift + stretch*j``; i.e., the transformed spectrum is ``out(i) =
+    w(i - shift)``, where ``w(k) = y2(k/stretch)``.  For a fixed stretch, the
+    numerator and the (overlap-dependent) denominator of the normalized
+    zero-lag cross-correlation computed by :func:`zerolag_shift_stretch` can
+    therefore be computed for all integer shifts at once using two FFT
+    correlations.  The stretch grid is spaced such that a single grid step
+    misaligns features at opposite ends of the spectrum by no more than
+    ``fwhm/2`` pixels.
+
+    The search is fully deterministic and is meant to provide a starting point
+    for a local optimization of the exact objective function.
+
+    Parameters
+    ----------
+    y1 : :class:`numpy.ndarray`
+        Reference spectrum (typically a synthetic arc spectrum from
+        :func:`get_xcorr_arc`).
+    y2 : :class:`numpy.ndarray`
+        Spectrum to be shifted and stretched to match ``y1``.  Must have the
+        same length as ``y1``.
+    lag_range : tuple
+        The minimum and maximum shift (in pixels) to consider.
+    stretch_mnmx : tuple
+        The minimum and maximum stretch to consider.
+    fwhm : float
+        FWHM of the arc lines in pixels, used to set the stretch sampling.
+    max_nstretch : int, optional
+        Maximum number of stretch values in the grid.
+
+    Returns
+    -------
+    cc : float
+        Maximum normalized zero-lag cross-correlation found on the grid.  This
+        is ``-numpy.inf`` if no valid grid point was found.
+    shift : float
+        Shift at the grid maximum.  None if no valid grid point was found.
+    stretch : float
+        Stretch at the grid maximum.  None if no valid grid point was found.
+    """
+    # FITS spectra can be big-endian; SciPy's signal routines require native
+    # byte order (see xcorr_shift).
+    y1 = np.asarray(y1, dtype=y1.dtype.newbyteorder('='))
+    y2 = np.asarray(y2, dtype=y2.dtype.newbyteorder('='))
+
+    nspec = y1.size
+    x = np.arange(nspec, dtype=float)
+    sum_y1sq = np.sum(y1**2)
+    ones = np.ones(nspec, dtype=float)
+
+    # Set the stretch grid
+    nstretch = np.ceil((stretch_mnmx[1] - stretch_mnmx[0]) * 2 * nspec / fwhm) + 1
+    nstretch = int(np.clip(nstretch, 3, max_nstretch))
+    stretches = np.linspace(stretch_mnmx[0], stretch_mnmx[1], nstretch)
+
+    best_cc, best_shift, best_stretch = -np.inf, None, None
+    for stretch in stretches:
+        # Stretched (but unshifted) version of y2
+        nk = int(np.floor(stretch * (nspec - 1))) + 1
+        w = np.interp(np.arange(nk) / stretch, x, y2, left=0., right=0.)
+        # signal.correlate(a, b)[u] = sum_n a[n+u] b[n] -> sum_i y1[i] w[i-u]
+        num = signal.correlate(y1, w, mode='full', method='fft')
+        den2 = signal.correlate(ones, w**2, mode='full', method='fft')
+        shifts = signal.correlation_lags(nspec, nk, mode='full').astype(float)
+        # Only consider shifts in the allowed range with non-negligible overlap
+        indx = (shifts >= lag_range[0]) & (shifts <= lag_range[1]) \
+                    & (den2 > 1e-12 * np.max(den2))
+        if not np.any(indx):
+            continue
+        cc = num[indx] / np.sqrt(sum_y1sq * den2[indx])
+        imax = np.argmax(cc)
+        if cc[imax] > best_cc:
+            best_cc, best_shift, best_stretch = cc[imax], shifts[indx][imax], stretch
+
+    return best_cc, best_shift, best_stretch
+
+
 def xcorr_shift_stretch(
     inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use_raw_arc=False, shift_mnmx=(-0.2,0.2),
     stretch_mnmx=(0.95,1.05), sigdetect=5.0, sig_ceil=10.0, fwhm=4.0, max_lag_frac=1.0,
-    lag_range=None, toler=1e-5, seed=None, stretch_func='quadratic', debug=False
+    lag_range=None, toler=1e-5, stretch_func='quadratic', debug=False
 ):
     """
-    Determine the shift and stretch of inspec2 relative to inspec1.  This
-    routine computes an initial guess for the shift via maximimizing the
-    cross-correlation. It then performs a two parameter search for the shift and
-    stretch by optimizing the zero lag cross-correlation between the inspec1 and
+    Determine the shift and stretch of inspec2 relative to inspec1.
+
+    This routine first computes an initial guess for the shift by maximizing the
+    cross-correlation (see :func:`xcorr_shift`).  It then searches for the shift
+    and stretch that maximize the zero-lag cross-correlation between inspec1 and
     the transformed inspec2 (shifted and stretched via
-    wvutils.shift_and_stretch()) in a narrow window about the initial estimated
-    shift. The convention for the shift is that positive shift means inspec2 is
-    shifted to the right (higher pixel values) relative to inspec1. The
-    convention for the stretch is that it is float near unity that increases the
-    size of the inspec2 relative to the original size (which is the size of
-    inspec1)
+    :func:`shift_and_stretch`) in a window about the initial estimated shift.
+    This search is performed in two deterministic stages: (1) an exhaustive grid
+    search over shift and linear stretch (see :func:`_grid_shift_stretch`),
+    followed by (2) a bounded local (Nelder-Mead) optimization of
+    :func:`zerolag_shift_stretch` starting from the best grid point.  The
+    convention for the shift is that positive shift means inspec2 is shifted to
+    the right (higher pixel values) relative to inspec1. The convention for the
+    stretch is that it is the near-unity floating-point value that increases the
+    size of the inspec2 relative to the original size (to best match the size of
+    inspec1).
 
     Parameters
     ----------
@@ -759,13 +882,14 @@ def xcorr_shift_stretch(
     cc_thresh : float, optional
         A number in the range [-1.0,1.0] which is the threshold on the initial
         cross-correlation coefficient for the shift/stretch.  If the value of
-        the initial cross-correlation is < cc_thresh the code will just exit and
-        return this value and the best shift.  This is desirable behavior since
-        the shif/stretch optimization is slow and this allows one to test how
-        correlated the spectra are before attempting it, since there is little
-        value in that expensive computation for spectra with little overlap. The
-        default cc_thresh =-1.0 means shift/stretch is always attempted since
-        the cross correlation coeficcient cannot be less than -1.0.
+        the initial cross-correlation is less than ``cc_thresh``, the code will
+        just exit and return this value and the best shift.  This is desirable
+        behavior since the shift/stretch optimization is slow and this allows one
+        to test how correlated the spectra are before attempting it, since there
+        is little value in that expensive computation for spectra with little
+        overlap. The default ``cc_thresh=-1.0`` means shift/stretch is always
+        attempted since the cross-correlation coefficient cannot be less than
+        -1.0.
     percent_ceil : float, optional
         Apply a ceiling to the input spectra at the percent_ceil percentile
         level of the distribution of peak amplitudes.  This prevents extremely
@@ -805,11 +929,8 @@ def xcorr_shift_stretch(
         search over. If None, max_lag_frac will be used to set the range of
         lags.
     toler : float, optional
-        Tolerance for differential evolution optimizaiton.
-    seed: int, :class:`~numpy.random.Generator`, optional
-        Random number generator or seed for
-        :func:`scipy.optimize.differential_evolution` optimizer. Note, the
-        calculation will not be repeatable if this is not provided.
+        Tolerance in the cross-correlation coefficient used to stop the local
+        optimization (passed as ``fatol`` to :func:`scipy.optimize.minimize`).
     stretch_func : str, optional
         Use quadratic (``'quadratic'``) or linear (``'linear'``) stretch.
     debug : bool, optional
@@ -884,56 +1005,70 @@ def xcorr_shift_stretch(
     if lag_range is None:
         lag_range = (shift_cc + nspec * shift_mnmx[0], shift_cc + nspec * shift_mnmx[1])
 
-    if stretch_func == 'quadratic':
-        bounds = [lag_range, stretch_mnmx, (-1.0e-6, 1.0e-6)]
-        x0_guess = np.array([shift_cc, 1.0, 0.0])
-    elif stretch_func == 'linear':
-        bounds = [lag_range, stretch_mnmx, (0.0,0.0)]
-        x0_guess = np.array([shift_cc, 1.0, 0.0])        
-    else:
+    if stretch_func not in ['quadratic', 'linear']:
         raise PypeItError('Unrecognized stretch_func in xcorr_shift_stretch')
+    quadratic = stretch_func == 'quadratic'
 
-    # TODO Can we make the differential evolution run faster?
-    try:
-        result = optimize.differential_evolution(
-            zerolag_shift_stretch, args=(y1,y2), x0=x0_guess, tol=toler, bounds=bounds, disp=False,
-            polish=True, rng=seed,
-        )
-    except PypeItError:
-        log.warning("Differential evolution failed.")
+    # Stage 1: Deterministic grid search for the global maximum over shift and
+    # linear stretch
+    corr_grid, shift_grid, stretch_grid = _grid_shift_stretch(
+        y1, y2, lag_range, stretch_mnmx, fwhm
+    )
+    if shift_grid is None:
+        log.warning('Shift/stretch grid search failed.')
         return 0, None, None, None, None, None, None
 
-    corr_de = -result.fun
-    shift_de = result.x[0]
-    stretch_de = result.x[1]
-    stretch2_de = result.x[2]
+    # Stage 2: Local, bounded optimization of the exact objective function,
+    # starting from the best grid point.  Only the free parameters are
+    # optimized; stretch2 is fixed to 0 for the linear stretch function.
+    x0 = np.array([shift_grid, stretch_grid])
+    bounds = [tuple(lag_range), tuple(stretch_mnmx)]
+    # Initial simplex steps: ~1 pixel in shift and ~1 pixel across the full
+    # spectrum in stretch (and stretch2)
+    steps = [1.0, 1.0/nspec]
+    if quadratic:
+        x0 = np.append(x0, 0.0)
+        bounds += [(-1.0e-6, 1.0e-6)]
+        steps += [1.0/nspec**2]
+    simplex = np.tile(x0, (x0.size+1, 1))
+    simplex[1:] += np.diag(steps)
+    result = optimize.minimize(
+        _zerolag_free_params, x0, args=(y1, y2, stretch_func), method='Nelder-Mead',
+        bounds=bounds, options=dict(initial_simplex=simplex, xatol=1e-4, fatol=toler)
+    )
+    if -result.fun >= corr_grid:
+        corr_opt = -result.fun
+        shift_opt = result.x[0]
+        stretch_opt = result.x[1]
+        stretch2_opt = result.x[2] if quadratic else 0.0
+    else:
+        corr_opt = corr_grid
+        shift_opt = shift_grid
+        stretch_opt = stretch_grid
+        stretch2_opt = 0.0
 
-    if not result.success:
-        log.warning('Fit for shift and stretch did not converge!')
-
-    if corr_de < corr_cc:
-        # Occasionally the differential evolution craps out and returns a value
-        # worse that the CC value. In these cases just use the cc value
+    if corr_opt < corr_cc:
+        # Guard against the (unlikely) case that the shift/stretch search is
+        # worse than the simple cross-correlation.
         log.warning(
             'Shift/Stretch optimizer performed worse than simple x-correlation.  '
             'Returning simple x-correlation shift and no stretch:\n'
-            f' Optimizer: corr={corr_de:5.3f}, shift={shift_de:5.3f}, stretch={stretch_de:7.5f}\n'
+            f' Optimizer: corr={corr_opt:5.3f}, shift={shift_opt:5.3f}, '
+            f'stretch={stretch_opt:7.5f}\n'
             f'   X-corr : corr={corr_cc:5.3f}, shift={shift_cc:5.3f}'
         )
         corr_out = corr_cc
         shift_out = shift_cc
         stretch_out = 1.0
         stretch2_out = 0.0
-        result_out = 1
     else:
-        corr_out = corr_de
-        shift_out = shift_de
-        stretch_out = stretch_de
-        stretch2_out = stretch2_de
-        result_out = int(result.success)
+        corr_out = corr_opt
+        shift_out = shift_opt
+        stretch_out = stretch_opt
+        stretch2_out = stretch2_opt
+    result_out = 1
 
     if debug:
-        log.info('REFERENCE MAX', np.max(y2))
         x1 = np.arange(nspec)
         y2_trans = shift_and_stretch(
             y2, shift_out, stretch_out, stretch2_out, stretch_func=stretch_func,
