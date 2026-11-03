@@ -41,6 +41,8 @@ Dependency Changes
 - Adds support for python 3.14
 - ``pillow`` (already required by ``matplotlib``) is now an explicit
   dependency; it is used to write the QA PNGs.
+- Requires ``ginga>=7.6.0``, which fixes plots drawn at reduced size on HiDPI
+  (e.g., Retina) displays.
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------

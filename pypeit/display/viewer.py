@@ -76,49 +76,6 @@ def get_ginga_home():
     return Path(get_config_dir('pypeit')) / 'ginga'
 
 
-def _patch_ginga_hidpi_plots():
-    """
-    Work around a ginga bug that draws plots at half size on HiDPI displays.
-
-    On HiDPI (e.g., Retina) displays, matplotlib multiplies the figure dpi by
-    the device pixel ratio of the Qt canvas, but
-    ``ginga.plot.PlotView.PlotViewBase.set_window_size`` (ginga 7.5.0) sets
-    the figure size by dividing the window size in *logical* pixels by that
-    dpi.  The figure is then half the size of the window, so plots (e.g., the
-    ``Spec1dView`` spectrum) fill only a quarter of their panel.  This
-    replaces the method with one that includes the device pixel ratio.
-
-    .. todo::
-        Remove this workaround once the bug is fixed in ginga.
-
-    The patch is only applied if ginga's implementation has the expected
-    internals; otherwise nothing is done.
-    """
-    try:
-        from ginga.plot.PlotView import PlotViewBase
-    except ImportError:
-        return
-    if getattr(PlotViewBase, '_pypeit_hidpi_patch', False):
-        return
-    if not all(hasattr(PlotViewBase, attr)
-               for attr in ['set_window_size', 'configure', 'configure_window', 'get_figure']):
-        return
-
-    def set_window_size(self, wd_px, ht_px):
-        with self._resize_lock:
-            self.time_last_resize = time.time()
-            fig = self.get_figure()
-            dpr = getattr(fig.canvas, 'device_pixel_ratio', 1.) or 1.
-            fig.set_size_inches(float(wd_px) * dpr / fig.dpi, float(ht_px) * dpr / fig.dpi)
-            self.logger.debug("figure resized to %dx%d" % (wd_px, ht_px))
-            self.make_callback('configure', wd_px, ht_px)
-
-    PlotViewBase.set_window_size = set_window_size
-    PlotViewBase.configure = set_window_size
-    PlotViewBase.configure_window = set_window_size
-    PlotViewBase._pypeit_hidpi_patch = True
-
-
 def wait_for_user():
     """
     Check if displays should wait for the user to close the window.
@@ -608,8 +565,6 @@ class PypeItViewer(GingaShellViewer):
             self.rv.main(parser.parse_args(['--nosplash', f'--basedir={basedir}']), [])
 
         super().__init__(self.rv.ginga_shell)
-        # TODO: Remove when ginga's HiDPI plot bug is fixed
-        _patch_ginga_hidpi_plots()
         self._set_title()
         # PypeIt drives the event loop from this thread
         self.shell.gui_thread_id = threading.get_ident()

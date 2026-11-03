@@ -209,17 +209,6 @@ def test_cuts():
     assert spec2d_data._cuts(img, np.zeros(img.shape, dtype=bool)) is None
 
 
-def test_ginga_hidpi_plot_patch():
-    # NOTE: Importing the overlays chooses ginga's widget toolkit, which must be
-    # done before importing ginga's plot viewer.
-    from pypeit.display import overlays
-    from ginga.plot.PlotView import PlotViewBase
-    viewer._patch_ginga_hidpi_plots()
-    assert PlotViewBase._pypeit_hidpi_patch
-    assert PlotViewBase.configure is PlotViewBase.set_window_size
-    assert PlotViewBase.configure_window is PlotViewBase.set_window_size
-
-
 def test_spec2d_make_channel():
     rng = np.random.default_rng(42)
     shape = (100, 50)
