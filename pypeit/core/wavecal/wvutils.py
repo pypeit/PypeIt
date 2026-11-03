@@ -700,6 +700,11 @@ def xcorr_shift(
         lagmin, lagmax = lag_range
 
 
+    # FITS spectra can be big-endian; SciPy's signal routines require native
+    # byte order. Preserve the input precision when converting.
+    y1 = np.asarray(y1, dtype=y1.dtype.newbyteorder('='))
+    y2 = np.asarray(y2, dtype=y2.dtype.newbyteorder('='))
+
     lags = np.linspace(lagmin, lagmax, 2*nspec-1)
     corr = signal.correlate(y1, y2, mode='full')
 
