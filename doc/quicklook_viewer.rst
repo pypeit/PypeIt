@@ -17,8 +17,6 @@ viewer.
 Overview
 ========
 
-Brief description of what the viewer does and when to use it.
-
 The PypeIt Quicklook Viewer is a GUI intended to be used throughout an observing
 night. It allows a user to inspect raw data as soon as it is written to disk and,
 provided calibrations exists, reduce and inspect spectra with with a graphical
@@ -192,8 +190,6 @@ Interface Overview
 Instrument Selector
 -------------------
 
-How to choose an instrument and what changes when the selection is updated.
-
 The following instruments are currently supported:
 
 - Keck/DEIMOS (``keck_deimos``)
@@ -208,8 +204,6 @@ The following instruments are currently supported:
 
 Show/Hide Tree Checkboxes
 --------------------------
-
-How to collapse the raw or reduced file browser to reclaim panel space.
 
 
 Browsing Raw Data
@@ -231,9 +225,6 @@ Double-clicking a FITS file assembles and displays the mosaic in the viewer.
 Instrument Mismatch Dialog
 ---------------------------
 
-What happens when the opened file's ``INSTRUME`` header does not match the
-active instrument selection.
-
 
 Browsing Reduced Calibrations
 ==============================
@@ -244,14 +235,9 @@ keck_deimos_A highlighted and the "Calibrations matched" status label]
 Automatic Calibration Suggestion
 ---------------------------------
 
-How QLView uses PypeIt's metadata system to recommend the best-matching
-calibration directory after a raw file is opened.
 
 Manually Selecting a Calibration Directory
 -------------------------------------------
-
-How to type a path or double-click to navigate to a calibration set, and
-when the Render Slits / Show Wavelengths buttons become enabled.
 
 
 Rendering Slits
@@ -267,18 +253,14 @@ Rendering Slits
 Render Slits Button
 --------------------
 
-What files are read (``Slits_*.fits*`` from ``Calibrations/``) and what is
-drawn on the canvas.
 
 Selecting a Slit
 -----------------
 
-Using the slit combo box or clicking directly on the image to select a slit.
 
 Display Slits and Show Labels Toggles
 --------------------------------------
 
-How to show/hide the polygon outlines and the slit-ID / object-name labels.
 
 Wavelength Display
 ------------------
@@ -289,9 +271,6 @@ Wavelength Display
 
    After "Show Wavelengths", the wavelength under the cursor (here,
    :math:`\lambda = 9649.49`) is shown at the lower left of the Ginga info bar.
-
-How the "Show Wavelengths" button builds a 2D wavelength map and enables
-per-pixel wavelength readout in the cursor info bar.
 
 
 Running a Quicklook Reduction
@@ -307,12 +286,10 @@ Running a Quicklook Reduction
 Selecting a Slit and Triggering Reduction
 ------------------------------------------
 
-Choosing a slit from the combo box and clicking "Reduce Slit".
 
 SNR Threshold
 --------------
 
-How the SNR threshold parameter affects automatic object detection.
 
 Manual Extraction
 -----------------
@@ -329,13 +306,10 @@ Manual Extraction
 
    The yellow marker placed on the raw image in manual extraction mode.
 
-Enabling click-to-extract mode and setting the FWHM.
 
 A-B Dithered Sky Subtraction
 -----------------------------
 
-Specifying a B frame manually or using "Detect AB Pair", and when to enable
-CoAdd2D.
 
 Monitoring Reduction Progress
 ------------------------------
@@ -345,9 +319,6 @@ Monitoring Reduction Progress
    :width: 60%
 
    A completed reduction, with the "Show Traces" and "Show" buttons enabled.
-
-How the status label updates and what each terminal state (Reduced, Extraction
-failed, Error, Timed out) means.
 
 
 Viewing Results
@@ -363,8 +334,6 @@ Viewing Results
 Showing Extracted Spectra
 --------------------------
 
-How "Show" and "Show CoAdd2D" open the spec1d file in a dedicated channel
-with the Spec1dView plugin.
 
 Trace Overlay
 --------------
@@ -377,25 +346,18 @@ Trace Overlay
    object's name.  If more than one object was detected, the trace selected
    in the Spec1D viewer is drawn in cyan and the others in orange.
 
-Using "Show Traces" to overlay per-object extraction traces on the raw image,
-and how the active trace tracks selection in the paired Spec1dView channel.
-
 
 Remote Backend
 ==============
 
-Overview of the remote HTTP server mode for instrument workstations where the
-raw data is not on the local machine.
 
 Connecting to a Remote Server
 ------------------------------
 
-Settings dialog fields: server URL and API key.
 
 Running the Server
 -------------------
 
-Brief pointer to the server component documentation.
 
 .. note::
 
@@ -414,15 +376,9 @@ Settings Dialog
 
    The Settings dialog.
 
-Description of each setting: backend type, redux path, reduction timeout,
-poll cadence, and file-visibility filters for raw and reduced trees.
-
 
 Troubleshooting
 ===============
-
-Common issues: plugin not found, ginga not launching, render slits button
-stays disabled, reduction times out, N/A columns in the file tree.
 
 
 Development
