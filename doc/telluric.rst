@@ -55,7 +55,7 @@ To use these spectra, the minimum parameters are, e.g.:
 .. code-block:: ini
 
     [telluric]
-        tellgridfile = TellPCA_3000_10500_R120000.fits
+        telgridfile = TellPCA_3000_10500_R120000.fits
         teltype = pca
 
 Note that most spectrographs set defaults for these, meaning you don't
@@ -80,7 +80,7 @@ To use these spectra, the minimum parameters are, e.g.:
 .. code-block:: ini
 
     [telluric]
-        tellgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
+        telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
         teltype = grid
 
 Note the atmospheric grid files are *very large* (multiple GiB).  Because of

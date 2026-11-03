@@ -160,8 +160,16 @@ their pointing pattern, so same-pointing frames coadd and each distinct
 dither position reduces to its own spec1d/spec2d.  This removes the need to
 edit ``comb_id`` by hand.
 
-Binospec writes the *commanded* ``RA``/``DEC`` into the header, so repeated
-visits to a position are byte-identical.  Within each setup, PypeIt clusters
+PypeIt takes each frame's target coordinates from the catalog
+``CATRA``/``CATDEC`` header cards.  The ``RA``/``DEC`` cards are the commanded
+pointing of the instrument rotator axis, which is offset from the target by the
+instrument offset (``IAZOFF``/``IELOFF``) used to place it on the IFU or long
+slit: ~594 arcsec for the IFU, ~337 arcsec for the long slits.  Dithers made
+with the instrument offset therefore move ``RA``/``DEC`` but not
+``CATRA``/``CATDEC``, so the combination groups are built from the
+rotator-axis pointing, recorded as the ``ra_off``/``dec_off`` offset from the
+target.  Repeated visits to a position are byte-identical.  Within each setup,
+PypeIt clusters
 the science/standard pointings and gives every frame within ``0.1`` arcsec of
 a cluster a shared ``comb_id``; frames farther apart start a new cluster with
 its own ``comb_id``.  Clustering never crosses a setup (grating + mask), so
