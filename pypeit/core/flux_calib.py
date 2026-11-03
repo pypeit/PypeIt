@@ -948,8 +948,6 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_recomb=N
 
     zeropoint_data, zeropoint_data_gpm = compute_zeropoint(wave, Nlam, Nlam_gpm, flam_true)
 
-#######
-
     zeropoint_fitmask = zeropoint_data_gpm & mask_tell & mask_recomb
     wave_min = wave[wave > 1.0].min()
     wave_max = wave[wave > 1.0].max()
@@ -972,27 +970,14 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_recomb=N
     zeropoint_clean = zeropoint_data.copy()
     zeropoint_clean_gpm = zeropoint_data_gpm.copy()
     # Polynomial corrections on Hydrogen Recombination lines
-    #
-    # this is where the discontinuities at the hydrogen lines arise. They depend on how well poly matches zeropoint_data [opk Nov2026]
-    # Setting polycorrect = False in the sensitivity input file resolves the problem with discontinuities [opk Nov2026]
-    #
     if (np.sum(zeropoint_fitmask) > 0.5 * len(zeropoint_fitmask)) & polycorrect:
         log.info("Replacing bspline fit with polyfit over Hydrogen Recombination line regions")
         ## Only correct Hydrogen Recombination lines with polyfit in the telluric free region
         balmer_clean = np.zeros_like(wave, dtype=bool)
         # Commented out the bluest recombination lines since they are weak for spectroscopic standard stars.
         #836.4, 3969.6, 3890.1, 4102.8, 4102.8, 4341.6, 4862.7,   \
-        #lines_hydrogen = np.array([5407.0, 6564.6, 8224.8, 8239.2, 8203.6, 8440.3, 8469.6, 8504.8, 8547.7, 8600.8, \
-                                   #8667.4, 8752.9, 8865.2, 9017.4, 9229.0, 10049.4, 10938.1, 12818.1, 21655.0])
-        # 
-        # Removed the 5407.0, 8224.8 and 8239.2 lines from lines_hydrogen, consistent with their having been commented out in mask_stellar_hydrogen [opk/Nov2026].
-        # Also put lines_hydrogen in a conditional - to be used when mask_hydrogen_lines is True, but not when it is False (is this correct?) [opk/Nov2026].
-        #
-        if not all(mask_recomb):
-            lines_hydrogen = np.array([6564.6, 8203.6, 8440.3, 8469.6, 8504.8, 8547.7, 8600.8, \
-                                  8667.4, 8752.9, 8865.2, 9017.4, 9229.0, 10049.4, 10938.1, 12818.1, 21655.0])
-        else: 
-             lines_hydrogen = np.array([])
+        lines_hydrogen = np.array([5407.0, 6564.6, 8224.8, 8239.2, 8203.6, 8440.3, 8469.6, 8504.8, 8547.7, 8600.8, \
+                                   8667.4, 8752.9, 8865.2, 9017.4, 9229.0, 10049.4, 10938.1, 12818.1, 21655.0])
         for line_hydrogen in lines_hydrogen:
             ihydrogen = np.abs(wave - line_hydrogen) <= balm_mask_wid
             balmer_clean[ihydrogen] = True
@@ -1018,8 +1003,7 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_recomb=N
     if (nresln * std_res) < std_pix:
         log.warning("Bspline breakpoints spacing shoud be larger than 1pixel")
         log.warning("Changing input nresln to fix this")
-        #nresln = std_res / std_pix
-        nresln = std_res / std_pix / 8.3
+        nresln = std_res / std_pix
 
     # Output some helpful information for double-checking input params are correct
     log.debug(f" This is the passed-in R: {resolution}")
