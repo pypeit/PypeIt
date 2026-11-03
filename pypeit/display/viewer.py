@@ -571,6 +571,7 @@ class PypeItViewer(GingaShellViewer):
 
         super().__init__(self.rv.ginga_shell)
         self._set_title()
+        self._ignore_operations_width()
         # PypeIt drives the event loop from this thread
         self.shell.gui_thread_id = threading.get_ident()
 
@@ -609,6 +610,25 @@ class PypeItViewer(GingaShellViewer):
             self.shell.update_pending(timeout=0.001)
             if time.perf_counter() - tstart > 10.:
                 raise PypeItError(f'Timeout starting ginga plugin {name}.')
+
+    def _ignore_operations_width(self):
+        """
+        Keep the labels in ginga's Operations bar from widening the window.
+
+        The Operations bar shows a label for each running local plugin (e.g.,
+        one ``Spec1dView`` per spectrum shown by ``pypeit_show_1dspec``), named
+        after its channel.  Qt widens the window to fit all of the labels, so a
+        few channels with long names push the window beyond the screen.  This
+        makes Qt ignore their width; labels that do not fit are clipped.
+        """
+        try:
+            optray = self.shell.gpmon.get_plugin('Operations').w.optray.get_widget()
+        except (KeyError, AttributeError):
+            return
+        from qtpy import QtWidgets
+        policy = optray.sizePolicy()
+        policy.setHorizontalPolicy(QtWidgets.QSizePolicy.Policy.Ignored)
+        optray.setSizePolicy(policy)
 
     def _window_close_cb(self, w):
         """Window-close callback: hide the window and stop waiting."""

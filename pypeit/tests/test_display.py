@@ -285,6 +285,10 @@ def test_viewer_headless():
     # The channels are linked
     ch.fitsimage.set_pan(20., 100.)
     assert np.allclose(ch2.fitsimage.get_pan()[:2], (20., 100.))
+    # The labels of the running local plugins do not widen the window
+    from qtpy import QtWidgets
+    optray = vwr.shell.gpmon.get_plugin('Operations').w.optray.get_widget()
+    assert optray.sizePolicy().horizontalPolicy() == QtWidgets.QSizePolicy.Policy.Ignored
 
 
 def test_is_onespec_file(tmp_path):
