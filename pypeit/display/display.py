@@ -108,11 +108,13 @@ def show_image(inp, chname='Image', waveimg=None, rms_img=None, mask=None, exten
         waveimg (:obj:`numpy.ndarray`, optional):
             Wavelength image.
         rms_img (:obj:`numpy.ndarray`, optional):
-            Per-pixel wavelength-fit RMS image with the same shape as
-            *waveimg*.  When provided the DEC readout in the ginga info bar
-            is overloaded to show the local wavelength-solution RMS.  Pixels
-            outside all slits should be zero or ``nan``; those values are
-            suppressed in the display.  Ignored when *waveimg* is ``None``.
+            Per-pixel image of the wavelength-fit RMS, with the same shape as
+            *waveimg*.  Each slit has a single RMS, so every pixel within a
+            given slit holds the same value.  When provided the DEC readout
+            in the ginga info bar is overloaded to show the wavelength-solution
+            RMS of the slit under the cursor.  Pixels outside all slits should
+            be zero or ``nan``; those values are suppressed in the display.
+            Ignored when *waveimg* is ``None``.
         mask (:class:`~pypeit.images.ImageBitMaskArray`, optional):
             A bitmask array that designates a pixel as being masked.  Currently
             this is only used when displaying the spectral extraction result.

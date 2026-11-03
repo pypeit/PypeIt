@@ -28,9 +28,11 @@ class SlitImage(AstroImage):
     wav_np : `numpy.ndarray`_, optional
         Wavelength map image.
     rms_np : `numpy.ndarray`_, optional
-        Per-pixel wavelength-fit RMS image.  Must have the same shape as
-        *wav_np* when provided.  Pixels outside all slits should be 0 or
-        ``nan``; those values are suppressed in the readout.
+        Per-pixel image of the wavelength-fit RMS.  Each slit has a single
+        RMS, so every pixel within a given slit holds the same value.  Must
+        have the same shape as *wav_np* when provided.  Pixels outside all
+        slits should be 0 or ``nan``; those values are suppressed in the
+        readout.
     **kwargs:
         Keyword arguments for `AstroImage`_
     """
@@ -129,10 +131,11 @@ class SlitWavelength(GingaPlugin.GlobalPlugin):
         metadata : :obj:`dict`
             other metadata about image to attach to image
         rms_buf : bytes, optional
-            Per-pixel wavelength-fit RMS data, as a buffer.  Must have the
-            same length as *wav_buf* once interpreted as *rms_dtype*.  When
-            ``None`` (default) the DEC readout field is left blank, preserving
-            the original behaviour.
+            Per-pixel wavelength-fit RMS data, as a buffer.  Each slit has a
+            single RMS, so every pixel within a given slit holds the same
+            value.  Must have the same length as *wav_buf* once interpreted
+            as *rms_dtype*.  When ``None`` (default) the DEC readout field is
+            left blank, preserving the original behaviour.
         rms_dtype : :obj:`str`, optional
             numpy data type of *rms_buf* (e.g. ``'float32'``).  Required when
             *rms_buf* is provided; ignored otherwise.
