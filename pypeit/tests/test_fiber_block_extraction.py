@@ -2,6 +2,7 @@
 from types import SimpleNamespace
 
 import numpy as np
+import pytest
 from astropy.io import fits
 from astropy.table import Table
 
@@ -54,6 +55,84 @@ def test_get_fiber_blocks_det02():
         assert blocks[b]['nfibers'] in (19, 20), \
             f"DET02 science block {b} should have 19 or 20 fibers, got " \
             f"{blocks[b]['nfibers']}"
+
+
+def test_det02_reference_is_mirrored_onto_pypeit_frame():
+    """DET02 reference rows/blocks should increase with PypeIt pixel."""
+    with fits.open(spec._ifu_calib_path() / 'fiber_ref_profile.fits') as hdu:
+        raw = hdu[2].data.copy()
+    ref = spec.load_fiber_ref_profile(2)
+    live = ref['FIB_BLOCK'] >= 0
+
+    assert np.all(np.diff(ref['TR_PIX'][live]) > 0), \
+        "DET02 live TR_PIX should increase with row index"
+    assert np.all(np.diff(ref['FIB_BLOCK'][live]) >= 0), \
+        "DET02 FIB_BLOCK should increase with TR_PIX"
+    np.testing.assert_array_equal(
+        ref['FIB_ID'], raw['FIB_ID'][::-1],
+        err_msg="DET02 rows should be the stored IDL rows reversed")
+    raw_live = raw['FIB_BLOCK'] >= 0
+    np.testing.assert_allclose(
+        ref['TR_PIX'][live],
+        spec.ref_mirror_pix_b - raw['TR_PIX'][raw_live][::-1],
+        err_msg="DET02 TR_PIX should be mirrored about ref_mirror_pix_b")
+    np.testing.assert_allclose(
+        ref['TR_H3'], -raw['TR_H3'][::-1],
+        err_msg="Odd Gauss-Hermite terms should change sign under the mirror")
+
+
+def test_det02_dead_fibers_match_idl():
+    """Issue #2220: DET02 dead fibers must be the IDL ones (B27/B79/B159/B199)."""
+    ref = spec.load_fiber_ref_profile(2)
+    names = np.char.strip(ref['FIB_NAME'])
+    dead = set(names[ref['FIB_DEAD_FLAG'] == 1])
+    assert dead == {'B27_DEAD', 'B79_DEAD', 'B159_DEAD', 'B199_DEAD'}, \
+        f"Unexpected DET02 dead fibers: {sorted(dead)}"
+    for name in ('B122', 'B162', 'B242', 'B294'):
+        assert name in names[ref['FIB_BLOCK'] >= 0], \
+            f"{name} should be a live DET02 fiber"
+
+
+def test_det02_reference_profile_is_mirrored():
+    """DET02 PROF_REF should be the stored profile mirrored onto PypeIt pixels."""
+    with fits.open(spec._ifu_calib_path() / 'fiber_ref_profile.fits') as hdu:
+        raw = hdu[3].data['PROF_REF'].astype(float)
+    np.testing.assert_allclose(spec._load_ref_spatial_profile(1), raw[0],
+                               err_msg="DET01 PROF_REF should be unchanged")
+    prof = spec._load_ref_spatial_profile(2)
+    x = np.arange(raw.shape[1], dtype=float)
+    pix = np.array([500, 2000, 3500])
+    np.testing.assert_allclose(prof[pix],
+                               np.interp(spec.ref_mirror_pix_b - pix, x, raw[1]),
+                               err_msg="DET02 PROF_REF should be mirrored")
+
+
+def test_det02_live_reference_matches_mirrored_fibers():
+    """Matching the mirrored DET02 positions should recover every live fiber by name."""
+    ref = spec.load_fiber_ref_profile(2)
+    live = ref['FIB_BLOCK'] >= 0
+    meta = spec.get_fiber_metadata(2, np.round(ref['TR_PIX'][live]).astype(int),
+                                   ref['TR_PIX'][live].astype(float))
+    np.testing.assert_array_equal(meta['fiber_id'], ref['FIB_ID'][live],
+                                  err_msg="Every live DET02 fiber should match itself")
+
+
+@pytest.mark.parametrize('det', [1, 2])
+def test_science_fiber_layout_indices_match_by_name(det):
+    """Each science fiber should map to the layout entry with its own name."""
+    ref = spec.load_fiber_ref_profile(det)
+    names = np.char.strip(ref['FIB_NAME'])
+    types = np.where(np.char.startswith(names, 'SKY'), 'SKY', 'SCI')
+    idx = spec.get_science_fiber_layout_indices(det, ref['FIB_ID'], types)
+    with fits.open(spec._ifu_calib_path() / 'bino_IFU_sky_layout.fits') as hdu:
+        layout_names = np.char.strip(hdu[1].data[0]['TARGET_NAME'])
+    mapped = idx >= 0
+    assert mapped.sum() == (320 if det == 1 else 316), \
+        f"DET{det:02d}: unexpected number of mapped science fibers {mapped.sum()}"
+    np.testing.assert_array_equal(layout_names[idx[mapped]], names[mapped],
+                                  err_msg="Layout entry name should match fiber name")
+    assert all('_DEAD' in n for n in names[~mapped & (types == 'SCI')]), \
+        "Only dead science fibers should be unmapped"
 
 
 def test_block_fiber_positions():
@@ -115,7 +194,7 @@ def test_ifu_config_specific_keeps_standard_tilts():
 
 
 def test_det02_static_illumination_is_mirror_mapped():
-    """DET02 illumination should be reversed onto PypeIt's reference order."""
+    """DET02 illumination should be reversed to follow the reversed reference rows."""
     illum_file = spec._ifu_calib_path() / 'fiber_illumination.fits'
     with fits.open(illum_file) as hdu:
         raw = hdu[1].data['F_ILLUM'].copy()
@@ -216,3 +295,58 @@ def test_identify_fibers_with_offset():
     assert np.all(result['fiber_id'] > 0), \
         "all fibers should still match with a 2-pixel offset; unmatched: " \
         f"{np.sum(result['fiber_id'] <= 0)}"
+
+
+def test_fiber_half_spacings_uniform_block():
+    """Evenly spaced fibers all get half the spacing."""
+    centers = 100.0 + 6.6 * np.arange(5)
+    np.testing.assert_allclose(
+        FiberFindObjects._fiber_half_spacings(centers, 10.0), 3.3,
+        err_msg="Uniform spacing should give a half-spacing radius everywhere")
+
+
+def test_fiber_half_spacings_dead_neighbor_of_end_fiber():
+    """An end fiber next to a dead slot should not get a doubled aperture."""
+    # Second fiber of the block is dead, leaving a 2x gap after the first.
+    centers = 100.0 + 6.6 * np.array([0, 2, 3, 4, 5, 6])
+    half = FiberFindObjects._fiber_half_spacings(centers, 10.0)
+    np.testing.assert_allclose(half, 3.3,
+                               err_msg="End fiber beside a dead slot should "
+                                       "keep the typical radius")
+    # Same at the other end of the block.
+    half = FiberFindObjects._fiber_half_spacings(centers[::-1].max() - centers[::-1]
+                                                 + 100.0, 10.0)
+    np.testing.assert_allclose(half, 3.3)
+
+
+def test_fiber_half_spacings_single_fiber():
+    """A single-fiber block falls back to the supplied radius."""
+    np.testing.assert_allclose(
+        FiberFindObjects._fiber_half_spacings(np.array([42.0]), 5.0), [5.0])
+
+
+@pytest.mark.parametrize('det', [1, 2])
+def test_reference_block_apertures_not_widened(det):
+    """No reference fiber should get an aperture widened across a dead slot."""
+    for block in spec.get_fiber_blocks(det):
+        half = FiberFindObjects._fiber_half_spacings(block['fiber_positions'], 0.0)
+        typical = np.median(np.diff(block['fiber_positions'])) / 2.0
+        assert np.all(half <= typical * 1.5), \
+            f"DET{det:02d} block {block['block_id']}: aperture wider than " \
+            f"typical ({half.max():.2f} > {typical:.2f} px)"
+
+
+def test_reference_block_apertures_only_change_at_dead_gaps():
+    """Only the three DET02 end fibers beside a dead slot should change radius."""
+    nchanged = {}
+    for det in (1, 2):
+        nchanged[det] = 0
+        for block in spec.get_fiber_blocks(det):
+            pos = block['fiber_positions']
+            spacings = np.diff(pos)
+            neighbor = np.concatenate(([spacings[0]],
+                                       np.minimum(spacings[:-1], spacings[1:]),
+                                       [spacings[-1]])) / 2.0
+            half = FiberFindObjects._fiber_half_spacings(pos, 0.0)
+            nchanged[det] += int(np.sum(~np.isclose(half, neighbor)))
+    assert nchanged == {1: 0, 2: 3}, f"Unexpected radius changes: {nchanged}"
