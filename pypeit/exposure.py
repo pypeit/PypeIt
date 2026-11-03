@@ -15,6 +15,7 @@ from pypeit import specobjs
 from pypeit import spec2dobj
 from pypeit import calibrations
 
+from pypeit import parallel
 from pypeit import pypeit_steps
 from pypeit.state import science_status
 
@@ -119,24 +120,18 @@ def process_exposure(spectrograph, fitstbl, par, frames:list,
               indices and the values are the corresponding background reduced science images.
     """
 
-    # dict of sciImg
-    sciImg_dict = {}
-    # list of bkg_redux_sciimg
-    bkg_redux_sciimg_dict = {}
-
     # Loop on the detectors
-    for det in detectors:
-        add_to_lstr = f' -- Slit/SRC {slitname}' if slitname is not None else ''
-        log.info(f'Image processing detector {det}{add_to_lstr}')
+    out = parallel.map_over_detectors(
+        pypeit_steps.process_one_det_bydet, detectors,
+        ncpu=par['rdx']['ncpu'],
+        args=(spectrograph, fitstbl, par, frames, calib_ID, calibrations_path),
+        kwargs=dict(bg_frames=bg_frames, slitname=slitname),
+        label='detector')
 
-        # Process
-        sciImg, bkg_redux_sciimg = pypeit_steps.process_one_det(
-            spectrograph, fitstbl, par, frames, det, calib_ID, calibrations_path,
-            bg_frames=bg_frames, slitname=slitname)
-
-        # List em up
-        sciImg_dict[det] = sciImg
-        bkg_redux_sciimg_dict[det] = bkg_redux_sciimg
+    # List em up, in the fixed `detectors` order rather than the order the
+    # workers happened to finish in.
+    sciImg_dict = {det: out[det][0] for det in detectors}
+    bkg_redux_sciimg_dict = {det: out[det][1] for det in detectors}
 
     # Return
     return sciImg_dict, bkg_redux_sciimg_dict
@@ -213,6 +208,12 @@ def findobj_on_exposure(sciImg_dict:dict, bkg_redux_sciimg_dict:dict,
     # #####################################
     # find objects + initial sky subtraction
     # Loop on the detectors
+    # NOTE: This loop is deliberately *not* parallelized.  It fans out per
+    # detector, hits a cross-detector barrier (adjust_for_slitmask, below, which
+    # aggregates objects and slits over all detectors to compute the slitmask
+    # offset), and then fans out again.  Parallelizing the
+    # fan-out/barrier/fan-out structure is deferred to v2 of the detector
+    # parallelism; see pypeitdev/speed_up/Reports/speed_up_design.md §8.
     for det in detectors:
         add_to_lstr = f' -- Slit/SRC {slitname}' if slitname is not None else ''
         log.info(f'Object finding on detector {det}{add_to_lstr}')
@@ -337,11 +338,13 @@ def extract_exposure(sciImg_dict:dict, spectrograph, fitstbl, par, frames:list, 
     # container for specobjs during second loop (extraction)
     all_specobjs_extract = specobjs.SpecObjs()
 
-    # Extract
-    for i,det in enumerate(detectors):
-        add_to_lstr = f' -- Slit/SRC {slitname}' if slitname is not None else ''
-        log.info(f'Extracting objects on detector {det}{add_to_lstr}')
+    # Slice the per-detector inputs *in the parent*, so that each worker only
+    # ever receives its own data rather than every detector's.
+    payload = {}
+    detnames = {}
+    for i, det in enumerate(detectors):
         detname = sciImg_dict[det].detector.name
+        detnames[det] = detname
 
         # TODO: pass back the background frame, pass in background
         # files as an argument. extract one takes a file list as an
@@ -351,24 +354,35 @@ def extract_exposure(sciImg_dict:dict, spectrograph, fitstbl, par, frames:list, 
         else:
             all_specobjs_on_det = all_specobjs_objfind
 
-        # Extract
-        all_spec2d[detname], tmp_sobjs = pypeit_steps.extract_det(
-            spectrograph, fitstbl, par, frames, det,
-            calib_ID, calibrations_path,
-            sciImg_dict[det],
-            final_sky_dict[det],
-            all_specobjs_on_det,
-            calib_slits[i],
-            bkg_redux_final_sky=bkg_redux_final_sky_dict[det],
-            bkg_redux=bkg_redux,
-            find_negative=find_negative,
-            slit_name=slitname)
+        payload[det] = dict(sciImg=sciImg_dict[det],
+                            final_sky=final_sky_dict[det],
+                            sobjs_obj=all_specobjs_on_det,
+                            calib_slits=calib_slits[i],
+                            bkg_redux_final_sky=bkg_redux_final_sky_dict[det])
+
+    # Extract
+    out = parallel.map_over_detectors(
+        pypeit_steps.extract_det_bydet, detectors,
+        ncpu=par['rdx']['ncpu'],
+        args=(spectrograph, fitstbl, par, frames, calib_ID, calibrations_path),
+        kwargs=dict(bkg_redux=bkg_redux, find_negative=find_negative,
+                    slit_name=slitname),
+        payload=payload, label='detector')
+
+    # Assemble in the fixed `detectors` order rather than the order the workers
+    # happened to finish in.
+    for det in detectors:
+        all_spec2d[detnames[det]], tmp_sobjs = out[det]
 
         # Hold em
         if tmp_sobjs.nobj > 0:
             all_specobjs_extract.add_sobj(tmp_sobjs)
 
         # Add calibration associations to the SpecObjs object
+        # NOTE: preserved verbatim from the serial loop, including the fact that
+        # this overwrites `calibs` on every iteration, so the container ends up
+        # holding the *last* detector's association.  Changing that is out of
+        # scope for this PR.
         all_specobjs_extract.calibs = calibrations.Calibrations.get_association(
                                 fitstbl, spectrograph, calibrations_path,
                                 fitstbl[frames[0]]['setup'],
@@ -464,24 +478,36 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
 
     # #####################################
     # Calibrations
+    #  NOTE: Workers return only (success, failed_step); the Calibrations object
+    #  itself is never returned.  The calibrations are written to
+    #  Calibrations/*.fits and the downstream stages reload them from disk (see
+    #  pypeit_steps.load_calibrations_for_frame), so nothing heavy has to cross
+    #  the process boundary.
+    calib_status = parallel.map_over_detectors(
+        pypeit_steps.calib_status_one, detectors,
+        ncpu=par['rdx']['ncpu'],
+        args=(spectrograph, fitstbl, par, calib_ID, calibrations_path),
+        kwargs=dict(slitname=slitname, show=show, run_state=run_state,
+                    reuse_calibs=reuse_calibs),
+        label='detector')
+
+    # Rebuild the surviving-detector list *after* the loop.  The previous
+    # implementation called detectors.remove(det) while iterating over
+    # detectors, which silently skipped the following detector: it was then left
+    # in the list and reduced with calibrations that had never been built.
     for det in detectors:
-        log.info(f'Calibrating detector {det}{add_to_lstr}')
-        # run/load calibration
-        caliBrate = pypeit_steps.calib_one(
-            spectrograph, fitstbl, par, det, calib_ID, calibrations_path,
-            slitname=slitname, show=show, run_state=run_state, reuse_calibs=reuse_calibs)
-        if not caliBrate.success:
+        success, failed_step = calib_status[det]
+        if not success:
             log.warning(
                 f'Calibrations for detector {det} were unsuccessful!  The step that failed was '
-                f'{caliBrate.failed_step}.  Continuing by skipping this detector.'
+                f'{failed_step}.  Continuing by skipping this detector.'
             )
-            # Remove from list of detectors
-            detectors.remove(det)
-            continue
+    detectors = parallel.surviving_detectors(
+        detectors, {det: calib_status[det][0] for det in detectors})
 
-    # No detectors left?
     if len(detectors) == 0:
-        return None, None
+        log.warning('Calibrations were unsuccessful for every detector; nothing to reduce.')
+        return spec2dobj.AllSpec2DObj(), specobjs.SpecObjs()
 
     # #####################################
     # Process or load processed frames

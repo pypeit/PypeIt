@@ -160,8 +160,16 @@ their pointing pattern, so same-pointing frames coadd and each distinct
 dither position reduces to its own spec1d/spec2d.  This removes the need to
 edit ``comb_id`` by hand.
 
-Binospec writes the *commanded* ``RA``/``DEC`` into the header, so repeated
-visits to a position are byte-identical.  Within each setup, PypeIt clusters
+PypeIt takes each frame's target coordinates from the catalog
+``CATRA``/``CATDEC`` header cards.  The ``RA``/``DEC`` cards are the commanded
+pointing of the instrument rotator axis, which is offset from the target by the
+instrument offset (``IAZOFF``/``IELOFF``) used to place it on the IFU or long
+slit: ~594 arcsec for the IFU, ~337 arcsec for the long slits.  Dithers made
+with the instrument offset therefore move ``RA``/``DEC`` but not
+``CATRA``/``CATDEC``, so the combination groups are built from the
+rotator-axis pointing, recorded as the ``ra_off``/``dec_off`` offset from the
+target.  Repeated visits to a position are byte-identical.  Within each setup,
+PypeIt clusters
 the science/standard pointings and gives every frame within ``0.1`` arcsec of
 a cluster a shared ``comb_id``; frames farther apart start a new cluster with
 its own ``comb_id``.  Clustering never crosses a setup (grating + mask), so
@@ -211,10 +219,11 @@ flux calibration downstream.  The reduction proceeds as follows:
 
 2. When the spectrograph supplies a static ``fiber_illumination.fits``
    vector (Binospec does), it is multiplied into the per-fiber scalar as
-   a refinement of the flat-derived throughput.  The side-B (``DET02``)
-   vector is mirrored before the fiber-ID lookup, because the IDL
-   calibration vector is stored in the extracted side-B fiber-axis order
-   whereas PypeIt's DET02 reference profile is in detector order.
+   a refinement of the flat-derived throughput.  The IDL pipeline's
+   side-B (``DET02``) calibrations are stored in a frame that is
+   spatially mirrored relative to PypeIt's DET02 image, so the side-B
+   reference fiber profile is mirrored onto the PypeIt frame when it is
+   loaded, and this vector is reversed to match its row order.
 
 3. The combined scalar is attached to each fiber's ``SpecObj`` so that
    the sky-model fit and the post-extraction correction apply the same
@@ -315,9 +324,10 @@ The script then:
 
 .. note::
 
-   The two Binospec detectors produce mirror-image spectra.  The script
-   automatically accounts for this by reversing the fiber-to-sky mapping
-   for side B so that the two halves of the IFU tile correctly.
+   Each fiber is matched to its layout entry by fiber name (e.g.,
+   ``B122``), using the names assigned during fiber identification.  Dead
+   fibers (B27, B79, B159, and B199 on side B) have no spectrum and are
+   omitted.
 
 .. note::
 

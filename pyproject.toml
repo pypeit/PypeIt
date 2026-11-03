@@ -44,6 +44,7 @@ dependencies = [
     "fast-histogram>=0.11",
     "configobj>=5.0.6",
     "scikit-learn>=1.2",
+    "threadpoolctl>=3.1",
     "IPython>=8.0.0",
     "ginga>=5.5.1",
     "qtpy>=2.2.0",
@@ -67,7 +68,7 @@ jwst = [
 ]
 test = [
     "pygit2",
-    "pytest>=7.0.0",
+    "pytest>=7.0.0,<9.2",
     "pytest-astropy",
     "tox",
     "pytest-cov",
@@ -91,7 +92,7 @@ dev = [
     "photutils>=3.0",
     "specutils>=2.0",
     "pygit2",
-    "pytest>=7.0.0",
+    "pytest>=7.0.0,<9.2",
     "pytest-astropy",
     "tox",
     "pytest-cov",
