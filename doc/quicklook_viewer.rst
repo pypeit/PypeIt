@@ -122,7 +122,7 @@ The following describes a typical workflow for using the GUI.
 
    .. figure:: figures/qlview_figures/qlview_manual_extraction_control.png
       :alt: Manual extraction controls
-      :width: 60%
+      :width: 40%
 
       The manual extraction controls.
 
@@ -144,7 +144,7 @@ The following describes a typical workflow for using the GUI.
 
    .. figure:: figures/qlview_figures/qlview_reducing_buttons.png
       :alt: A reduction in progress in the reductions list
-      :width: 60%
+      :width: 40%
 
       A reduction in progress.  The "Show Traces" and "Show" buttons are disabled
       until the reduction finishes.
@@ -158,13 +158,13 @@ The following describes a typical workflow for using the GUI.
 
    .. figure:: figures/qlview_figures/qlview_reduced_buttons.png
       :alt: A completed reduction in the reductions list
-      :width: 60%
+      :width: 40%
 
       A completed reduction, with the "Show Traces" and "Show" buttons enabled.
 
    .. figure:: figures/qlview_figures/qlview_spec1D_LRISR.png
       :alt: Spec1dView showing an extracted spectrum
-      :width: 80%
+      :width: 60%
 
       The Spec1dView plugin, open in its own channel, showing the spectrum
       extracted from LRIS red slit S1706.
