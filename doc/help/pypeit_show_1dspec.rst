@@ -4,6 +4,7 @@
     usage: pypeit_show_1dspec [-h] [-v VERBOSITY] [--log_file LOG_FILE]
                               [--log_level LOG_LEVEL] [--list] [--exten EXTEN |
                               --obj OBJ] [--extract {BOX,OPT}] [--flux] [-m]
+                              [--chname CHNAME] [--no_clear]
                               file
     
     Show a 1D spectrum
@@ -37,4 +38,11 @@
       --flux                Show the flux-calibrated spectrum (if available)
                             (default: False)
       -m, --unmasked        Only show the unmasked data. (default: True)
+      --chname CHNAME       Name of the ginga channel (tab). By default, the name of
+                            the file is used, and showing the same file again reuses
+                            its channel. (default: None)
+      --no_clear            If a PypeIt viewer is already open (e.g., from a
+                            previous call to this script or pypeit_show_2dspec),
+                            show the spectrum in a new channel of that viewer and
+                            return immediately. (default: True)
     

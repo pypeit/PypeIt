@@ -114,6 +114,20 @@ options are ignored: the file holds a single spectrum, with the extraction and
 fluxing used to construct it, which are shown (but cannot be changed) in the
 ``Spec1dView`` panel.
 
+Each file is shown in its own ``ginga`` channel (tab), named after the file
+(use ``--chname`` to choose a different name).  To compare spectra, use
+``--no_clear`` to add them to a window that is already open (e.g., from a
+previous call to ``pypeit_show_1dspec`` or :ref:`pypeit_show_2dspec`); the
+script then returns immediately:
+
+.. code-block:: console
+
+    pypeit_show_1dspec Science/spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits
+    pypeit_show_1dspec Science/spec1d_b28-J1217p3905_KASTb_2015May20T051801.470.fits --no_clear
+
+Showing a file that is already shown (e.g., to look at a different object with
+``--obj``) reuses its channel.
+
 .. warning::
 
     If you get an obscure error when executing the above command, it may be that

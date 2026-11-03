@@ -209,6 +209,36 @@ def test_cuts():
     assert spec2d_data._cuts(img, np.zeros(img.shape, dtype=bool)) is None
 
 
+def test_spec1d_channel_name(tmp_path):
+    from pypeit.display.display import spec1d_channel_name
+    ofile = tmp_path / 'spec1d_b27.fits'
+    # New file
+    assert spec1d_channel_name(ofile, {'Image': None}) == 'spec1d_b27'
+    # File already shown
+    channels = {'spec1d_b27': str(ofile)}
+    assert spec1d_channel_name(ofile, channels) == 'spec1d_b27'
+    # File with the same name in another directory, or channel with the same
+    # name that does not show a spectrum
+    other = tmp_path / 'other' / 'spec1d_b27.fits'
+    assert spec1d_channel_name(other, channels) == 'spec1d_b27 (2)'
+    assert spec1d_channel_name(ofile, {'spec1d_b27': None}) == 'spec1d_b27 (2)'
+    channels['spec1d_b27 (2)'] = str(other)
+    assert spec1d_channel_name(other, channels) == 'spec1d_b27 (2)'
+
+
+def test_spec1d_command():
+    from pypeit.display.display import show_1dspec
+    assert viewer._builtin_command('spec1d') is show_1dspec
+
+
+def test_show_1dspec_parser():
+    from pypeit.scripts.show_1dspec import Show1DSpec
+    args = Show1DSpec.parse_args(['spec1d.fits'])
+    assert args.clear and args.chname is None
+    args = Show1DSpec.parse_args(['spec1d.fits', '--no_clear', '--chname', 'test'])
+    assert not args.clear and args.chname == 'test'
+
+
 def test_spec2d_make_channel():
     rng = np.random.default_rng(42)
     shape = (100, 50)

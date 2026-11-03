@@ -652,7 +652,43 @@ def show_scattered_light(image_list, slits=None, wcs_match=True):
     show()
 
 
-def show_1dspec(filename, ext=0, masked=True, fluxed=False, extraction='OPT'):
+def spec1d_channel_name(filename, channels):
+    """
+    Select the name of the channel used to show a 1D spectrum file.
+
+    The name is the file name without its extension.  If a channel with this
+    name already shows a different file (e.g., a file with the same name in
+    another directory) or is not a 1D spectrum channel, a suffix is added
+    (e.g., ``spec1d_file (2)``).
+
+    Parameters
+    ----------
+    filename : :obj:`str`, `Path`_
+        File to show.
+    channels : :obj:`dict`
+        The existing channels.  Keys are the channel names, and values are the
+        files shown by their ``Spec1dView`` plugins (None if the channel does
+        not show a 1D spectrum).
+
+    Returns
+    -------
+    :obj:`str`
+        Name of the channel.  If it is one of the existing channels, that
+        channel already shows ``filename``.
+    """
+    stem = Path(filename).stem
+    path = Path(filename).resolve()
+    i = 1
+    while True:
+        chname = stem if i == 1 else f'{stem} ({i})'
+        if chname not in channels:
+            return chname
+        if channels[chname] is not None and Path(channels[chname]).resolve() == path:
+            return chname
+        i += 1
+
+
+def show_1dspec(filename, ext=0, masked=True, fluxed=False, extraction='OPT', chname=None):
     """
     Interface to ginga to show a 1dspec and manipulate with Spec1dView plugin.
 
@@ -662,11 +698,30 @@ def show_1dspec(filename, ext=0, masked=True, fluxed=False, extraction='OPT'):
         spec1d FITS file to show in the viewer
     ext : int
         extension to show (which spectrum)
+    masked : bool, optional
+        Only show the unmasked data.
+    fluxed : bool, optional
+        Show the flux-calibrated spectrum (if available).
+    extraction : str, optional
+        Extraction method of the spectrum to show (``'OPT'`` or ``'BOX'``).
+    chname : str, optional
+        Name of the channel.  If the channel exists, the file replaces what it
+        shows.  If None, the name is selected by :func:`spec1d_channel_name`,
+        so that each file is shown in its own channel.
     """
     viewer = get_viewer()
     shell = viewer.shell
 
-    chname, plname = "Spec1d", "Spec1dView"
+    plname = "Spec1dView"
+    if chname is None:
+        channels = {}
+        for name in viewer.channel_names():
+            try:
+                plugin = shell.get_channel(name).opmon.get_plugin(plname)
+            except KeyError:
+                plugin = None
+            channels[name] = getattr(plugin, 'filepath', None)
+        chname = spec1d_channel_name(filename, channels)
     viewer.channel(chname)
     # start the plugin
     shell.start_local_plugin(chname, plname)
@@ -677,4 +732,5 @@ def show_1dspec(filename, ext=0, masked=True, fluxed=False, extraction='OPT'):
                                         fluxed=fluxed))
     # load the file
     shell.load_file(str(filename), chname=chname, wait=False)
+    shell.change_channel(chname)
     viewer.pending = True

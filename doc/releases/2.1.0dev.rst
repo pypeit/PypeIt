@@ -309,6 +309,13 @@ Script Changes
 - ``pypeit_show_2dspec --no_clear`` and the new ``pypeit_view_fits
   --no_clear`` option send the file to an already open PypeIt viewer
   (opened by either script) and return immediately; see :ref:`pypeit_show_2dspec`.
+- Added the ``--no_clear`` and ``--chname`` options to
+  ``pypeit_show_1dspec``.  With ``--no_clear``, the spectrum is added to an
+  already open PypeIt viewer (opened by ``pypeit_show_1dspec``,
+  ``pypeit_show_2dspec``, or ``pypeit_view_fits``), in a channel named after
+  the file, and the script returns immediately; see :ref:`pypeit_show_1dspec`.
+  The dashboard uses this option, so the spectra viewed from it are collected
+  in one window.
 - ``pypeit_show_2dspec`` and ``pypeit_view_fits`` read the file (and, for
   spec2d files, check its datamodel version) before opening the ginga window,
   so problems are reported immediately, in the terminal.

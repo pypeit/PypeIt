@@ -43,6 +43,17 @@ class Show1DSpec(scriptbase.ScriptBase):
             '-m', '--unmasked', dest='masked', default=True, action='store_false',
             help='Only show the unmasked data.'
         )
+        parser.add_argument(
+            '--chname', type=str, default=None,
+            help='Name of the ginga channel (tab).  By default, the name of the file is used, '
+                 'and showing the same file again reuses its channel.'
+        )
+        parser.add_argument(
+            '--no_clear', dest='clear', default=True, action='store_false',
+            help='If a PypeIt viewer is already open (e.g., from a previous call to this script '
+                 'or pypeit_show_2dspec), show the spectrum in a new channel of that viewer and '
+                 'return immediately.'
+        )
 #        parser.add_argument('--jdaviz', default=False, action='store_true',
 #                            help='Open the spectrum in jdaviz (requires specutils and jdaviz '
 #                                 'to be installed)')
@@ -60,7 +71,6 @@ class Show1DSpec(scriptbase.ScriptBase):
         from pypeit import PypeItError
         from pypeit import specobjs
         from pypeit import onespec
-        from pypeit.display.display import show_1dspec
 
         # Initialize the log
         cls.init_log(args)
@@ -74,9 +84,8 @@ class Show1DSpec(scriptbase.ScriptBase):
                 return
             if args.obj is not None or args.exten != 1:
                 log.warning('The file contains a single spectrum; ignoring --exten/--obj.')
-            show_1dspec(str(Path(args.file).absolute()), ext=0, masked=args.masked)
-            from pypeit.display.viewer import show
-            show(message='close the window to exit')
+            cls.show(args, dict(filename=str(Path(args.file).absolute()), ext=0,
+                                masked=args.masked, chname=args.chname))
             return
 
         sobjs = specobjs.SpecObjs.from_fitsfile(args.file, chk_version=False)
@@ -138,25 +147,57 @@ class Show1DSpec(scriptbase.ScriptBase):
 
 
         if args.obj is not None:
-            exten = np.where(sobjs.NAME == args.obj)[0][0]
+            indx = np.where(sobjs.NAME == args.obj)[0]
+            if len(indx) == 0:
+                raise PypeItError(f"Bad input object name: {args.obj}")
+            exten = int(indx[0])
         else:
             exten = args.exten-1 # 1-index in FITS file
-        if exten < 0:
-            raise PypeItError(f"Bad input extension/object name: {args.obj}")
+        if exten < 0 or exten >= len(sobjs):
+            raise PypeItError(f"Bad input extension: {args.exten}")
 
         # Check Extraction
         if args.extract == 'OPT':
             if sobjs[exten]['OPT_WAVE'] is None: #not in sobjs[exten]._data.keys():
                     raise PypeItError("Spectrum not extracted with OPT.  Try --extract BOX")
 
-        full_file = Path(args.file).absolute()
+        cls.show(args, dict(filename=str(Path(args.file).absolute()), ext=exten,
+                            masked=args.masked, extraction=args.extract, fluxed=args.flux,
+                            chname=args.chname))
 
-        # Ginga
-        show_1dspec(
-            str(full_file), ext=exten, masked=args.masked, extraction=args.extract,
-            fluxed=args.flux
-        )
+    @classmethod
+    def show(cls, args, kwargs):
+        """
+        Show the spectrum in ginga and wait for the user to close the window.
+
+        If requested (``--no_clear``), the spectrum is instead sent to an open
+        PypeIt viewer, if there is one, and the method returns immediately.
+
+        Parameters
+        ----------
+        args : `argparse.Namespace`_
+            The parsed command-line arguments.
+        kwargs : :obj:`dict`
+            Keyword arguments passed to
+            :func:`~pypeit.display.display.show_1dspec`.  Must be JSON
+            serializable.
+        """
+        from pypeit import log
+        from pypeit.display import viewer
+        from pypeit.display.display import show_1dspec
+
+        # Show the spectrum in an already open viewer?
+        if not args.clear:
+            if viewer.send_command('spec1d', **kwargs):
+                log.info(f'Sent {args.file} to the open PypeIt viewer.')
+                return
+            log.info('No open PypeIt viewer found; opening a new one.')
+
+        v = viewer.get_viewer()
+        # Allow other calls to this script (and pypeit_show_2dspec,
+        # pypeit_view_fits) to add spectra to this viewer
+        v.listen()
+        show_1dspec(**kwargs)
 
         # Wait for the user to close the window
-        from pypeit.display.viewer import show
-        show(message='close the window to exit')
+        v.show(message='close the window to exit')

@@ -594,8 +594,9 @@ directory of PypeIt's configuration directory (e.g.,
 ``~/.config/pypeit/ginga``), or in the directory set by the
 ``PYPEIT_GINGA_HOME`` environment variable.
 
-The windows opened by :ref:`pypeit_show_2dspec` and ``pypeit_view_fits`` accept
-files sent by other calls to these scripts using their ``--no_clear`` option.
+The windows opened by :ref:`pypeit_show_2dspec`, :ref:`pypeit_show_1dspec`,
+and ``pypeit_view_fits`` accept files sent by other calls to these scripts
+using their ``--no_clear`` option.
 The file name and options are sent through a local network port (9919 by
 default; set the ``PYPEIT_GINGA_PORT`` environment variable to change it);
 only connections from your own computer are accepted.

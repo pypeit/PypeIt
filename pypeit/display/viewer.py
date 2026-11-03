@@ -13,8 +13,9 @@ returns to the caller, and the next display reuses the same window.
 
 A viewer can optionally listen on a local socket (see :meth:`PypeItViewer.listen`)
 so that a second PypeIt process can ask it to load a file (e.g.,
-``pypeit_show_2dspec --no_clear``).  Only a small JSON command with the file
-path and options is sent; the receiving viewer reads the file itself.
+``pypeit_show_2dspec --no_clear`` or ``pypeit_show_1dspec --no_clear``).  Only
+a small JSON command with the file path and options is sent; the receiving
+viewer reads the file itself.
 
 .. include:: ../include/links.rst
 """
@@ -233,9 +234,10 @@ def _builtin_command(name):
     ----------
     name : :obj:`str`
         Command name: ``'spec2d'`` (show a spec2d file; see
-        :meth:`~pypeit.display.spec2dview.Spec2dView.load_spec2d`) or
-        ``'view_fits'`` (show an image; see
-        :meth:`~pypeit.scripts.view_fits.ViewFits.show`).
+        :meth:`~pypeit.display.spec2dview.Spec2dView.load_spec2d`),
+        ``'spec1d'`` (show a 1D spectrum; see
+        :func:`~pypeit.display.display.show_1dspec`), or ``'view_fits'``
+        (show an image; see :meth:`~pypeit.scripts.view_fits.ViewFits.show`).
 
     Returns
     -------
@@ -244,6 +246,9 @@ def _builtin_command(name):
     """
     if name == 'spec2d':
         return lambda **kwargs: get_viewer().get_global_plugin('Spec2dView').load_spec2d(**kwargs)
+    if name == 'spec1d':
+        from pypeit.display.display import show_1dspec
+        return show_1dspec
     if name == 'view_fits':
         from pypeit.scripts.view_fits import ViewFits
         return lambda **kwargs: ViewFits.show(argparse.Namespace(**kwargs))

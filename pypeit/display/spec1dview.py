@@ -107,6 +107,9 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         # will be set if we are invoked
         self.data = Bunch.Bunch()
         self.sobjs = []
+        # File shown by the plugin; used to select the channel that shows a
+        # file (see pypeit.display.display.show_1dspec)
+        self.filepath = None
         # Set if the file is a OneSpec file (e.g., a coadded spectrum)
         self.onespec = None
         self.num_exten = 0
@@ -628,6 +631,7 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         (e.g., a coadded spectrum), its single spectrum is plotted.
         """
         self.w.filepath.set_text(filepath)
+        self.filepath = filepath
 
         if onespec.is_onespec_file(filepath):
             self.onespec = onespec.OneSpec.from_file(filepath, chk_version=False)
