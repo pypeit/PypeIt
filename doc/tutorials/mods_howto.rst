@@ -491,7 +491,7 @@ telluric absorption; are generated with a single script, :ref:`pypeit_flux_setup
 
 ``pypeit_flux_setup lbt_mods1b_proc.flux --objmodel qso Science/ ./``
 
-which will generate 3 files: lbt_mods1b_proc.flux, lbt_mods1b_proc.coadd1d and lbt_mods1b_proc.tell.
+which will generate 3 files: lbt_mods1b_proc.flux, lbt_mods1b_proc.coadd1d and lbt_mods1b_proc.tell. The object model is used in the telluric correction. In case there are no quasar object models that cover the rest-frame wavelength range of these data (~845 - 2550 angstroms), then use objmodel = poly. 
 
 Flux Calibration
 ++++++++++++++++
@@ -568,9 +568,6 @@ The input files, lbt_mods1b_proc.coadd1d and lbt_mods1r_proc.coadd1d (see below)
 
 .. code-block:: console
 
-   # Auto-generated Coadd1D input file using PypeIt version: 1.18.0
-   # UTC 2025-10-18T19:37:47.795+00:00
-
    # User-defined execution parameters
    [coadd1d]
      coaddfile = m1b_HS1946+7658_coadd1d.fits # Please set your output file name
@@ -594,9 +591,6 @@ The input files, lbt_mods1b_proc.coadd1d and lbt_mods1r_proc.coadd1d (see below)
 
 .. code-block:: console
 
-   # Auto-generated Coadd1D input file using PypeIt version: 1.18.0
-   # UTC 2025-10-18T19:56:18.097+00:00
-
    # User-defined execution parameters
    [coadd1d]
      coaddfile = m1r_HS1946+7658_coadd1d.fits  # Please set your output file name
@@ -618,4 +612,31 @@ The input files, lbt_mods1b_proc.coadd1d and lbt_mods1r_proc.coadd1d (see below)
 Correcting the Telluric Absorption
 ==================================
 
-   Under construction...
+The telluric correction is done by ``pypeit_tellfit``, which fits the object spectrum with a joint telluric plus object model. 
+
+``pypeit_tellfit -t lbt_mods1b_proc.tell m1b_HS1946+7658_coadd1d.fits --debug``
+
+``pypeit_tellfit -t lbt_mods1r_proc.tell m1r_HS1946+7658_coadd1d.fits --debug``
+
+For this example, a polynomial model is used, although better results may be obtained using a quasar model which covers the rest-frame wavelength range of the data. Sample telluric input files, lbt_mods1b_proc.tell and lbt_mods1r_proc.tell, are provided below, though ``polyorder`` and ``fit_wv_min_max`` could be further adjusted to optimize the fits. 
+
+`lbt_mods1b_proc.tell`:
+
+.. code-block:: console
+
+   # User-defined execution parameters
+   [telluric]
+     objmodel = poly
+     polyorder = 4
+     upper = 2
+     lower = 4
+     fit_wv_min_max = 3300,4750,5175,5650
+
+`lbt_mods1r_proc.tell`:
+
+.. code-block:: console
+
+   # User-defined execution parameters
+   [telluric]
+     objmodel = poly
+     polyorder = 3
