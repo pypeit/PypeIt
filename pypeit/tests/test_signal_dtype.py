@@ -1,6 +1,7 @@
 """Regression tests for SciPy signal calls with FITS byte-order arrays."""
 
 import numpy as np
+from scipy import signal
 
 from pypeit.core import telluric
 from pypeit.core.wavecal import wvutils
@@ -12,13 +13,13 @@ def test_xcorr_shift_normalizes_byte_order(monkeypatch):
     expected = wvutils.xcorr_shift(spectrum, spectrum, do_xcorr_arc=False,
                                    cont_subtract=False)
 
-    correlate = wvutils.scipy.signal.correlate
+    correlate = signal.correlate
 
     def check_correlate(first, second, **kwargs):
         assert first.dtype.isnative and second.dtype.isnative
         return correlate(first, second, **kwargs)
 
-    monkeypatch.setattr(wvutils.scipy.signal, 'correlate', check_correlate)
+    monkeypatch.setattr(signal, 'correlate', check_correlate)
     swapped = spectrum.astype(spectrum.dtype.newbyteorder('S'))
     result = wvutils.xcorr_shift(swapped, swapped, do_xcorr_arc=False,
                                 cont_subtract=False)
