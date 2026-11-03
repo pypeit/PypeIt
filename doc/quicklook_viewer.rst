@@ -6,12 +6,7 @@ Quicklook Viewer
 
 The PypeIt Quicklook Viewer (QLView) is an interactive Ginga plugin that lets
 observers browse raw frames, load reduced calibrations, render slit overlays,
-and trigger the quicklook reduction pipeline — all without leaving the image
-viewer.
-
-.. contents:: Contents
-   :depth: 2
-   :local:
+and trigger the quicklook reduction pipeline from one GUI interface.
 
 
 Overview
@@ -19,7 +14,7 @@ Overview
 
 The PypeIt Quicklook Viewer is a GUI intended to be used throughout an observing
 night. It allows a user to inspect raw data as soon as it is written to disk and,
-provided calibrations exists, reduce and inspect spectra with with a graphical
+provided calibrations exist, reduce and inspect spectra with a graphical
 interface provided through Ginga.
 
 .. figure:: figures/qlview_figures/qlview_fullscreen_LRISR_MOS_raw.png
@@ -29,31 +24,40 @@ interface provided through Ginga.
    The QLView plugin (right) alongside Ginga's image viewer, with a raw LRIS
    red multislit frame open.
 
-
-Installation and Requirements
-==============================
-
-For most users, no additional installation or packages are required to use the
-GUI. If running the GUI using a remote HTTP backend (not currently supported),
-install pypeit with
-
-..code-block::
-
-    pip install "pypeit[qlview]"
-
-to bring in ``flask`` and ``requests``.
+.. contents:: Contents
+   :depth: 1
+   :local:
 
 Typical Workflow
 ================
 
 The following describes a typical workflow for using the GUI.
 
-#. Launch the GUI with ``pypeit_qlview``.
+#. Launch the GUI with ``pypeit_qlview`` from the command line.
 #. The Plugin is launched on the right-hand side of the screen. Select your
    instrument from the dropdown at the top.
+#. Optionally, click "Settings" at the bottom of the panel to choose which
+   files are listed in the "Raw Data" and "Reduced Calibrations" tables, how
+   often the viewer checks on running reductions ("Poll Cadence"), and how long
+   a reduction may run before it is considered failed ("Reduction Timeout").
+   Changes take effect when you click "OK". To start future sessions with the
+   current paths, file filters, and reduction timeout, click "Save Default
+   Config" (see :ref:`qlview-config`).
 #. In the "Raw Data" table, navigate to where the raw science files are stored.
+   Double-click a directory to enter it; selecting a file updates the "Raw
+   Data Path" entry.
+
+   Each file is listed with its name, the time it was last changed, and a set
+   of instrument-specific columns read from its header (for DEIMOS, for
+   example, the frame number, object, image type, mask, grating, filter, and
+   exposure time). Click a column heading to sort by it.
+
 #. In the "Reduced Calibrations" table, navigate to where the pre-processed
    calibrations are stored.
+
+   Each setup folder (e.g. ``keck_deimos_A``) is listed with its instrument
+   configuration (such as the grating or slit mask), read from the setup's
+   ``.pypeit`` file, so you can tell which setup matches your science frames.
 
    .. note::
       The quicklook viewer does not process calibrations on its own. It is expected
@@ -68,22 +72,45 @@ The following describes a typical workflow for using the GUI.
    Default Config" (see :ref:`qlview-config`). If the path does not exist when
    you reduce a slit, the viewer offers to create it.
 #. Select a science frame for reducing by double clicking on a file, or pressing
-   the "Go" button. This will draw the raw frame onto Ginga's Image Viewer. If you
-   are observing using a dither pattern, the GUI can process AB frame pairs. Select
-   "Detect AB Pair" to attempt to automatically pick an appropriate pair frame, or
-   manually enter the path to the frame into the text entry.
+   the "Go" button. This will draw the raw frame onto Ginga's Image Viewer. If
+   the file's ``INSTRUME`` header does not match the selected instrument, the
+   viewer asks whether to switch to the matching instrument, continue anyway,
+   or cancel. If you are observing using a dither pattern, the GUI can process
+   AB frame pairs. Select "Detect AB Pair" to attempt to automatically pick an
+   appropriate pair frame, or manually enter the path to the frame into the "B
+   frame (optional)" entry; "Clear" empties it. With a B frame set, check
+   "CoAdd2D" to also coadd the A and B frames in 2D.
 #. Pick your calibrations. If PypeIt was able to detect a matching configuration
    amongst the calibrations in the directory you selected, it will pre-select it for
    you. Otherwise, select the setup folder for your configuration (e.g.,
    ``keck_deimos_A``) or the ``Calibrations`` folder inside it; "Render Slits" and
    "Show Wavelengths" are only enabled once one of these is selected, and the
-   status line below the table says what to select until then. Then, press
+   status line above the table says what to select until then. Then, press
    "Render Slits" to draw the slits on top of the raw image. Press
    "Show Wavelengths" to display wavelength information on top of the raw image (as
    you hover over the image, the wavelength will be shown in the lower left of the
-   screen).
+   screen). If the calibrations were written by a version of PypeIt that this
+   viewer cannot read, a "Calibrations Out of Date" warning lists the affected
+   files; see :ref:`qlview-troubleshooting`.
+
+   .. figure:: figures/qlview_figures/qlview_fullscreen_LRISR_MOS_zoomed.png
+      :alt: Slits rendered on a raw frame
+      :width: 90%
+
+      Slits rendered on a raw LRIS red frame.  The selected slit is drawn in
+      blue and the others in green.
+
+   .. figure:: figures/qlview_figures/qlview_wavelength_display_LRISR_MOS.png
+      :alt: Wavelength readout in the Ginga info bar
+      :width: 80%
+
+      After "Show Wavelengths", the wavelength under the cursor (here,
+      :math:`\lambda = 9649.49`) is shown at the lower left of the Ginga info bar.
+
 #. Select the slit you would like to process either by clicking directly on it,
-   or selecting it from the drop-down menu next to "Reduce Slit."
+   or selecting it from the drop-down menu next to "Reduce Slit." The selected
+   slit is drawn in blue. Use "Display Slits" to show or hide the slit outlines,
+   and "Show Labels" to show or hide the slit labels.
 #. Pick an option for object extraction. You can either specify an SNR threshold
    for PypeIt to use to automatically detect objects, or manually select an object.
    If you select "Set Manual Extraction," you can click directly on the raw image
@@ -92,6 +119,19 @@ The following describes a typical workflow for using the GUI.
    from the toolbar. Make sure to un-select it by clicking the button again to
    return to object placement.). At the moment, manual extraction is only possible
    on one object at a time.
+
+   .. figure:: figures/qlview_figures/qlview_manual_extraction_control.png
+      :alt: Manual extraction controls
+      :width: 60%
+
+      The manual extraction controls.
+
+   .. figure:: figures/qlview_figures/qlview_manual_extract_boxcar_marker.png
+      :alt: Manual extraction marker on the raw image
+      :width: 50%
+
+      The yellow marker placed on the raw image in manual extraction mode.
+
 #. Once you are ready to process, click "Reduce Slit". This launches a background
    process to apply the selected calibrations to that slit, following all user
    provided extraction constraints. An entry for the reduction is added to the
@@ -101,13 +141,40 @@ The following describes a typical workflow for using the GUI.
    the reductions that are running, done, and failed. "Clear Finished" removes
    the entries for reductions that are done or failed; "Remove" removes a
    single entry. Reducing the same slit again adds a separate entry.
-#. Wait for the "Show" button to become enabled, indicating the reduction is
-   complete. Press the button to see the 1D spectra extracted.
+
+   .. figure:: figures/qlview_figures/qlview_reducing_buttons.png
+      :alt: A reduction in progress in the reductions list
+      :width: 60%
+
+      A reduction in progress.  The "Show Traces" and "Show" buttons are disabled
+      until the reduction finishes.
+
+#. Wait for the entry's status to change from "Reducing" to "Reduced" and its
+   "Show" button to become enabled, indicating the reduction is complete. Press
+   the button to see the 1D spectra extracted. If "CoAdd2D" was checked, the
+   entry also has a "Show CoAdd2D" button for the coadded spectra. If the
+   reduction fails or runs longer than the reduction timeout, the entry is
+   marked as failed.
+
+   .. figure:: figures/qlview_figures/qlview_reduced_buttons.png
+      :alt: A completed reduction in the reductions list
+      :width: 60%
+
+      A completed reduction, with the "Show Traces" and "Show" buttons enabled.
+
+   .. figure:: figures/qlview_figures/qlview_spec1D_LRISR.png
+      :alt: Spec1dView showing an extracted spectrum
+      :width: 80%
+
+      The Spec1dView plugin, open in its own channel, showing the spectrum
+      extracted from LRIS red slit S1706.
+
 #. In the Spec1D viewer, you can inspect all the object spectra that were
    extracted. Select objects using the "Extension" drop down. If you swap back to
-   the QUICKLOOK tab and press "Show Traces," the locations of each object will be
-   drawn onto the raw image. You can then iterate through the Spec1D viewer until
-   you find the object you wish to inspect.
+   the QUICKLOOK tab and press "Show Traces" in the reduction's entry, the
+   locations of each object will be drawn onto the raw image. You can then
+   iterate through the Spec1D viewer until you find the object you wish to
+   inspect.
 
    Each extracted object's trace is drawn on the raw image as an orange line,
    labeled with the object's name (written vertically, at the middle of the
@@ -116,6 +183,14 @@ The following describes a typical workflow for using the GUI.
    "Extension" drop down. For example, if only one object was extracted, you
    will see a single trace that turns from orange to cyan, because that object
    is selected in the Spec1D viewer by default.
+
+   .. figure:: figures/qlview_figures/qlview_highlighted_slit.png
+      :alt: An object trace drawn on the raw image
+      :width: 50%
+
+      An object trace drawn on the raw image with "Show Traces", labeled with the
+      object's name.  If more than one object was detected, the trace selected
+      in the Spec1D viewer is drawn in cyan and the others in orange.
 
    .. note::
       The highlighting only works while that slit's Spec1D viewer is open; if
@@ -143,9 +218,11 @@ Configuration File
 There are a number of customizations that can be made to how the GUI presents
 information, which can be stored in a file for the next time that the GUI is run.
 
-Primarily, it tells the GUI where the default locations for the raw data 
-(``raw path``), calibrations (``reduced_path``) and extracted products
-(``redux_path``) should be.
+Primarily, it tells the GUI where the default locations for the raw data
+(``raw_path``), calibrations (``reduced_path``), and extracted products
+(``redux_path``) should be.  It also stores the file filters for the "Raw Data"
+and "Reduced Calibrations" tables and the reduction timeout.  The backend and
+poll cadence are set in the Settings dialog only, and are not saved.
 
 This file is stored in ``~/.pypeit/quicklook.cfg`` and looks like this:
 
@@ -169,13 +246,27 @@ take the current status of the GUI and populate the configuration keys to match.
 Startup Paths and Date Templates
 ---------------------------------
 
-The three path items (``redux_path``, ``raw_path``, and ``reduced_path`` accept
-``strftime`` format codes as valid inputs. The GUI will evaluate this string at
-startup and navigate to the correct directories as appropriate. For example,
-if the ``raw_path`` is set to ``/data/%Y/%M/%d/spec`` and the GUI is used on 
-January 1st, 1970, the ``raw_path`` would be set to ``/data/1970/01/01/spec``.
-This can be used to set the GUI up for operational use at an observatory without
-requiring direct modification of the configuration each day.
+Each of the three paths can instead be given as a template, using the keys
+``raw_path_template``, ``reduced_path_template``, and ``redux_path_template``.
+Templates accept ``strftime`` format codes, which the GUI evaluates at startup
+to navigate to the correct directories.  When a template key is present, it
+takes precedence over the corresponding path key.  For example, if the config
+file contains
+
+.. code-block::
+
+    [DEFAULT]
+    raw_path_template = /data/%Y/%m/%d/spec
+
+and the GUI is started on January 1st, 1970, the raw data path is set to
+``/data/1970/01/01/spec``.  This can be used to set the GUI up for operational
+use at an observatory without requiring direct modification of the
+configuration each day.  Template keys must be added to the file by hand.
+
+.. warning::
+   "Save Default Config" overwrites the config file with the current settings,
+   using plain path keys only, so any template keys in the file are lost.  Add
+   them back by hand after saving.
 
 Interface Overview
 ==================
@@ -186,9 +277,11 @@ Interface Overview
 
    The QLView control panel, with the instrument selector at the top, followed
    by the "Raw Data", "Reduced Calibrations", and "Reduction Control" sections.
+   The "Show Raw Tree" and "Show Reduced Tree" checkboxes hide or show the
+   corresponding table.
 
-Instrument Selector
--------------------
+Supported Instruments
+---------------------
 
 The following instruments are currently supported:
 
@@ -202,170 +295,6 @@ The following instruments are currently supported:
   are shown as science frames.
 - Keck/MOSFIRE (``keck_mosfire``)
 
-Show/Hide Tree Checkboxes
---------------------------
-
-
-Browsing Raw Data
-=================
-
-[PIC HERE: Raw Data frame with a directory listing of DEIMOS science frames
-showing populated GRATING, FILTER, EXPTIME columns]
-
-Navigating the File Tree
-------------------------
-
-Double-click to enter directories; selecting a file updates the path entry.
-
-Opening a Raw Frame
---------------------
-
-Double-clicking a FITS file assembles and displays the mosaic in the viewer.
-
-Instrument Mismatch Dialog
----------------------------
-
-
-Browsing Reduced Calibrations
-==============================
-
-[PIC HERE: Reduced Calibrations frame showing a directory tree with
-keck_deimos_A highlighted and the "Calibrations matched" status label]
-
-Automatic Calibration Suggestion
----------------------------------
-
-
-Manually Selecting a Calibration Directory
--------------------------------------------
-
-
-Rendering Slits
-===============
-
-.. figure:: figures/qlview_figures/qlview_fullscreen_LRISR_MOS_zoomed.png
-   :alt: Slits rendered on a raw frame
-   :width: 90%
-
-   Slits rendered on a raw LRIS red frame.  The selected slit is drawn in
-   blue and the others in green.
-
-Render Slits Button
---------------------
-
-
-Selecting a Slit
------------------
-
-
-Display Slits and Show Labels Toggles
---------------------------------------
-
-
-Wavelength Display
-------------------
-
-.. figure:: figures/qlview_figures/qlview_wavelength_display_LRISR_MOS.png
-   :alt: Wavelength readout in the Ginga info bar
-   :width: 80%
-
-   After "Show Wavelengths", the wavelength under the cursor (here,
-   :math:`\lambda = 9649.49`) is shown at the lower left of the Ginga info bar.
-
-
-Running a Quicklook Reduction
-==============================
-
-.. figure:: figures/qlview_figures/qlview_reducing_buttons.png
-   :alt: A reduction in progress in the reductions list
-   :width: 60%
-
-   A reduction in progress.  The "Show Traces" and "Show" buttons are disabled
-   until the reduction finishes.
-
-Selecting a Slit and Triggering Reduction
-------------------------------------------
-
-
-SNR Threshold
---------------
-
-
-Manual Extraction
------------------
-
-.. figure:: figures/qlview_figures/qlview_manual_extraction_control.png
-   :alt: Manual extraction controls
-   :width: 60%
-
-   The manual extraction controls.
-
-.. figure:: figures/qlview_figures/qlview_manual_extract_boxcar_marker.png
-   :alt: Manual extraction marker on the raw image
-   :width: 50%
-
-   The yellow marker placed on the raw image in manual extraction mode.
-
-
-A-B Dithered Sky Subtraction
------------------------------
-
-
-Monitoring Reduction Progress
-------------------------------
-
-.. figure:: figures/qlview_figures/qlview_reduced_buttons.png
-   :alt: A completed reduction in the reductions list
-   :width: 60%
-
-   A completed reduction, with the "Show Traces" and "Show" buttons enabled.
-
-
-Viewing Results
-===============
-
-.. figure:: figures/qlview_figures/qlview_spec1D_LRISR.png
-   :alt: Spec1dView showing an extracted spectrum
-   :width: 80%
-
-   The Spec1dView plugin, open in its own channel, showing the spectrum
-   extracted from LRIS red slit S1706.
-
-Showing Extracted Spectra
---------------------------
-
-
-Trace Overlay
---------------
-
-.. figure:: figures/qlview_figures/qlview_highlighted_slit.png
-   :alt: An object trace drawn on the raw image
-   :width: 50%
-
-   An object trace drawn on the raw image with "Show Traces", labeled with the
-   object's name.  If more than one object was detected, the trace selected
-   in the Spec1D viewer is drawn in cyan and the others in orange.
-
-
-Remote Backend
-==============
-
-
-Connecting to a Remote Server
-------------------------------
-
-
-Running the Server
--------------------
-
-
-.. note::
-
-    The client identifies the active instrument to the server by its PypeIt
-    spectrograph name (e.g. ``keck_deimos``).  The viewer and the server must
-    therefore run the same version of PypeIt; the server rejects instrument
-    names it does not recognize.
-
 
 Settings Dialog
 ===============
@@ -376,9 +305,58 @@ Settings Dialog
 
    The Settings dialog.
 
+The Settings dialog is opened with the "Settings" button at the bottom of the
+panel.  Changes are applied when you click "OK"; "Cancel" discards them.
+
+Backend
+    "Use local backend" (the default) browses files and runs reductions on
+    the machine running the viewer.  The "Host", "Port", and "API Key" fields
+    connect the viewer to a remote quicklook server instead; this mode is
+    experimental.
+
+Reduction Path
+    The directory the quicklook reductions are written to, also set with
+    "Set Reduction Path...".
+
+Poll Cadence (s)
+    How often, in seconds, the viewer checks running reductions for their
+    output.
+
+Reduction Timeout (s)
+    How long, in seconds, a reduction may run before it is marked as failed.
+
+File Filters
+    Whether FITS files, non-FITS files, and directories are listed in the
+    "Raw Data" and "Reduced Calibrations" tables.
+
+The reduction path, reduction timeout, and file filters can be saved for
+future sessions with "Save Default Config" (see :ref:`qlview-config`).
+
+
+.. _qlview-troubleshooting:
 
 Troubleshooting
 ===============
+
+The GUI times out while starting
+    Sometimes the GUI takes too long to render, and ``pypeit_qlview`` times
+    out.  Run ``pypeit_qlview`` again; it attaches to the Ginga window that is
+    already open.
+
+"Render Slits" and "Show Wavelengths" stay disabled
+    These buttons are enabled only when the selection in the "Reduced
+    Calibrations" table is a setup folder (e.g. ``keck_deimos_A``), the
+    ``Calibrations`` folder inside it, or a file in either.  Until then, the
+    status line above the table says what to select.
+
+"Calibrations Out of Date" warning
+    The calibrations were written by a version of PypeIt whose datamodel
+    differs from the one running the viewer, so they cannot be loaded.  The
+    warning lists the affected files.  Re-reduce the calibrations with the
+    version of PypeIt running the viewer, or run the viewer with the version
+    of PypeIt that created them.  In particular, slit calibrations (``Slits``
+    files) written before ``SlitTraceSet`` datamodel version 1.1.6 cannot be
+    loaded.
 
 
 Development
@@ -444,8 +422,11 @@ PypeIt ``Spectrograph`` classes (``pypeit/display/qlview/spectrograph_support.py
       all operations to an HTTP server via ``requests``, enabling use cases
       where the raw data lives on a remote instrument workstation.
 
-    The active backends are selected at startup from ``~/.pypeit/quicklook.cfg``
-    and can be changed at runtime through the Settings dialog.
+    The local backends are used at startup; the remote backends can be
+    selected at runtime through the Settings dialog.  The remote backends and
+    the HTTP server they talk to
+    (``pypeit/display/qlview/servers/HTTPserver.py``) are experimental and
+    have not yet been tested in operation.
 
 ``SlitOverlay`` (``pypeit/display/qlview/slit_overlay.py``)
     Manages the Ginga ``DrawingCanvas`` layer that renders slit polygons
@@ -493,11 +474,13 @@ Configuration Keys
 ~~~~~~~~~~~~~~~~~~
 
 ``~/.pypeit/quicklook.cfg`` (INI format, ``[DEFAULT]`` section) controls startup
-paths, file-filter defaults, backend selection, poll cadence, and
-reduction timeout.  Path values support ``strftime``-style format codes
-(e.g. ``raw_path_template = /data/raw/%Y%m%d``) that are expanded at
-startup.  The "Save Default Config" button writes a template for the
-developer to inspect.
+paths, file-filter defaults, and reduction timeout; see :ref:`qlview-config`.
+The ``*_path_template`` keys support ``strftime``-style format codes (e.g.
+``raw_path_template = /data/raw/%Y%m%d``) that are expanded at startup, and
+take precedence over the plain path keys.  The "Save Default Config" button
+(``create_config_cb``) overwrites the file with the current settings, without
+template keys.  The backend and poll cadence are not read from or written to
+the file.
 
 
 Adding a New Instrument

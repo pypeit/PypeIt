@@ -56,8 +56,8 @@ PypeIt ``Spectrograph`` classes (``.spectrograph_support``, ``.calib_utils``)
       all operations to an HTTP server via ``requests``, enabling use
       cases where the raw data lives on a remote instrument workstation.
 
-    The active backends are selected at startup from ``~/.pypeit/quicklook.cfg``
-    and can be changed at runtime through the Settings dialog.
+    The local backends are used at startup; the remote backends can be
+    selected at runtime through the Settings dialog.
 
 ``SlitOverlay`` (``.slit_overlay``)
     Manages the Ginga ``DrawingCanvas`` layer that renders slit polygons
@@ -105,11 +105,12 @@ Data flow
 Configuration
 -------------
 ``~/.pypeit/quicklook.cfg`` (INI format, ``[DEFAULT]`` section) controls startup
-paths, file-filter defaults, backend selection, poll cadence, and
-reduction timeout.  Path values support ``strftime``-style format codes
-(e.g. ``raw_path_template = /data/raw/%Y%m%d``) that are expanded at
-startup.  The "Save Default Config" button writes a template for the
-user to edit. 
+paths, file-filter defaults, and reduction timeout.  The ``*_path_template``
+keys support ``strftime``-style format codes (e.g.
+``raw_path_template = /data/raw/%Y%m%d``) that are expanded at startup, and
+take precedence over the plain path keys.  The "Save Default Config" button
+overwrites the file with the current settings, without template keys.  The
+backend and poll cadence are not read from or written to the file.
 """
 
 from __future__ import annotations
