@@ -13,6 +13,7 @@ except NameError:
 
 # TODO -- Note that the transparency function is not used anywhere
 
+@pytest.mark.remote_data
 def test_transparency():
     """ Test for creting the ski transmission model. It is basically
     testing if the skisim directory is reachable.

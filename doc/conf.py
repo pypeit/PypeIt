@@ -42,6 +42,7 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx_autodoc_typehints',
     'sphinx_design',
+    'sphinxcontrib.mermaid',
 ]
 
 # Nicer math rendering than sphinx default?

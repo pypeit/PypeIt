@@ -63,7 +63,7 @@ class Identify(scriptbase.ScriptBase):
         from pypeit import log
         from pypeit import PypeItError
         from pypeit.spectrographs.util import load_spectrograph
-        from pypeit.core.gui.identify import Identify
+        from pypeit.gui.identify import Identify
         from pypeit.wavecalib import BuildWaveCalib, WaveCalib
         from pypeit import slittrace
         from pypeit.images.buildimage import ArcImage
@@ -122,7 +122,8 @@ class Identify(scriptbase.ScriptBase):
             # TODO nsample should be a parameter
             fwhm_map = autoid.map_fwhm(wavecal.msarc.image, wavecal.gpm, wavecal.slits_left, wavecal.slits_right, wavecal.slitmask,
                                     nsample=10, slit_bpm=wavecal.wvc_bpm, specord=wavecal.par['fwhm_spec_order'],
-                                    spatord=wavecal.par['fwhm_spat_order'])
+                                    spatord=wavecal.par['fwhm_spat_order'],
+                                    sigdetect=wavecal.par['sigdetect'], fwhm=wavecal.par['fwhm'])
             # Calculate the typical spectral FWHM down the centre of the slit
             measured_fwhms = np.zeros(slits.nslits, dtype=object)
             for islit in range(slits.nslits):

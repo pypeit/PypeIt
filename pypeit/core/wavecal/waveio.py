@@ -184,7 +184,8 @@ def load_line_list(line_file, use_ion=False):
     return astropy.table.Table.read(_line_file, format='ascii.fixed_width', comment='#')
 
 
-def load_line_lists(lamps, all=False, include_unknown:bool=False, restrict_on_instr=None):
+def load_line_lists(lamps, all=False, include_unknown:bool=False, restrict_on_instr=None,
+                    lamps_wvrng=None):
     """
     Loads a series of line list files
 
@@ -195,6 +196,11 @@ def load_line_lists(lamps, all=False, include_unknown:bool=False, restrict_on_in
         E.g., ['ArI','NeI','KrI','XeI']
     restrict_on_instr : str, optional
         Restrict according to the input spectrograph
+    lamps_wvrng : list, optional
+        Wavelength range of the lines to use from each lamp, allowing a subset
+        of a shipped line list to be used without copying it.  Must be the same
+        length as ``lamps``.  Each element is a ``min:max`` string in Angstroms
+        (either bound may be ``None``), or None to use the full list.
     all : bool, optional
         Load all line lists, independent of the input lamps (not recommended)
     include_unknown : bool, optional
@@ -226,6 +232,25 @@ def load_line_lists(lamps, all=False, include_unknown:bool=False, restrict_on_in
     #       will exit with raise PypeItError().
     lists = [load_line_list(dataPaths.linelist.get_file_path(f'{lamp}_lines.dat'))
                 for lamp in lamps]
+    # Restrict the lines used from each lamp?
+    if lamps_wvrng is not None:
+        if len(lamps_wvrng) != len(lamps):
+            raise PypeItError(f'lamps_wvrng has {len(lamps_wvrng)} elements; must match the '
+                              f'{len(lamps)} entries in lamps.')
+        for i, rng in enumerate(lamps_wvrng):
+            if rng is None or str(rng).strip().lower() == 'none':
+                continue
+            bounds = str(rng).split(':')
+            if len(bounds) != 2:
+                raise PypeItError(f'Cannot parse lamps_wvrng entry {rng!r}; expected "min:max".')
+            lo, hi = [None if b.strip().lower() in ('', 'none') else float(b) for b in bounds]
+            gpm = np.ones(len(lists[i]), dtype=bool)
+            if lo is not None:
+                gpm &= lists[i]['wave'] >= lo
+            if hi is not None:
+                gpm &= lists[i]['wave'] <= hi
+            log.info(f'Using {gpm.sum()} of {gpm.size} {lamps[i]} lines within {rng} Angstroms.')
+            lists[i] = lists[i][gpm]
     # Stack
     if len(lists) == 0:
         return None

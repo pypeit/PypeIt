@@ -1,9 +1,9 @@
 
 :class:`~pypeit.images.bitmaskarray.BitMaskArray` objects combine the `numpy.ndarray`_
-that holds the bit values and the :class:`~pypeit.bitmask.BitMask` object used
+that holds the bit values and the :class:`~pypeit.core.bitmask.BitMask` object used
 to interpret them into a new subclass of
 :class:`~pypeit.datamodel.DataContainer`.  The following builds on the example
-uses of :class:`~pypeit.bitmask.BitMask` objects (see :ref:`bitmasks`).
+uses of :class:`~pypeit.core.bitmask.BitMask` objects (see :ref:`bitmasks`).
 
 Defining a new subclass
 +++++++++++++++++++++++

@@ -1224,7 +1224,7 @@ class KeckLRISBOrigSpectrograph(KeckLRISBSpectrograph):
             raise PypeItError("Should not be here in keck_lris!")
 
         # Detector
-        detector_par = self.get_detector_par(det-1, hdu=hdul)
+        detector_par = self.get_detector_par(det, hdu=hdul)
 
 #        # Flip the spectral axis
 #        detector_par['specflip'] = True
@@ -1258,10 +1258,11 @@ class KeckLRISBOrigSpectrograph(KeckLRISBSpectrograph):
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
-            to 1 and an unmasked value set to 0.  All values are set to
-            0.
+            to 1 and an unmasked value set to 0.  This is the mask of
+            :class:`KeckLRISBSpectrograph`, which masks the first 3 columns
+            of detector 1; all other values are set to 0.
         """
-        # Call the base-class method to generate the empty bpm
+        # Call the base-class method, without the bias frame
         return super().bpm(filename, det, shape=shape, msbias=None)
 
 
@@ -2013,10 +2014,13 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
-            to 1 and an unmasked value set to 0.  All values are set to
-            0.
+            to 1 and an unmasked value set to 0.  This is the mask of
+            :class:`KeckLRISRSpectrograph`, which masks the first
+            ``16//xbin`` and the last 10 columns of detector 2, where
+            ``xbin`` is read from the ``BINNING`` card of ``filename``; all
+            other values are set to 0.
         """
-        # Call the base-class method to generate the empty bpm
+        # Call the base-class method, without the bias frame
         return super().bpm(filename, det, shape=shape, msbias=None)
 
 

@@ -156,6 +156,15 @@ class Spectrograph:
     Defines the allowed extensions for the input fits files.
     """
 
+    is_up_the_ramp = False
+    """
+    Flag that this spectrograph is read out up-the-ramp.  False on the base
+    class; spectrographs read out up-the-ramp set it True by mixing in
+    :class:`~pypeit.spectrographs.ramp_spectrograph.RampSpectrograph`, which
+    supplies the ramp-fitting implementation.  ``pypeit_fit_ramp`` and the
+    reduction use this flag to detect ramp support.
+    """
+
     def __init__(self):
         self.dispname = None
         self.rawdatasec_img = None
@@ -476,7 +485,7 @@ class Spectrograph:
             subheader[key] = row_fitstbl[key]
 
         # The following are pulled from the original header, if available
-        header_cards = ['INSTRUME', 'DETECTOR', 'DATE-OBS'] + self.raw_header_cards()
+        header_cards = ['INSTRUME', 'DETECTOR', 'DATE-OBS', 'BUNIT'] + self.raw_header_cards()
         if extra_header_cards is not None:
             header_cards += extra_header_cards  # For specDB and more
         for card in header_cards:
@@ -485,7 +494,7 @@ class Spectrograph:
 
         # The following are added for SlicerIFU spectrographs, as they are
         #   needed by the coadd3d routine
-        if self.pypeline == "SlicerIFU":
+        if self.pypeline in ["SlicerIFU", "Fiber"]:
             slicer_keys = [
                 "slitwid", "airmass", "parangle", "pressure", "temperature", "humidity"
             ]
@@ -837,6 +846,160 @@ class Spectrograph:
         raise PypeItError('This spectrograph does not support the use of mask design. '
                    'Set `use_maskdesign=False`')
 
+    def get_fiber_metadata(self, det, slit_spat_ids, slit_centers=None):
+        """
+        Return fiber identification metadata for a fiber-fed spectrograph.
+
+        Spectrographs that use the ``Fiber`` pypeline should override this
+        method to map detected slit/fiber positions to instrument-defined
+        fiber identifiers (IDs, names, types, etc.).
+
+        Parameters
+        ----------
+        det : :obj:`int`
+            1-indexed detector number.
+        slit_spat_ids : `numpy.ndarray`_
+            Array of ``spat_id`` values for each detected slit/fiber,
+            shape ``(nslits,)``.
+        slit_centers : `numpy.ndarray`_, optional
+            Float-valued slit center positions at the spectral midpoint.
+            If provided, subclasses may use these for more accurate
+            fiber matching than the integer ``slit_spat_ids``.
+
+        Returns
+        -------
+        :obj:`dict` or None
+            None if not implemented. Otherwise a dict with keys:
+
+            - ``'fiber_id'``: `numpy.ndarray`_ of int, instrument fiber
+              IDs for each slit. -1 for unmatched.
+            - ``'fiber_name'``: `numpy.ndarray`_ of str, human-readable
+              fiber names (e.g. ``'A42'``, ``'SKY6-1'``).
+            - ``'fiber_type'``: `numpy.ndarray`_ of str, fiber type
+              (e.g. ``'SCI'``, ``'SKY'``).
+
+            All arrays have shape ``(nslits,)``.
+        """
+        return None
+
+    def get_fiber_blocks(self, det):
+        """
+        Return the fiber block structure for a fiber-fed spectrograph.
+
+        Spectrographs using the ``Fiber`` pypeline group their fibers into
+        block-slits and must override this method.  See
+        :meth:`pypeit.spectrographs.mmt_binospec.MMTBINOSPECSpectrograph.get_fiber_blocks`
+        for the expected return structure.
+
+        Parameters
+        ----------
+        det : :obj:`int`
+            1-indexed detector number.
+
+        Returns
+        -------
+        :obj:`list` of :obj:`dict`
+            One dict per fiber block.
+
+        Raises
+        ------
+        NotImplementedError
+            Always, unless overridden by a ``Fiber``-pypeline spectrograph.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} uses pypeline='{self.pypeline}' but "
+            "does not implement get_fiber_blocks(); it is required for the "
+            "Fiber pypeline.")
+
+    def identify_fibers_in_block(self, det, block_idx, detected_positions):
+        """
+        Map detected fiber positions within a block-slit to instrument fiber IDs.
+
+        Spectrographs using the ``Fiber`` pypeline must override this method.
+        See
+        :meth:`pypeit.spectrographs.mmt_binospec.MMTBINOSPECSpectrograph.identify_fibers_in_block`
+        for the expected return structure.
+
+        Parameters
+        ----------
+        det : :obj:`int`
+            1-indexed detector number.
+        block_idx : :obj:`int`
+            0-based block index.
+        detected_positions : `numpy.ndarray`_
+            Detected fiber peak pixel positions within the block-slit.
+
+        Returns
+        -------
+        :obj:`dict`
+            Keys ``'fiber_id'``, ``'fiber_name'``, ``'fiber_type'``, aligned
+            with ``detected_positions``.
+
+        Raises
+        ------
+        NotImplementedError
+            Always, unless overridden by a ``Fiber``-pypeline spectrograph.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} uses pypeline='{self.pypeline}' but "
+            "does not implement identify_fibers_in_block(); it is required for "
+            "the Fiber pypeline.")
+
+    def get_ifu_datacube_meta(self, raw_hdr):
+        """
+        Return descriptive metadata for a fiber-IFU datacube.
+
+        Used by :func:`pypeit.core.datacube.build_cube_common` to label the
+        output WCS and FITS header.  Spectrographs that support more than one
+        IFU mode use ``raw_hdr`` to distinguish them (e.g. by reading a mode
+        or aperture keyword) and return the appropriate label.
+
+        Parameters
+        ----------
+        raw_hdr : `astropy.io.fits.Header`_
+            Primary header of the input file, so multi-mode instruments can
+            select the active IFU mode.
+
+        Returns
+        -------
+        :obj:`dict`
+            Keys ``'name'`` (display/WCS name, e.g. ``'BINOSPEC IFU'``) and
+            ``'mode'`` (short ``IFUMODE`` header label, e.g. ``'FIBER'``).
+
+        Raises
+        ------
+        NotImplementedError
+            Always, unless overridden by a fiber-IFU spectrograph.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} uses pypeline='{self.pypeline}' but "
+            "does not implement get_ifu_datacube_meta(); it is required to "
+            "build a fiber-IFU datacube.")
+
+    def get_arc_extract_center(self, slitcen, slits, det):
+        """
+        Return adjusted slit centers for arc spectrum extraction.
+
+        For most spectrographs, the arc is extracted at the geometric center
+        of each slit.  Fiber-fed spectrographs may override this to place
+        the extraction center on a fiber rather than in an inter-fiber gap.
+
+        Parameters
+        ----------
+        slitcen : `numpy.ndarray`_
+            Slit center traces, shape ``(nspec, nslits)``.
+        slits : :class:`~pypeit.slittrace.SlitTraceSet`
+            Slit traces.
+        det : :obj:`int`
+            1-indexed detector number.
+
+        Returns
+        -------
+        `numpy.ndarray`_
+            Adjusted slit center traces, same shape as ``slitcen``.
+        """
+        return slitcen
+
     @staticmethod
     def maskdef_spec_minmax(maskfile=None, maskdef_ids=None, nspec=None, shift=150):
         """
@@ -1020,6 +1183,71 @@ class Spectrograph:
         """
 
         pass
+
+    def config_specific_setup_lines(self, subtbl, paths):
+        """
+        Return configuration lines to bake into a setup's PypeIt file.
+
+        This hook is called once per setup when the setup's PypeIt file is
+        generated -- by :func:`~pypeit.metadata.PypeItMetaData.write_pypeit`
+        (the ``pypeit_setup`` command line) and by the setup GUI, both via
+        :func:`merge_setup_cfg_lines` -- giving a
+        spectrograph the chance to add configuration-specific parameters that
+        depend on the raw data itself -- for example, the location of a
+        mask-design file discovered next to the frames -- directly into the
+        generated PypeIt file, instead of re-deriving them at run time.  The
+        returned lines are merged into the setup's configuration block, so the
+        user can see and edit them.
+
+        Args:
+            subtbl (`astropy.table.Table`_):
+                The metadata rows belonging to this setup.
+            paths (:obj:`list`):
+                The unique raw-data directories for this setup.
+
+        Returns:
+            :obj:`list`: Configuration lines (formatted as they would appear in
+            a PypeIt file) to merge into this setup's configuration.  The
+            base-class implementation returns an empty list.
+        """
+        return []
+
+    def merge_setup_cfg_lines(self, cfg_lines, subtbl, paths):
+        """
+        Merge :func:`config_specific_setup_lines` into a setup's config lines.
+
+        This is the single place that folds the spectrograph's setup-time
+        configuration additions (e.g. a discovered mask-design file) into the
+        configuration block written to a PypeIt file, so every path that
+        generates one -- ``pypeit_setup``
+        (:func:`~pypeit.metadata.PypeItMetaData.write_pypeit`) and the setup
+        GUI (:func:`~pypeit.gui.setup_gui.model.PypeItFileModel.save`) -- stays
+        consistent.  The additions are merged into a fresh copy so nested
+        sections combine cleanly and the shared, base ``cfg_lines`` are not
+        mutated across setups.
+
+        Args:
+            cfg_lines (:obj:`list`):
+                The base configuration lines for this setup.
+            subtbl (`astropy.table.Table`_):
+                The metadata rows belonging to this setup.
+            paths (:obj:`list`):
+                The unique raw-data directories for this setup.
+
+        Returns:
+            :obj:`list`: The merged configuration lines.  When
+            :func:`config_specific_setup_lines` returns nothing, the input
+            ``cfg_lines`` are returned unchanged (round-tripped through
+            :class:`~configobj.ConfigObj`).
+        """
+        # Local import: configobj is only needed here, and importing it at
+        # module scope would add it to a very widely imported module.
+        import configobj
+        setup_cfg = configobj.ConfigObj(cfg_lines)
+        extra_lines = self.config_specific_setup_lines(subtbl, paths)
+        if extra_lines:
+            setup_cfg.merge(configobj.ConfigObj(extra_lines))
+        return setup_cfg.write()
 
     def get_comb_group(self, fitstbl):
         """
@@ -1330,6 +1558,33 @@ class Spectrograph:
         if not isinstance(det, (int, np.integer)):
             raise PypeItError(f'Provided det must have type tuple or integer, not {type(det)}.')
         return 1, (det,)
+
+    @staticmethod
+    def fits_to_pypeit_section(section):
+        """
+        Flip a FITS image-section string into the PypeIt (numpy) order.
+
+        Many instruments provide image sections (e.g., ``TRIMSEC``,
+        ``BIASSEC``) in the FITS convention, ``[x1:x2, y1:y2]``, where x
+        is the NAXIS1 axis and y is the NAXIS2 axis.  PypeIt parses
+        these strings in numpy (row, column) order (see
+        :func:`~pypeit.core.parse.sec2slice`), so the two axes must be
+        swapped.
+
+        Parameters
+        ----------
+        section : :obj:`str`
+            Image section in the FITS convention, e.g.
+            ``'[1:366,1:4099]'``.
+
+        Returns
+        -------
+        :obj:`str`
+            Image section with the axes swapped, e.g.
+            ``'[1:4099,1:366]'``.
+        """
+        xsec, ysec = section.strip().strip('[]').split(',')
+        return f'[{ysec.strip()},{xsec.strip()}]'
 
     def get_rawimage(self, raw_file, det, sec_includes_binning=False):
         """
@@ -1735,7 +1990,8 @@ class Spectrograph:
         Returns:
             :obj:`tuple`: Three 1D `numpy.ndarray`_ providing the bins to use
             when constructing a histogram of the spec2d files. The elements
-            are :math:`(x,y,\lambda)`.
+            are :math:`(\lambda,y,x)`, matching the wavelength-first axis
+            order used throughout :mod:`~pypeit.core.datacube`.
         """
         log.warning("No datacube setup for spectrograph: {0:s}".format(self.name))
         return None
@@ -1923,6 +2179,58 @@ class Spectrograph:
                 type_bits[indx] = fitstbl.type_bitmask.turn_off(type_bits[indx], flag='standard')
 
         return type_bits
+
+    def cache_metadata(self, fitstbl):
+        """
+        Cache information from the full metadata table for later use when
+        reading or processing raw images.
+
+        This method is called every time a
+        :class:`~pypeit.metadata.PypeItMetaData` object is instantiated,
+        including during setup when the metadata may be incomplete (e.g.,
+        frame types may not have been assigned yet).  Implementations must
+        therefore be cheap and idempotent: record what is needed and defer
+        any expensive processing.  The base class does nothing; spectrographs
+        read out up-the-ramp record the reduction directory and dark frames
+        via :class:`~pypeit.spectrographs.ramp_spectrograph.RampSpectrograph`.
+
+        Args:
+            fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
+                The class holding the metadata for all the frames.
+        """
+        pass
+
+    def preprocess_ramp_file(self, raw_file, redux_path, rampfit_dir='RampFit',
+                             force=False):
+        """
+        Fit one raw up-the-ramp cube and cache its 2D count-rate image.
+
+        Only spectrographs read out up-the-ramp support this; they mix in
+        :class:`~pypeit.spectrographs.ramp_spectrograph.RampSpectrograph`,
+        which supplies the implementation (see
+        :func:`~pypeit.spectrographs.ramp_spectrograph.RampSpectrograph.preprocess_ramp_file`),
+        and report :attr:`is_up_the_ramp` True.  The base class does not
+        support ramp fitting.
+
+        Args:
+            raw_file (:obj:`str`, `Path`_):
+                Path to the raw up-the-ramp cube to fit.
+            redux_path (:obj:`str`, `Path`_):
+                The reduction directory holding the ramp-fit subdirectory.
+            rampfit_dir (:obj:`str`, optional):
+                Name of the ramp-fit subdirectory, relative to ``redux_path``
+                (the ``[rdx] rampfit_dir`` parameter).
+            force (:obj:`bool`, optional):
+                Re-fit and overwrite an existing, up-to-date preprocessed
+                image instead of skipping it.
+
+        Returns:
+            `Path`_: The path to the preprocessed image, or None if the frame
+            was skipped.
+        """
+        raise NotImplementedError(
+            f'{self.name} is not read out up-the-ramp; '
+            'up-the-ramp preprocessing is not supported.')
 
 
 #    JXP says -- LEAVE THIS HERE FOR NOW. WE MAY NEED IT
@@ -2242,4 +2550,3 @@ class Spectrograph:
         txt += ' pypeline={:s},'.format(self.pypeline)
         txt += '>'
         return txt
-
