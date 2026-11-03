@@ -487,6 +487,11 @@ In either mode, the GUI opens one order at a time.  For each order:
    order has too few useful lines to fit.  ``pypeit_identify`` then advances to
    the next order.
 
+The GUI does not move backward through orders during a multi-trace run.  To
+revisit an earlier order after advancing, save the current solution and rerun
+``pypeit_identify`` using that ``WaveCalib`` file with ``-m -s --slits all`` as
+shown above.  The saved fits are loaded when their orders are opened again.
+
 After the last order, answer the terminal prompts to write the solution.  For an
 echelle spectrograph, provide the order range being fit, e.g. ``(55:66)``.  The
 order numbers should be listed from smallest to largest; PypeIt will align these
@@ -510,6 +515,13 @@ empty ``WaveFit`` entries and, if a multi-trace ``wvarxiv`` is written, their
 wavelength rows are filled with ``NaN`` and their line-ID arrays are empty.  This
 keeps the order numbering and array lengths aligned while clearly indicating
 that no wavelength solution was fit for that order.
+
+``pypeit_identify`` does not fit a 2D wavelength solution.  During a subsequent
+echelle reduction, PypeIt attempts a 2D fit when ``ech_2dfit`` is enabled (the
+default), using line IDs from orders with successful fits.  A template's
+approximate linear row can be used to attempt a per-order fit during that
+reduction, but the estimate alone is not a fitted solution and does not
+automatically become a 2D fit.  Skipped orders have no line IDs to contribute.
 
 In addition to writing the wavelength solution to the current
 working directory, ``PypeIt`` now also saves the solution in
