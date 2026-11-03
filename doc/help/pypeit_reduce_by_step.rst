@@ -34,8 +34,7 @@
                             must include the parentheses and be provided as a
                             string, e.g. "(1,2)". Required, but the list of options
                             is provided if nothing is provided.
-      --show                Show reduction steps via plots (which will block further
-                            execution until clicked on) and outputs to ginga.
-                            Requires remote control ginga session via "ginga
-                            --modules=RC,SlitWavelength &"
+      --show                Show reduction steps via plots and PypeIt's ginga
+                            viewer. Execution is blocked until the plot or viewer
+                            window is closed.
     

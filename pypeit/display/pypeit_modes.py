@@ -2,6 +2,8 @@
 # pypeid_modes.py -- keyboard modes for manipulating PypeIt plots in Ginga
 #
 #
+import inspect
+
 from ginga.gw.PlotView import PlotViewBase
 from ginga.misc import Bunch
 from ginga.modes.mode_base import Mode
@@ -11,7 +13,9 @@ from ginga.modes.plot2d import Plot2DMode
 # Note inheritance from Plot2DMode, which already defines many callbacks
 #
 # IMPORTANT: If you change the key bindings, make sure you update both the
-# docstring here **and** the text in `doc/out_spec1D.rst`.
+# docstring here **and** the text in `doc/out_spec1D.rst`.  The docstring is
+# also shown to the user by the "Keys" button of the Spec1dView plugin and by
+# pressing "h" in the plot (see key_bindings_text).
 class Spec1DMode(Plot2DMode):
     """
     Spec1DMode enables special bindings for viewing PypeIt spec1d files.
@@ -72,8 +76,18 @@ class Spec1DMode(Plot2DMode):
     * ] : mark upper X boundary of region
     * backslash : clear region
     * singlequote : (zoom) set X range to region
-    * f : fit region and show result
+    * f : fit a Gaussian to the region and show result
     * c : clear fit result
+
+    Smoothing
+    ---------
+    * s : smooth more
+    * a : smooth less
+    * A (shift + a) : no smoothing
+
+    Help
+    ----
+    * h : show this list of key bindings
     """
 
     # Needs to be set by reference viewer (via set_shell_ref) before any
@@ -133,6 +147,9 @@ class Spec1DMode(Plot2DMode):
             kp_no_smooth=['spec1d+A'],
             kp_smooth_less=['spec1d+a'],
             kp_smooth_more=['spec1d+s'],
+
+            kp_cut_x_range=['spec1d+singlequote'],
+            kp_help=['spec1d+h'],
 
             kp_mark_left=['spec1d+['],
             kp_mark_right=['spec1d+]'],
@@ -195,6 +212,10 @@ class Spec1DMode(Plot2DMode):
         plugin = self.get_plugin()
         plugin.cut_x_range('mark')
 
+    def kp_help(self, viewer, event, data_x, data_y):
+        event.accept()
+        show_key_bindings(self.fv)
+
     def kp_mark_left(self, viewer, event, data_x, data_y):
         event.accept()
 
@@ -224,3 +245,26 @@ class Spec1DMode(Plot2DMode):
 
         plugin = self.get_plugin()
         plugin.fit_range('mark')
+
+
+def key_bindings_text():
+    """
+    Return the description of the key and mouse bindings of the spec1d mode.
+
+    Returns:
+        :obj:`str`: The text, taken from the docstring of :class:`Spec1DMode`.
+    """
+    return inspect.cleandoc(Spec1DMode.__doc__)
+
+
+def show_key_bindings(fv):
+    """
+    Show the key and mouse bindings of the spec1d mode in a ginga help tab.
+
+    Args:
+        fv (``ginga.rv.Control.GingaShell``):
+            The ginga reference viewer shell.
+    """
+    # NOTE: Show the listing in the 'right' workspace, next to the Spec1dView
+    # panel, instead of next to the plot in the channels workspace.
+    fv.show_help_text('Spec1d keys', key_bindings_text(), wsname='right')

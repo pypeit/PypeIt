@@ -46,7 +46,7 @@ dependencies = [
     "scikit-learn>=1.2",
     "threadpoolctl>=3.1",
     "IPython>=8.0.0",
-    "ginga>=5.5.1",
+    "ginga>=7.6.0",
     "qtpy>=2.2.0",
     "pygithub",
     "bottleneck",
@@ -177,8 +177,8 @@ pypeit_show_pixflat = "pypeit.scripts.show_pixflat:ShowPixFlat.entry_point"
 
 [project.entry-points."ginga.rv.plugins"]
 
-SlitWavelength = "pypeit.display:setup_SlitWavelength"
 Spec1dView = "pypeit.display:setup_Spec1dView"
+Spec2dView = "pypeit.display:setup_Spec2dView"
 
 [project.entry-points."ginga_modes"]
 

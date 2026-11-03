@@ -14,7 +14,7 @@ dependencies:
   - llvm-openmp
   - pip
   - specutils>=2.0
-  - ginga
+  - ginga>=7.6.0
   - bottleneck
   - pip:
     - pypeit

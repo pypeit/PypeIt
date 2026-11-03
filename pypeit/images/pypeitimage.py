@@ -858,8 +858,11 @@ class PypeItImage(datamodel.DataContainer):
     def show(self):
         """
         Show the image in a ginga viewer.
+
+        Execution continues when the user closes the viewer window.
         """
         display.show_image(self.image, chname='image')
+        display.show()
 
     def __repr__(self):
         repr = '<{:s}: '.format(self.__class__.__name__)

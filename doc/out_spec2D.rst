@@ -46,9 +46,10 @@ pypeit_show_2dspec
 ------------------
 
 This script displays the sky-subtracted 2D image for a single
-detector in a `ginga`_ RC viewer. It also overlays the slits and any
-objects extracted. It should be called from the reduction directory,
-i.e. above the ``Science/`` folder where the spec2d image is located.
+detector in a `ginga`_ viewer (see :ref:`pypeit_ginga_viewer`). It also
+overlays the slits and any objects extracted. It should be called from the
+reduction directory, i.e. above the ``Science/`` folder where the spec2d image
+is located.  The script exits when you close the window.
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
@@ -74,7 +75,38 @@ indicate traces for detected objects. Light blue lines (if present)
 indicate traces for manually extracted objects.
 
 As you mouse around, the x-values shown at the bottom indicate
-the wavelength.
+the wavelength.  The pan and zoom of all four tabs are linked.
+
+The ``Spec2dView`` tab on the right side of the window lets you:
+
+ - select a different detector or mosaic in the same file,
+
+ - toggle the images (tabs) shown, including the mask; only the image that is
+   toggled is added or removed, and
+
+ - toggle the slit-edge and object-trace overlays in all tabs, without
+   reloading the images.
+
+The "Reload" button reads the file again (e.g., after it has been
+re-reduced).
+
+For files with many objects (more than 200; e.g., fiber-fed IFUs), the object
+traces are only drawn when the view is zoomed in enough to distinguish them,
+and their names are only drawn when there is enough room for them.  Hover
+the mouse over a trace to highlight it and show its name.
+
+To show a second spec2d file in the same window, call the script again with
+the ``--no_clear`` option, and use ``--prefix`` to keep the tabs of the first
+file:
+
+.. code-block:: console
+
+    pypeit_show_2dspec Science/spec2d_file1.fits
+    # in another terminal
+    pypeit_show_2dspec Science/spec2d_file2.fits --no_clear --prefix B_
+
+The second call sends the file name to the open window and returns
+immediately.
 
 .. warning::
 

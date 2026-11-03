@@ -57,7 +57,12 @@
                             (default: None)
       --prefix PREFIX       Channel name prefix [lets you display more than one set]
                             (default: )
-      --no_clear            Do *not* clear all existing tabs (default: True)
+      --no_clear            Do *not* clear all existing tabs. If a PypeIt viewer is
+                            already open (e.g., from a previous call to this
+                            script), the file is shown in that viewer, in addition
+                            to what it already shows, and this script returns
+                            immediately. Use --prefix to avoid replacing channels
+                            with the same name. (default: True)
       --try_old             Attempt to load old datamodel versions. A crash may
                             ensue.. (default: False)
     

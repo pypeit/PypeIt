@@ -586,9 +586,13 @@ class Extract:
                             specobjs=sobjs, out_dir=out_dir)
 
     def show(self, attr, image=None, showmask=False, sobjs=None,
-             chname=None, slits=False,clear=False):
+             chname=None, slits=False,clear=False, block=True):
         """
         Show one of the internal images
+
+        The image is shown in PypeIt's ginga viewer.  By default, the
+        execution then waits until the user closes the viewer window; see
+        :func:`~pypeit.display.viewer.show`.
 
         .. todo::
             Should probably put some of these in ProcessImages
@@ -606,6 +610,9 @@ class Extract:
         display : str, optional
         image : ndarray, optional
           User supplied image to display
+        block : bool, optional
+          Wait for the user before continuing.  Set to False to show more
+          images before waiting.
 
         """
 
@@ -663,6 +670,9 @@ class Extract:
 
         if slits and self.slits_left is not None:
             display.show_slits(viewer, ch, self.slits_left, self.slits_right)
+
+        if block:
+            display.show()
 
     def __repr__(self):
         txt = '<{:s}: nimg={:d}'.format(self.__class__.__name__,
@@ -816,7 +826,7 @@ class MultiSlitExtract(Extract):
         self.steps.append(inspect.stack()[0][3])
 
         if show:
-            self.show('local', sobjs = self.sobjs, slits= True)
+            self.show('local', sobjs = self.sobjs, slits= True, block=False)
             self.show('resid', sobjs = self.sobjs, slits= True)
 
         # Return
@@ -924,7 +934,7 @@ class EchelleExtract(Extract):
         self.steps.append(inspect.stack()[0][3])
 
         if show:
-            self.show('local', sobjs=self.sobjs, slits=True, chname='ech_local')
+            self.show('local', sobjs=self.sobjs, slits=True, chname='ech_local', block=False)
             self.show('resid', sobjs=self.sobjs, slits=True, chname='ech_resid')
 
         return self.skymodel, self.bkg_redux_skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
@@ -1130,7 +1140,7 @@ class FiberExtract(Extract):
         self.steps.append(inspect.stack()[0][3])
 
         if show:
-            self.show('local', sobjs=self.sobjs, slits=True)
+            self.show('local', sobjs=self.sobjs, slits=True, block=False)
             self.show('resid', sobjs=self.sobjs, slits=True)
 
         return self.skymodel, self.bkg_redux_skymodel, self.objmodel, \

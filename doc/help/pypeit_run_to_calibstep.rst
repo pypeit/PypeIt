@@ -40,8 +40,7 @@
       -r, --redux_path REDUX_PATH
                             Path to directory for the reduction. Only advised for
                             testing
-      -s, --show            Show reduction steps via plots (which will block further
-                            execution until clicked on) and outputs to ginga.
-                            Requires remote control ginga session via "ginga
-                            --modules=RC,SlitWavelength &"
+      -s, --show            Show reduction steps via plots and PypeIt's ginga
+                            viewer. Execution is blocked until the plot or viewer
+                            window is closed.
     

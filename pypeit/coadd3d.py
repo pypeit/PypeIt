@@ -17,7 +17,8 @@ from pypeit import log
 from pypeit import PypeItError, PypeItDataModelError
 from pypeit import alignframe, datamodel, flatfield, io, sensfunc, spec2dobj, utils
 from pypeit.core.flexure import calculate_image_phase
-from pypeit.core import datacube, extract, flux_calib, parse, combine 
+from pypeit.core import datacube, extract, flux_calib, parse, combine
+from pypeit.display import display
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.manual_extract import ManualCubeExtractionObj
 
@@ -1691,6 +1692,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                             init_obj_position, channel_prefix = f'Img_{ff}'
                         )
                     ra_pix_star[ff], dec_pix_star[ff] = gaussian_position
+                if show_qa and dd == numiter-1:
+                    display.show()
 
                 ra_shifts = -(ra_pix_star[ref_idx] - ra_pix_star) * self._dspat / cosdec
                 dec_shifts = (dec_pix_star[ref_idx] - dec_pix_star) * self._dspat
