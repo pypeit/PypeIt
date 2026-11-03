@@ -442,14 +442,6 @@ Under-the-hood Improvements
 Bug Fixes
 ---------
 
-- JWST/NIRSpec: removed the spectrograph-specific list of allowed raw-file
-  extensions (``rate.fits``, ``uncal.fits``, etc.), which accepted the same
-  files as the default list (``.fits``, ``.fits.gz``).  With the new
-  extension-based construction of output root names (see Breaking Changes),
-  this list truncated the names of output files for, e.g.,
-  ``jw..._nrs1_rate.fits`` to ``jw..._nrs1_`` and gave the ``rate`` and
-  ``uncal`` files of the same exposure the same root name.  Output names are
-  now the same as in previous versions (e.g., ``jw..._nrs1_rate``).
 - Fixed a bug in :func:`~pypeit.exposure.reduce_exposure` where a detector
   whose calibrations failed was removed from the detector list *while that list
   was being iterated*, causing the following detector to be skipped silently
