@@ -196,6 +196,8 @@ jobs:
 
   docs-tables:
     name: Documentation table generators
+    needs: validate
+    if: needs.validate.outputs.success == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
