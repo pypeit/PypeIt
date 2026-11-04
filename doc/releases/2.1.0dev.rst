@@ -400,7 +400,8 @@ Bug Fixes
 - :func:`~pypeit.core.moment.moment1d` no longer truncates the wider apertures
   when called with an array of different widths; its integration window was
   sized by the narrowest aperture (Issues #2158, #2222).  Calls with a single
-  width are unchanged.
+  width, or with widths that span no more than one additional pixel, are
+  unchanged.
 - Fixed a bug in :func:`~pypeit.exposure.reduce_exposure` where a detector
   whose calibrations failed was removed from the detector list *while that list
   was being iterated*, causing the following detector to be skipped silently

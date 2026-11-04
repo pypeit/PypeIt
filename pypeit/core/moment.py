@@ -147,8 +147,8 @@ def moment1d(flux, col, width, ivar=None, bpm=None, fwgt=None, row=None, weighti
             :math:`3\sigma`).  The provided value can be a scalar to use
             a constant window definition, or it can be an array variable
             integration window where the array must have the same shape
-            as `col`.  Each element of the array is computed with its own
-            window, exactly as if it were computed separately with its
+            as `col`.  Each aperture uses its own width, so the result for
+            finite data is the same as computing it separately with its
             scalar width.
         ivar (`numpy.ndarray`_, optional):
             Inverse variance of the image intensity.  If not provided,
@@ -440,24 +440,22 @@ def moment1d(flux, col, width, ivar=None, bpm=None, fwgt=None, row=None, weighti
     # calculation of `c`, the increase of the window size by 4 isn't
     # strictly necessary. At minimum it has to be 2, but the increase
     # by 4 ensures there are 0 pixels at either end of the integration
-    # window. TODO: Should consider changing this to 2.  When the widths
-    # differ, the window is sized by the *widest* aperture so that wider
-    # apertures are not truncated; narrower apertures then include extra
-    # pixels that have zero weight for uniform weighting.  For a single
-    # width, i2-i1 still varies by one pixel with the sub-pixel position of
-    # _col, and the window is sized by the narrowest of these, as it always
-    # has been.
+    # window. TODO: Should consider changing this to 2.  The window is sized
+    # by the narrowest aperture, which includes every weighted pixel when
+    # i2-i1 varies by at most one pixel.  That is always true for a single
+    # width, where i2-i1 varies only with the sub-pixel position of _col.
+    # Otherwise, the window is extended to reach the last pixel of the widest
+    # aperture.
     i1 = np.floor(_col - _radius + 0.5).astype(int)
     i2 = np.floor(_col + _radius + 0.5).astype(int)
-    single_width = np.all(_width == _width[0])
-    nwin = np.amin(i2-i1) if single_width else np.amax(i2-i1)
-    c = i1[:,None]-1+np.arange(int(nwin)+3)[None,:]
+    npix = i2-i1
+    nmin, nmax = np.amin(npix), np.amax(npix)
+    c = i1[:,None]-1+np.arange(int(max(nmin, nmax-1))+3)[None,:]
     ih = np.clip(c,0,ncol-1)
-    # Pixels beyond each aperture's own window; i.e., the padding added for
-    # the wider apertures.  These are excluded entirely so that they have no
-    # effect on the narrower apertures (including any non-finite values in
-    # flux).
-    pad = None if single_width else c - i1[:,None] > (i2-i1)[:,None]+1
+    # Pixels added to the window only for the wider apertures.  These are
+    # excluded entirely so that they have no effect on the narrower apertures
+    # (including any non-finite values in flux).
+    pad = None if nmax-nmin <= 1 else c - i1[:,None] > npix[:,None]+1
 
     # Set the weight over the window; masked pixels have 0 weight
     good = (c >= 0) & (c < ncol)
