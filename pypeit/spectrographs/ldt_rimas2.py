@@ -751,12 +751,11 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         directly modifies the ``calib``, ``comb_id``, and ``bkg_id`` columns in the
         provided table.
 
-        Specifically here for RIMAS, science and standard frames are grouped
-        together and assigned calibration groups according to their exposure times.
-        Dark frames are assigned to the matching science/standard calibration
-        group, while ``lampoffflats`` and ``pixelflat,illumflat,trace`` frames are
-        assigned ``calib = "all"``. Any remaining frame types are assigned
-        sequential calibration groups after the science/standard and dark frames.
+        Each ABBA or OnOff sequence has its own calibration group. The dither
+        correction sidecar identifies sequences exactly; otherwise, consecutive
+        frames are grouped in chronological blocks of four or two. Dark frames
+        belong to every group with a matching exposure time. Flat frames belong
+        to all groups.
 
         Moreover, this method parses from the header the dither pattern of the
         science/standard frames in a given calibration group and assigns to each of
@@ -805,57 +804,97 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             corrected_seq[i] = dithseq
 
         if "calib" in fitstbl.keys():
-            # Find index of fitstbl that contains lampoffflats, pixelflat,
-            # illumflat, or trace frames
-            flat_idx = (
-                np.array(["lampoffflats" in _tab for _tab in fitstbl["frametype"]])
-                | np.array(["pixelflat" in _tab for _tab in fitstbl["frametype"]])
-                | np.array(["illumflat" in _tab for _tab in fitstbl["frametype"]])
-                | np.array(["trace" in _tab for _tab in fitstbl["frametype"]])
-            )
-            # Set calib for those frames to "all"
+            flat_idx = np.array([
+                any(ftype in types for ftype in
+                    ("lampoffflats", "pixelflat", "illumflat", "trace"))
+                for types in fitstbl["frametype"]
+            ])
+            dark_idx = np.array(["dark" in types for types in fitstbl["frametype"]])
             fitstbl["calib"][flat_idx] = "all"
 
-            # Find index of fitstbl that contains dark frames
-            dark_idx = np.array(["dark" in _tab for _tab in fitstbl["frametype"]])
+            # Calibration IDs can be reused by distinct setups: each setup is
+            # written to a separate .pypeit file, and the bitmask has 64 bits.
+            next_group = 0
+            assigned_science = np.zeros(len(fitstbl), dtype=bool)
+            for setup in np.unique(fitstbl[sci_idx]["setup"]):
+                in_setup = sci_idx & (fitstbl["setup"] == setup)
+                group_id = 0
+                for target in np.unique(fitstbl[in_setup]["target"]):
+                    in_target = in_setup & (fitstbl["target"] == target)
+                    for pattern in np.unique(fitstbl[in_target]["dithpat"]):
+                        in_pattern = in_target & (fitstbl["dithpat"] == pattern)
+                        for exptime in np.unique(fitstbl[in_pattern]["exptime"]):
+                            candidates = np.where(in_pattern & ~assigned_science & np.isclose(
+                                fitstbl["exptime"], exptime, rtol=0, atol=0.1
+                            ))[0]
+                            candidates = candidates[np.argsort(fitstbl["mjd"][candidates])]
+                            if not len(candidates):
+                                continue
+                            assigned_science[candidates] = True
+                            corrected_rows = candidates[corrected[candidates]]
+                            for sequence in np.unique(corrected_seq[corrected_rows]):
+                                rows = corrected_rows[corrected_seq[corrected_rows] == sequence]
+                                fitstbl["calib"][rows] = str(group_id)
+                                group_id += 1
+                            uncorrected_rows = candidates[~corrected[candidates]]
+                            if not len(uncorrected_rows):
+                                continue
+                            if pattern == "OnOff":
+                                remaining = list(uncorrected_rows)
+                                while remaining:
+                                    first = remaining.pop(0)
+                                    opposite = {"On": "Off", "Off": "On"}.get(
+                                        fitstbl["dithpos"][first]
+                                    )
+                                    pair = next((j for j in remaining
+                                                 if fitstbl["dithpos"][j] == opposite), None)
+                                    rows = [first]
+                                    if pair is not None:
+                                        remaining.remove(pair)
+                                        rows.append(pair)
+                                    fitstbl["calib"][rows] = str(group_id)
+                                    group_id += 1
+                            else:
+                                block_size = 4 if pattern == "ABBA" else len(uncorrected_rows)
+                                for start in range(0, len(uncorrected_rows), block_size):
+                                    rows = uncorrected_rows[start:start + block_size]
+                                    fitstbl["calib"][rows] = str(group_id)
+                                    group_id += 1
+                next_group = max(next_group, group_id)
 
-            # Initialize calib_id / group by exposure times
-            calib_id = 0
-            exptime_to_calib = {}
+            # A dark can serve several sequences, including sequences in
+            # different setups when its setup field lists both of them.
+            unmatched_dark_groups = []
+            for i in np.where(dark_idx)[0]:
+                matching_science = sci_idx & np.array([
+                    setup in str(fitstbl["setup"][i]).split(",")
+                    for setup in fitstbl["setup"]
+                ]) & np.isclose(fitstbl["exptime"], fitstbl["exptime"][i],
+                                rtol=0, atol=0.1)
+                groups = sorted({int(group) for group in fitstbl["calib"][matching_science]})
+                if not groups:
+                    for setup, exptime, group in unmatched_dark_groups:
+                        if (setup == fitstbl["setup"][i] and
+                                np.isclose(exptime, fitstbl["exptime"][i], rtol=0, atol=0.1)):
+                            groups = [group]
+                            break
+                    if not groups:
+                        groups = [next_group]
+                        unmatched_dark_groups.append(
+                            (fitstbl["setup"][i], fitstbl["exptime"][i], next_group)
+                        )
+                        next_group += 1
+                fitstbl["calib"][i] = ",".join(map(str, groups))
 
-            # Assign calib groups for science/standard frames by unique exptime
-            sci_exptimes = np.unique(fitstbl[sci_idx]["exptime"])
-            for exptime in sci_exptimes:
-                this_sci = sci_idx & np.isclose(fitstbl["exptime"], exptime, atol=0.1)
-                fitstbl["calib"][this_sci] = f"{calib_id}"
-                exptime_to_calib[exptime] = calib_id
-                calib_id += 1
-
-            # Assign darks to the matching science/standard exptime calibration group
-            dark_exptimes = np.unique(fitstbl[dark_idx]["exptime"])
-            for exptime in dark_exptimes:
-                this_dark = dark_idx & np.isclose(fitstbl["exptime"], exptime, atol=0.1)
-
-                matched = None
-                for sci_exptime, calib_id in exptime_to_calib.items():
-                    if np.isclose(exptime, sci_exptime, atol=0.1):
-                        matched = calib_id
-                        break
-
-                if matched is not None:
-                    fitstbl["calib"][this_dark] = f"{matched}"
-                else:
-                    # Assign the next sequential ID to these frames
-                    fitstbl["calib"][this_dark] = f"{calib_id}"
-                    calib_id += 1
-
-            # Assign calib groups to any remaining frame types
             assigned_idx = flat_idx | sci_idx | dark_idx
-            remaining_frametypes = np.unique(fitstbl["frametype"][~assigned_idx])
-            for ftype in remaining_frametypes:
-                this_ftype = fitstbl["frametype"] == ftype
-                fitstbl["calib"][this_ftype] = str(calib_id)
-                calib_id += 1
+            for ftype in np.unique(fitstbl["frametype"][~assigned_idx]):
+                fitstbl["calib"][fitstbl["frametype"] == ftype] = str(next_group)
+                next_group += 1
+            if next_group > 64:
+                raise PypeItError(
+                    "RIMAS needs more than 64 calibration groups; split this night "
+                    "into smaller setup runs."
+                )
 
         # Loop over the setups (generally there is only one setup, but we check anyway)
         for setup in np.unique(fitstbl[sci_idx]["setup"]):
@@ -884,18 +923,29 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
                     dither_sequence = corrected_seq[dpat_idx]
 
                     if dpat == "ABBA":
-                        # Sidecar metadata identifies distinct commanded
-                        # sequences. Without it, use all matching header-based
-                        # frames in this setup/target/pattern group.
-                        sequence_masks = [~is_corrected]
-                        sequence_masks += [
-                            is_corrected & (dither_sequence == sequence)
-                            for sequence in np.unique(dither_sequence[is_corrected])
+                        # Use the same sequence boundaries as the calibration
+                        # groups, so no background or arc combines another nod.
+                        sequence_masks = [
+                            fitstbl["calib"][dpat_idx] == group
+                            for group in np.unique(fitstbl["calib"][dpat_idx])
+                        ] if "calib" in fitstbl.keys() else [
+                            (~is_corrected), *[
+                                is_corrected & (dither_sequence == sequence)
+                                for sequence in np.unique(dither_sequence[is_corrected])
+                            ]
                         ]
                         for sequence_mask in sequence_masks:
                             is_a = sequence_mask & (dpos == "A")
                             is_b = sequence_mask & (dpos == "B")
                             if not np.any(is_a) or not np.any(is_b):
+                                if np.any(sequence_mask):
+                                    log.warning(
+                                        "RIMAS ABBA group %s for %s has no opposite nod; "
+                                        "check rimas_dither_corrections.ecsv.",
+                                        fitstbl["calib"][dpat_idx][sequence_mask][0]
+                                        if "calib" in fitstbl.keys() else "unknown",
+                                        target,
+                                    )
                                 continue
 
                             a_combid = np.min(combid[is_a])
@@ -914,10 +964,11 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
                                 continue
 
                             match = dpos == opp
-                            if is_corrected[i]:
-                                match &= is_corrected & (
-                                    dither_sequence == dither_sequence[i]
-                                )
+                            if "calib" in fitstbl.keys():
+                                match &= (fitstbl["calib"][dpat_idx]
+                                          == fitstbl["calib"][dpat_idx][i])
+                            elif is_corrected[i]:
+                                match &= is_corrected & (dither_sequence == dither_sequence[i])
                             else:
                                 match &= ~is_corrected
 

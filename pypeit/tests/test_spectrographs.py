@@ -477,3 +477,46 @@ def test_ldt_rimas(tmp_path, monkeypatch):
     assert list(result['dithpos']) == ['On', 'Off']
     assert list(result['comb_id']) == [0, 1]
     assert list(result['bkg_id']) == [1, 0]
+
+    # Separate calibration and background groups for successive nods, while
+    # assigning a same-exposure dark to every science group.
+    (tmp_path / sidecar_name).unlink()
+    filenames, fitstbl = science_table(8, 'ABBA', list('ABBAABBA'))
+    fitstbl['exptime'] = [60.0] * len(fitstbl)
+    fitstbl['calib'] = np.full(len(fitstbl), 'None', dtype=object)
+    fitstbl.add_row({
+        'filename': 'dark.fits', 'directory': str(raw_dir), 'frametype': 'dark',
+        'setup': 'A', 'target': 'null', 'dithpat': 'None', 'dithpos': 'None',
+        'mjd': 10., 'comb_id': -1, 'bkg_id': -1, 'exptime': 60., 'calib': 'None',
+    })
+    fitstbl.add_row({
+        'filename': 'flat.fits', 'directory': str(raw_dir), 'frametype': 'pixelflat',
+        'setup': 'A', 'target': 'null', 'dithpat': 'None', 'dithpos': 'None',
+        'mjd': 11., 'comb_id': -1, 'bkg_id': -1, 'exptime': 1., 'calib': 'None',
+    })
+    result = rimas.get_comb_group(fitstbl)
+    assert list(result['calib'][:8]) == ['0'] * 4 + ['1'] * 4
+    assert result['calib'][8] == '0,1'
+    assert result['calib'][9] == 'all'
+    assert list(result['comb_id'][:8]) == [0, 1, 1, 0, 4, 5, 5, 4]
+    assert list(result['bkg_id'][:8]) == [1, 0, 0, 1, 5, 4, 4, 5]
+
+    # Explicit sequence IDs take precedence over chronological chunks.
+    write_sidecar(tmp_path, [
+        (filenames[i], 'ABBA', (i % 4) + 1, list('ABBA')[i % 4],
+         1 if i % 2 == 0 else 2, 'observing log')
+        for i in range(8)
+    ])
+    fitstbl['calib'] = np.full(len(fitstbl), 'None', dtype=object)
+    result = rimas.get_comb_group(fitstbl)
+    assert list(result['calib'][:8]) == ['0', '1'] * 4
+    assert result['calib'][8] == '0,1'
+
+    # Header-only OnOff data can arrive as On, On, Off, Off.
+    (tmp_path / sidecar_name).unlink()
+    _, fitstbl = science_table(4, 'OnOff', ['On', 'On', 'Off', 'Off'])
+    fitstbl['exptime'] = [30.] * 4
+    fitstbl['calib'] = np.full(4, 'None', dtype=object)
+    result = rimas.get_comb_group(fitstbl)
+    assert list(result['calib']) == ['0', '1', '0', '1']
+    assert list(result['bkg_id']) == [2, 3, 0, 1]
