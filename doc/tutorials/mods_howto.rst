@@ -132,7 +132,7 @@ Modify the pypeit setup files
 
 Now, make the following edits to the pypeit setup files:
 
-1) Remove frametype illumflat from the slit flats since, in this case, they will be used only to trace the slit edges. The 20 spaces keep the columns aligned, but this is only for readability as the columns in pypeit files are separated by '|' and don't need to line up. 
+1) Remove frametype illumflat from the slit flats since, in this case, they will be used only to trace the slit edges. The 10 spaces keep the columns aligned, but this is only for readability as the columns in pypeit files are separated by '|' and don't need to line up. 
 
 .. code-block:: bash
 
