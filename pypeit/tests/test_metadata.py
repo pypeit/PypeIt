@@ -162,14 +162,17 @@ def test_setup_iter():
                 'Number of configuration identifiers changed'
 
 
-def test_multiple_setups():
+def test_multiple_named_setups(tmp_path, monkeypatch):
     filelist = tstutils.make_fake_fits_files()
     spectrograph = load_spectrograph("shane_kast_blue")
     # Set the metadata
     fitstbl = PypeItMetaData(spectrograph, spectrograph.default_pypeit_par(), files=filelist, strict=True)
     fitstbl.get_frame_types()
     cfgs = fitstbl.unique_configurations()
-    fitstbl.set_configurations(configs=cfgs)
+    named_cfgs = {'GRISMA': cfgs['A'], 'GRISMB': cfgs['B']}
+    fitstbl.configs = None  # Named configuration lists bypass unique_configurations().
+    monkeypatch.setattr(spectrograph, 'configuration_list', lambda: named_cfgs)
+    fitstbl.set_configurations()
     # Now do some checks
     for ff in range(len(fitstbl)):
         if fitstbl[ff]['frametype'] == 'bias':
@@ -177,6 +180,14 @@ def test_multiple_setups():
         else:
             assert (len(fitstbl[ff]['setup'].split(",")) == 1)  # One configuration for everything else
     # Remove the created files
+    configs = fitstbl.unique_configurations()
+    assert configs == named_cfgs
+    pypeit_files = fitstbl.write_pypeit(output_path=tmp_path)
+    assert len(pypeit_files) == 2
+    assert not any(',' in path.name for path in tmp_path.iterdir())
+    for path in pypeit_files:
+        pypeit_file = PypeItFile.from_file(path)
+        assert 'bias_1_grismA.fits' in [Path(f).name for f in pypeit_file.filenames]
     for fil in filelist:
         os.remove(fil)
 

@@ -889,6 +889,15 @@ class PypeItMetaData:
                     elif not is_science[i]:
                         self.table['setup'][i] += f',{d}'
 
+        # Automatically discovered configurations are cached by
+        # unique_configurations().  Keep the selected named configurations
+        # here too, excluding names with no matching frames.  Otherwise a
+        # later call to unique_configurations() mistakes a shared frame's
+        # comma-separated setup memberships for another configuration.
+        if configs is not None:
+            self.configs = {name: cfg for name, cfg in _configs.items()
+                            if np.any(self.find_configuration(name))}
+
         # Check if any of the configurations are not set
         not_setup = self.table['setup'] == 'None'
         if not np.any(not_setup):
