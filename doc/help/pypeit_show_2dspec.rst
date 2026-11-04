@@ -5,8 +5,9 @@
                               [--log_level LOG_LEVEL] [--list] [--det DET]
                               [--spat_id SPAT_ID] [--maskID MASKID]
                               [--showmask [SHOWMASK ...]] [--removetrace] [--embed]
-                              [--ignore_extract_mask] [--channels CHANNELS]
-                              [--prefix PREFIX] [--no_clear] [--try_old]
+                              [--ignore_extract_mask] [--show_wave_rms]
+                              [--channels CHANNELS] [--prefix PREFIX] [--no_clear]
+                              [--try_old]
                               file
     
     Display sky subtracted, spec2d image in a ginga viewer.
@@ -53,6 +54,10 @@
       --embed               Upon completion embed in ipython shell (default: False)
       --ignore_extract_mask
                             Ignore the extraction mask (default: False)
+      --show_wave_rms       Show the RMS (in pixels) of the wavelength solution for
+                            the slit under the cursor in the ginga readout. Use of
+                            this option on many-slit frames may take a long time
+                            (default: False)
       --channels CHANNELS   Only show a subset of the channels (0-indexed), e.g. 1,3
                             (default: None)
       --prefix PREFIX       Channel name prefix [lets you display more than one set]
