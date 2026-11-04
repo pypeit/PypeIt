@@ -131,6 +131,9 @@ Functionality/Performance Improvements and Additions
   AI assistant).
 - Setup GUI now uses a standard button bar that can be moved.
 - Re-enabled the Cancel button on the Setup GUI progress dialog.
+- The ``SlitWavelength`` `ginga` plugin can now show the RMS of the wavelength
+  solution, in addition to the wavelength, in the cursor readout; see the new
+  ``rms_img`` argument of :func:`~pypeit.display.display.show_image`.
 - Increased default font size for Setup GUI.
 - Added an optional residual-CR path to L.A.Cosmic-based cosmic-ray
   rejection, controlled by the new ``cr_median_width`` process
@@ -139,6 +142,13 @@ Functionality/Performance Improvements and Additions
 - Adds ability to select the specific archive of standard stars to use when
   searching for a match to an observed standard.  This is particularly import
   for LBT/MODS.
+- Instrument support for the quicklook viewer (``pypeit_qlview``) is now
+  defined by new ``qlview_*`` hooks of the
+  :class:`~pypeit.spectrographs.spectrograph.Spectrograph` classes; set
+  ``qlview_supported = True`` to offer a spectrograph in the viewer.  Keck/DEIMOS,
+  Keck/LRIS red (Mark4 detector), and Keck/MOSFIRE are currently supported.  The viewer's remote HTTP API
+  identifies instruments by their PypeIt spectrograph name (e.g.,
+  ``keck_deimos``).
 - Added the ``[collate1d] outfile_from`` parameter, which chooses how coadded
   output files are named: ``'coord'`` (the previous behavior, from the object
   sky coordinate) or ``'maskdef_objname'`` (the catalog target name from the
@@ -354,6 +364,9 @@ Script Changes
   spec1d files.  Combines both detector sides and produces FITS datacubes
   with 3-axis WCS.
 
+- Added the ``--show_wave_rms`` option to ``pypeit_show_2dspec``, which shows the
+  RMS (in pixels) of the wavelength solution for the slit under the cursor; see
+  :ref:`pypeit_show_2dspec`.
 - Removed -G/--gui option from pypeit_obslog.
 
 - Fixed the ``pypeit_install_ql_calibs`` entry point, which pointed to a
