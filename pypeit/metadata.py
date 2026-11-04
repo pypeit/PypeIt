@@ -1700,6 +1700,29 @@ class PypeItMetaData:
         ff.write('##end\n')
         ff.close()
 
+    @staticmethod
+    def _format_calib_groups(groups):
+        """Format integer calibration groups using compact PypeIt slices.
+
+        Slice endpoints are exclusive, so groups 8 through 19 become ``8:20``.
+        A slice is used only when it is shorter than listing its members.
+        """
+        values = sorted(set(map(int, groups)))
+        if not values:
+            return 'None'
+
+        parts = []
+        start = end = values[0]
+        for value in values[1:] + [None]:
+            if value is not None and value == end + 1:
+                end = value
+                continue
+            explicit = ','.join(map(str, range(start, end + 1)))
+            compact = f'{start}:{end + 1}'
+            parts.append(compact if len(compact) < len(explicit) else explicit)
+            start = end = value
+        return ','.join(parts)
+
     def write_pypeit(self, output_path=None, cfg_lines=None,
                      write_bkg_pairs=False, write_manual=False,
                      write_shift = False,
@@ -1816,14 +1839,29 @@ class PypeItMetaData:
             self.spectrograph.final_config_frametypes(setup_dict[f'Setup {setup}'], subtbl)
 
             if 'calib' in output_cols:
-                # calib can be a str with a list of values because in some cases (e.g. MOSFIRE) the same
-                # calibration files are used for different setups. Here we update calib to have only the
-                # value relevant for this setup.
-                # find the calib value in this setup that is not a list (which is probably a science/standard)
-                no_list = np.array([',' not in str(cc) for cc in subtbl['calib']])
-                if np.any(no_list):
-                    # assign the calib value in this setup that is not a list to frames that have calib as a list
-                    subtbl['calib'][np.logical_not(no_list)] = subtbl['calib'][no_list][0]
+                science = np.array(['science' in types or 'standard' in types
+                                    for types in subtbl['frametype']])
+                science_groups = {int(group) for group in subtbl['calib'][science]
+                                  if group not in ('None', 'all')}
+                setups = self.table['setup'][in_cfg]
+                for i, types in enumerate(subtbl['frametype']):
+                    if science[i] or subtbl['calib'][i] in ('None', 'all'):
+                        continue
+                    groups = set(parse.str2list(str(subtbl['calib'][i])))
+                    if ',' not in setups[i] or not science_groups:
+                        subtbl['calib'][i] = self._format_calib_groups(groups)
+                        continue
+                    relevant = science_groups
+                    # When a dark belongs to several setups, numeric IDs
+                    # may be reused. Match its exposure time to the science
+                    # in this file to select the right groups.
+                    if 'dark' in types and 'exptime' in subtbl.keys():
+                        matches = science & np.isclose(
+                            subtbl['exptime'], subtbl['exptime'][i],
+                            rtol=0, atol=0.1
+                        )
+                        relevant = {int(group) for group in subtbl['calib'][matches]}
+                    subtbl['calib'][i] = self._format_calib_groups(groups & relevant)
             subtbl.sort(['frametype','filename'])
             #with io.StringIO() as ff:
             #    subtbl.write(ff, format='ascii.fixed_width')
