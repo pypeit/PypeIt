@@ -52,8 +52,7 @@ from pypeit import PypeItError
 from pypeit import log
 from pypeit import pypeitsetup
 from pypeit import metadata
-from pypeit import io
-from pypeit import inputfiles 
+from pypeit import inputfiles
 from pypeit import outputfiles
 from pypeit import pypeit
 from pypeit import coadd2d
@@ -61,7 +60,7 @@ from pypeit.par.pypeitpar import PypeItPar
 from pypeit.calibframe import CalibFrame
 from pypeit.core.parse import parse_binning
 from pypeit.scripts import scriptbase
-from pypeit.spectrographs import available_spectrographs
+from pypeit.spectrographs.util import available_spectrographs
 from pypeit.slittrace import SlitTraceSet 
 
 from pypeit.scripts.setup_coadd2d import SetupCoAdd2D
@@ -101,24 +100,30 @@ def get_files(raw_files, raw_path):
     return files
 
 
-def folder_name_from_scifiles(sci_files:list):
+def folder_name_from_scifiles(sci_files:list, allowed_extensions:list):
     """
     Construct the directory name for QL output.
 
     If one file, use the filename without its suffix (see
-    :func:`~pypeit.io.remove_suffix`).  If multiple files, use a dash-separated
-    string of the first and last filenames (also without their suffixes).
+    :func:`~pypeit.outputfiles.strip_raw_extension`).  If multiple files, use
+    a dash-separated string of the first and last filenames (also without
+    their suffixes).
 
     Args:
         sci_files (:obj:`list`):
             List of :obj:`str` or `Path`_ objects with the science files.
+        allowed_extensions (:obj:`list`):
+            List of recognized raw-file extensions for the relevant
+            spectrograph; see
+            :attr:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_extensions`.
 
     Returns:
         :obj:`str`: Directory name
     """
     if len(sci_files) == 1:
-        return io.remove_suffix(sci_files[0])
-    return '-'.join([io.remove_suffix(f) for f in [sci_files[0], sci_files[-1]]])
+        return outputfiles.strip_raw_extension(sci_files[0], allowed_extensions)
+    return '-'.join([outputfiles.strip_raw_extension(f, allowed_extensions)
+                     for f in [sci_files[0], sci_files[-1]]])
 
 
 def quicklook_regroup(fitstbl):
@@ -213,6 +218,7 @@ def generate_sci_pypeitfile(redux_path:str,
                             maskID:str=None,
                             boxcar_radius:float=None,
                             snr_thresh:float=None,
+                            manual_extract:str=None,
                             chk_version:bool=True):
     """
     Prepare to reduce the science frames:
@@ -271,7 +277,8 @@ def generate_sci_pypeitfile(redux_path:str,
 
     # Set the I/O directories
     _redux_path = Path(redux_path).absolute()
-    sci_dir = _redux_path / folder_name_from_scifiles(ps_sci.fitstbl['filename'].data)
+    sci_dir = _redux_path / folder_name_from_scifiles(ps_sci.fitstbl['filename'].data,
+                                                      ps_sci.fitstbl.spectrograph.allowed_extensions)
     calib_dir = sci_dir / ps_sci.par['calibrations']['calib_dir']
 
     # Science reduction folder
@@ -396,11 +403,19 @@ def generate_sci_pypeitfile(redux_path:str,
     cfg_lines.merge(configobj.ConfigObj(cfg))
     cfg_lines = cfg_lines.write()
 
+    # Populate the manual extraction column for science frames if requested.
+    # Use np.where to replace the whole column so numpy does not truncate the
+    # string into the narrow '<U1' dtype that the default '' initializer creates.
+    if manual_extract is not None:
+        sci_idx = ps_sci.fitstbl.find_frames('science')
+        ps_sci.fitstbl['manual'] = np.where(sci_idx, manual_extract, '')
+
     # Write the pypeit file (note this returns the filename, not the list,
     # because of the [0] at the end of the call)
     return ps_sci.fitstbl.write_pypeit(output_path=sci_dir, cfg_lines=cfg_lines,
                                        write_bkg_pairs=True, configs=setup,
-                                       config_subdir=False)[0]
+                                       config_subdir=False,
+                                       write_manual=manual_extract is not None)[0]
 
 
 def calib_manifest(calib_dir, spectrograph):
@@ -710,6 +725,11 @@ class QL(scriptbase.ScriptBase):
                             help='Set the radius for the boxcar extraction in arcseconds')
         parser.add_argument('--snr_thresh', default=None, type=float,
                             help='Change the default S/N threshold used during source detection')
+        parser.add_argument('--manual_extract', type=str, default=None,
+                            help='Force extraction at a specific spatial position. '
+                                 'Format: det:spat:spec:fwhm[:boxcar_rad]. '
+                                 'Multiple entries separated by semicolons. '
+                                 'All values in pixels.')
 
         parser.add_argument('--ignore_std', default=False, action='store_true',
                             help='If standard star observations are automatically detected, '
@@ -971,9 +991,10 @@ class QL(scriptbase.ScriptBase):
                     det=args.det,
                     clear=args.clear_science,
                     slitspatnum=args.slitspatnum,
-                    maskID=args.maskID, 
+                    maskID=args.maskID,
                     boxcar_radius=args.boxcar_radius,
                     snr_thresh=args.snr_thresh,
+                    manual_extract=args.manual_extract,
                     chk_version=chk_version)
 
         # Run it

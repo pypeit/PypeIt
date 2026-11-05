@@ -12,7 +12,7 @@ from pypeit import dataPaths
 from pypeit.scripts import setup
 from pypeit import pypeitsetup
 from pypeit.inputfiles import PypeItFile
-from pypeit.cache import git_most_recent_tag
+from pypeit.pkg.cache import git_most_recent_tag
 
 from IPython import embed
 

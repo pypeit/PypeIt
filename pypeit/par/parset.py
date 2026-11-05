@@ -4,14 +4,17 @@ Define a utility base class used to hold parameters.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
+import copy
 import os
 import textwrap
+from io import StringIO
 
 from IPython import embed
 
 import numpy
 
 from astropy.io import fits
+from astropy.table import Table
 
 from pypeit import log
 from pypeit.par import util
@@ -536,6 +539,10 @@ class ParSet:
         lines = textwrap.wrap('{0}'.format(comment), full_width-len(head))
         return [ head + l for l in lines ]
    
+    def copy(self):
+        """Return a deep copy of this ParSet
+        """
+        return copy.deepcopy(self)
 
     def info(self, basekey=None):
         """
@@ -728,7 +735,8 @@ class ParSet:
                 data_table[i+1,1] = ParSet._rst_class_name(self.data[k])
                 data_table[i+1,3] = '`{0} Keywords`_'.format(type(self.data[k]).__name__)
             else: 
-                data_table[i+1,1] = ', '.join([t.__name__ for t in self.dtype[k]])
+                data_table[i+1,1] = '..' if self.dtype[k] is None \
+                                    else ', '.join([t.__name__ for t in self.dtype[k]])
                 data_table[i+1,3] = '..' if self.default[k] is None \
                                     else ParSet._data_string(self.default[k], use_repr=False,
                                                              verbatim=True, check_dir=True)
@@ -746,7 +754,10 @@ class ParSet:
         output += [ '' ]
         output += ['Class Instantiation: ' + ParSet._rst_class_name(self)]
         output += ['']
-        output += [ParSet._data_table_string(data_table, delimeter='rst')]
+        table = Table(rows=data_table[1:], names=data_table[0])
+        stream = StringIO()
+        table.write(stream, format='ascii.rst')
+        output += ['\n'.join(line.rstrip() for line in stream.getvalue().splitlines()) + '\n']
         output += ['']
         for k in new_parsets:
             output += ['----']

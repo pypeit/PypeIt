@@ -12,7 +12,7 @@ class TraceEdges(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
-        from pypeit.spectrographs import available_spectrographs
+        from pypeit.spectrographs.util import available_spectrographs
 
         parser = super().get_parser(description='Trace slit edges', width=width,
                                     default_log_file=True)

@@ -1,8 +1,8 @@
 
-from pypeit import spectrographs
+from pypeit.spectrographs.util import spectrograph_classes
 import numpy
 
-cls = spectrographs.spectrograph_classes()
+cls = spectrograph_classes()
 keys = []
 for k, v in cls.items():
     keys += v().configuration_keys()

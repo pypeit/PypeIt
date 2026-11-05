@@ -27,7 +27,7 @@ class RunPypeIt(scriptbase.ScriptBase):
         descr = 'PypeIt: The Python Spectroscopic Data Reduction Pipeline\n'
         descr += f'Version {__version__}\n\n'
         import textwrap
-        from pypeit.spectrographs import available_spectrographs
+        from pypeit.spectrographs.util import available_spectrographs
         spclist = ', '.join(available_spectrographs)
         spcl = textwrap.wrap(spclist, width=70)
         descr += 'Available spectrographs include:\n'
@@ -61,17 +61,27 @@ class RunPypeIt(scriptbase.ScriptBase):
                             help='Overwrite any existing files/directories')
         parser.add_argument('-c', '--calib_only', default=False, action='store_true',
                             help='Only run on calibrations')
+        parser.add_argument('--ncpu', type=int, default=None,
+                            help='Number of CPUs to use.  Overrides the [rdx] ncpu '
+                                 'parameter.  The default (None) uses the parameter value, '
+                                 'which itself defaults to 1 (fully serial).  With ncpu > 1, '
+                                 'detectors (or mosaics) are reduced concurrently, one '
+                                 'worker process per detector, and the QA figures are '
+                                 'written by a pool of threads.')
 
         return parser
 
     @classmethod
     def main(cls, args):
 
+        scriptbase.configure_matplotlib(args.show)
+
         from pathlib import Path
         from IPython import embed
 
         from pypeit import pypeit
         from pypeit import log
+        from pypeit import qaWriter
         from pypeit import PypeItError
 
         # Set a default log file based on the name of the pypeit file, not the
@@ -87,7 +97,8 @@ class RunPypeIt(scriptbase.ScriptBase):
         # Instantiate the main pipeline reduction object
         pypeIt = pypeit.PypeIt(
             args.pypeit_file, reuse_calibs=args.reuse_calibs, overwrite=args.overwrite,
-            redux_path=args.redux_path, calib_only=args.calib_only, show=args.show
+            redux_path=args.redux_path, calib_only=args.calib_only, show=args.show,
+            ncpu=args.ncpu
         )
 
         if args.calib_only:
@@ -98,6 +109,9 @@ class RunPypeIt(scriptbase.ScriptBase):
 
         # QA HTML
         log.info('Generating QA HTML')
+        # Ensure all deferred QA figures are on disk before the HTML wrappers
+        # are built
+        qaWriter.flush()
         pypeIt.build_qa()
 
         return 0

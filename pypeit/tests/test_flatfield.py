@@ -7,8 +7,11 @@ from IPython import embed
 
 import numpy as np
 
+from astropy.io import fits
+
 from pypeit import flatfield
-from pypeit import bspline
+from pypeit.core.bspline import Knots
+from pypeit.containers.bspline import BSplineContainer
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.tests.tstutils import data_output_path
 
@@ -17,8 +20,9 @@ def test_flatimages():
     tmp = np.ones((1000, 100)) * 10.
     x = np.random.rand(500)
     # Create bspline
-    spat_bspline1 = bspline.bspline(x, bkspace=0.01*(np.max(x)-np.min(x)))
-    spat_bspline2 = bspline.bspline(x, bkspace=0.01*(np.max(x)-np.min(x)))
+    bsp = 0.01 * (np.max(x) - np.min(x))
+    spat_bspline1 = BSplineContainer(x=x, knots=Knots(spacing=bsp), nord=4)
+    spat_bspline2 = BSplineContainer(x=x, knots=Knots(spacing=bsp), nord=4)
     instant_dict = dict(pixelflat_raw=tmp,
                         pixelflat_norm=np.ones_like(tmp),
                         pixelflat_model=None,
@@ -75,5 +79,38 @@ def test_fit_det_response():
     img = sinemodel(xx, yy, amp, scale, phase, wavelength, angle)
     model = spec.fit_2d_det_response(img, gpm)
     assert np.allclose(img, model, atol=0.001), 'structure fitting failed.'
+
+
+def test_load_pixflat_preserves_calib_key(tmp_path):
+    """
+    ``load_pixflat`` merges a user/archived pixel flat into the existing
+    ``FlatImages``.  The merge rebuilds the object from datamodel fields
+    only, so the calibration identifiers must be carried over explicitly;
+    otherwise ``calib_key`` is None and ``get_path()`` raises (this broke
+    the flats state recording for keck_lris_blue, which uses an archived
+    pixel flat).
+    """
+    spec = load_spectrograph('keck_lris_blue')
+    cal_dir = str(tmp_path)
+    # Minimal archived pixel-flat file: one extension per detector, named
+    # '<detname>-PIXELFLAT_NORM', as load_pixflat expects.
+    pixflat_file = str(tmp_path / 'mypixflat.fits')
+    fits.HDUList([
+        fits.PrimaryHDU(),
+        fits.ImageHDU(np.full((10, 10), 0.5, dtype=float),
+                      name='DET01-PIXELFLAT_NORM')]).writeto(pixflat_file,
+                                                             overwrite=True)
+    # An existing FlatImages with calibration identifiers set
+    flats = flatfield.FlatImages(pixelflat_norm=np.ones((10, 10)))
+    flats.calib_key = 'B_1_DET01'
+    flats.calib_dir = cal_dir
+    merged = flatfield.load_pixflat(pixflat_file, spec, 1, flats,
+                                    calib_dir=cal_dir, chk_version=False)
+    # The merged result keeps the user pixel flat...
+    assert np.allclose(merged.pixelflat_norm, 0.5)
+    # ...and, crucially, the calibration identifiers so get_path() works.
+    assert merged.calib_key == 'B_1_DET01'
+    assert merged.calib_dir == cal_dir
+    assert Path(merged.get_path()).name == 'Flat_B_1_DET01.fits'
 
 

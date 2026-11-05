@@ -26,7 +26,7 @@ class InstallTelluric(scriptbase.ScriptBase):
     @classmethod
     def main(cls, args):
         import os
-        from pypeit import cache
+        from pypeit.pkg import cache
 
         # Initialize the log
         cls.init_log(args)

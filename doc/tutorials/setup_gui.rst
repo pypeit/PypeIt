@@ -55,14 +55,14 @@ The Setup GUI window consists of several main components:
 Main Window Components
 ----------------------
 
-1. **Button Bar** (bottom of window)
+1. **Button Bar** (top of window)
    
    - **Open**: Open an existing `.pypeit` file
    - **Clear**: Clear everything and start fresh
    - **Run Setup**: Scan raw data directories and generate observation log and .pypeit files for each setup.
    - **Save Tab**: Save the currently active tab
    - **Save All**: Save all tabs with unsaved changes
-   - **Help**: Opens PypeIt online documentation
+   - **Help**: Opens PypeIt Setup GUI tutorial
    - **View log**: Opens a window showing the application log
    - **Exit**: Quit the application
 

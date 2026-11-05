@@ -77,6 +77,48 @@ def show_trace(sobjs, det, viewer, ch):
         log.warning('spec1d file found, but no objects were extracted for this detector.')
 
 
+def wave_rms_image(slits, wavesol, flexure=None):
+    """
+    Construct an image with the RMS of the wavelength solution of each slit.
+
+    Each wavelength solution has a single RMS, measured in pixels, so every
+    pixel in a given slit (or echelle order) is assigned the same value.
+
+    Parameters
+    ----------
+    slits : :class:`~pypeit.slittrace.SlitTraceSet`
+        Slit traces used to associate each pixel with a slit.
+    wavesol : `astropy.table.Table`_
+        Wavelength-calibration diagnostics table, as constructed by
+        :func:`~pypeit.wavecalib.WaveCalib.wave_diagnostics`.  Can be None.
+    flexure : :obj:`float`, optional
+        Spatial flexure shift, in pixels, applied to the slit edges.
+
+    Returns
+    -------
+    `numpy.ndarray`_
+        Image with the RMS, in pixels, of the wavelength solution for the slit
+        that each pixel falls in.  Pixels that are not in an unmasked slit, or
+        that are in a slit without a wavelength solution, are set to 0.  None is
+        returned if the diagnostics table is unavailable.
+    """
+    if wavesol is None or any(c not in wavesol.colnames for c in ['SpatOrderID', 'RMS']):
+        return None
+
+    # RMS for each slit, matched by spatial/order ID; 0 means no solution
+    wave_id = np.asarray(wavesol['SpatOrderID'])
+    wave_rms = np.asarray(wavesol['RMS'], dtype=float)
+    slit_rms = np.zeros(slits.nslits, dtype=float)
+    for i, slitord_id in enumerate(slits.slitord_id):
+        indx = np.where(wave_id == slitord_id)[0]
+        if indx.size > 0:
+            slit_rms[i] = wave_rms[indx[0]]
+
+    # Pixels outside of all (unmasked) slits have an index of -1
+    slitidx_img = slits.slit_img(flexure=flexure, use_spatial=False)
+    return np.where(slitidx_img >= 0, slit_rms[slitidx_img], 0.)
+
+
 class Show2DSpec(scriptbase.ScriptBase):
 
     @classmethod
@@ -114,6 +156,10 @@ class Show2DSpec(scriptbase.ScriptBase):
                             help='Upon completion embed in ipython shell')
         parser.add_argument('--ignore_extract_mask', default=False, action='store_true',
                             help='Ignore the extraction mask')
+        parser.add_argument('--show_wave_rms', default=False, action='store_true',
+                            help='Show the RMS (in pixels) of the wavelength solution for the '
+                                 'slit under the cursor in the ginga readout. Use of this option '
+                                 'on many-slit frames may take a long time')
 #        parser.add_argument('--sensfunc', type=str, default=None,
 #                            help='Pass in a sensfunc to display the sky-subtracted image with a '
 #                                 'flux calibration')
@@ -158,6 +204,20 @@ class Show2DSpec(scriptbase.ScriptBase):
         show_channels = [0,1,2,3] if args.channels is None \
                             else [int(item) for item in args.channels.split(',')]
 
+        # Detect spectrographs for which the object-trace and slit-edge
+        # overlays should be suppressed.  The MMT Binospec IFU produces >700
+        # fiber traces per exposure; overplotting them all makes the ginga
+        # display unusably slow (and uninformative), so they are skipped
+        # automatically.
+        try:
+            pyp_spec = fits.getval(args.file, 'PYP_SPEC', 0)
+        except (KeyError, OSError):
+            pyp_spec = None
+        show_overlays = pyp_spec != 'mmt_binospec_ifu'
+        if not show_overlays:
+            log.info('Detected MMT Binospec IFU spec2d; skipping object-trace '
+                     'and slit-edge overlays for performance (>700 fibers).')
+
         # Need to update clear throughout in case only some channels are being displayed
         _clear = args.clear
 
@@ -190,7 +250,7 @@ class Show2DSpec(scriptbase.ScriptBase):
                 'are strongly encouraged to re-reduce your data using this (or, better yet, '
                 'the most recent) version of PypeIt.  ' + addendum
             )
-            if check_version:
+            if chk_version:
                 raise PypeItError(message)
             else:
                 log.warning(message)
@@ -216,6 +276,10 @@ class Show2DSpec(scriptbase.ScriptBase):
                 bpmmask = hdu[_ext].data if _ext in names else None
                 _ext = f'{detname}-WAVEIMG'
                 waveimg = hdu[_ext].data if _ext in names else None
+                rms_img = None
+                if args.show_wave_rms:
+                    log.warning('Cannot show the wavelength RMS when the spec2d file cannot be '
+                                'parsed directly.')
 
                 img_gpm = np.ones(sciimg.shape, dtype=bool) if bpmmask is None else bpmmask == 0
                 model_gpm = img_gpm.copy()
@@ -244,7 +308,7 @@ class Show2DSpec(scriptbase.ScriptBase):
                         log.info(f'Offseting slits by {sci_spat_flexure} pixels.')
                     pypeline = hdu[f'{detname}-SCIIMG'].header['PYPELINE'] \
                                     if 'PYPELINE' in hdu[f'{detname}-SCIIMG'].header else None
-                    if pypeline in ['MultiSlit', 'SlicerIFU']:
+                    if pypeline in ['MultiSlit', 'SlicerIFU', 'Fiber']:
                         slit_slid_IDs = slit_spat_id
                     elif pypeline == 'Echelle':
                         slit_slid_IDs = hdu[_ext].data['ech_order'] \
@@ -263,6 +327,14 @@ class Show2DSpec(scriptbase.ScriptBase):
             ivarmodel = spec2DObj.ivarmodel
             bpmmask = spec2DObj.bpmmask
             waveimg = spec2DObj.waveimg
+            # RMS of the wavelength solution in each slit, shown with the wavelength
+            rms_img = None
+            if args.show_wave_rms and waveimg is not None:
+                rms_img = wave_rms_image(spec2DObj.slits, spec2DObj.wavesol,
+                                         flexure=spec2DObj.sci_spat_flexure)
+                if rms_img is None:
+                    log.warning(f'{args.file} does not include the wavelength-calibration '
+                                'diagnostics; cannot show the wavelength RMS.')
 
             img_gpm = spec2DObj.select_flag(invert=True)
             if not np.any(img_gpm):
@@ -316,7 +388,7 @@ class Show2DSpec(scriptbase.ScriptBase):
             _mask = bpmmask.mask if len(args.showmask) == 0 \
                         else bpmmask.flagged(flag=args.showmask)
             viewer, ch_mask = display.show_image(_mask, chname='MASK', waveimg=waveimg,
-                                                 clear=_clear)
+                                                 rms_img=rms_img, clear=_clear)
             _clear = False
 
         channel_names = []
@@ -326,15 +398,17 @@ class Show2DSpec(scriptbase.ScriptBase):
             cut_min = mean - 1.0 * sigma
             cut_max = mean + 4.0 * sigma
             chname_sci = args.prefix+f'sciimg-{detname}'
-                
+
             # Clear all channels at the beginning
-            viewer, ch_sci = display.show_image(sciimg, chname=chname_sci, waveimg=waveimg, 
-                                                clear=_clear, cuts=(cut_min, cut_max))
+            viewer, ch_sci = display.show_image(sciimg, chname=chname_sci, waveimg=waveimg,
+                                                rms_img=rms_img, clear=_clear,
+                                                cuts=(cut_min, cut_max))
             _clear=False
-            if sobjs is not None:
-                show_trace(sobjs, detname, viewer, ch_sci)
-            display.show_slits(viewer, ch_sci, left, right, slit_ids=slid_IDs,
-                               maskdef_ids=maskdef_id)
+            if show_overlays:
+                if sobjs is not None:
+                    show_trace(sobjs, detname, viewer, ch_sci)
+                display.show_slits(viewer, ch_sci, left, right, slit_ids=slid_IDs,
+                                   maskdef_ids=maskdef_id)
             channel_names.append(chname_sci)
 
         # SKYSUB
@@ -346,13 +420,15 @@ class Show2DSpec(scriptbase.ScriptBase):
             cut_max = mean + 4.0 * sigma
             chname_skysub = args.prefix+f'skysub-{detname}'
             viewer, ch_skysub = display.show_image(image, chname=chname_skysub,
-                                                   waveimg=waveimg, clear=_clear, cuts=(cut_min, cut_max),
+                                                   waveimg=waveimg, rms_img=rms_img,
+                                                   clear=_clear, cuts=(cut_min, cut_max),
                                                    wcs_match=True)
             _clear = False
-            if not args.removetrace and sobjs is not None:
-                show_trace(sobjs, detname, viewer, ch_skysub)
-            display.show_slits(viewer, ch_skysub, left, right, slit_ids=slid_IDs,
-                               maskdef_ids=maskdef_id)
+            if show_overlays:
+                if not args.removetrace and sobjs is not None:
+                    show_trace(sobjs, detname, viewer, ch_skysub)
+                display.show_slits(viewer, ch_skysub, left, right, slit_ids=slid_IDs,
+                                   maskdef_ids=maskdef_id)
             channel_names.append(chname_skysub)
 
         # TODO Place holder for putting in sensfunc
@@ -381,12 +457,14 @@ class Show2DSpec(scriptbase.ScriptBase):
             chname_skyresids = args.prefix+f'sky_resid-{detname}'
             image = (sciimg - skymodel) * np.sqrt(ivarmodel) * model_gpm.astype(float)
             viewer, ch_sky_resids = display.show_image(image, chname_skyresids, waveimg=waveimg,
-                                                       clear=_clear, cuts=(-5.0, 5.0))
+                                                       rms_img=rms_img, clear=_clear,
+                                                       cuts=(-5.0, 5.0))
             _clear = False
-            if not args.removetrace and sobjs is not None:
-                show_trace(sobjs, detname, viewer, ch_sky_resids)
-            display.show_slits(viewer, ch_sky_resids, left, right, slit_ids=slid_IDs,
-                               maskdef_ids=maskdef_id)
+            if show_overlays:
+                if not args.removetrace and sobjs is not None:
+                    show_trace(sobjs, detname, viewer, ch_sky_resids)
+                display.show_slits(viewer, ch_sky_resids, left, right, slit_ids=slid_IDs,
+                                   maskdef_ids=maskdef_id)
             channel_names.append(chname_skyresids)
 
         # RESIDS
@@ -395,12 +473,14 @@ class Show2DSpec(scriptbase.ScriptBase):
             # full model residual map
             image = (sciimg - skymodel - objmodel) * np.sqrt(ivarmodel) * img_gpm.astype(float)
             viewer, ch_resids = display.show_image(image, chname=chname_resids, waveimg=waveimg,
-                                                   clear=_clear, cuts=(-5.0, 5.0), wcs_match=True)
+                                                   rms_img=rms_img, clear=_clear,
+                                                   cuts=(-5.0, 5.0), wcs_match=True)
             _clear = False
-            if not args.removetrace and sobjs is not None:
-                show_trace(sobjs, detname, viewer, ch_resids)
-            display.show_slits(viewer, ch_resids, left, right, slit_ids=slid_IDs,
-                               maskdef_ids=maskdef_id)
+            if show_overlays:
+                if not args.removetrace and sobjs is not None:
+                    show_trace(sobjs, detname, viewer, ch_resids)
+                display.show_slits(viewer, ch_resids, left, right, slit_ids=slid_IDs,
+                                   maskdef_ids=maskdef_id)
             channel_names.append(chname_resids)
 
 

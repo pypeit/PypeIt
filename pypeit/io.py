@@ -14,6 +14,7 @@ import sys
 import warnings
 import gzip
 import shutil
+import time
 from packaging import version
 
 from IPython import embed
@@ -28,8 +29,6 @@ from astropy.table import Table
 import scipy
 import astropy
 import sklearn
-import pypeit
-import time
 
 from pypeit import log
 from pypeit import PypeItError
@@ -208,8 +207,8 @@ def remove_suffix(file):
     Remove the suffix of a file name.
 
     For normal filenames, this simply returns the file string without its last
-    suffix.  For gzipped files, this removes both the '.gz' suffix, and the one
-    preceding it.
+    suffix.  For compressed files (`.gz`, `.bz2`, `.fz`), this also removes
+    the suffix preceding the compression suffix.
 
     Args:
         file (:obj:`str`):
@@ -228,10 +227,17 @@ def remove_suffix(file):
         'dot.separated.file.name'
         >>> remove_suffix('gzipped_file.fits.gz')
         'gzipped_file'
+        >>> remove_suffix('bz2_file.fits.bz2')
+        'bz2_file'
+        >>> remove_suffix('fpacked_file.fits.fz')
+        'fpacked_file'
 
     """
+    _compression_suffixes = ('.gz', '.bz2', '.fz')
     _file = Path(file)
-    return (_file.with_suffix('')).stem if _file.suffix == '.gz' else _file.stem
+    while _file.suffix in _compression_suffixes:
+        _file = _file.with_suffix('')
+    return _file.stem
 
 
 def parse_hdr_key_group(hdr, prefix='F'):
@@ -308,7 +314,7 @@ def initialize_header(hdr=None):
     hdr['VERSSCI'] = (scipy.__version__, 'Scipy version')
     hdr['VERSAST'] = (astropy.__version__, 'Astropy version')
     hdr['VERSSKL'] = (sklearn.__version__, 'Scikit-learn version')
-    hdr['VERSPYP'] = (pypeit.__version__, 'PypeIt version')
+    hdr['VERSPYP'] = (__version__, 'PypeIt version')
 
     # Save the date of the reduction
     hdr['DATE'] = (time.strftime('%Y-%m-%d',time.gmtime()), 'UTC date created')
@@ -349,7 +355,7 @@ def header_version_check(hdr, warning_only=True):
                     hdr['VERSPYP']]
     sys_versions = ['.'.join([ str(v) for v in sys.version_info[:3]]), numpy.__version__,
                     scipy.__version__, astropy.__version__, sklearn.__version__,
-                    pypeit.__version__]
+                    __version__]
 
     # Run the check and either issue warnings or exceptions
     all_identical = True

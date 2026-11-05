@@ -16,8 +16,9 @@ import numpy as np
 from astropy.io import fits
 
 from pypeit.datamodel import DataContainer
-from pypeit.bitmask import BitMask
+from pypeit.core.bitmask import BitMask
 from pypeit import log
+from pypeit import PypeItBitMaskError
 from pypeit import PypeItError
 
 class BitMaskArray(DataContainer):
@@ -31,7 +32,7 @@ class BitMaskArray(DataContainer):
             Shape of the mask to create.
         asuint (:obj:`bool`, optional):
             When setting the data-type for the mask array (see
-            :func:`~pypeit.bitmask.BitMask.minimum_dtype`), use an *unsigned*
+            :func:`~pypeit.core.bitmask.BitMask.minimum_dtype`), use an *unsigned*
             integer instead of a signed integer (e.g., ``uint16`` instead of
             ``int16``).
     """
@@ -50,7 +51,7 @@ class BitMaskArray(DataContainer):
 
     bitmask = None
     """
-    :class:`~pypeit.bitmask.BitMask` object used to interpret the bit array.
+    :class:`~pypeit.core.bitmask.BitMask` object used to interpret the bit array.
     Must be defined by the subclass.  When defining subclasses, note that the
     bitmask flags *must* be case-insensitive strings.
     """
@@ -109,8 +110,20 @@ class BitMaskArray(DataContainer):
             item (object):
                 The attribute being accessed.
         """
+        # NOTE: lower_keys is read from the instance dictionary directly rather
+        # than as self.lower_keys.  The latter re-enters this method whenever
+        # the attribute is not set, and then asks for it again, recursing until
+        # the stack is exhausted.  That is exactly the state an instance is in
+        # while it is being unpickled: pickle builds the object *without*
+        # calling __init__ (so _set_keys has not run) and then probes it for
+        # __setstate__, which lands here.  An instance with no lower_keys has no
+        # bit flags to look up and no data to delegate to, so the attribute
+        # simply does not exist.
+        lower_keys = self.__dict__.get('lower_keys')
+        if lower_keys is None:
+            raise AttributeError(f'{item} is not an attribute of {self.__class__.__name__}!')
         try:
-            i = self.lower_keys.index(item.lower())
+            i = lower_keys.index(item.lower())
         except ValueError:
             return super().__getattr__(item)
         # TODO: This creates a new numpy array every time it is called, which

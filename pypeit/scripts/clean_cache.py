@@ -36,7 +36,7 @@ class CleanCache(scriptbase.ScriptBase):
 
         from pypeit import log
         from pypeit import PypeItError
-        from pypeit import cache
+        from pypeit.pkg import cache
 
         # Initialize the log
         cls.init_log(args)

@@ -6,15 +6,30 @@ from IPython import embed
 import pathlib
 
 from astropy.io import fits
+import numpy as np
 
-from pypeit import spectrographs
 from pypeit import log
 from pypeit import PypeItError
+from pypeit.spectrographs import *
+from pypeit.utils import all_subclasses
 
+# Build the list of names for the available spectrographs
+
+def spectrograph_classes():
+    # Recursively collect all subclasses
+    spec_c = np.array(list(all_subclasses(spectrograph.Spectrograph)))
+    # Select spectrograph classes with a defined name; spectrographs without a
+    # name are either undefined or a base class.
+    spec_c = spec_c[[c.name is not None for c in spec_c]]
+    # Construct a dictionary with the spectrograph name and class
+    srt = np.argsort(np.array([c.name for c in spec_c]))
+    return dict([ (c.name,c) for c in spec_c[srt]])
+
+available_spectrographs = list(spectrograph_classes().keys())
 
 def load_spectrograph(
-    spec:str|spectrographs.spectrograph.Spectrograph, pypeit_fits:bool=False
-) -> spectrographs.spectrograph.Spectrograph:
+    spec:str|spectrograph.Spectrograph, pypeit_fits:bool=False
+) -> spectrograph.Spectrograph:
     """
     Instantiate a spectrograph from the available subclasses of
     :class:`~pypeit.spectrographs.spectrograph.Spectrograph`.
@@ -46,18 +61,18 @@ def load_spectrograph(
         return None
 
     # If provided a full spectrograph class, update if necessary and return
-    if isinstance(spec, spectrographs.spectrograph.Spectrograph):
+    if isinstance(spec, spectrograph.Spectrograph):
         if pypeit_fits:
             spec.allowed_extensions = [".fits"]
         return spec
 
     # The function was provided the name of a spectrograph; return the class
-    classes = spectrographs.spectrograph_classes()
+    classes = spectrograph_classes()
     if spec in classes.keys():
-        spectrograph = classes[spec]()
+        s = classes[spec]()
         if pypeit_fits:
-            spectrograph.allowed_extensions = [".fits"]
-        return spectrograph
+            s.allowed_extensions = [".fits"]
+        return s
 
     # Check if we were given a file, and if so try to read the spectrograph type from its header
     if pathlib.Path(spec).is_file():
@@ -65,12 +80,12 @@ def load_spectrograph(
         if 'PYP_SPEC' in header:
             pyp_spec = header['PYP_SPEC']
             if pyp_spec in classes.keys():
-                spectrograph = classes[pyp_spec]()
+                s = classes[pyp_spec]()
                 if 'DISPNAME' in header:
-                    spectrograph.dispname = header['DISPNAME']
+                    s.dispname = header['DISPNAME']
                 if pypeit_fits:
-                    spectrograph.allowed_extensions = [".fits"]
-                return spectrograph
+                    s.allowed_extensions = [".fits"]
+                return s
             else:
                 raise PypeItError(f'Unknown PYP_SPEC {pyp_spec} found in {spec}')
         else:

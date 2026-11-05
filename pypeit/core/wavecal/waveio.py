@@ -9,7 +9,7 @@ import astropy.table
 from IPython import embed
 import numpy as np
 
-from pypeit import cache
+from pypeit.pkg import cache
 from pypeit import dataPaths
 from pypeit import log
 from pypeit import PypeItError
@@ -184,7 +184,8 @@ def load_line_list(line_file, use_ion=False):
     return astropy.table.Table.read(_line_file, format='ascii.fixed_width', comment='#')
 
 
-def load_line_lists(lamps, all=False, include_unknown:bool=False, restrict_on_instr=None):
+def load_line_lists(lamps, all=False, include_unknown:bool=False, restrict_on_instr=None,
+                    lamps_wvrng=None):
     """
     Loads a series of line list files
 
@@ -195,6 +196,11 @@ def load_line_lists(lamps, all=False, include_unknown:bool=False, restrict_on_in
         E.g., ['ArI','NeI','KrI','XeI']
     restrict_on_instr : str, optional
         Restrict according to the input spectrograph
+    lamps_wvrng : list, optional
+        Wavelength range of the lines to use from each lamp, allowing a subset
+        of a shipped line list to be used without copying it.  Must be the same
+        length as ``lamps``.  Each element is a ``min:max`` string in Angstroms
+        (either bound may be ``None``), or None to use the full list.
     all : bool, optional
         Load all line lists, independent of the input lamps (not recommended)
     include_unknown : bool, optional
@@ -226,6 +232,25 @@ def load_line_lists(lamps, all=False, include_unknown:bool=False, restrict_on_in
     #       will exit with raise PypeItError().
     lists = [load_line_list(dataPaths.linelist.get_file_path(f'{lamp}_lines.dat'))
                 for lamp in lamps]
+    # Restrict the lines used from each lamp?
+    if lamps_wvrng is not None:
+        if len(lamps_wvrng) != len(lamps):
+            raise PypeItError(f'lamps_wvrng has {len(lamps_wvrng)} elements; must match the '
+                              f'{len(lamps)} entries in lamps.')
+        for i, rng in enumerate(lamps_wvrng):
+            if rng is None or str(rng).strip().lower() == 'none':
+                continue
+            bounds = str(rng).split(':')
+            if len(bounds) != 2:
+                raise PypeItError(f'Cannot parse lamps_wvrng entry {rng!r}; expected "min:max".')
+            lo, hi = [None if b.strip().lower() in ('', 'none') else float(b) for b in bounds]
+            gpm = np.ones(len(lists[i]), dtype=bool)
+            if lo is not None:
+                gpm &= lists[i]['wave'] >= lo
+            if hi is not None:
+                gpm &= lists[i]['wave'] <= hi
+            log.info(f'Using {gpm.sum()} of {gpm.size} {lamps[i]} lines within {rng} Angstroms.')
+            lists[i] = lists[i][gpm]
     # Stack
     if len(lists) == 0:
         return None
@@ -251,61 +276,6 @@ def load_line_lists(lamps, all=False, include_unknown:bool=False, restrict_on_in
 
     # Return
     return tot_line_list, line_lists, unkn_lines
-
-
-def load_tree(polygon=4, numsearch=20):
-    """
-    Load a KDTree of ThAr patterns that is stored on disk
-
-    Parameters
-    ----------
-    polygon : int
-        Number of sides to the polygon used in pattern matching:
-
-            - polygon=3  -->  trigon (two anchor lines and one floating line)
-            - polygon=4  -->  tetragon (two anchor lines and two floating lines)
-            - polygon=5  -->  pentagon (two anchor lines and three floating lines)
-
-    numsearch : int
-        Number of consecutive detected lines used to generate a pattern.
-        For example, if numsearch is 4, then for a trigon, the following
-        patterns will be generated (assuming line #1 is the left
-        anchor):
-
-            - 1 2 3  (in this case line #3 is the right anchor)
-            - 1 2 4  (in this case line #4 is the right anchor)
-            - 1 3 4  (in this case line #4 is the right anchor)
-
-    Returns
-    -------
-    file_load : KDTree instance
-        The KDTree containing the patterns
-    index : ndarray
-        For each pattern in the KDTree, this array stores the
-        corresponding index in the linelist
-    """
-
-    # TODO: Can we save these as fits files instead?
-    # TODO: Please don't use imports within functions
-    import pickle
-    filename = dataPaths.linelist.get_file_path(
-                    f'ThAr_patterns_poly{polygon}_search{numsearch}.kdtree')
-    fileindx = dataPaths.linelist.get_file_path(
-                    f'ThAr_patterns_poly{polygon}_search{numsearch}.index.npy')
-    try:
-        with open(filename, "rb", encoding="utf-8") as f_obj:
-            file_load = pickle.load(f_obj)
-        index = np.load(fileindx)
-    except FileNotFoundError:
-        log.info(
-            'The requested KDTree was not found on disk\nplease be patient while the ThAr KDTree '
-            'is built and saved to disk.'
-        )
-        from pypeit.core.wavecal import kdtree_generator
-        file_load, index = kdtree_generator.main(polygon, numsearch=numsearch, verbose=True,
-                                                 ret_treeindx=True, outname=filename)
-
-    return file_load, index
 
 
 def load_unknown_list(lines, unknwn_file=None, all=False):

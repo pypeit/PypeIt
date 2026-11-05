@@ -24,10 +24,10 @@ from astropy.stats import sigma_clipped_stats, sigma_clip
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import utils
-from pypeit import sampling
 from pypeit.core import arc
+from pypeit.core import fitting
 from pypeit.core import moment
-from pypeit.core import pydl
+from pypeit.core import sampling
 
 # TODO: Some of these functions could probably just live in pypeit.edges
 
@@ -602,7 +602,7 @@ def follow_centroid(flux, start_row, start_cen, ivar=None, bpm=None, fwgt=None, 
         continuous (:obj:`bool`, optional):
             Keep only the continuous part of the feature trace from
             the starting row.
-        bitmask (:class:`pypeit.bitmask.BitMask`, optional):
+        bitmask (:class:`pypeit.core.bitmask.BitMask`, optional):
             Object used to flag the feature traces. If None,
             assessments use a boolean array to flag traces. If not
             None, errors will be raised if the object cannot
@@ -755,7 +755,7 @@ def masked_centroid(flux, cen, width, ivar=None, bpm=None, fwgt=None, row=None,
             Measurements with errors larger than this value are
             returned as the input center value. If None, no limit is
             applied.
-        bitmask (:class:`pypeit.bitmask.BitMask`, optional):
+        bitmask (:class:`pypeit.core.bitmask.BitMask`, optional):
             Object used to toggle the returned bit masks. If
             provided, must be able to interpret MATHERROR,
             OUTSIDEAPERTURE, EDGEBUFFER, MOMENTERROR, and LARGESHIFT
@@ -855,7 +855,7 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
           For *Gaussian weighting*, all iterations use `width =
           fwhm/2.3548`.
         - Fit the centroid measurements with a 1D function of the
-          provided order. See :func:`pypeit.core.pydl.TraceSet`.
+          provided order. See :func:`pypeit.core.fitting.PypeItFitCollection`.
 
     The number of iterations performed is set by the keyword argument
     `niter`. There is no convergence test, meaning that this number
@@ -909,7 +909,7 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
             If None, no limit is applied.
         function (:obj:`str`, optional):
             The name of the function to fit. Must be a valid
-            selection. See :class`pypeit.core.pydl.TraceSet`.
+            selection. See :class:`pypeit.core.fitting.PypeItFitCollection`.
         maxdev (:obj:`float`, optional):
             If provided, reject points with `abs(data-model) >
             maxdev` during the fitting. If None, no points are
@@ -921,7 +921,7 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
             The number of iterations for this method; i.e., the
             number of times the two-step fitting algorithm described
             above is performed.
-        bitmask (:class:`pypeit.bitmask.BitMask`, optional):
+        bitmask (:class:`pypeit.core.bitmask.BitMask`, optional):
             Object used to toggle the returned bit masks in edge
             centroid measurements; see :func:`masked_centroid`.
         debug (:obj:`bool`, optional):
@@ -1041,11 +1041,12 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
         # instantation of trace_fit_ivar above.
         ################################################################
 
+
         # Fit the data
-        traceset = pydl.TraceSet(trace_coo, cen.T,
-                                 # Removed by keck_run_july:  inmask=np.logical_not(_trace_bpm.T),
-                                 function=function, ncoeff=order, maxdev=maxdev, maxiter=maxiter,
-                                 invvar=trace_fit_ivar.T, xmin=xmin, xmax=xmax)
+        fit_results = fitting.PypeItFitCollection(
+            trace_coo, cen.T, ivar=trace_fit_ivar.T, func=function, order=order, xmin=xmin,
+            xmax=xmax, maxdev=maxdev, maxiter=maxiter
+        )
 
         # TODO: Keep this around for now. I wanted to see how each
         # iteration affected the centroids and fit.
@@ -1070,7 +1071,7 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
         # iteration, the values being fit are based on the results of
         # this fit even for the bad traces instead of the original
         # input data.
-        trace_fit = traceset.yfit.T
+        trace_fit = fit_results.yfit.T
 
     # Plot the final fit if requested
     if debug:
@@ -1082,7 +1083,7 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
         # Construct boolean flags
         inpgpm = np.logical_not(_trace_bpm)
         cengpm = np.logical_not(msk.astype(bool))
-        fitgpm = traceset.outmask.T
+        fitgpm = fit_results.out_gpm.T
         bpm_fit = _trace_bpm & fitgpm
         bpm_rej = _trace_bpm & np.logical_not(fitgpm)
         gpm_bdcen_fit = inpgpm & np.logical_not(cengpm) & fitgpm
@@ -1149,7 +1150,7 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
 
     # Returns the fit, the actual weighted traces and errors, and
     # measurement flags for the last iteration
-    return trace_fit, cen, err, msk, traceset
+    return trace_fit, cen, err, msk, fit_results
 
 
 def build_trace_bpm(flux, trace_cen, bpm=None, boxcar=None, thresh=None, median_kernel=None):
@@ -1366,7 +1367,7 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
             The number of iterations for :func:`fit_trace` when edge
             measurements are based on Gaussian weighting. See
             description above.
-        bitmask (:class:`~pypeit.bitmask.BitMask`, optional):
+        bitmask (:class:`~pypeit.core.bitmask.BitMask`, optional):
             Object used to toggle the returned bit masks in edge
             centroid measurements; see :func:`masked_centroid`.
         show_fits (:obj:`bool`, optional):

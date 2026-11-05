@@ -175,7 +175,7 @@ class PypeItSetup:
             spectrograph (:obj:`str`, :class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
                 The PypeIt name of the spectrograph used to take the
                 observations.  This should be one of the available options in
-                :attr:`~pypeit.spectrographs.available_spectrographs`.
+                :attr:`~pypeit.spectrographs.util.available_spectrographs`.
             extension (:obj:`str`, :obj:`list`, optional):
                 The extension common to all the fits files to reduce; see
                 :func:`~pypeit.io.files_from_extension`.  If None, uses the

@@ -5,16 +5,17 @@ General utility functions.
 .. include:: ../include/links.rst
 
 """
+import ast
 import os
 import json
 import gzip
 import inspect
-import pickle
 import pathlib
 import itertools
 import glob
 import colorsys
 import collections.abc
+from typing import Type
 
 from astropy import convolution
 from astropy import stats
@@ -31,7 +32,7 @@ from scipy import signal
 
 from pypeit import log
 from pypeit import PypeItError
-from pypeit.move_median import move_median
+from pypeit.core.move_median import move_median
 from pypeit import dataPaths
 
 
@@ -472,58 +473,6 @@ def to_string(data, use_repr=True, verbatim=False):
             else ', '.join([to_string(d, use_repr=use_repr, verbatim=verbatim)
                             for d in data])
     return data.__repr__() if use_repr else str(data)
-
-
-def string_table(tbl, delimeter='print', has_header=True):
-    """
-    Provided the array of data, format it with equally spaced columns
-    and add a header (first row) and contents delimeter.
-
-    Args:
-        tbl (`numpy.ndarray`_):
-            Array of string representations of the data to print.
-        delimeter (:obj:`str`, optional):
-            If the first row in the table containts the column headers (see
-            ``has_header``), this sets the delimeter between first table row and
-            the column data. Use ``'print'`` for a simple line of hyphens,
-            anything else results in an ``rst`` style table formatting.
-        has_header (:obj:`bool`, optional):
-            The first row in ``tbl`` contains the column headers.
-
-    Returns:
-        :obj:`str`: Single long string with the data table.
-    """
-    nrows, ncols = tbl.shape
-    col_width = [np.amax([len(dij) for dij in dj]) for dj in tbl.T]
-
-    _nrows = nrows
-    start = 1
-    if delimeter != 'print':
-        _nrows += 2
-        start += 1
-    if has_header:
-        _nrows += 1
-        start += 1
-
-    row_string = [''] * _nrows
-
-    for i in range(start, nrows + start - 1):
-        row_string[i] = '  '.join([tbl[1 + i - start, j].ljust(col_width[j]) for j in range(ncols)])
-    if delimeter == 'print':
-        # Heading row
-        row_string[0] = '  '.join([tbl[0, j].ljust(col_width[j]) for j in range(ncols)])
-        # Delimiter
-        if has_header:
-            row_string[1] = '-' * len(row_string[0])
-        return '\n'.join(row_string) + '\n'
-
-    # For an rst table
-    row_string[0] = '  '.join(['=' * col_width[j] for j in range(ncols)])
-    row_string[1] = '  '.join([tbl[0, j].ljust(col_width[j]) for j in range(ncols)])
-    if has_header:
-        row_string[2] = row_string[0]
-    row_string[-1] = row_string[0]
-    return '\n'.join(row_string) + '\n'
 
 
 def spec_atleast_2d(wave, flux, ivar, gpm, log10_blaze_function=None, copy=False):
@@ -1035,6 +984,47 @@ def occurrences(inarr):
     return cnt[idx]
 
 
+def occurrences_sorted(inarr):
+    """ Calculate the sub-pixellation weights for a 2D array.
+
+    This function calculates the number of occurrences of each unique value in the 2D input array along one axis.
+
+    Parameters
+    ----------
+    inarr : ndarray
+        Input array. Must be 2D. The first axis is expected to be a large number of indices, N,
+        and the second axis is expected to be of length M, where M is the number of unique values in each row.
+        The function calculates the number of occurrences of each unique value along the first axis for each row.
+
+    Returns
+    -------
+    ndarray
+        Array of sub-pixellation weights.
+    """
+    n_rows, n_cols = inarr.shape
+
+    # Sort each row and find where values change
+    sorted_idx = np.argsort(inarr, axis=1, kind='stable')
+    sorted_vals = np.take_along_axis(inarr, sorted_idx, axis=1)
+
+    # Detect boundaries between different values within each row
+    boundaries = np.ones((n_rows, n_cols), dtype=bool)
+    boundaries[:, 1:] = sorted_vals[:, 1:] != sorted_vals[:, :-1]
+
+    # Use cumsum trick to count occurrences
+    counts = np.diff(np.where(boundaries.ravel())[0],
+                     append=n_rows * n_cols)
+
+    # Build output in sorted order, then unsort
+    result_sorted = np.repeat(counts, counts)  # each element gets its group's count
+
+    # Unsort back to original order
+    unsort_idx = np.argsort(sorted_idx, axis=1)
+    return np.take_along_axis(
+        result_sorted.reshape(n_rows, n_cols), unsort_idx, axis=1
+    ).ravel()
+
+
 def pyplot_rcparams():
     """
     params for pretty matplotlib plots
@@ -1308,23 +1298,6 @@ def inverse(array):
     return (array > 0.0) / (np.abs(array) + (array == 0.0))
 
 
-def calc_ivar(varframe):
-    """
-
-    Calculate the inverse variance based on the input array
-
-    Wrapper to inverse()
-
-    Args:
-        varframe (`numpy.ndarray`_):  Variance image
-
-    Returns:
-        `numpy.ndarray`_:  Inverse variance image
-    """
-    # THIS WILL BE DEPRECATED!!
-    return inverse(varframe)
-
-
 def robust_meanstd(array):
     """
     Determine a robust measure of the mean and dispersion of array
@@ -1480,6 +1453,30 @@ def linear_interpolate(x1, y1, x2, y2, x):
     return y1 if np.isclose(x1,x2) else y1 + (x-x1)*(y2-y1)/(x2-x1)
 
 
+def linear_interpolate_extrapolate(x, xp, fp):
+    """ Perform a linear interpolation on a set of points, but allow for extrapolation at the boundaries.
+
+    Parameters
+    ----------
+    x : `numpy.ndarray`_
+        Points to evaluate the linear interpolation at
+    xp : `numpy.ndarray`_
+        The x-coordinates of the data points, must be increasing
+    fp : `numpy.ndarray`_
+        The y-coordinates of the data points, must be increasing
+
+    Returns
+    -------
+    `numpy.ndarray`_
+        The interpolated/extrapolated values at the points in x
+    """
+    idx = np.searchsorted(xp, x, side='right').clip(1, len(xp) - 1)
+    x0, x1 = xp[idx - 1], xp[idx]
+    f0, f1 = fp[idx - 1], fp[idx]
+    slope = (f1 - f0) / (x1 - x0)
+    return f0 + slope * (x - x0)  # naturally extrapolates at boundaries
+
+
 def replace_bad(frame, bpm):
     """ Find all bad pixels, and replace the bad pixels with the nearest good pixel
 
@@ -1543,12 +1540,10 @@ def yamlify(obj, debug=False):
     #    elif isinstance(obj, bytes):
     #        obj = obj.decode('utf-8')
     elif isinstance(obj, (np.str_, str)):
+        # NOTE: Strings with colons do not need to be quoted here; yaml.dump
+        # quotes them as needed.  Adding quotes here causes the quotes to be
+        # included in the value when the yaml is read back in (Issue #2099).
         obj = str(obj)
-        # Worry about colons!
-        if ':' in obj:
-            # Do not add quotes if they've already been added
-            if not obj.startswith('"'):
-                obj = '"' + str(obj) + '"'
     elif isinstance(obj, units.Quantity):
         try:
             obj = obj.value.tolist()
@@ -1694,41 +1689,6 @@ def recursive_update(d, u):
     for k, v in u.items():
         d[k] = recursive_update(d.get(k, {}), v) if isinstance(v, collections.abc.Mapping) else v
     return d
-
-
-def save_pickle(fname, obj):
-    """Save an object to a python pickle file
-
-    Parameters
-    ----------
-    fname : :class:`str`
-        Filename
-    obj : :class:`object`
-        An object suitable for pickle serialization.
-    """
-    if fname.split(".")[-1] != 'pkl':
-        fname += '.pkl'
-    with open(fname, 'wb') as f:
-        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
-        log.info('File saved: {0:s}'.format(fname))
-
-
-def load_pickle(fname):
-    """Load a python pickle file
-
-    Parameters
-    ----------
-    fname : :class:`str`
-        Filename
-
-    Returns
-    -------
-    :class:`object`
-        An object suitable for pickle serialization.
-    """
-    log.info('Loading file: {0:s}'.format(fname))
-    with open(fname, 'rb') as f:
-        return pickle.load(f)
 
 
 ##
@@ -2255,3 +2215,121 @@ def loadjson(filename):
             return json.loads(f.read().decode("ascii"))
     with open(_file, 'rt') as f:
         return json.load(f)
+
+
+def ast_literal_eval(inp):
+    """
+    A wrapper for :func:`ast.literal_eval` that returns the input if it raises a
+    ValueError.
+    """
+    try:
+        return ast.literal_eval(inp)
+    except ValueError:
+        return inp
+
+
+def _eval_iter(inp:list[str], left:str, right:str, otype:Type) -> list:
+    """
+    Convenience function used to abstract the core functionality of
+    :func:`eval_tuple` and :func:`eval_list`.
+
+    Parameters
+    ----------
+    inp
+        Input list of strings
+    left
+        Left bracket delimeter
+    right
+        Right bracket delimeter
+    otype
+        Return type for the components of the list
+
+    Returns
+    -------
+        A list of objects with type ``otype`` as converted from the provided
+        strings.
+    """
+    grps = [
+        i for i in list(itertools.chain(*[s.split(right) for s in ','.join(inp).split(left)]))
+        if len(i) > 1
+    ]
+    return list(otype(map(ast_literal_eval, g.split(','))) for g in grps)
+
+
+def eval_tuple(inp:list[str]) -> list[tuple]:
+    """
+    Evaluate the input to one or more tuples.
+
+    This allows conversion of one or more tuples provided to a configuration
+    parameters.
+
+    .. warning::
+
+        - Currently can only handle tuples with integers, floats, or strings!
+
+    Parameters
+    ----------
+    inp 
+        A list of strings that are converted into a list of tuples.  The
+        parentheses must be within the list of elements.
+
+    Returns
+    -------
+        A list of tuples with the converted elements.
+    """
+    return _eval_iter(inp, '(', ')', tuple)
+
+
+def eval_list(inp:list[str]) -> list[list]:
+    """
+    Evaluate the input to one or more lists.
+
+    This allows conversion of one or more lists provided to a configuration
+    parameters.
+
+    .. warning::
+
+        - Currently can only handle lists with integers, floats, or strings!
+
+    Parameters
+    ----------
+    inp 
+        A list of strings that are converted into a list of lists.  The square
+        brackets must be within the list of elements.
+
+    Returns
+    -------
+        A list of lists with the converted elements.
+    """
+    return _eval_iter(inp, '[', ']', list)
+
+
+def init_arg_values():
+    """
+    Return the argument names and values of the calling function.
+
+    This replaces the ``inspect.getargvalues(inspect.currentframe())`` idiom
+    used by many ``__init__`` methods to collect their arguments.  Since Python
+    3.13 (`PEP 667`_), a frame's ``f_locals`` is a proxy that holds a reference
+    back to the frame.  Assigning that proxy to a local variable of the same
+    frame creates a reference cycle (frame -> proxy -> frame), so ``self`` and
+    every argument (often large arrays) survive until the cyclic garbage
+    collector happens to run.  Here, the proxy only lives in *this* function's
+    frame and only a plain :obj:`dict` is returned, so no cycle is formed.
+
+    .. _PEP 667: https://peps.python.org/pep-0667/
+
+    Returns
+    -------
+    args : :obj:`list`
+        The names of the calling function's positional-or-keyword arguments,
+        in order, including ``self`` for a method.
+    values : :obj:`dict`
+        The values of those arguments, keyed by name.
+    """
+    frame = inspect.currentframe().f_back
+    try:
+        args, _, _, values = inspect.getargvalues(frame)
+        return args, {k: values[k] for k in args}
+    finally:
+        del frame
