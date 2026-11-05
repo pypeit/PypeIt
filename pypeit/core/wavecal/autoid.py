@@ -2375,7 +2375,8 @@ class HolyGrail:
             cntr = 2
             while obad_slits.size > 0:
                 log.info('Cross-correlation iteration #{:d}'.format(cntr))
-                good_fit = np.ones(self._nslit, dtype=bool)
+                good_fit = np.zeros(self._nslit, dtype=bool)
+                good_fit[self._ok_mask] = True
                 good_fit[obad_slits] = False
                 bad_slits = self.cross_match(good_fit,self._det_weak)
                 if np.array_equal(bad_slits, obad_slits):
@@ -2550,7 +2551,9 @@ class HolyGrail:
 
         #self._debug = True
         # First, sort spectra according to increasing central wavelength
-        ngd = good_fit.sum()
+        # Masked slits are skipped below and must not leave unfilled entries in
+        # the good-slit arrays on subsequent cross-match iterations.
+        ngd = np.count_nonzero(good_fit[self._ok_mask])
         idx_gd = np.zeros(ngd, dtype=int)
         wvc_gd = np.zeros(ngd, dtype=float)
         dsp_gd = np.zeros(ngd, dtype=float)

@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
 
@@ -7,6 +9,30 @@ from pypeit import PypeItError
 from pypeit.core.wavecal import autoid
 from pypeit.core.wavecal import wvutils
 from pypeit.par import pypeitpar
+
+
+def test_cross_match_ignores_masked_good_slits(monkeypatch):
+    """Masked slits must not leave placeholder entries in the good-fit arrays."""
+    monkeypatch.setattr(wvutils, 'xcorr_shift', lambda *args, **kwargs: (0.0, 1.0))
+    nslit, npix = 4, 10
+    fits = {
+        str(slit): SimpleNamespace(
+            pypeitfit=SimpleNamespace(eval=lambda x, offset=offset: offset + x)
+        )
+        for slit, offset in [(1, 100.0), (2, 110.0), (3, 120.0)]
+    }
+    fits['0'] = None
+    grail = SimpleNamespace(
+        _nslit=nslit, _npix=npix, _ok_mask=np.array([1, 2, 3]),
+        _spec=np.ones((npix, nslit)), _debug=False,
+        _all_final_fit=fits,
+        _all_patt_dict={str(slit): {'bwv': offset, 'bdisp': 1.0, 'sign': 1}
+                        for slit, offset in [(1, 100.0), (2, 110.0), (3, 120.0)]},
+    )
+
+    bad_slits = autoid.HolyGrail.cross_match(grail, np.ones(nslit, dtype=bool), {})
+
+    assert bad_slits.size == 0
 
 
 def test_reidentify_xcorr_only_uses_best_archive_and_forces_linear(monkeypatch):
