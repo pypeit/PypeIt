@@ -319,6 +319,11 @@ class Calibrations:
             :func:`~pypeit.core.framematch.valid_frametype`.
         frameclass : :class:`~pypeit.calibframe.CalibFrame`
             The subclass used to store the processed calibration data.
+        slit_name : :obj:`str`, optional
+            Name of the slit for calibrations produced one slit at a time
+            (e.g., JWST/NIRSpec).  If provided, it is included in the
+            calibration key; see
+            :func:`~pypeit.calibframe.CalibFrame.construct_calib_key`.
 
         Returns
         -------
@@ -350,7 +355,8 @@ class Calibrations:
             # relevant calibration frame based on the setup/configuration and
             # calibration group of the (science) frame to be calibrated.
             setup = self.fitstbl['setup'][self.frame]
-            cal_file = frameclass.glob(self.calib_dir, setup, self.calib_ID, detname=detname)
+            cal_file = frameclass.glob(self.calib_dir, setup, self.calib_ID, detname=detname,
+                                       slit_name=slit_name)
             if cal_file is None or len(cal_file) > 1:
                 return [], None, None, setup, None, detname
 
@@ -363,11 +369,8 @@ class Calibrations:
         # the processed calibration frame.
         setup = self.fitstbl['setup'][rows[0]]
         calib_id = self.fitstbl['calib'][rows[0]]
-        calib_key = frameclass.construct_calib_key(setup, calib_id, detname)
-        # TODO: check that this does not break things
-        # Embed slit name in the setup (for per-slit outputs)
-        if slit_name is not None:
-            calib_key = calib_key + f'_{slit_name}'
+        # Embed the slit name in the key (for per-slit outputs)
+        calib_key = frameclass.construct_calib_key(setup, calib_id, detname, slit_name=slit_name)
         # Construct the expected calibration frame file name
         cal_file = Path(frameclass.construct_file_name(calib_key, calib_dir=self.calib_dir))
 

@@ -213,7 +213,7 @@ class CoAdd2D:
             Instance of the subclass appropriate for the requested reduction mode.
         """
 
-        return next(c for c in cls.__subclasses__()
+        return next(c for c in utils.all_subclasses(CoAdd2D)
                     if c.__name__ == (spectrograph.pypeline + 'CoAdd2D'))(
                         spec2dfiles, spectrograph, par, det=det, 
                         only_slits=only_slits, exclude_slits=exclude_slits,
@@ -457,7 +457,10 @@ class CoAdd2D:
         Returns
         -------
         str
-            Basename used when writing the coadded output products.
+            Basename used when writing the coadded output products.  If all the
+            ``spec2d`` files are per-slit outputs for the same slit (see
+            :func:`~pypeit.outputfiles.construct_basename`), the slit name is
+            appended as ``_slit{slit}``.
         """
         # Get the output basename
         frsthdr = fits.getheader(spec2d_files[0])
@@ -485,7 +488,11 @@ class CoAdd2D:
         spec = load_spectrograph(frsthdr['PYP_SPEC'])
         first = outputfiles.strip_raw_extension(frsthdr['FILENAME'], spec.allowed_extensions)
         last = outputfiles.strip_raw_extension(lasthdr['FILENAME'], spec.allowed_extensions)
-        return f"{first}-{last}-{frsthdr['TARGET'].replace(' ', '')}"
+        basename = f"{first}-{last}-{frsthdr['TARGET'].replace(' ', '')}"
+        slits = {outputfiles.parse_basename_slit(f) for f in spec2d_files}
+        if len(slits) == 1 and None not in slits:
+            basename += f'_slit{slits.pop()}'
+        return basename
 
     @staticmethod
     def output_paths(spec2d_files, par, coadd_dir=None):

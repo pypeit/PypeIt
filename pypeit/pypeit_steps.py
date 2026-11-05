@@ -119,13 +119,11 @@ def get_sci_metadata(spectrograph, fitstbl, frame:int, det, slit_name=None):
             'get_sci_metadata() should only be run on standard or science frames.  Types of this '
             f'frame are: {types}'
         )
+    # Embed the slit name in the key (for per-slit outputs)
     calib_key = CalibFrame.construct_calib_key(fitstbl['setup'][frame],
                                                 fitstbl['calib'][frame],
-                                                spectrograph.get_det_name(det))
-    # TODO: check that this does not break things
-    # Embed slit name in the setup (for per-slit outputs)
-    if slit_name is not None:
-        calib_key = calib_key + f'_{slit_name}'
+                                                spectrograph.get_det_name(det),
+                                                slit_name=slit_name)
 
     return objtype_out, calib_key, obstime, basename, binning
 
@@ -697,6 +695,7 @@ def finalize_sky_det(spectrograph, fitstbl, par, frame,
             par['reduce']['findobj']['skip_final_global'] or \
             par['reduce']['skysub']['user_regions'] is not None:
         final_global_sky = initial_sky
+        log.info('Final sky subtraction not performed by request')
     else:
         # Update the skymask
         skymask = objFind.create_skymask(all_specobjs_on_det)

@@ -70,13 +70,13 @@
       --slitname SLITNAME [SLITNAME ...]
                             One or more slit names used to select the spec2d files
                             for spectrographs reduced one slit at a time (e.g.,
-                            JWST/NIRSpec), where the slit name is the last element
-                            of the spec2d file name. For example, the slit for
-                            spec2d file "spec2d_jw01967012001_03102_00001-
-                            J2255+0251_NIRSPEC_20221028T062125.115_S200A2.fits" is
-                            "S200A2". A separate coadd2d file is written for each
-                            target and slit. If not provided, spec2d files are not
-                            selected by slit name. (default: None)
+                            JWST/NIRSpec), where the slit name follows "_slit" at
+                            the end of the spec2d file name. For example, the slit
+                            for spec2d file "spec2d_jw01967012001_03102_00001-
+                            J2255+0251_NIRSPEC_20221028T062125.115_slitS200A2.fits
+                            " is "S200A2". A separate coadd2d file is written for
+                            each target and slit. If not provided, spec2d files
+                            are not selected by slit name. (default: None)
       --spat_toler SPAT_TOLER
                             Desired tolerance in spatial pixel used to identify
                             slits in different exposures. If not provided, the

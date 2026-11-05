@@ -348,7 +348,7 @@ def generate_sci_pypeitfile(redux_path:str,
         # Filter based on the setup and calibration group
         keep = np.ones(slittrace_files.size, dtype=bool)
         for i, f in enumerate(slittrace_files):
-            _setup, _calib, _detname = CalibFrame.parse_calib_key(
+            _setup, _calib, _detname, _ = CalibFrame.parse_calib_key(
                     CalibFrame.parse_key_dir(str(f), from_filename=True)[0])
             keep[i] = _setup == setup and _calib in ['all', calib]
         if not any(keep):
@@ -600,7 +600,7 @@ def get_setup_calib(calib_dir, calib_grp=None):
     calibs = []
     for f in calib_files:
         try:
-            setup, calib, detname = CalibFrame.parse_calib_key(
+            setup, calib, detname, _ = CalibFrame.parse_calib_key(
                                         CalibFrame.parse_key_dir(str(f), from_filename=True)[0])
         except:
             continue

@@ -57,10 +57,10 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
         parser.add_argument('--slitname', type=str, nargs='+', default=None,
                             help='One or more slit names used to select the spec2d files for '
                                  'spectrographs reduced one slit at a time (e.g., JWST/NIRSpec), '
-                                 'where the slit name is the last element of the spec2d file '
-                                 'name.  For example, the slit for spec2d file '
+                                 'where the slit name follows "_slit" at the end of the '
+                                 'spec2d file name.  For example, the slit for spec2d file '
                                  '"spec2d_jw01967012001_03102_00001-J2255+0251_NIRSPEC_'
-                                 '20221028T062125.115_S200A2.fits" is "S200A2".  A separate '
+                                 '20221028T062125.115_slitS200A2.fits" is "S200A2".  A separate '
                                  'coadd2d file is written for each target and slit.  If not '
                                  'provided, spec2d files are not selected by slit name.')
         parser.add_argument('--spat_toler', type=int, default=None,
@@ -185,11 +185,11 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
             slit_spec2d_files = {}
             for obj, files in object_spec2d_files.items():
                 for slit in (s.replace(' ', '') for s in args.slitname):
-                    _files = [f for f in files if f.name.endswith(f'_{slit}.fits')]
+                    _files = [f for f in files if f.name.endswith(f'_slit{slit}.fits')]
                     if len(_files) == 0:
                         log.warning(f'No spec2d files found for target={obj} and slit={slit}.')
                         continue
-                    slit_spec2d_files[f'{obj}_{slit}'] = _files
+                    slit_spec2d_files[f'{obj}_slit{slit}'] = _files
             object_spec2d_files = slit_spec2d_files
 
         # Check spec2d files exist for the selected objects

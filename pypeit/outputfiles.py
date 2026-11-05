@@ -4,6 +4,7 @@ Module for constructing output file names and paths for PypeIt reductions.
 .. include:: ../include/links.rst
 """
 import datetime
+import re
 import numpy as np
 from pathlib import Path
 
@@ -93,7 +94,30 @@ def construct_basename(filename, camera, allowed_extensions, target=None, mjd=No
         dtime = datetime.datetime.strftime(dtime, '%Y%m%dT')
         tobs = tobs.isot.split('T')[1].replace(':', '')
         idstr = f'{idstr}_{dtime}{tobs}'
-    return f'{root}-{idstr}' if slit is None else f'{root}-{idstr}_{slit.replace(" ", "")}'
+    return f'{root}-{idstr}' if slit is None else f'{root}-{idstr}_slit{slit.replace(" ", "")}'
+
+
+def parse_basename_slit(filename):
+    """Return the slit name from a per-slit output file name.
+
+    This is the inverse of the slit part of :func:`construct_basename`, which
+    appends ``_slit{slit}`` to the basename of per-slit outputs.
+
+    Parameters
+    ----------
+    filename : str, `Path`_
+        The output file name (e.g., a ``spec2d`` file).
+
+    Returns
+    -------
+    str
+        The slit name (with spaces removed), or None if the file name does not
+        include one.
+    """
+    # The extension is everything after the last "." in the slit name; note
+    # that the observation time in the basename also includes a "."
+    match = re.search(r'_slit([^_.]+)\.[^_]*$', Path(filename).name)
+    return None if match is None else match.group(1)
 
 
 def get_std_outfile(fitstbl, par, standard_frames:list, slitname:str=None):

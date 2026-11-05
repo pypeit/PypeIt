@@ -592,7 +592,7 @@ class SlicerIFUCoAdd1D(MultiSlitCoAdd1D):
 
 class NIRSpecSlitCoAdd1D(MultiSlitCoAdd1D):
     """
-    Child of MultiSlitCoAdd1d for SlicerIFU reductions.
+    Child of MultiSlitCoAdd1d for NIRSpecSlit reductions.
     """
 
     def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None,

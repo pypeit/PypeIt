@@ -75,6 +75,15 @@ def test_construct_basename_unrecognized_extension():
     assert basename == f'b27.dat-{_ROOT}'
 
 
+def test_parse_basename_slit():
+    basename = outputfiles.construct_basename('b27.fits', _CAMERA, ['.fits'], target=_TARGET,
+                                               mjd=_MJD, slit='S200 A2')
+    assert outputfiles.parse_basename_slit(f'spec2d_{basename}.fits') == 'S200A2'
+    assert outputfiles.parse_basename_slit(f'spec1d_{basename}.txt') == 'S200A2'
+    assert outputfiles.parse_basename_slit(f'spec2d_b27-{_ROOT}.fits') is None
+    assert outputfiles.parse_basename_slit('spec2d_b27-my_slitless_KAST.fits') is None
+
+
 def test_spec2d_target_prefers_target_over_targname_and_object(tmp_path):
     path = tmp_path / 'spec2d_test.fits'
     hdr = fits.Header()
