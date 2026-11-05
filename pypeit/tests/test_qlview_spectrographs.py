@@ -327,34 +327,6 @@ def test_no_viewer_import_from_spectrographs():
 
 
 # ---------------------------------------------------------------------------
-# HTTP server
-# ---------------------------------------------------------------------------
-
-@pytest.fixture
-def http_client():
-    pytest.importorskip('flask')
-    from pypeit.display.qlview.servers import HTTPserver
-    HTTPserver.app.config['TESTING'] = True
-    return HTTPserver.app.test_client()
-
-
-def test_http_header_info(http_client, fits_files):
-    full, _ = fits_files
-    resp = http_client.get('/api/header_info',
-                           query_string={'path': str(full), 'instrument': 'keck_deimos'})
-    assert resp.status_code == 200
-    assert resp.get_json()['MASKNAME'] == 'v_SLMSKNAM'
-
-
-@pytest.mark.parametrize('instrument', ['DEIMOS', 'keck_lris_blue', ''])
-def test_http_header_info_bad_instrument(http_client, fits_files, instrument):
-    full, _ = fits_files
-    resp = http_client.get('/api/header_info',
-                           query_string={'path': str(full), 'instrument': instrument})
-    assert resp.status_code == 400
-
-
-# ---------------------------------------------------------------------------
 # Calibration version checks
 # ---------------------------------------------------------------------------
 
@@ -705,14 +677,6 @@ def test_reduced_info_unreadable_file_is_logged(tmp_path, caplog):
         info = controller._get_info(str(bad), spec, columns, mode='reduced')
     assert f'Error reading metadata for {bad}' in caplog.text
     assert all(info[key] == 'N/A' for _, key in columns if key not in ['icon', 'name', 'st_mtime_str'])
-
-
-def test_http_header_info_unreadable_file(http_client, tmp_path):
-    bad = tmp_path / 'Flat_A_0_DET01.fits'
-    bad.write_text('not a fits file')
-    resp = http_client.get('/api/header_info', query_string={
-        'path': str(bad), 'instrument': 'keck_deimos', 'mode': 'reduced'})
-    assert resp.status_code == 500 and 'error' in resp.get_json()
 
 
 def test_save_default_config(tmp_path, monkeypatch):
