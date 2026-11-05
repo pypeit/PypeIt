@@ -115,6 +115,15 @@ def test_ingest_calib_id():
     assert CalibFrame.ingest_calib_id(['1', 2]) == ['1', '2'], 'Bad ingest'
     assert CalibFrame.ingest_calib_id(['1', '2']) == CalibFrame.ingest_calib_id([2, 1]), \
             'Bad ingest'
+    assert set(CalibFrame.ingest_calib_id('0:8,20:23')) == set(
+        map(str, [*range(8), *range(20, 23)])
+    )
+    assert set(CalibFrame.ingest_calib_id(['0:3', '2,5:7'])) == {
+        '0', '1', '2', '5', '6'
+    }
+    assert CalibFrame.construct_calib_key('A', '0:3', 'DET01') == 'A_0+2_DET01'
+    with pytest.raises(PypeItError, match='Invalid calibration group'):
+        CalibFrame.ingest_calib_id('0:')
 
 
 def test_construct_calib_id():
