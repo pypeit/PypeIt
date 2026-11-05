@@ -885,6 +885,14 @@ class BuildWaveCalib:
         #bad_orders = self.slits.ech_order[np.where(bad_rms)[0]]
         fixed = False
 
+        if (getattr(self, 'arcspec_arxiv', None) is None
+                or getattr(self, 'wave_soln_arxiv', None) is None):
+            log.warning(
+                'Skipping 1D refit of bad echelle orders for method %s: archive spectra '
+                'and wavelength solutions are required; bad orders remain masked.',
+                self.par['method'])
+            return fixed
+
         for idet in range(len(dets)):
             in_det = np.isin(bad_orders, order_dets[idet])
             if not np.any(in_det):

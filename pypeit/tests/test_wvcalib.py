@@ -2,6 +2,7 @@
 Module to run tests on WaveCalib and WaveFit
 """
 from pathlib import Path
+from types import SimpleNamespace
 from IPython import embed
 
 import pytest
@@ -15,6 +16,17 @@ from pypeit import slittrace
 from pypeit.tests.tstutils import data_output_path
 from pypeit.core.wavecal import waveio, wvutils
 from pypeit.gui.identify import Identify
+
+
+def test_redo_echelle_orders_without_archive(caplog):
+    """Archive-dependent retries should skip methods without archive data."""
+    builder = SimpleNamespace(par={'method': 'holy-grail'}, wvc_bpm=np.array([True]))
+
+    assert not wavecalib.BuildWaveCalib.redo_echelle_orders(
+        builder, np.array([10]), np.array([1]), np.array([[10]])
+    )
+    assert builder.wvc_bpm[0]
+    assert 'Skipping 1D refit of bad echelle orders for method holy-grail' in caplog.text
 
 
 @pytest.mark.remote_data
