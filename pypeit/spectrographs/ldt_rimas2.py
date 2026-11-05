@@ -941,10 +941,13 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
                                 if np.any(sequence_mask):
                                     log.warning(
                                         "RIMAS ABBA group %s for %s has no opposite nod; "
-                                        "check rimas_dither_corrections.ecsv.",
+                                        "sidecar corrections applied to %d of %d frames. "
+                                        "Inspect the dither metadata for this group.",
                                         fitstbl["calib"][dpat_idx][sequence_mask][0]
                                         if "calib" in fitstbl.keys() else "unknown",
                                         target,
+                                        np.count_nonzero(is_corrected[sequence_mask]),
+                                        np.count_nonzero(sequence_mask),
                                     )
                                 continue
 
@@ -1229,19 +1232,40 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
         # A setup-directory sidecar represents the observer's explicit choice
         # and therefore suppresses discovery beside the raw files.
         cwd_sidecar = pathlib.Path.cwd() / RIMAS_DITHER_CORRECTION_FILE
+        searched_paths = [cwd_sidecar]
         if cwd_sidecar.is_file():
             sidecars = [cwd_sidecar]
         else:
-            sidecars = []
             if "directory" in fitstbl.colnames:
                 raw_directories = {
                     pathlib.Path(str(directory)).expanduser()
                     for directory in fitstbl["directory"]
                 }
-                sidecars = sorted(
-                    path / RIMAS_DITHER_CORRECTION_FILE
-                    for path in raw_directories
-                    if (path / RIMAS_DITHER_CORRECTION_FILE).is_file()
+                searched_paths.extend(sorted(
+                    path / RIMAS_DITHER_CORRECTION_FILE for path in raw_directories
+                ))
+            sidecars = [path for path in searched_paths if path.is_file()]
+
+        if not sidecars:
+            log.info(
+                "No RIMAS dither correction sidecar found. Expected the filename %s; "
+                "searched: %s",
+                RIMAS_DITHER_CORRECTION_FILE,
+                ", ".join(map(str, searched_paths)),
+            )
+            other_sidecars = sorted({
+                candidate
+                for path in searched_paths
+                for candidate in path.parent.glob("rimas_dither_corrections*.ecsv")
+                if candidate.is_file()
+            })
+            if other_sidecars:
+                log.warning(
+                    "Found similarly named RIMAS dither correction files that were not "
+                    "loaded: %s. Name the intended file %s in the setup or raw-data "
+                    "directory.",
+                    ", ".join(map(str, other_sidecars)),
+                    RIMAS_DITHER_CORRECTION_FILE,
                 )
 
         # Keep the consumer synchronized with the fixed output contract of the
@@ -1259,6 +1283,7 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
             "ONOFF": ("OnOff", ("On", "Off")),
         }
 
+        table_filenames = {pathlib.Path(str(name)).name for name in fitstbl["filename"]}
         corrections = {}
         for sidecar in sidecars:
             try:
@@ -1303,7 +1328,15 @@ class LDTRIMASSpectrograph(spectrograph.Spectrograph):
 
                 corrections[filename] = (pattern, expected_dithpos, dithseq)
 
-        table_filenames = {pathlib.Path(str(name)).name for name in fitstbl["filename"]}
+            matched = sum(
+                pathlib.Path(str(row["filename"])).name in table_filenames for row in table
+            )
+            log.info(
+                "Loaded %d RIMAS dither corrections from %s; %d matched metadata "
+                "file(s).",
+                len(table), sidecar, matched,
+            )
+
         # Stale entries are harmless, but warn because they often indicate that
         # the wrong setup directory or observing log was selected.
         for filename in corrections.keys() - table_filenames:

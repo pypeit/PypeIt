@@ -520,3 +520,53 @@ def test_ldt_rimas(tmp_path, monkeypatch):
     result = rimas.get_comb_group(fitstbl)
     assert list(result['calib']) == ['0', '1', '0', '1']
     assert list(result['bkg_id']) == [2, 3, 0, 1]
+
+
+def test_ldt_rimas_sidecar_diagnostics(tmp_path, monkeypatch, caplog):
+    """Report missing, differently named, and loaded dither sidecars."""
+    rimas = load_spectrograph('ldt_rimas_vph')
+    setup_dir, raw_dir = tmp_path / 'setup', tmp_path / 'raw'
+    setup_dir.mkdir()
+    raw_dir.mkdir()
+    monkeypatch.chdir(setup_dir)
+    fitstbl = astropy.table.Table(
+        rows=[('science_1.fits', str(raw_dir)), ('science_2.fits', str(raw_dir))],
+        names=('filename', 'directory'),
+    )
+    caplog.set_level('INFO', logger='pypeit')
+
+    assert rimas._load_dither_corrections(fitstbl) == {}
+    assert 'No RIMAS dither correction sidecar found' in caplog.text
+    assert str(raw_dir / 'rimas_dither_corrections.ecsv') in caplog.text
+
+    other_sidecar = raw_dir / 'rimas_dither_corrections_science.ecsv'
+    astropy.table.Table(
+        rows=[('science_1.fits', 'ABBA', 1, 'A', 1, 'observing log')],
+        names=('filename', 'dithpat', 'dithnum', 'dithpos', 'dithseq', 'source'),
+    ).write(other_sidecar, format='ascii.ecsv')
+    caplog.clear()
+    assert rimas._load_dither_corrections(fitstbl) == {}
+    assert str(other_sidecar) in caplog.text
+    assert 'were not loaded' in caplog.text
+
+    sidecar = raw_dir / 'rimas_dither_corrections.ecsv'
+    other_sidecar.rename(sidecar)
+    caplog.clear()
+    assert rimas._load_dither_corrections(fitstbl) == {
+        'science_1.fits': ('ABBA', 'A', 1)
+    }
+    assert f'Loaded 1 RIMAS dither corrections from {sidecar}' in caplog.text
+    assert '1 matched metadata file(s)' in caplog.text
+
+    fitstbl['frametype'] = ['science', 'science']
+    fitstbl['setup'] = ['A', 'A']
+    fitstbl['target'] = ['target', 'target']
+    fitstbl['dithpat'] = ['ABBA', 'ABBA']
+    fitstbl['dithpos'] = ['A', 'A']
+    fitstbl['mjd'] = [1., 2.]
+    fitstbl['comb_id'] = [0, 1]
+    fitstbl['bkg_id'] = [-1, -1]
+    caplog.clear()
+    rimas.get_comb_group(fitstbl)
+    assert 'sidecar corrections applied to 0 of 1 frames' in caplog.text
+    assert 'sidecar corrections applied to 1 of 1 frames' in caplog.text
