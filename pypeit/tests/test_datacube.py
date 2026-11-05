@@ -516,6 +516,72 @@ def test_extract_point_source_ra_dec_matches_extraction_position():
         'manually-positioned SpecObj RA/DEC does not match the manual_position coordinate'
 
 
+@photutils_required
+def test_extract_point_source_pc_matrix_wcs():
+    """`extract_point_source` must read the spaxel size and wavelength step
+    from the full linear transformation of the cube WCS, not just CDELT.
+    Native-sampling cubes are written from the CD matrix built by
+    `Spectrograph.get_wcs`, which astropy stores as PCi_j with CDELTi=1.
+    Reading CDELT alone gives 1 degree spaxels and 1 m wavelength pixels, so
+    the star is not detected and the extracted counts are wrong by ~1e18.
+    """
+    nwave, ny, nx = 6, 30, 24
+    star_x, star_y, sigma_pix = 11.3, 15.6, 1.5
+    # Non-square spaxels, as for a slicer IFU (slice width x pixel scale)
+    dspat_x, dspat_y = 0.305, 0.25  # arcsec
+    dwave = 1.3                     # Angstrom
+
+    yimg, ximg = np.mgrid[0:ny, 0:nx]
+    image2d = 50.0 * np.exp(-0.5 * ((ximg - star_x) ** 2 + (yimg - star_y) ** 2) / sigma_pix ** 2)
+    flxcube = np.broadcast_to(image2d, (nwave, ny, nx)).copy()
+    ivarcube = np.full((nwave, ny, nx), 1.0e4)
+    bpmcube = np.zeros((nwave, ny, nx), dtype=bool)
+    wave = 5000.0 + dwave * np.arange(nwave)
+    # The cube is in counts/s/Ang/arcsec^2, so the counts per spectral pixel
+    # (with exptime=1) are the summed flux times the voxel size.
+    expected_counts = image2d.sum() * dwave * dspat_x * dspat_y
+
+    # CDELT form, as written by generate_WCS for combined cubes
+    cdelt_wcs = WCS(naxis=3)
+    cdelt_wcs.wcs.crpix = [1.0, 1.0, 1.0]
+    cdelt_wcs.wcs.crval = [150.0, 10.0, wave[0]]
+    cdelt_wcs.wcs.cdelt = [-dspat_x / 3600.0, dspat_y / 3600.0, dwave]
+    cdelt_wcs.wcs.cunit = [u.deg, u.deg, u.Angstrom]
+    cdelt_wcs.wcs.ctype = ['RA---TAN', 'DEC--TAN', 'WAVE']
+
+    # Rotated CD matrix, as built by Spectrograph.get_wcs for native cubes,
+    # then passed through a FITS header as it is when the cube is read back.
+    rot = np.radians(20.0)
+    cdelt1, cdelt2 = -dspat_x / 3600.0, dspat_y / 3600.0
+    cd_wcs = WCS(naxis=3)
+    cd_wcs.wcs.crpix = [1.0, 1.0, 1.0]
+    cd_wcs.wcs.crval = [150.0, 10.0, wave[0]]
+    cd_wcs.wcs.cd = np.array([
+        [cdelt1 * np.cos(rot), abs(cdelt2) * np.sign(cdelt1) * np.sin(rot), 0.0],
+        [-abs(cdelt1) * np.sign(cdelt2) * np.sin(rot), cdelt2 * np.cos(rot), 0.0],
+        [0.0, 0.0, dwave]
+    ])
+    cd_wcs.wcs.cunit = [u.deg, u.deg, u.Angstrom]
+    cd_wcs.wcs.ctype = ['RA---TAN', 'DEC--TAN', 'WAVE']
+    pc_wcs = WCS(cd_wcs.to_header())
+    assert np.allclose(pc_wcs.wcs.cdelt, 1.0), \
+        'test setup error: the header round trip should leave CDELT=1 with the scale in PC'
+
+    extract_kwargs = dict(
+        exptime=1.0, fluxed=False, subpixel=5, boxcar_radius=2.0, fwhm=0.9,
+        opt_prof_method='fit_gauss', spectrograph='keck_kcrm', show_qa=False
+    )
+    for label, wcscube in [('CDELT', cdelt_wcs), ('PC matrix', pc_wcs)]:
+        sobjs, *_ = datacube.extract_point_source(
+            wave, flxcube, ivarcube, bpmcube, wcscube, manual_position=None, **extract_kwargs)
+        assert np.isclose(sobjs[0].BOX_R_PIX, 2.0 / np.sqrt(dspat_x * dspat_y)), \
+            f'{label} WCS: boxcar radius in pixels implies the wrong spaxel size'
+        assert np.allclose(sobjs[0].BOX_COUNTS, expected_counts, rtol=1e-3), \
+            f'{label} WCS: boxcar counts do not match the injected counts'
+        assert np.allclose(sobjs[0].OPT_COUNTS, expected_counts, rtol=1e-3), \
+            f'{label} WCS: optimal counts do not match the injected counts'
+
+
 # ---------------------------------------------------------------------------
 # The cube-axis-order rewrite bundled four separate WCS axis-order/sign
 # changes into one commit. Each test below isolates one of them (RA/Dec
@@ -593,6 +659,52 @@ def test_create_wcs_voxedges_axis_order():
         'voxedges[1] (ybins/Dec) should have 7 Dec bins; got the wrong axis or count'
     assert xbins.size - 1 == 11, \
         'voxedges[2] (xbins/RA) should have 11 RA bins; got the wrong axis or count'
+
+
+def test_create_wcs_reference_image_pc_matrix(tmp_path):
+    """`create_wcs` must take the spaxel size of a `reference` image from the
+    full linear transformation of its WCS, not just CDELT.  The white light
+    images of native-sampling cubes store the scale in PCi_j with CDELTi=1,
+    which previously gave 1 degree spaxels.  The CDELT-form result, including
+    the sign of each axis, must be unchanged.
+    """
+    ref_dspat = 0.3 / 3600.0  # deg/pixel of the reference image
+    ny, nx = 12, 9
+
+    cdelt_wcs = WCS(naxis=2)
+    cdelt_wcs.wcs.crpix = [nx, 0.0]
+    cdelt_wcs.wcs.crval = [150.0, 10.0]
+    cdelt_wcs.wcs.ctype = ['RA---TAN', 'DEC--TAN']
+    cdelt_wcs.wcs.cdelt = [-ref_dspat, ref_dspat]
+
+    cd_wcs = WCS(naxis=2)
+    cd_wcs.wcs.crpix = [nx, 0.0]
+    cd_wcs.wcs.crval = [150.0, 10.0]
+    cd_wcs.wcs.ctype = ['RA---TAN', 'DEC--TAN']
+    cd_wcs.wcs.cd = np.diag([-ref_dspat, ref_dspat])
+
+    ref_files = {}
+    for label, refwcs in [('CDELT', cdelt_wcs), ('PC matrix', cd_wcs)]:
+        ref_files[label] = tmp_path / f"reference_{label.replace(' ', '_')}.fits"
+        fits.PrimaryHDU(np.ones((ny, nx)), header=refwcs.to_header()).writeto(ref_files[label])
+    assert fits.getheader(ref_files['PC matrix'])['CDELT1'] == 1.0, \
+        'test setup error: the CD-matrix reference should be written with CDELT=1'
+
+    # With all six bounds specified explicitly, wcs_bounds() never touches the
+    # image arrays, so trivial placeholders are sufficient here.
+    dummy = np.zeros((2, 2))
+    dummy_gpm = np.ones((2, 2), dtype=int)
+    for label, ref_file in ref_files.items():
+        # Request a different spaxel size, so the reference must override it
+        cubewcs, _, reference_image = datacube.create_wcs(
+            dummy, dummy, dummy, dummy_gpm, 2 * ref_dspat, 1.0,
+            ra_min=150.0, ra_max=150.001, dec_min=10.0, dec_max=10.001,
+            wave_min=5000.0, wave_max=5010.0, reference=str(ref_file), collapse=True
+        )
+        assert np.allclose(cubewcs.wcs.cdelt[:2], [-ref_dspat, ref_dspat], rtol=1e-10, atol=0), \
+            f'{label} reference image: create_wcs did not adopt the reference spaxel size and sign'
+        assert reference_image.shape == (ny, nx), \
+            f'{label} reference image: wrong reference image returned'
 
 
 def test_generate_wcs_sky_right_convention():

@@ -558,6 +558,19 @@ Bug Fixes
 - Spectral flexure was not previously included when generating a wavelength
   image for a spec2d file during ``global_skysub``. This caused a multiple
   correction to the spectral flexure, and only affected IFU data reduction.
+- Fixed ``pypeit_extract_datacube`` failing on datacubes written at the
+  native sampling of the spectrograph (``save_native = True``).  These cubes
+  take their WCS from the CD matrix built by the spectrograph ``get_wcs``
+  method, which is written as ``PCi_j`` with ``CDELTi = 1``.
+  :func:`~pypeit.core.datacube.extract_point_source` read the spaxel size and
+  wavelength step from ``CDELT`` alone, so it took the spaxels to be 1 degree
+  across: the point source was not detected ("No sources found"), and any
+  forced extraction gave counts too large by a factor of ~10\ :sup:`18`.  The
+  pixel scales are now computed from the full linear transformation of the
+  WCS.  The same fix applies to the spaxel size taken from a
+  ``reference_image`` by :func:`~pypeit.core.datacube.create_wcs`.  Affects
+  native cubes from all SlicerIFU spectrographs (Keck/KCWI, Keck/KCRM,
+  Gemini/GNIRS and GTC/MAAT).
 - Fix a memory leak on Python 3.13 and later: the
   ``inspect.getargvalues(inspect.currentframe())`` idiom used by many
   ``__init__`` methods to collect their arguments created a reference cycle
