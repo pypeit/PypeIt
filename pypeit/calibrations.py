@@ -1333,7 +1333,7 @@ class Calibrations:
                                                           raw_lampoff_files, dark=self.msdark,
                                                           bias=self.msbias, bpm=self.msbpm)
             traceImage = traceImage.sub(lampoff_flat)
-        
+
         # Show the traceImage if requested
         if self.show:
             traceImage.show()
