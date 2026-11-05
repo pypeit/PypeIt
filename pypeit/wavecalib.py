@@ -637,7 +637,8 @@ class BuildWaveCalib:
         # TODO nsample should be a parameter
         fwhm_map = autoid.map_fwhm(self.msarc.image, self.gpm, self.slits_left, self.slits_right, self.slitmask,
                                    nsample=10, slit_bpm=self.wvc_bpm, specord=self.par['fwhm_spec_order'],
-                                   spatord=self.par['fwhm_spat_order'])
+                                   spatord=self.par['fwhm_spat_order'],
+                                   sigdetect=self.par['sigdetect'], fwhm=self.par['fwhm'])
         # Calculate the typical spectral FWHM down the centre of the slit
         measured_fwhms = np.zeros(arccen.shape[1], dtype=object)
         for islit in range(arccen.shape[1]):
@@ -730,7 +731,14 @@ class BuildWaveCalib:
             # Grab arxiv for redo later?
             if self.par['echelle']: 
                 # Hold for later usage
-                self.slits.ech_order = order_vec[:self.slits.nslits]
+                if order_vec is not None and order_vec.size == self.slits.nslits:
+                    self.slits.ech_order = order_vec
+                elif self.slits.ech_order is None or self.slits.ech_order.size != self.slits.nslits:
+                    raise PypeItError('Full-template wavelength calibration did not return an '
+                                      'echelle order vector matching the traced slits.')
+                else:
+                    log.warning('Full-template arxiv order vector does not match the traced '
+                                'slits; keeping the existing slit echelle order IDs.')
                 self.arccen = arccen
         elif self.par['method'] == 'echelle':
             # Echelle calibration files: from the (possibly config-specific)
@@ -876,6 +884,14 @@ class BuildWaveCalib:
         # Make this outside the for loop..
         #bad_orders = self.slits.ech_order[np.where(bad_rms)[0]]
         fixed = False
+
+        if (getattr(self, 'arcspec_arxiv', None) is None
+                or getattr(self, 'wave_soln_arxiv', None) is None):
+            log.warning(
+                'Skipping 1D refit of bad echelle orders for method %s: archive spectra '
+                'and wavelength solutions are required; bad orders remain masked.',
+                self.par['method'])
+            return fixed
 
         for idet in range(len(dets)):
             in_det = np.isin(bad_orders, order_dets[idet])
@@ -1280,4 +1296,3 @@ class BuildWaveCalib:
             txt = txt[:-2]+']'  # Trim the trailing comma
         txt += '>'
         return txt
-

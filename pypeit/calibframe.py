@@ -17,6 +17,7 @@ from pypeit import log
 from pypeit import PypeItError
 from pypeit import datamodel
 from pypeit import io
+from pypeit.core import parse
 
 class CalibFrame(datamodel.DataContainer):
     """
@@ -101,9 +102,9 @@ class CalibFrame(datamodel.DataContainer):
             calib_id (:obj:`str`, :obj:`list`, :obj:`int`):
                 Identifiers for one or more calibration groups for this
                 calibration frame.  Strings (either as individually entered or
-                as elements of a provided list) can be single or comma-separated
-                integers.  Otherwise, all strings must be convertible to
-                integers; the only exception is the string 'all'.
+                as elements of a provided list) can contain comma-separated
+                integers and half-open ranges (e.g., '0:8' means groups 0-7).
+                The only other accepted string is 'all'.
             detname (:obj:`str`):
                 The identifier used for the detector or detector mosaic for the
                 relevant instrument; see
@@ -253,9 +254,9 @@ class CalibFrame(datamodel.DataContainer):
             calib_id (:obj:`str`, :obj:`list`, :obj:`int`):
                 Identifiers for one or more calibration groups for this
                 calibration frame.  Strings (either as individually entered or
-                as elements of a provided list) can be single or comma-separated
-                integers.  Otherwise, all strings must be convertible to
-                integers; the only exception is the string 'all'.
+                as elements of a provided list) can contain comma-separated
+                integers and half-open ranges (e.g., '0:8' means groups 0-7).
+                The only other accepted string is 'all'.
 
         Returns:
             :obj:`list`: List of string representations of single calibration
@@ -286,15 +287,26 @@ class CalibFrame(datamodel.DataContainer):
         if 'all' in _calib_id and len(_calib_id) != 1:
             log.warning(f'Calibration groups set to {_calib_id}, resetting to simply "all".')
             _calib_id = np.array(['all'])
+        expanded = []
         for c in _calib_id:
             if c == 'all':
+                expanded.append(c)
                 continue
             try:
-                _c = int(c)
+                if ':' in c:
+                    groups = parse.str2list(c)
+                    if not groups:
+                        raise ValueError('Empty calibration group range')
+                    expanded.extend(str(group) for group in groups)
+                else:
+                    int(c)
+                    expanded.append(c)
             except ValueError:
-                # TODO: Not sure this is strictly necessary
-                raise PypeItError(f'Invalid calibration group {c}; must be convertible to an integer.')
-        return _calib_id.tolist()
+                raise PypeItError(
+                    f'Invalid calibration group {c}; expected an integer or a bounded '
+                    'half-open range such as 0:8.'
+                )
+        return np.unique(expanded).tolist()
 
     @staticmethod
     def construct_calib_id(calib_id, ingested=False):

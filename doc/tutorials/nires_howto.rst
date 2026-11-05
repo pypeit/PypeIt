@@ -179,6 +179,8 @@ Wavelength Calibration
 Next the code performs the wavelength calibration.  Via the :ref:`pypeit_file`,
 we designated two sets of wavelength calibration frames, one for the standard
 star and one for the science frame.  You should inspect the results for both.
+If you need to inspect or construct an echelle wavelength template manually, see
+:ref:`pypeit_identify-echelle`.
 
 First, it's important to understand PypeIt's :ref:`calib-naming` convention,
 specifically the calibration group bit identities used in the output file names.
@@ -434,5 +436,4 @@ The main reduction of this Keck/NIRES dataset produces two output spectra, one
 for the ``A-B`` frame and one for the ``B-A`` frame. To combine these 2D
 spectra, we suggest using :ref:`pypeit-coadd-2dspec`. See :ref:`coadd2d` for
 more information and :ref:`coadd2d_howto` for usage examples.
-
 

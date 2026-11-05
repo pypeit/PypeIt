@@ -136,7 +136,9 @@ Wavelength Calibration
 
 Next the code performs the wavelength calibration from the OH sky lines, using
 the ``reidentify`` method against the bundled ``soar_triplespec.fits`` archive
-and the ``OH_NIRES`` line list (see :ref:`instr_par-soar_tspec`).
+and the ``OH_NIRES`` line list (see :ref:`instr_par-soar_tspec`). If you need to
+inspect or construct an echelle wavelength template manually, see
+:ref:`pypeit_identify-echelle`.
 
 Check the per-order result with the automatically generated 1D-fit QA.  Below is
 the plot for the reddest order (order = 3, *K* band), the most challenging one:
