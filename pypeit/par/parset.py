@@ -7,12 +7,14 @@ Define a utility base class used to hold parameters.
 import copy
 import os
 import textwrap
+from io import StringIO
 
 from IPython import embed
 
 import numpy
 
 from astropy.io import fits
+from astropy.table import Table
 
 from pypeit import log
 from pypeit.par import util
@@ -752,7 +754,10 @@ class ParSet:
         output += [ '' ]
         output += ['Class Instantiation: ' + ParSet._rst_class_name(self)]
         output += ['']
-        output += [ParSet._data_table_string(data_table, delimeter='rst')]
+        table = Table(rows=data_table[1:], names=data_table[0])
+        stream = StringIO()
+        table.write(stream, format='ascii.rst')
+        output += ['\n'.join(line.rstrip() for line in stream.getvalue().splitlines()) + '\n']
         output += ['']
         for k in new_parsets:
             output += ['----']

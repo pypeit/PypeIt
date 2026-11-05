@@ -3071,11 +3071,15 @@ class ReduxPar(ParSet):
         defaults['ncpu'] = 1
         dtypes['ncpu'] = int
         descr['ncpu'] = 'Number of CPUs PypeIt may use.  The default, 1, runs the code ' \
-                        'fully serially, exactly as in previous versions.  Currently, ' \
-                        'this sets the number of threads used to write the QA ' \
-                        'figures (capped at 8) and, for up-the-ramp spectrographs ' \
-                        '(currently MMT/MMIRS), the threads used for ramp fitting; the ' \
-                        'reduction itself is otherwise still serial.  Note that MMIRS ' \
+                        'fully serially.  With ncpu > 1, detectors (or mosaics) are ' \
+                        'reduced concurrently, one worker process per detector, for ' \
+                        'the calibrations, the science-image processing and the ' \
+                        'extraction (object finding and global sky subtraction remain ' \
+                        'serial); ncpu also sets the number of threads used to write ' \
+                        'the QA figures (capped at 8) and, for up-the-ramp ' \
+                        'spectrographs (currently MMT/MMIRS), the threads used for ' \
+                        'ramp fitting.  Peak memory grows with the number of detectors ' \
+                        'reduced at once.  Note that MMIRS ' \
                         'ramp fitting keeps a parallel default of min(6, os.cpu_count()) ' \
                         'even at ncpu=1, since threading does not change the fitted ' \
                         'result; set ncpu explicitly to use more (or fewer) threads.  ' \
