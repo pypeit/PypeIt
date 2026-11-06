@@ -161,4 +161,3 @@ def test_wvcalib_no2d():
 
     # Finish
     ofile.unlink()
-
