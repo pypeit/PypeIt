@@ -2,6 +2,7 @@
 Module to run tests on WaveCalib and WaveFit
 """
 from pathlib import Path
+from types import SimpleNamespace
 from IPython import embed
 
 import pytest
@@ -19,6 +20,7 @@ from pypeit import slittrace
 from pypeit.tests.tstutils import data_output_path
 from pypeit.core.wavecal import waveio
 from pypeit.par import pypeitpar
+from pypeit.spectrographs.util import load_spectrograph
 
 
 @pytest.mark.remote_data
@@ -205,6 +207,12 @@ def test_iterative_fitting_dof():
                                        disp, n_first=2, n_final=4, input_only=True)
     assert fit.pypeitfit.order[0] == 4, 'Order should not be reduced'
 
+    # If n_first is larger than n_final, the final fit has order n_first (as
+    # used for some Keck/LRIS gratings)
+    fit = wv_fitting.iterative_fitting(spec, tcent, np.arange(tcent.size), llist['wave'].data, llist,
+                                       disp, n_first=3, n_final=2, input_only=True)
+    assert fit.pypeitfit.order[0] == 3, 'Final fit should have order n_first'
+
     # Only 5 lines: the order is reduced to keep 2 degrees of freedom, so the
     # fit does not pass exactly through all lines
     ifit = np.array([2, 6, 9, 12, 16])
@@ -218,6 +226,35 @@ def test_iterative_fitting_dof():
     fit = wv_fitting.iterative_fitting(spec, tcent, ifit, llist['wave'].data[ifit], llist, disp,
                                        n_first=2, n_final=4, input_only=True)
     assert fit is None, 'Fit should fail with too few lines'
+
+    # Same lines, without the degrees of freedom requirement: the order is
+    # reduced to nlines-1, as used when re-fitting echelle orders
+    fit = wv_fitting.iterative_fitting(spec, tcent, ifit, llist['wave'].data[ifit], llist, disp,
+                                       n_first=2, n_final=4, input_only=True, min_dof=0)
+    assert fit.pypeitfit.order[0] == 2, 'Order should be reduced to nlines-1'
+
+
+def test_fit_slit_min_dof():
+    # Three identified lines of a cubic wavelength solution
+    nspec = 1000
+    llist = _synthetic_line_list()
+    pix = np.arange(nspec, dtype=float)
+    wave = 5000. + 1.0*pix + 1e-4*pix**2 - 5e-8*pix**3
+    tcent = np.interp(llist['wave'], wave, pix)
+    ids = np.zeros(tcent.size)
+    use = np.array([2, 9, 16])
+    ids[use] = llist['wave'][use]
+    mask = np.zeros(tcent.size, dtype=bool)
+    mask[use] = True
+    patt_dict = dict(mask=mask, IDs=list(ids), bdisp=1.0)
+    spec = np.zeros(nspec)
+    # The default requires 2 degrees of freedom, so the fit fails.  NOTE: The
+    # small match_toler prevents more lines from being added to the fit.
+    fit = wv_fitting.fit_slit(spec, patt_dict, tcent, llist, n_final=4, match_toler=0.01)
+    assert fit is None, 'Fit should fail with too few lines'
+    # Without the requirement, the fit succeeds with a reduced order
+    fit = wv_fitting.fit_slit(spec, patt_dict, tcent, llist, n_final=4, match_toler=0.01, min_dof=0)
+    assert fit is not None and fit.pypeitfit.order[0] == 2
 
 
 def _synthetic_arcs(rng, nspec=1000, shifts=(0., 25., -30., 40.), noise=(0.5, 2., 2., 2.),
@@ -335,3 +372,40 @@ def test_full_template_stack():
     for i in range(len(shifts)):
         dev = np.abs(wvcalib[str(i)].wave_soln - wave[:, i]) / np.gradient(wave[:, i])
         assert np.max(dev) < 0.3, f'Bad wavelength solution for slit {i}'
+
+
+def test_mask_bad_rms():
+    # Three slits: a good solution, a solution with a poor RMS, and a slit
+    # that is already masked
+    pypeitFit = fitting.PypeItFit(fitc=np.arange(5).astype(float), xval=np.linspace(1, 100., 100))
+    spat_ids = np.array([100, 200, 300])
+    wv_fits = np.asarray([wv_fitting.WaveFit(s, pypeitfit=pypeitFit, pixel_fit=np.arange(10).astype(float),
+                                             wave_fit=np.linspace(1., 10., 10), rms=rms)
+                          for s, rms in zip(spat_ids, [0.1, 2.0, 5.0])])
+    # Build a minimal BuildWaveCalib object
+    bwc = wavecalib.BuildWaveCalib.__new__(wavecalib.BuildWaveCalib)
+    bwc.wv_calib = wavecalib.WaveCalib(wv_fits=wv_fits, nslits=3, spat_ids=spat_ids)
+    bwc.par = pypeitpar.WavelengthSolutionPar(rms_thresh_frac_fwhm=0.15)
+    bwc.measured_fwhms = np.array([4.0, 4.0, 4.0])  # RMS threshold = 0.6 pixels
+    bwc.wvc_bpm = np.array([False, False, True])
+    bwc.slits = SimpleNamespace(slitord_id=spat_ids)
+
+    bad_rms = bwc.mask_bad_rms()
+    assert np.array_equal(bad_rms, [False, True, False]), 'Wrong slits rejected'
+    assert np.array_equal(bwc.wvc_bpm, [False, True, True]), 'Wrong slits masked'
+    # The good solution is kept, the poor one is replaced by an empty WaveFit,
+    # and the masked slit is not changed
+    assert bwc.wv_calib.wv_fits[0].pypeitfit is not None
+    assert bwc.wv_calib.wv_fits[1].pypeitfit is None and bwc.wv_calib.wv_fits[1].spat_id == 200
+    assert bwc.wv_calib.wv_fits[2].pypeitfit is not None
+
+
+def test_mask_bad_rms_default():
+    # The RMS threshold is only applied to full_template solutions if
+    # requested, which is the default for KCWI/KCRM only
+    assert not pypeitpar.WavelengthSolutionPar()['mask_bad_rms']
+    for name, expected in [('keck_kcwi', True), ('keck_kcrm', True), ('keck_lris_blue', False),
+                           ('gemini_gmos_south_ham', False)]:
+        par = load_spectrograph(name).default_pypeit_par()
+        assert par['calibrations']['wavelengths']['mask_bad_rms'] == expected, \
+            f'Wrong mask_bad_rms default for {name}'
