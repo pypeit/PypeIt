@@ -17,7 +17,7 @@ from pypeit import log
 from pypeit import PypeItError, PypeItDataModelError
 from pypeit import alignframe, datamodel, flatfield, io, sensfunc, spec2dobj, utils
 from pypeit.core.flexure import calculate_image_phase
-from pypeit.core import datacube, extract, flux_calib, parse, combine 
+from pypeit.core import datacube, extract, flexure, flux_calib, parse, combine
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.manual_extract import ManualCubeExtractionObj
 
@@ -289,7 +289,7 @@ class DataCube(datamodel.DataContainer):
             directory in which the class is run.
         """
         _output_dir = Path().absolute() if output_dir is None else Path(output_dir).absolute()
-        
+
         # Check if the files exist, if so crash out
         file_suffix = (
             Path(self.filename).name if parset['cube']['extraction']['output_filename'] is None
@@ -331,7 +331,7 @@ class DataCube(datamodel.DataContainer):
             fwhm=parset['cube']['extraction']['fwhm'],
             skysub_resid=parset['cube']['extraction']['skysub_resid'],
             snr_thresh=parset['cube']['extraction']['snr_thresh'], manual_position=manual_position,
-            boxcar_radius=parset['cube']['extraction']['boxcar_radius'], 
+            boxcar_radius=parset['cube']['extraction']['boxcar_radius'],
             opt_prof_method=parset['cube']['extraction']['opt_prof_method'],
             spectrograph=self.spectrograph, show_qa=debug
         )
@@ -429,7 +429,7 @@ class DARcorrection:
         return dar_full
 
     # TODO Make parangle and cosdec arguments to this function rather than class attributes
-    # required upon init, since they are not required to calculate the DAR dispersion, only 
+    # required upon init, since they are not required to calculate the DAR dispersion, only
     def correction(self, waves):
         """
         Main routine that computes the DAR correction for both right ascension and declination.
@@ -591,7 +591,7 @@ class CoAdd3D:
 
         # TODO: Only need one of show or debug probably
         self.show = show
-        self.debug = debug 
+        self.debug = debug
 
         # Check the input
         for name, var in zip(
@@ -680,6 +680,11 @@ class CoAdd3D:
         self.all_sci, self.all_ivar, self.all_wave, self.all_slitid, self.all_wghts = [], [], [], [], []
         self.all_tilts, self.all_slits, self.all_align, self.all_header = [], [], [], []
         self.all_wcs, self.all_ra, self.all_dec, self.all_deltapix, self.all_dar = [], [], [], [], []
+        # - The spatial flexure of each frame (None if no spatial flexure)
+        self.all_spat_flexure = []
+        # - Use the initial (instead of tweaked) slit edges?  This must be the
+        #   same for all steps of the datacube construction.
+        self.initial_slits = False
         # - Weights to use when combining cubes
         self.weights = np.ones(self.numfiles)
 
@@ -742,12 +747,16 @@ class CoAdd3D:
         # Load the default scaleimg frame for the scale correction
         self.scalecorr_default = "none"
         self.relScaleImgDef = np.array([1])
+        # The slits and spatial flexure of the default scale correction frame
+        self.relScaleSlitsDef, self.relScaleFlexDef = None, None
         self.set_default_scalecorr()
 
         # Load the default sky frame to be used for sky subtraction
         self.skysub_default = "image"
         # This is the default behaviour (i.e. to use the "image" for the sky subtraction)
         self.skyImgDef, self.skySclDef = None, None
+        # The slits and spatial flexure of the default sky frame
+        self.skySlitsDef, self.skyFlexDef = None, None
         self.set_default_skysub()
 
     @staticmethod
@@ -937,7 +946,50 @@ class CoAdd3D:
                     self.scalecorr_default = "none"
                 else:
                     self.relScaleImgDef = spec2DObj.scaleimg
+                    self.relScaleSlitsDef = spec2DObj.slits
+                    self.relScaleFlexDef = spec2DObj.sci_spat_flexure
                     self.scalecorr_default = self.cubepar['scale_corr']
+
+    def remap_frame_image(self, img, spec2DObj, src_slits, src_spat_flexure, label):
+        """
+        Remap an image derived from another frame (e.g. a sky frame) to the
+        slits of a science frame, accounting for the spatial flexure of both
+        frames.
+
+        See :func:`~pypeit.core.flexure.spat_flexure_remap`.
+
+        Args:
+            img (`numpy.ndarray`_):
+                The image to remap, derived from another frame.  If this is
+                not a 2D image (e.g. a single value that is applied to all
+                pixels), it is returned unchanged.
+            spec2DObj (:class:`~pypeit.spec2dobj.Spec2DObj`):
+                2D PypeIt spectra object of the science frame.
+            src_slits (:class:`~pypeit.slittrace.SlitTraceSet`):
+                The slits of the frame from which ``img`` was derived.
+            src_spat_flexure (`numpy.ndarray`_):
+                The spatial flexure of the frame from which ``img`` was
+                derived, with shape (nslits, 2).  Can be None, if no spatial
+                flexure was determined.
+            label (:obj:`str`):
+                A description of the image, used in the log messages.
+
+        Returns:
+            `numpy.ndarray`_: The remapped image.
+        """
+        if img.ndim != 2:
+            return img
+        slits = spec2DObj.slits
+        if src_slits is None or src_slits.nslits != slits.nslits \
+                or (src_slits.nspec, src_slits.nspat) != (slits.nspec, slits.nspat) \
+                or img.shape != (slits.nspec, slits.nspat):
+            log.warning(f'The slits of the {label} frame do not match the slits of the science '
+                        'frame.  The difference in spatial flexure between the two frames '
+                        'cannot be accounted for.')
+            return img
+        return flexure.spat_flexure_remap(img, slits, spat_flexure=spec2DObj.sci_spat_flexure,
+                                          src_slits=src_slits, src_spat_flexure=src_spat_flexure,
+                                          initial=self.initial_slits)
 
     def get_current_scalecorr(self, spec2DObj, scalecorr=None):
         """
@@ -965,22 +1017,31 @@ class CoAdd3D:
             this_scalecorr is a :obj:`str` that describes the scale correction
             mode to be used (see scalecorr description) and relScaleImg is a
             `numpy.ndarray`_ (2D, same shape as science frame) containing the
-            relative spectral scaling to apply to the science frame.
+            relative spectral scaling to apply to the science frame.  If the
+            relative scaling is derived from a different frame, it is remapped
+            to the slits of the science frame, accounting for the spatial
+            flexure of both frames (see :func:`remap_frame_image`).
         """
         this_scalecorr = self.scalecorr_default
         relScaleImg = self.relScaleImgDef.copy()
+        # The slits and spatial flexure of the frame used for the scale
+        # correction (None if no remapping is needed)
+        src_slits, src_flexure = self.relScaleSlitsDef, self.relScaleFlexDef
         if scalecorr is not None:
             if scalecorr.lower() == 'default':
                 if self.scalecorr_default == "image":
                     relScaleImg = spec2DObj.scaleimg
+                    src_slits, src_flexure = None, None
                     this_scalecorr = "image"  # Use the current spec2d for the relative spectral illumination scaling
                 else:
                     this_scalecorr = self.scalecorr_default  # Use the default value for the scale correction
             elif scalecorr.lower() == 'image':
                 relScaleImg = spec2DObj.scaleimg
+                src_slits, src_flexure = None, None
                 this_scalecorr = "image"  # Use the current spec2d for the relative spectral illumination scaling
             elif scalecorr.lower() == 'none':
                 relScaleImg = np.array([1])
+                src_slits, src_flexure = None, None
                 this_scalecorr = "none"  # Don't do relative spectral illumination scaling
             else:
                 # Load a user specified frame for sky subtraction
@@ -996,6 +1057,7 @@ class CoAdd3D:
                     raise PypeItError("Could not load skysub image from spec2d file:\n" + scalecorr)
                 else:
                     relScaleImg = spec2DObj_scl.scaleimg
+                    src_slits, src_flexure = spec2DObj_scl.slits, spec2DObj_scl.sci_spat_flexure
                     this_scalecorr = scalecorr
         if this_scalecorr == "none":
             log.info("Relative spectral illumination correction will not be performed.")
@@ -1004,6 +1066,10 @@ class CoAdd3D:
                 "Using the following frame for the relative spectral illumination correction:\n"
                 + this_scalecorr
             )
+        if src_slits is not None:
+            # Account for the spatial flexure of both frames
+            relScaleImg = self.remap_frame_image(relScaleImg, spec2DObj, src_slits, src_flexure,
+                                                 'scale correction')
         # Return the scaling correction for this frame
         return this_scalecorr, relScaleImg
 
@@ -1035,6 +1101,8 @@ class CoAdd3D:
                 self.skyImgDef = spec2DObj.sciimg / skysub_exptime  # Sky counts/second
                 # self.skyImgDef = spec2DObj.skymodel/skysub_exptime  # Sky counts/second
                 self.skySclDef = spec2DObj.scaleimg
+                self.skySlitsDef = spec2DObj.slits
+                self.skyFlexDef = spec2DObj.sci_spat_flexure
 
     def get_current_skysub(self, spec2DObj, exptime, opts_skysub=None):
         """
@@ -1064,33 +1132,43 @@ class CoAdd3D:
             sky frame to be subtracted from the science frame, and skyScl is a
             `numpy.ndarray`_ (2D, same shape as science frame) containing the
             relative spectral scaling that has been applied to the returned sky
-            frame.
+            frame.  If the sky frame is a different frame, the returned images
+            are remapped to the slits of the science frame, accounting for the
+            spatial flexure of both frames (see :func:`remap_frame_image`).
         """
         this_skysub = self.skysub_default
+        # The slits and spatial flexure of the sky frame (None if no remapping
+        # is needed)
+        src_slits, src_flexure = None, None
         if self.skysub_default == "image":
             skyImg = spec2DObj.skymodel
             skyScl = spec2DObj.scaleimg
         else:
             skyImg = self.skyImgDef.copy() * exptime
             skyScl = self.skySclDef.copy()
+            src_slits, src_flexure = self.skySlitsDef, self.skyFlexDef
         # See if there's any changes from the default behaviour
         if opts_skysub is not None:
             if opts_skysub.lower() == 'default':
                 if self.skysub_default == "image":
                     skyImg = spec2DObj.skymodel
                     skyScl = spec2DObj.scaleimg
+                    src_slits, src_flexure = None, None
                     this_skysub = "image"  # Use the current spec2d for sky subtraction
                 else:
                     skyImg = self.skyImgDef.copy() * exptime
-                    skyScl = self.skySclDef.copy() * exptime
+                    skyScl = self.skySclDef.copy()
+                    src_slits, src_flexure = self.skySlitsDef, self.skyFlexDef
                     this_skysub = self.skysub_default  # Use the global value for sky subtraction
             elif opts_skysub.lower() == 'image':
                 skyImg = spec2DObj.skymodel
                 skyScl = spec2DObj.scaleimg
+                src_slits, src_flexure = None, None
                 this_skysub = "image"  # Use the current spec2d for sky subtraction
             elif opts_skysub.lower() == 'none':
                 skyImg = np.array([0.0])
                 skyScl = np.array([1.0])
+                src_slits, src_flexure = None, None
                 this_skysub = "none"  # Don't do sky subtraction
             else:
                 # Load a user specified frame for sky subtraction
@@ -1105,18 +1183,28 @@ class CoAdd3D:
                     )
                 skyImg = spec2DObj_sky.sciimg * exptime / skysub_exptime  # Sky counts
                 skyScl = spec2DObj_sky.scaleimg
+                src_slits, src_flexure = spec2DObj_sky.slits, spec2DObj_sky.sci_spat_flexure
                 this_skysub = opts_skysub  # User specified spec2d for sky subtraction
         if this_skysub == "none":
             log.info("Sky subtraction will not be performed.")
         else:
             log.info("Using the following frame for sky subtraction:\n" + this_skysub)
+        if src_slits is not None:
+            # Account for the spatial flexure of both frames
+            skyImg = self.remap_frame_image(skyImg, spec2DObj, src_slits, src_flexure, 'sky')
+            skyScl = self.remap_frame_image(skyScl, spec2DObj, src_slits, src_flexure, 'sky')
         # Return the skysub params for this frame
         return this_skysub, skyImg, skyScl
 
-    def add_grating_corr(self, flatfile, waveimg, slits, spat_flexure=None):
+    def add_grating_corr(self, flatfile, waveimg, slits, initial=True, spat_flexure=None):
         """
         Calculate the relative spectral sensitivity correction due to grating
         shifts with the input frames.
+
+        The relative spectral sensitivity is calculated in the frame of the
+        pixel flat, using its own spatial flexure and wavelength image, so that
+        the result (which is calculated once for each flatfield frame) does not
+        depend on the science frame.
 
         Parameters
         ----------
@@ -1125,11 +1213,21 @@ class CoAdd3D:
             spectral sensitivity of the corresponding science frame.
         waveimg : `numpy.ndarray`_
             2D image (same shape as the science frame) indicating the wavelength
-            of each detector pixel.
+            of each detector pixel.  This is only used if the flatfield frame
+            does not contain a wavelength image, in which case it is remapped
+            to the spatial flexure of the pixel flat.
         slits : :class:`~pypeit.slittrace.SlitTraceSet`
             Class containing information about the slits
-        spat_flexure : :obj:`float`, optional:
-            Spatial flexure in pixels
+        initial : bool, optional
+            If True, the initial slits will be used.
+        spat_flexure: `numpy.ndarray`_, optional
+            The spatial flexure of the science frame (corresponding to
+            ``waveimg``).  This is only used to remap ``waveimg`` to the
+            spatial flexure of the pixel flat (see ``waveimg``).  The shape of
+            the array should be (nslits, 2), where the first column is the shift
+            of the left edge of each slit and the second column is the shift of
+            the right edge of each slit.
+
         """
         # Check if the Flat file exists
         if not Path(flatfile).is_file():
@@ -1140,22 +1238,41 @@ class CoAdd3D:
             log.info("Calculating relative sensitivity for grating correction")
             # Load the Flat file
             flatimages = flatfield.FlatImages.from_file(flatfile, chk_version=self.chk_version)
-            total_illum = flatimages.fit2illumflat(slits, finecorr=False, frametype='illum', spat_flexure=spat_flexure) * \
-                          flatimages.fit2illumflat(slits, finecorr=True, frametype='illum', spat_flexure=spat_flexure)
+            # The spatial flexure and wavelength image of the pixel flat
+            flat_spat_flexure = flatimages.pixelflat_spat_flexure
+            flat_waveimg = flatimages.pixelflat_waveimg
+            if flat_waveimg is None:
+                log.warning(f"The flatfield frame {flatfile} does not contain a wavelength image. "
+                            "The wavelength image of the science frame will be used for the "
+                            "grating correction.")
+                # Evaluate the wavelength image of the science frame at the
+                # spatial flexure of the pixel flat, and only keep the pixels
+                # on the slits of the pixel flat.
+                flat_waveimg = flexure.spat_flexure_remap(waveimg, slits,
+                                                          spat_flexure=flat_spat_flexure,
+                                                          src_spat_flexure=spat_flexure,
+                                                          initial=initial)
+                flat_slitimg = slits.slit_img(pad=0, initial=initial,
+                                              spat_flexure=flat_spat_flexure)
+                flat_waveimg[flat_slitimg == -1] = 0.0
+            total_illum = flatimages.fit2illumflat(slits, finecorr=False, frametype='illum',
+                                                   spat_flexure=flat_spat_flexure) * \
+                          flatimages.fit2illumflat(slits, finecorr=True, frametype='illum',
+                                                   spat_flexure=flat_spat_flexure)
             flatframe = flatimages.pixelflat_raw / total_illum
             if flatimages.pixelflat_spec_illum is None:
                 # Calculate the relative scale
-                scale_model = flatfield.illum_profile_spectral(flatframe, waveimg, slits,
+                scale_model = flatfield.illum_profile_spectral(flatframe, flat_waveimg, slits,
                                                                slit_illum_ref_idx=self.flatpar['slit_illum_ref_idx'],
                                                                model=None, trim=self.flatpar['slit_trim'],
-                                                               flexure=spat_flexure,
+                                                               initial=initial, spat_flexure=flat_spat_flexure,
                                                                smooth_npix=self.flatpar['slit_illum_smooth_npix'])
             else:
                 log.info("Using relative spectral illumination from FlatImages")
                 scale_model = flatimages.pixelflat_spec_illum
             # Extract a quick spectrum of the flatfield
-            wave_spl, spec_spl = extract.extract_hist_spectrum(waveimg, flatframe*utils.inverse(scale_model),
-                                                               gpm=waveimg != 0, bins=slits.nspec)
+            wave_spl, spec_spl = extract.extract_hist_spectrum(flat_waveimg, flatframe*utils.inverse(scale_model),
+                                                               gpm=flat_waveimg != 0, bins=slits.nspec)
             # Store the result
             self.flat_splines[flatfile] = interp1d(wave_spl, spec_spl, kind='linear', bounds_error=False, fill_value="extrapolate")
             self.flat_splines[flatfile + "_wave"] = wave_spl.copy()
@@ -1212,10 +1329,12 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                          ra_offsets=ra_offsets, dec_offsets=dec_offsets, spectrograph=spectrograph, det=det,
                          overwrite=overwrite, show=show, debug=debug)
         self.mnmx_wv = None  # Will be used to store the minimum and maximum wavelengths of every slit and frame.
+        # Always use initial slits for SlicerIFU. Initial slits are relative to maximum flux gradient
+        self.initial_slits = True
         self._spatscale = np.zeros((self.numfiles, 2))  # index 0, 1 = pixel scale, slicer scale
         self._specscale = np.zeros(self.numfiles)
 
-    def get_alignments(self, spec2DObj, slits, spat_flexure=None):
+    def get_alignments(self, spec2DObj, slits, initial=True, spat_flexure=None):
         """
         Generate and return the spline interpolation fitting functions to be used for
         the alignment frames, as part of the astrometric correction.
@@ -1226,8 +1345,14 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             2D PypeIt spectra object.
         slits : :class:`~pypeit.slittrace.SlitTraceSet`
             Class containing information about the slits
-        spat_flexure: :obj:`float`, optional
-            Spatial flexure in pixels
+        initial : bool, optional
+            If True, use the initial slit edges (i.e. those that are relative to the maximum flux gradient)
+        spat_flexure: `numpy.ndarray`_, optional
+            If provided, this is the shift, in spatial pixels, to apply to each slit.
+            This is used to correct for spatial flexure. The shape of the array should
+            be (nslits, 2), where the first column is the shift to apply to the left edge
+            of each slit and the second column is the shift to apply to the right edge of
+            each slit.
 
         Returns
         -------
@@ -1252,14 +1377,69 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             log.info("Using slit edges for astrometric transform")
         # If nothing better was provided, use the slit edges
         if alignments is None:
-            left, right, _ = slits.select_edges(flexure=spat_flexure)
+            left, right, _ = slits.select_edges(initial=initial, spat_flexure=spat_flexure)
             locations = [0.0, 1.0]
             traces = np.append(left[:, None, :], right[:, None, :], axis=1)
         else:
             locations = self.par['calibrations']['alignment']['locations']
-            traces = alignments.traces
+            traces = self.shift_alignment_traces(alignments.traces, locations, spat_flexure,
+                                                 align_spat_flexure=alignments.spat_flexure)
         log.info("Generating alignment splines")
         return alignframe.AlignmentSplines(traces, locations, spec2DObj.tilts)
+
+    @staticmethod
+    def shift_alignment_traces(traces, locations, spat_flexure, align_spat_flexure=None):
+        """
+        Shift the alignment traces to account for the spatial flexure of a
+        frame.
+
+        The alignment traces are measured on the alignment frame.  To use them
+        for a frame with a different spatial flexure, each trace is shifted by
+        the *relative* spatial flexure between the frame and the alignment frame,
+        linearly interpolated between the left and right slit edges, using the
+        fractional location of the trace along the slit.
+
+        Parameters
+        ----------
+        traces : `numpy.ndarray`_
+            The alignment traces, with shape (nspec, ntrace, nslits).
+        locations : `numpy.ndarray`_, list
+            The fractional location of each alignment trace along the slit
+            (0 is the left edge, 1 is the right edge), with length ntrace.
+        spat_flexure : `numpy.ndarray`_
+            The spatial flexure of the frame relative to the slits, with
+            shape (nslits, 2); see
+            :func:`~pypeit.slittrace.SlitTraceSet.select_edges`.  If None, the
+            frame is assumed to have no spatial flexure.
+        align_spat_flexure : `numpy.ndarray`_, optional
+            The spatial flexure of the alignment frame relative to the slits,
+            with shape (nslits, 2).  If None, the alignment frame is assumed to
+            have no spatial flexure (e.g., if the spatial flexure of the
+            alignment frames was not determined, which is the default).
+
+        Returns
+        -------
+        `numpy.ndarray`_
+            The shifted alignment traces, with shape (nspec, ntrace, nslits).
+        """
+        if spat_flexure is None and align_spat_flexure is None:
+            return traces
+        nslits = traces.shape[2]
+        _spat_flexure = np.zeros((nslits, 2)) if spat_flexure is None else spat_flexure
+        _align_flexure = np.zeros((nslits, 2)) if align_spat_flexure is None else align_spat_flexure
+        _locations = np.atleast_1d(locations).astype(float)
+        if _spat_flexure.shape != (nslits, 2) or _align_flexure.shape != (nslits, 2) \
+                or _locations.size != traces.shape[1]:
+            raise PypeItError(f'Spatial flexure shapes {_spat_flexure.shape} and '
+                              f'{_align_flexure.shape}, and/or number of alignment locations '
+                              f'({_locations.size}) are inconsistent with the alignment traces '
+                              f'shape {traces.shape}.')
+        # Relative spatial flexure between the frame and the alignment frame
+        rel_flexure = _spat_flexure - _align_flexure
+        # Shift of each trace in each slit, with shape (ntrace, nslits)
+        shift = rel_flexure[None, :, 0] \
+                    + _locations[:, None] * (rel_flexure[None, :, 1] - rel_flexure[None, :, 0])
+        return traces + shift[None, :, :]
 
     def load_data(self):
         """
@@ -1288,6 +1468,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         * self.all_wghts
         * self.all_tilts
         * self.all_slits
+        * self.all_spat_flexure
         * self.all_align
         * self.all_wcs
         * self.all_ra
@@ -1301,7 +1482,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             spec2DObj = spec2dobj.Spec2DObj.from_file(fil, self.detname,
                                                       chk_version=self.chk_version)
             detector = spec2DObj.detector
-            spat_flexure = None  # spec2DObj.sci_spat_flexure
+            spat_flexure = spec2DObj.sci_spat_flexure
+            initial = self.initial_slits
 
             # Load the header
             hdr0 = spec2DObj.head0
@@ -1315,7 +1497,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             # Initialise the slit edges
             log.info("Constructing slit image")
             slits = spec2DObj.slits
-            slitid_img = slits.slit_img(pad=0, flexure=spat_flexure)
+            slitid_img = slits.slit_img(pad=0, initial=initial, spat_flexure=spat_flexure)
 
             # The order of operations below proceeds as follows:
             #  (1) Get science image
@@ -1454,7 +1636,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             # Generate the alignment splines, and then retrieve images of the RA
             # and Dec of every pixel, and the number of spatial pixels in each
             # slit
-            alignSplines = self.get_alignments(spec2DObj, slits, spat_flexure=spat_flexure)
+            alignSplines = self.get_alignments(spec2DObj, slits, initial=initial, spat_flexure=spat_flexure)
 
             # Grab the WCS of this frame, and generate the RA and Dec images
             # NOTE: These RA and Dec images are only used to setup the WCS of
@@ -1466,7 +1648,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 spec2DObj.head0, slits, detector.platescale, crval_wv, cd_wv
             ))
             ra_img, dec_img, delta_pix = slits.get_radec_image(
-                self.all_wcs[ff], alignSplines, spec2DObj.tilts, flexure=spat_flexure
+                self.all_wcs[ff], alignSplines, spec2DObj.tilts,
+                initial=initial, spat_flexure=spat_flexure
             )
 
             # Extract wavelength and delta wavelength arrays from the images
@@ -1516,7 +1699,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             if self.grating_corr[ff] is not None:
                 # Setup the grating correction
                 flatfile = self.grating_corr[ff]
-                self.add_grating_corr(flatfile, waveimg, slits, spat_flexure=spat_flexure)
+                self.add_grating_corr(flatfile, waveimg, slits, initial=initial, spat_flexure=spat_flexure)
                 # Calculate the grating correction
                 gratcorr_sort = datacube.correct_grating_shift(
                     wave_sort, self.flat_splines[flatfile + "_wave"], self.flat_splines[flatfile],
@@ -1588,19 +1771,20 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             self.all_wghts.append(wghts.copy())
             self.all_tilts.append(spec2DObj.tilts)
             self.all_slits.append(slits)
+            self.all_spat_flexure.append(spat_flexure)
             self.all_align.append(alignSplines)
             self.all_dar.append(darcorr)
 
     def run_align(self, fwhm=1.5, show_qa=False):
         """
-        This routine aligns multiple cubes by using manual input offsets or 
+        This routine aligns multiple cubes by using manual input offsets or
         by cross-correlating white light images.
-        
+
         Parameters
         ----------
         fwhm : float, optional
             The full-width half-maximum of the PSF in arcseconds. This is used
-            only if the offsets are computed from point source positions. 
+            only if the offsets are computed from point source positions.
         show_qa : bool, optional
             If True, show QA plots for point source alignment.
 
@@ -1609,7 +1793,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         ra_offsets : :class:`numpy.ndarray`
             A new set of RA values that have been aligned
         dec_offsets : :class:`numpy.ndarray`
-            A new set of Dec values that have been aligned            
+            A new set of Dec values that have been aligned
         """
         # Grab cos(dec) for convenience
         cosdec = np.cos(np.mean(self.ifu_dec[0]) * np.pi / 180.0)
@@ -1651,7 +1835,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 slitid_img_gpm, self.all_wghts, self.all_wcs,
                 self.all_tilts, self.all_slits, self.all_align, self.all_dar,
                 ra_offsets, dec_offsets, spec_subpixel=self.spec_subpixel,
-                spat_subpixel=self.spat_subpixel, slice_subpixel=self.slice_subpixel)
+                spat_subpixel=self.spat_subpixel, slice_subpixel=self.slice_subpixel,
+                spat_flexure=self.all_spat_flexure, initial=self.initial_slits)
             if reference_image is None:
                 # ref_idx will be the index of the cube with the highest S/N
                 ref_idx = np.argmax(self.weights)
@@ -1724,6 +1909,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                                        False, native=True, idx=ff+1)
             # Get the coordinate bounds
             wave0 = self.all_wave[ff][self.all_wave[ff] != 0.0].min()
+            # NOTE: As for the WCS (see the get_wcs method of the spectrograph),
+            # the slit length does not include the spatial flexure of the frame
             slitlength = int(np.round(np.median(self.all_slits[ff].get_slitlengths(median=True))))
             numwav = int((np.max(self.all_wave[ff]) - wave0) / self._specscale[ff])
             bins = self.spectrograph.get_datacube_bins(slitlength, self.all_deltapix[ff], numwav)
@@ -1745,13 +1932,17 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                                     spat_subpixel=self.spat_subpixel,
                                                     slice_subpixel=self.slice_subpixel,
                                                     skip_subpix_weights=self.skip_subpix_weights,
-                                                    correct_dar=self.correct_dar)
+                                                    correct_dar=self.correct_dar,
+                                                    spat_flexure=self.all_spat_flexure[ff],
+                                                    initial=self.initial_slits)
                 # Prepare the header
                 hdr = self.all_wcs[ff].to_header()
                 if self.fluxcal:
                     hdr['FLUXUNIT'] = (flux_calib.PYPEIT_FLUX_SCALE, "Flux units -- erg/s/cm^2/Angstrom/arcsec^2")
                 else:
                     hdr['FLUXUNIT'] = (1, "Flux units -- counts/s/Angstrom/arcsec^2")
+                # Record the spatial flexure of the input frame
+                datacube.spat_flexure_header(hdr, self.all_spat_flexure[ff], ff+1)
                 # Write out the datacube
                 specname = self.specname.replace("_", " ")
                 log.info(f"Saving datacube at the native sampling of {specname}: {outfile}")
@@ -1793,13 +1984,13 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             return [np.ones_like(sci) for sci in self.all_sci]
         else:
             # Calculate the relative spectral weights of all pixels
-            
+
             if self.cubepar['weights_init_obj_pos'] is not None and len(self.cubepar['weights_init_obj_pos']) > 0:
                 manual_dict= ManualCubeExtractionObj.parse(self.cubepar['weights_init_obj_pos']).to_dict()
                 init_obj_position = (manual_dict['spatx'][0], manual_dict['spaty'][0])
-            else: 
+            else:
                 init_obj_position = None
-            
+
             return datacube.compute_weights_frompix(
                 self.all_ra, self.all_dec, self.all_wave, self.all_sci, self.all_ivar,
                 self.all_slitid, self._dspat, self._dwv, self.mnmx_wv, self.all_wghts,
@@ -1814,14 +2005,15 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 reference_image=self.cubepar['reference_image'],
                 correct_dar=self.correct_dar,
                 specname=self.specname, init_obj_position=init_obj_position,
-                show_qa=show_qa)
+                show_qa=show_qa, spat_flexure=self.all_spat_flexure,
+                initial=self.initial_slits)
 
     def make_datacubes(self):
         """
         Make individual datacubes (and/or) a combined datacube on a single WCS.
 
         .. todo::
-            
+
             Since the images are aligned, we should be using the full cube to
             compute the whitelight image since we do that anyway below. So
             basically the weight computation should be moved just before the
@@ -1831,7 +2023,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 #. Performing an intiial sigma clipping of the cubes.
 
                 #. Computing an initial preliminary stacked cube.
-                
+
                 #. Generate a whitelight image from the preliminary stacked
                    cube.
 
@@ -1842,13 +2034,13 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                    should be an option to use the optimal extraction method
                    (extract_point_source) or one can use the single pixel
                    computation (extended sources) in compute_weights.
-                
+
                 #. Re-combined the cubes using these weights, again performing
                    the final round of sigma clipping
 
                 #. Write out the individual cubes with their sigma clipped
                    pixels masked (?)
-                
+
                 #. Write out the final combined cube.
 
         """
@@ -1902,7 +2094,9 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                                 spat_subpixel=self.spat_subpixel,
                                                 slice_subpixel=self.slice_subpixel,
                                                 skip_subpix_weights=self.skip_subpix_weights,
-                                                correct_dar=self.correct_dar)
+                                                correct_dar=self.correct_dar,
+                                                spat_flexure=self.all_spat_flexure[ff],
+                                                initial=self.initial_slits)
             if self.combine:
                 # If we are combining cubes, then we need to save these for the final combination
                 # with sigma clipping below, otherwise no need to store these and use more memory
@@ -1928,10 +2122,13 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     self.blaze_wave, self.blaze_spec, whitelight_range=np.asarray(wl_wvrng),
                     sensfunc=sensfunc, fluxed=self.fluxcal
                 )
+                # Record the spatial flexure of the input frame
+                hdr = cubehdr.copy()
+                datacube.spat_flexure_header(hdr, self.all_spat_flexure[ff], ff+1)
                 # Write the cube to file
                 final_cube.to_file(
                     str(self.scidir / outfile), primary_hdr=self.all_header[ff],
-                    hdr=cubehdr, overwrite=self.overwrite
+                    hdr=hdr, overwrite=self.overwrite
                 )
                 if self.cubepar['save_whitelight']:
                     ivarcube = final_cube.ivar
@@ -1964,10 +2161,14 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 self.specname, self.blaze_wave, self.blaze_spec, sensfunc=sensfunc,
                 whitelight_range=np.asarray(wl_wvrng), fluxed=self.fluxcal
             )
+            # Record the spatial flexure of all input frames
+            hdr = cubehdr.copy()
+            for ii in range(self.numfiles):
+                datacube.spat_flexure_header(hdr, self.all_spat_flexure[ii], ii+1)
             # Write out the cube to file
             final_combined_cube.to_file(
                 str(self.scidir / combined_outfile), primary_hdr=self.all_header[ff],
-                hdr=cubehdr, overwrite=self.overwrite
+                hdr=hdr, overwrite=self.overwrite
             )
             # Make combined white light image if whitelight is requested
             if self.cubepar['save_whitelight']:
@@ -2012,8 +2213,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         # Loop through all frames and load the data
         self.load_data()
 
-        # If we are combining frames, check that alignment has been requested. 
-        # If not, then print out a warning. 
+        # If we are combining frames, check that alignment has been requested.
+        # If not, then print out a warning.
         if self.combine and not self.align and self.numfiles!=1:
             log.warning(
                 "Combining frames without aligning them.  Make sure that you know what you are "

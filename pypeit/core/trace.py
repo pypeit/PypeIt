@@ -12,11 +12,12 @@ accessible by the docstring of all modules?
 .. include:: ../include/links.rst
 """
 from collections import Counter
+import warnings
 
 from IPython import embed
 
 import numpy as np
-from scipy import ndimage, signal, optimize
+from scipy import ndimage, signal, optimize, special
 from matplotlib import pyplot as plt
 
 from astropy.stats import sigma_clipped_stats, sigma_clip
@@ -1541,6 +1542,584 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
             npeak = cen.shape[1]
 
     return fit, cen, err, msk, npeak
+
+
+def _ndtr_antideriv(t):
+    """
+    Antiderivative of the standard normal cumulative distribution function.
+
+    Parameters
+    ----------
+    t : `numpy.ndarray`_
+        Argument.
+
+    Returns
+    -------
+    `numpy.ndarray`_
+        The antiderivative evaluated at ``t``.
+    """
+    return t * special.ndtr(t) + np.exp(-0.5 * t * t) / np.sqrt(2 * np.pi)
+
+
+def _edge_model(u, cen, sig, side):
+    """
+    Pixel-integrated model of a slit edge.
+
+    The edge is a step function convolved with a Gaussian (i.e. an error
+    function), averaged over each pixel.
+
+    Parameters
+    ----------
+    u : `numpy.ndarray`_
+        Pixel centres, relative to the nominal position of the edge.
+    cen : float
+        Offset of the edge relative to its nominal position.
+    sig : float
+        Gaussian width of the edge, in pixels.
+    side : int
+        +1 for a left edge (the flux increases with ``u``), -1 for a right edge
+        (the flux decreases with ``u``).
+
+    Returns
+    -------
+    `numpy.ndarray`_
+        The model (between 0 and 1) evaluated for each pixel.
+    """
+    return side * sig * (_ndtr_antideriv(side * (u + 0.5 - cen) / sig)
+                         - _ndtr_antideriv(side * (u - 0.5 - cen) / sig))
+
+
+def facing_edges(left, right, cross=1.):
+    r"""
+    Find the facing edges of the neighbouring slits.
+
+    For each left edge, this is the closest right edge to its left (i.e. the
+    right edge of the neighbouring slit on the left), and, for each right
+    edge, the closest left edge to its right.  The edges are compared using
+    their median spatial positions.  The left and right edges do not need to
+    be paired into slits.
+
+    Parameters
+    ----------
+    left : `numpy.ndarray`_
+        Left edges, with shape :math:`(N_{\rm spec}, N_{\rm left})`.
+    right : `numpy.ndarray`_
+        Right edges, with shape :math:`(N_{\rm spec}, N_{\rm right})`.
+    cross : float, optional
+        A neighbouring edge can be on the wrong side of the edge by up to this
+        number of pixels (e.g. for slits that touch).
+
+    Returns
+    -------
+    left_nbr : `numpy.ndarray`_
+        For each left edge, the facing (right) edge of the neighbouring slit
+        on the left; NaN if there is none.  Same shape as ``left``.
+    right_nbr : `numpy.ndarray`_
+        For each right edge, the facing (left) edge of the neighbouring slit
+        on the right; NaN if there is none.  Same shape as ``right``.
+    """
+    left = np.asarray(left, dtype=float)
+    right = np.asarray(right, dtype=float)
+    left_nbr = np.full(left.shape, np.nan)
+    right_nbr = np.full(right.shape, np.nan)
+    if left.shape[1] == 0 or right.shape[1] == 0:
+        return left_nbr, right_nbr
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', category=RuntimeWarning)
+        lmed = np.nanmedian(left, axis=0)
+        rmed = np.nanmedian(right, axis=0)
+    for i in range(left.shape[1]):
+        cand = np.where(rmed < lmed[i] + cross)[0]
+        if cand.size > 0:
+            left_nbr[:, i] = right[:, cand[np.argmax(rmed[cand])]]
+    for i in range(right.shape[1]):
+        cand = np.where(lmed > rmed[i] - cross)[0]
+        if cand.size > 0:
+            right_nbr[:, i] = left[:, cand[np.argmin(lmed[cand])]]
+    return left_nbr, right_nbr
+
+
+REFINE_EDGE_SIG_RANGE = (0.2, 5.0)
+"""Allowed range of the Gaussian width (pixels) of the edge model of :func:`refine_edge`."""
+
+REFINE_EDGE_MAX_GRAD = 0.2
+"""Maximum (absolute) gradient of the slit illumination in the edge model of :func:`refine_edge`."""
+
+REFINE_EDGE_MIN_SIGNIFICANCE = 10.
+"""
+Minimum significance (in standard deviations) of the detection of an edge by
+:func:`refine_edge`; see :func:`_refine_edge_significance`.
+"""
+
+REFINE_EDGE_MAX_ERROR = 0.1
+"""Maximum uncertainty (pixels) of the position of an edge refined by :func:`refine_edge`."""
+
+
+def _refine_edge_failed(reason, l_or_r, return_success):
+    """
+    Print a warning that an edge cannot be refined, and return the result of
+    :func:`refine_edge` for this case (i.e. no shift, so the input edge is kept).
+
+    Parameters
+    ----------
+    reason : str
+        Why the edge cannot be refined.
+    l_or_r : str
+        Which edge ('left', 'right', 'l' or 'r').
+    return_success : bool
+        If True, also return the success flag (False).
+
+    Returns
+    -------
+    float or tuple
+        0, or ``(0., False)`` if ``return_success`` is True.
+    """
+    log.warning(f'{reason} The {l_or_r} edge is not refined (the input edge is kept).')
+    return (0., False) if return_success else 0.
+
+
+def _refine_edge_rss(u, fnorm, wgt, row_wgt, side, cen, sig, grad, sep=None, cen_nbr=0.):
+    r"""
+    Fit the model of a slit edge to the (normalised) flux around the edge in
+    each spectral row, for :func:`refine_edge`.
+
+    The model of each row is a linear function of the edge model (see
+    :func:`_edge_model`, multiplied by a linear function to allow for a gradient
+    of the slit illumination), i.e. with a free amplitude and background, plus,
+    if ``sep`` is provided, a free amplitude times the model of the facing edge
+    of the neighbouring slit.
+
+    Parameters
+    ----------
+    u : `numpy.ndarray`_
+        Pixel centres relative to the input edge, with shape
+        :math:`(N_{\rm row}, N_{\rm pix})`.
+    fnorm : `numpy.ndarray`_
+        Normalised flux of each pixel (0 for masked pixels), with the same
+        shape as ``u``.
+    wgt : `numpy.ndarray`_
+        Weight of each pixel (1 for good pixels, 0 for masked pixels), with the
+        same shape as ``u``.
+    row_wgt : `numpy.ndarray`_
+        Weight of each row, with shape :math:`(N_{\rm row},)`.
+    side : int
+        +1 for a left edge, -1 for a right edge.
+    cen : float
+        Offset of the edge relative to the input edge.
+    sig : float
+        Gaussian width of the edge, in pixels.
+    grad : float
+        Gradient of the slit illumination, per pixel.
+    sep : `numpy.ndarray`_, optional
+        Separation of the facing edge of the neighbouring slit from the input
+        edge in each row.  If None, the neighbouring slit is not modelled.
+    cen_nbr : float, optional
+        Offset of the facing edge of the neighbouring slit relative to its
+        input position.  Only used if ``sep`` is provided.
+
+    Returns
+    -------
+    rss : float
+        Weighted residual sum of squares of all rows.
+    amp : `numpy.ndarray`_
+        Amplitude of the edge in each row that could be fit.
+    """
+    nwgt = np.sum(wgt, axis=1)
+    sy = np.sum(wgt * fnorm, axis=1)
+    syy = np.sum(wgt * fnorm ** 2, axis=1)
+    model = _edge_model(u, cen, sig, side) * (1 + grad * side * (u - cen))
+    if sep is None:
+        sx = np.sum(wgt * model, axis=1)
+        sxx = np.sum(wgt * model ** 2, axis=1)
+        sxy = np.sum(wgt * model * fnorm, axis=1)
+        det = nwgt * sxx - sx ** 2
+        ok = (det > 1e-10) & (nwgt >= 4)
+        amp = np.zeros(det.size)
+        amp[ok] = (nwgt[ok] * sxy[ok] - sx[ok] * sy[ok]) / det[ok]
+        bkg = np.zeros(det.size)
+        bkg[ok] = (sy[ok] - amp[ok] * sx[ok]) / nwgt[ok]
+        rss = syy - amp * sxy - bkg * sy
+        return np.sum(row_wgt[ok] * rss[ok]), amp[ok]
+    # The neighbouring slit is on the other side of its (facing) edge
+    nbr = _edge_model(u - sep[:, None], cen_nbr, sig, -side)
+    # Solve the (symmetric) normal equations of each row for the amplitudes of
+    # the edge and of the neighbouring slit, and the background
+    wm, wn = wgt * model, wgt * nbr
+    s11, s12, s13 = np.sum(wm * model, axis=1), np.sum(wm * nbr, axis=1), np.sum(wm, axis=1)
+    s22, s23, s33 = np.sum(wn * nbr, axis=1), np.sum(wn, axis=1), nwgt
+    b1, b2, b3 = np.sum(wm * fnorm, axis=1), np.sum(wn * fnorm, axis=1), sy
+    # A small regularisation, for the rows where the neighbouring slit does
+    # not contribute
+    reg = 1e-10 * np.maximum(s11 + s22 + s33, 1e-10)
+    s11, s22, s33 = s11 + reg, s22 + reg, s33 + reg
+    c11, c12, c13 = s22 * s33 - s23 ** 2, s13 * s23 - s12 * s33, s12 * s23 - s13 * s22
+    c22, c23, c33 = s11 * s33 - s13 ** 2, s12 * s13 - s11 * s23, s11 * s22 - s12 ** 2
+    det = s11 * c11 + s12 * c12 + s13 * c13
+    ok = (nwgt >= 5) & (det > 0)
+    with np.errstate(invalid='ignore', divide='ignore'):
+        amp = (c11 * b1 + c12 * b2 + c13 * b3) / det
+        amp_nbr = (c12 * b1 + c22 * b2 + c23 * b3) / det
+        bkg = (c13 * b1 + c23 * b2 + c33 * b3) / det
+    rss = syy - amp * b1 - amp_nbr * b2 - bkg * b3
+    return np.sum(row_wgt[ok] * rss[ok]), amp[ok]
+
+
+def _refine_edge_gap_ok(cen, cen_nbr, side, sep_med):
+    """
+    Check that the facing edge of the neighbouring slit remains on the
+    off-slit side of the edge (by more than 0.5 pixels), for :func:`refine_edge`.
+
+    Parameters
+    ----------
+    cen : float
+        Offset of the edge relative to the input edge.
+    cen_nbr : float
+        Offset of the neighbouring edge relative to its input position.
+    side : int
+        +1 for a left edge, -1 for a right edge.
+    sep_med : float or None
+        Median separation of the neighbouring edge from the input edge.  If
+        None, the neighbouring slit is not modelled, and the check passes.
+
+    Returns
+    -------
+    bool
+        True if the edges are in the right order.
+    """
+    return sep_med is None or side * (cen - sep_med - cen_nbr) > 0.5
+
+
+def _refine_edge_merit(par, u, fnorm, wgt, row_wgt, side, search, sep, sep_med, penalty):
+    """
+    Merit function of the fit of :func:`refine_edge`.
+
+    Parameters
+    ----------
+    par : array-like
+        Offset of the edge, logarithm of its width, gradient of the slit
+        illumination, and (only if ``sep`` is provided) the offset of the
+        facing edge of the neighbouring slit.
+    u, fnorm, wgt, row_wgt, side, sep : various
+        See :func:`_refine_edge_rss`.
+    search : float
+        Maximum shift of the edge (see :func:`refine_edge`).
+    sep_med : float or None
+        See :func:`_refine_edge_gap_ok`.
+    penalty : float
+        Value returned for parameters outside the allowed ranges.
+
+    Returns
+    -------
+    float
+        The weighted residual sum of squares (see :func:`_refine_edge_rss`),
+        or ``penalty``.
+    """
+    sig = np.exp(par[1])
+    cen_nbr = par[3] if sep is not None else 0.
+    if np.abs(par[0]) > search + 0.5 \
+            or not REFINE_EDGE_SIG_RANGE[0] <= sig <= REFINE_EDGE_SIG_RANGE[1] \
+            or np.abs(par[2]) > REFINE_EDGE_MAX_GRAD or np.abs(cen_nbr) > search + 0.5 \
+            or not _refine_edge_gap_ok(par[0], cen_nbr, side, sep_med):
+        return penalty
+    return _refine_edge_rss(u, fnorm, wgt, row_wgt, side, par[0], sig, par[2], sep=sep,
+                            cen_nbr=cen_nbr)[0]
+
+
+def _refine_edge_significance(par, u, fnorm, wgt, row_wgt, side, rss_const, sep=None, step=0.05):
+    r"""
+    Significance of the detection of the edge fit by :func:`refine_edge`, and
+    the uncertainty of its position.
+
+    Because each row is weighted by the square of the flux step across the
+    edge (see :func:`refine_edge`), the weighted residual sum of squares of the
+    normalised flux is proportional to the residual sum of squares of the flux.
+    The noise variance (in the same units) is estimated from the residuals of
+    the best fit, :math:`s^2 = \chi^2/\nu`.  Compared to a constant flux in
+    each row, the edge model has :math:`\Delta p` more free parameters, so,
+    if there is no edge, :math:`\Delta\chi^2/s^2` follows a :math:`\chi^2`
+    distribution with :math:`\Delta p` degrees of freedom.  The significance of
+    the detection is therefore
+
+    .. math::
+
+        z = \frac{\Delta\chi^2/s^2 - \Delta p}{\sqrt{2\Delta p}}.
+
+    The uncertainty of the position of the edge is computed from the curvature
+    of :math:`\chi^2` as a function of the offset of the edge (with the other
+    parameters fixed): :math:`\sigma^2 = 2 s^2 / (\partial^2\chi^2/\partial
+    c^2)`.
+
+    Parameters
+    ----------
+    par : array-like
+        Best-fitting parameters (see :func:`_refine_edge_merit`).
+    u, fnorm, wgt, row_wgt, side, sep : various
+        See :func:`_refine_edge_rss`.
+    rss_const : float
+        Weighted residual sum of squares for a constant flux in each row.
+    step : float, optional
+        Step (in pixels) used to compute the curvature of :math:`\chi^2`.
+
+    Returns
+    -------
+    z : float
+        Significance of the detection, in standard deviations.
+    err : float
+        Uncertainty of the offset of the edge, in pixels.
+    """
+    sig = np.exp(par[1])
+    cen_nbr = par[3] if sep is not None else 0.
+    chisq = _refine_edge_rss(u, fnorm, wgt, row_wgt, side, par[0], sig, par[2], sep=sep,
+                             cen_nbr=cen_nbr)[0]
+    chisq_lo = _refine_edge_rss(u, fnorm, wgt, row_wgt, side, par[0] - step, sig, par[2],
+                                sep=sep, cen_nbr=cen_nbr)[0]
+    chisq_hi = _refine_edge_rss(u, fnorm, wgt, row_wgt, side, par[0] + step, sig, par[2],
+                                sep=sep, cen_nbr=cen_nbr)[0]
+    curv = (chisq_hi - 2 * chisq + chisq_lo) / step ** 2
+    # Free parameters: an amplitude and a background in each row (plus the
+    # amplitude of the neighbouring slit), and the global parameters
+    nrow = fnorm.shape[0]
+    npar_row = 2 if sep is None else 3
+    dof = np.sum(wgt) - nrow * npar_row - len(par)
+    dpar = nrow * (npar_row - 1) + len(par)
+    if rss_const <= 0 or dof <= 0 or curv <= 0:
+        return 0., np.inf
+    if chisq <= 0:
+        # A perfect fit (noiseless data)
+        return np.inf, 0.
+    s2 = chisq / dof
+    z = ((rss_const - chisq) / s2 - dpar) / np.sqrt(2 * dpar)
+    return z, np.sqrt(2 * s2 / curv)
+
+
+def refine_edge(trcimg, bpm, edge, l_or_r, min_rows=10, search=2.0, rows=None, max_rows=1000,
+                neighbour=None, return_success=False):
+    """
+    Refine the position of a slit edge.
+
+    The refined edge is the position of the steepest flux gradient across the
+    edge.  In each spectral row, the flux near the edge is modelled as an error
+    function (i.e. a step function convolved with a Gaussian, integrated over
+    each pixel; see :func:`_edge_model`), multiplied by a linear function to
+    allow for a gradient of the slit illumination, with a free amplitude and
+    background for each row, and a common offset, width and gradient for all
+    rows.  The model is fit by least squares to all pixels within a few pixels
+    of the edge (with each row weighted by the square of the flux step across
+    the edge), and the best-fitting offset is the (sub-pixel) shift to apply to
+    the edge.  Because the shape of the edge is modelled, the shift is
+    accurately determined even if the edge is aligned with the detector columns
+    (i.e. if all spectral rows sample the same pixel phases).  The edge is only
+    considered to be detected if, compared to a constant flux in each row, the
+    model is a significant improvement (by more than
+    :data:`REFINE_EDGE_MIN_SIGNIFICANCE` standard deviations), and the
+    uncertainty of the shift is smaller than :data:`REFINE_EDGE_MAX_ERROR`
+    pixels (see :func:`_refine_edge_significance`).  This also allows faint
+    continuum-illuminated edges to be refined, provided that enough spectral
+    rows are used.  Note that the uncertainty is a formal one, which assumes
+    that the model describes the data.  This is not the case for edges that
+    are only illuminated by emission lines that are tilted across the edge
+    (e.g. the sky lines of a science frame, or an arc frame), whose refined
+    position can depend on which spectral rows are used (see ``max_rows``).
+
+    If the facing edge of the neighbouring slit (i.e. the right edge of the
+    slit to the left of a left edge, or the left edge of the slit to the right
+    of a right edge) is provided, and it is close enough to affect the pixels
+    around the edge, the light of the neighbouring slit is also modelled, as a
+    second error function with the same width, its own amplitude in each row,
+    and its own offset.  Otherwise, the light of a neighbouring slit that is
+    only a few pixels away biases the refined edge towards the centre of the
+    slit.
+
+    Only the spectral rows where the full window around the edge is on the
+    detector are used.  This allows edges that are close to, or beyond, the
+    edge of the detector (e.g. echelle orders at the edge of the detector).
+
+    Parameters
+    ----------
+    trcimg : numpy.ndarray
+        The image to use for defining the edge (e.g. a science or calibration frame).
+    bpm : numpy.ndarray
+        The bad pixel mask for the image. True = bad. If None, all pixels are
+        assumed to be good.
+    edge : numpy.ndarray
+        The edge positions to refine. This should be the spatial positions of a single edge
+    l_or_r : str
+        Which edge to refine. Must be one of 'left', 'right', 'l', or 'r'. This is used to
+        determine the sign of the flux step across the edge.
+    min_rows : int, optional
+        The minimum number of spectral rows that can be used to refine the edge.
+        If fewer rows are available, the edge cannot be refined.
+    search : float, optional
+        The maximum shift (in pixels) of the edge.  If the best-fitting shift is
+        larger, the edge cannot be refined.
+    rows : numpy.ndarray, optional
+        Boolean array, with one element per spectral row, selecting the rows to
+        use (e.g. the spectral extent of the slit).  If None, all rows are used.
+    max_rows : int, optional
+        The maximum number of spectral rows to use.  If more rows are
+        available, an evenly spaced subset is used, to limit the computation
+        time.  For line-dominated images (e.g. arcs), a subset of fewer than
+        about 1000 rows can miss the brightest rows of some lines, which makes
+        the refined position less reliable.
+    neighbour : numpy.ndarray, optional
+        The spatial positions (one per spectral row, like ``edge``) of the
+        facing edge of the neighbouring slit; i.e. the right edge of the slit
+        to the left of a left edge, or the left edge of the slit to the right
+        of a right edge.  Rows where the neighbouring slit is not defined can
+        be NaN.  If None, or if the neighbouring slit is too far from the edge
+        to affect the fit, its light is not modelled.
+    return_success : bool, optional
+        If True, also return a flag indicating whether the edge was refined.
+
+    Returns
+    -------
+    shift : float
+        The sub-pixel shift to apply to the edge position to refine it.  If the
+        edge cannot be refined (e.g. the edge is not detected), a warning is
+        printed and the shift is 0 (i.e. the input edge is kept).
+    success : bool
+        Only returned if ``return_success`` is True: True if the edge was
+        refined.
+    """
+    if l_or_r not in ["left", "right", "l", "r"]:
+        raise PypeItError("l_or_r must be one of 'left', 'right', 'l', or 'r'")
+
+    # The flux increases (decreases) across a left (right) edge
+    side = 1 if l_or_r in ["l", "left"] else -1
+    nspec, nspat = trcimg.shape
+    _edge = np.asarray(edge, dtype=float)
+    # Half-width of the pixel window around the edge: the search range, plus a
+    # few pixels to define the flux levels on either side of the edge
+    hw = int(np.ceil(search)) + 3
+    lo, hi = -hw, hw
+    rnd_edge = np.round(np.where(np.isfinite(_edge), _edge, -1e10))
+
+    # Separation of the facing edge of the neighbouring slit from the edge in
+    # each row.  The neighbouring slit is only modelled if its edge is close
+    # enough to affect the pixels around the edge, and on the off-slit side of
+    # the edge (allowing for the input edges of very close slits to cross by
+    # up to 1 pixel).  The window is then extended on that side, to include
+    # the neighbouring edge and a few pixels beyond it, so that the light of
+    # the neighbouring slit is well constrained.
+    near = None
+    if neighbour is not None:
+        _sep = np.asarray(neighbour, dtype=float) - _edge
+        near = np.isfinite(_sep) & (side * _sep < 1.) & (np.absolute(_sep) < hw + 4)
+        if rows is not None:
+            near &= np.asarray(rows, dtype=bool)
+        if np.any(near):
+            ext = max(hw, int(np.ceil(np.max(np.absolute(_sep[near])))) + 3)
+            lo, hi = (-ext, hw) if side == 1 else (-hw, ext)
+        else:
+            near = None
+
+    # Only use the spectral rows where the full window is on the detector
+    valid = np.isfinite(_edge) & (rnd_edge + lo >= 0) & (rnd_edge + hi <= nspat - 1)
+    if rows is not None:
+        valid &= np.asarray(rows, dtype=bool)
+    spec_idx = np.where(valid)[0]
+    if spec_idx.size < min_rows:
+        return _refine_edge_failed(f'The {l_or_r} edge is on the detector for only '
+                                   f'{spec_idx.size} spectral rows (at least {min_rows} are '
+                                   'required).', l_or_r, return_success)
+    if spec_idx.size > max_rows:
+        spec_idx = spec_idx[np.linspace(0, spec_idx.size - 1, max_rows).astype(int)]
+
+    # Extract the pixels around the edge
+    offsets = np.arange(lo, hi + 1)
+    spat_idx = rnd_edge[spec_idx].astype(int)[:, None] + offsets[None, :]
+    flux = trcimg[spec_idx[:, None], spat_idx].astype(float)
+    gpm = np.isfinite(flux)
+    if bpm is not None:
+        gpm &= np.logical_not(bpm[spec_idx[:, None], spat_idx])
+    # Pixel centres relative to the edge
+    u = spat_idx - _edge[spec_idx, None]
+
+    sep, sep_med = None, None
+    if near is not None and np.any(near[spec_idx]):
+        # In the rows without a neighbouring slit, it is placed far from the
+        # window, so that its model is zero
+        sep = np.where(near[spec_idx], _sep[spec_idx], -side * (hw + np.absolute(lo - hi) + 50.))
+        sep_med = np.median(_sep[spec_idx][near[spec_idx]])
+
+    # Normalise each row by the step in flux across the edge.  The on-slit
+    # level is the mean of the outermost pixels on the slit side of the edge.
+    # The off-slit level is the mean of the outermost pixels on the other side,
+    # or, if the neighbouring slit is modelled, the mean of the faintest pixels
+    # on that side (i.e. in the gap between the slits).
+    nout = 2
+    _flux = np.where(gpm, flux, 0.)
+    with np.errstate(invalid='ignore', divide='ignore'):
+        left_mean = np.sum(_flux[:, :nout], axis=1) / np.sum(gpm[:, :nout], axis=1)
+        right_mean = np.sum(_flux[:, -nout:], axis=1) / np.sum(gpm[:, -nout:], axis=1)
+    off, on = (left_mean, right_mean) if side == 1 else (right_mean, left_mean)
+    if sep is not None:
+        off_side = np.where(gpm, flux, np.inf)[:, side * offsets < 0]
+        with np.errstate(invalid='ignore'):
+            off = np.mean(np.sort(off_side, axis=1)[:, :nout], axis=1)
+    step = on - off
+    use = np.isfinite(step) & (step > 0)
+    if np.sum(use) < min_rows:
+        return _refine_edge_failed(f'No flux step was found across the {l_or_r} edge.',
+                                   l_or_r, return_success)
+    fnorm = (flux[use] - off[use, None]) / step[use, None]
+    gpm, u = gpm[use], u[use]
+    if sep is not None:
+        sep = sep[use]
+    # Weight each row by the square of the flux step across the edge, so that
+    # the rows with little flux (e.g. between arc lines) do not affect the fit
+    row_wgt = step[use] ** 2 / np.median(step[use] ** 2)
+    wgt = gpm.astype(float)
+    fnorm = np.where(gpm, fnorm, 0.)
+    # Residual sum of squares for a constant flux in each row
+    nwgt = np.sum(wgt, axis=1)
+    sy = np.sum(wgt * fnorm, axis=1)
+    syy = np.sum(wgt * fnorm ** 2, axis=1)
+    ok_rows = nwgt >= 4
+    rss_const = np.sum(row_wgt[ok_rows] * (syy[ok_rows] - sy[ok_rows] ** 2 / nwgt[ok_rows]))
+
+    # Coarse grid search for the offset and width of the edge (and the offset
+    # of the neighbouring edge)
+    nbr_grid = [0.] if sep is None else [-1., -0.5, 0., 0.5]
+
+    best = (np.inf, 0., 1., 0.)
+    for cen in np.arange(-search, search + 1e-6, 0.5):
+        for sig in [0.5, 1.0, 2.0]:
+            for cen_nbr in nbr_grid:
+                if not _refine_edge_gap_ok(cen, cen_nbr, side, sep_med):
+                    continue
+                chisq = _refine_edge_rss(u, fnorm, wgt, row_wgt, side, cen, sig, 0., sep=sep,
+                                         cen_nbr=cen_nbr)[0]
+                if chisq < best[0]:
+                    best = (chisq, cen, sig, cen_nbr)
+    if not np.isfinite(best[0]):
+        return _refine_edge_failed(f'The {l_or_r} edge could not be fit.', l_or_r,
+                                   return_success)
+
+    # Refine the fit, including the gradient of the slit illumination
+    x0 = np.array([best[1], np.log(best[2]), 0.] + ([best[3]] if sep is not None else []))
+    # The initial simplex spans about half of the steps of the grid search
+    simplex_step = np.array([0.25, 0.3, 0.02] + ([0.25] if sep is not None else []))
+    initial_simplex = np.vstack([x0, x0 + np.diag(simplex_step)])
+    res = optimize.minimize(_refine_edge_merit, x0=x0, method='Nelder-Mead',
+                            args=(u, fnorm, wgt, row_wgt, side, search, sep, sep_med,
+                                  1e3 * (best[0] + 1.)),
+                            options=dict(xatol=1e-3, fatol=1e-8 * (best[0] + 1.),
+                                         maxiter=400 * len(x0), initial_simplex=initial_simplex))
+    shift, sig, grad = res.x[0], np.exp(res.x[1]), res.x[2]
+    cen_nbr = res.x[3] if sep is not None else 0.
+    _, amp = _refine_edge_rss(u, fnorm, wgt, row_wgt, side, shift, sig, grad, sep=sep,
+                              cen_nbr=cen_nbr)
+    # Check the edge was detected, and the fit is reasonable
+    signif, err = _refine_edge_significance(res.x, u, fnorm, wgt, row_wgt, side, rss_const,
+                                            sep=sep)
+    detected = signif > REFINE_EDGE_MIN_SIGNIFICANCE and err < REFINE_EDGE_MAX_ERROR
+    if not np.isfinite(shift) or np.abs(shift) > search or amp.size == 0 or np.median(amp) <= 0 \
+            or not detected:
+        return _refine_edge_failed(f'Refining the {l_or_r} edge failed (best-fitting shift = '
+                                   f'{shift:.2f} pixels, detected at {signif:.1f} sigma, '
+                                   f'uncertainty {err:.2f} pixels).', l_or_r, return_success)
+    return (float(shift), True) if return_success else float(shift)
 
 
 def parse_user_slits(add_slits, this_det, rm=False):

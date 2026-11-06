@@ -91,8 +91,8 @@ class InputFile:
     """
 
     def __init__(
-        self, 
-        config=None, 
+        self,
+        config=None,
         file_paths:list=None,
         data_table:Table=None,
         setup:dict=None,
@@ -191,7 +191,7 @@ class InputFile:
             data_block_found = True
         else:
             if cls.datablock_required:
-                raise PypeItError("You have not specified the data block!")            
+                raise PypeItError("You have not specified the data block!")
             paths, usrtbl = [], None
             data_block_found = False
 
@@ -248,9 +248,9 @@ class InputFile:
 
         # Instantiate
         return cls(
-            config=list(lines[is_config]), 
-            file_paths=paths, 
-            data_table=usrtbl, 
+            config=list(lines[is_config]),
+            file_paths=paths,
+            data_table=usrtbl,
             setup=sdict,
             vet=vet,
             preserve_comments=preserve_comments
@@ -452,7 +452,9 @@ class InputFile:
             # Object
             tbl[key] = tbl[key].data.astype(object)
             if isinstance(tbl[key], column.MaskedColumn):
-                # Fill with empty string
+                # Fill with empty string.  NOTE: Blank is the "not set"
+                # sentinel for user-defined columns like 'manual' and 'shift';
+                # see PypeItMetaData.set_user_added_columns().
                 tbl[key].fill_value = ''
                 tbl[key] = tbl[key].filled()
 
@@ -544,7 +546,7 @@ class InputFile:
             List of strings, where each string provides the full path to each
             data file.  None is returned if :attr:`data` is not defined or if
             ``key`` is not one of its columns.
-              
+
         Raises
         ------
         FileNotFoundError:
@@ -556,20 +558,21 @@ class InputFile:
         ## Build full paths to file and set frame types
         data_files = []
         for row in self.data:
+            rowkey = '' if np.ma.is_masked(row[key]) else row[key]
 
             # Skip Empty entries?
-            if skip_blank and row[key].strip() in ['', 'none', 'None']:
+            if skip_blank and rowkey.strip() in ['', 'none', 'None']:
                 continue
 
             # Skip commented out entries
-            if row[key].strip().startswith("#"):
+            if rowkey.strip().startswith("#"):
                 if not include_commented_out:
                     continue
                 # Strip the comment character and any whitespace following it
                 # from the filename
-                name = row[key].strip("# ")
+                name = rowkey.strip("# ")
             else:
-                name = row[key]
+                name = rowkey
 
             # Searching..
             if self.file_paths is not None and len(self.file_paths) > 0:
@@ -867,7 +870,7 @@ class PypeItFile(InputFile):
             parameters.  Note that this *must* be a file name, unlike the type
             options available to the base class.  The behavior of this parameter
             is defined as follows:
-                
+
                 - If None and filenames are present, the file to use is
                   determined as follows:
 

@@ -7,13 +7,18 @@ from IPython import embed
 import pytest
 
 import numpy as np
+from astropy.table import Table
 
 from pypeit.core.wavecal import wv_fitting
+from pypeit.core.wavecal import autoid
+from pypeit.core.wavecal import wvutils
+from pypeit.core import arc
 from pypeit.core import fitting
 from pypeit import wavecalib
 from pypeit import slittrace
 from pypeit.tests.tstutils import data_output_path
 from pypeit.core.wavecal import waveio
+from pypeit.par import pypeitpar
 
 
 @pytest.mark.remote_data
@@ -162,3 +167,171 @@ def test_wvcalib_no2d():
     # Finish
     ofile.unlink()
 
+
+
+def test_order_for_dof():
+    # Enough lines for the requested order
+    assert wv_fitting.order_for_dof(4, 10) == 4
+    # Order reduced to leave 2 degrees of freedom
+    assert wv_fitting.order_for_dof(4, 6) == 3
+    assert wv_fitting.order_for_dof(4, 5) == 2
+    assert wv_fitting.order_for_dof(4, 4) == 1
+    # Not enough lines for a linear fit with 2 degrees of freedom
+    assert wv_fitting.order_for_dof(4, 3) is None
+    # Without the degrees of freedom requirement
+    assert wv_fitting.order_for_dof(4, 5, min_dof=0) == 4
+    assert wv_fitting.order_for_dof(4, 2, min_dof=0) == 1
+
+
+def _synthetic_line_list():
+    """A simple line list for the synthetic arc spectra used below."""
+    wave = np.linspace(5050., 5950., 19)
+    return Table(dict(ion=np.full(wave.size, 'ArI'), wave=wave, NIST=np.ones(wave.size, dtype=int),
+                      Source=np.full(wave.size, 'NIST')))
+
+
+def test_iterative_fitting_dof():
+    # Cubic wavelength solution, and the pixel positions of the lines
+    nspec = 1000
+    llist = _synthetic_line_list()
+    pix = np.arange(nspec, dtype=float)
+    wave = 5000. + 1.0*pix + 1e-4*pix**2 - 5e-8*pix**3
+    tcent = np.interp(llist['wave'], wave, pix)
+    spec = np.zeros(nspec)
+    disp = 1.0
+
+    # Plenty of lines: the requested order is used
+    fit = wv_fitting.iterative_fitting(spec, tcent, np.arange(tcent.size), llist['wave'].data, llist,
+                                       disp, n_first=2, n_final=4, input_only=True)
+    assert fit.pypeitfit.order[0] == 4, 'Order should not be reduced'
+
+    # Only 5 lines: the order is reduced to keep 2 degrees of freedom, so the
+    # fit does not pass exactly through all lines
+    ifit = np.array([2, 6, 9, 12, 16])
+    fit = wv_fitting.iterative_fitting(spec, tcent, ifit, llist['wave'].data[ifit], llist, disp,
+                                       n_first=2, n_final=4, input_only=True)
+    assert fit.pypeitfit.order[0] == 2, 'Order should be reduced to nlines-3'
+    assert fit.rms > 0, 'Fit should not pass exactly through the lines'
+
+    # Only 3 lines: the fit fails
+    ifit = np.array([2, 9, 16])
+    fit = wv_fitting.iterative_fitting(spec, tcent, ifit, llist['wave'].data[ifit], llist, disp,
+                                       n_first=2, n_final=4, input_only=True)
+    assert fit is None, 'Fit should fail with too few lines'
+
+
+def _synthetic_arcs(rng, nspec=1000, shifts=(0., 25., -30., 40.), noise=(0.5, 2., 2., 2.),
+                    min_amp=0.2):
+    """
+    Synthetic arc spectra of several slits that are shifted with respect to
+    each other, with different noise levels.
+    """
+    line_pix = np.linspace(60., 1940., 40)
+    amp = 100.*rng.uniform(min_amp, 1.0, line_pix.size)
+    sig = 1.5
+    pix = np.arange(nspec, dtype=float)
+    spec = np.zeros((nspec, len(shifts)))
+    for i, (shift, _noise) in enumerate(zip(shifts, noise)):
+        # Pixel in slit i where each line falls: shift and a small stretch
+        lp = (line_pix - 500.)*1.002 + shift
+        for p, a in zip(lp, amp):
+            spec[:, i] += a*np.exp(-0.5*((pix - p)/sig)**2)
+        spec[:, i] += 10. + rng.normal(0., _noise, nspec)
+    return spec, line_pix, amp
+
+
+def test_select_reference_slit():
+    rng = np.random.default_rng(42)
+    # Same wavelength coverage, but slit 0 has the lowest noise, so the most
+    # detected lines
+    spec, _, _ = _synthetic_arcs(rng, shifts=(0., 0., 0., 0.), noise=(0.5, 5., 5., 5.),
+                                 min_amp=0.02)
+    assert autoid.select_reference_slit(spec, np.arange(spec.shape[1]), fwhm=3.5) == 0
+    # Exclude slit 0
+    assert autoid.select_reference_slit(spec, np.arange(1, spec.shape[1]), fwhm=3.5) != 0
+
+
+def test_stack_arc_spectra():
+    rng = np.random.default_rng(42)
+    spec, line_pix, amp = _synthetic_arcs(rng, noise=(2., 2., 2., 2.))
+    nspec, nslit = spec.shape
+    # Add a slit with no arc lines; it should not be included in the stack
+    spec = np.column_stack([spec, 10. + rng.normal(0., 2., nspec)])
+    ref_idx = 1
+    stack, offset, used, ref_pix = autoid.stack_arc_spectra(spec, np.arange(spec.shape[1]), ref_idx,
+                                                            fwhm=3.5, cc_thresh=0.7)
+    assert np.array_equal(used, [True, True, True, True, False]), 'Wrong slits included'
+    # The pixel mapping onto the reference slit recovers the input shifts
+    # (relative to the reference slit; the stretch is the same for all slits)
+    assert np.all(np.isnan(ref_pix[:, 4])), 'Mapping should be undefined for the excluded slit'
+    for slit, shift in zip(range(4), (0., 25., -30., 40.)):
+        assert np.allclose(ref_pix[:, slit] - np.arange(nspec), 25. - shift, atol=0.2), \
+            f'Bad mapping for slit {slit}'
+    # The stack covers all slits, so it extends beyond the reference slit
+    assert offset < 0 and stack.size + offset > nspec
+    # The lines are at the same pixels as in the reference slit
+    _, _, cen, _, _, good, _, _ = arc.detect_lines(stack, sigdetect=10., fwhm=3.5)
+    ref_lp = (line_pix - 500.)*1.002 + 25.
+    ref_lp = ref_lp[(ref_lp > 20) & (ref_lp < nspec - 20)]
+    stack_lp = cen[good] + offset
+    assert np.all([np.min(np.abs(stack_lp - p)) < 0.2 for p in ref_lp]), 'Lines not aligned'
+    # The noise in the stack is lower than in the reference slit.  Compare
+    # with the noiseless spectrum of the reference slit, in the region covered
+    # by all slits.
+    pix = np.arange(nspec, dtype=float)
+    model = np.sum([a*np.exp(-0.5*((pix - p)/1.5)**2)
+                    for p, a in zip((line_pix - 500.)*1.002 + 25., amp)], axis=0)
+    _, _, _, _, ref_cs = wvutils.arc_lines_from_spec(spec[:, ref_idx], fwhm=3.5)
+    _, _, _, _, stack_cs = wvutils.arc_lines_from_spec(stack, fwhm=3.5)
+    common = slice(100, 900)
+    stack_resid = stack_cs[-offset:-offset+nspec][common] - model[common]
+    ref_resid = ref_cs[common] - model[common]
+    assert np.std(stack_resid) < 0.7*np.std(ref_resid), 'Stack noise is too high'
+
+
+def _synthetic_arc_from_lines(wave, lines, amps, noise, rng, sig_pix=1.0):
+    """Synthetic arc spectrum with Gaussian lines at the given wavelengths."""
+    disp = np.gradient(wave)
+    pix = np.arange(wave.size, dtype=float)
+    lpix = np.interp(lines, wave, pix, left=np.nan, right=np.nan)
+    spec = np.full(wave.size, 10.)
+    for p, a in zip(lpix, amps):
+        if np.isfinite(p):
+            spec += a*np.exp(-0.5*((pix - p)/sig_pix)**2)
+    return spec + rng.normal(0., noise, wave.size)
+
+
+def test_full_template_stack():
+    rng = np.random.default_rng(1)
+    llist, _, _ = waveio.load_line_lists(['ArI'], include_unknown=False)
+    lines = np.asarray(llist['wave'].data)
+    amps = rng.uniform(0.01, 1.0, lines.size)**2
+
+    # High S/N template covering a wide wavelength range
+    tpix = np.arange(3000, dtype=float)
+    twave = 6800. + 0.5*tpix + 2e-5*tpix**2
+    tspec = _synthetic_arc_from_lines(twave, lines, 1e4*amps, 1., rng)
+    tfile = Path(data_output_path('test_full_template_stack.fits')).absolute()
+    tbl = Table(dict(wave=twave, flux=tspec))
+    tbl.meta['BINSPEC'] = 1
+    tbl.write(tfile, overwrite=True)
+
+    # Low S/N arc spectra of 4 slits with the same dispersion but different
+    # wavelength coverage
+    nspec = 2000
+    pix = np.arange(nspec, dtype=float)
+    shifts = [0., 10., -15., 20.]
+    wave = np.column_stack([7000. + s + 0.5*pix + 2e-5*pix**2 for s in shifts])
+    spec = np.column_stack([_synthetic_arc_from_lines(wave[:, i], lines, 300*amps, 3., rng)
+                            for i in range(len(shifts))])
+
+    par = pypeitpar.WavelengthSolutionPar(method='full_template', lamps=['ArI'], reid_arxiv=str(tfile))
+    fwhms = np.full(len(shifts), 2.35)
+    wvcalib, stack_fit, used = autoid.full_template_stack(spec, ['ArI'], par, np.arange(len(shifts)), 1, 1,
+                                                          0, fwhms)
+    tfile.unlink()
+    assert stack_fit is not None, 'Stack should be calibrated'
+    assert np.all(used), 'All slits should be included in the stack'
+    for i in range(len(shifts)):
+        dev = np.abs(wvcalib[str(i)].wave_soln - wave[:, i]) / np.gradient(wave[:, i])
+        assert np.max(dev) < 0.3, f'Bad wavelength solution for slit {i}'

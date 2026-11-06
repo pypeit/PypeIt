@@ -222,6 +222,15 @@ It should be noted that if offsets are computed by hand and included in the
 ``.coadd2d`` file parameter block or are zero (`e.g.`, because of stable
 guiding), then these failure modes are not present.
 
+.. note::
+
+    The offsets describe the relative position of the object along the slit in
+    each frame (e.g., the dither pattern).  The spatial flexure of each frame
+    (see :ref:`flexure-spatial`) is accounted for separately, so offsets that
+    are provided by hand should not include the spatial flexure.  The same
+    applies to offsets taken from the file headers (``offsets = header``) or
+    from the slitmask design (``offsets = maskdef_offsets``).
+
 The workaround for automatic offset computation is to include the ``SPAT``
 identifiction code of the desired object for each of the input frames in the
 ``.coadd2d`` file parameter block.  For instance, if you were to query the

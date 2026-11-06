@@ -114,8 +114,12 @@ class RawImage:
         datasec_img (`numpy.ndarray`_):
             Image identifying which amplifier was used to read each section of
             the *processed* image.
-        spat_flexure_shift (:obj:`float`):
-            The spatial flexure shift in pixels, if calculated
+        spat_flexure_shift (`numpy.ndarray`_):
+            The spatial flexure shift in pixels, if calculated. This is a 2D array
+            of shape (nslits, 2) where spat_flexure_shift[i,0] is the shift in the
+            spatial direction for the left edge of slit i and spat_flexure_shift[i,1]
+            is the shift in the spatial direction for the right edge of slit i.
+
     """
     def __init__(self, ifile, spectrograph, det):
 
@@ -240,7 +244,7 @@ class RawImage:
         """
         if self.par is None:
             return False
-        return self.par['spat_flexure_correct'] or (self.use_flat and self.par['use_illumflat'])
+        return (self.par['spat_flexure_method'] != "skip") or (self.use_flat and self.par['use_illumflat'])
 
     def apply_gain(self, force=False):
         """
@@ -403,7 +407,7 @@ class RawImage:
         return np.array(rn2)
 
     def process(self, par, bpm=None, scattlight=None, flatimages=None, bias=None, slits=None, dark=None,
-                mosaic=False, debug=False):
+                mosaic=False, manual_spat_flexure=None, debug=False):
         """
         Process the data.
 
@@ -508,7 +512,7 @@ class RawImage:
                 Bias image for bias subtraction.
             slits (:class:`~pypeit.slittrace.SlitTraceSet`, optional):
                 Used to calculate spatial flexure between the image and the
-                slits, if requested via the ``spat_flexure_correct`` parameter
+                slits, if requested via the ``spat_flexure_method`` parameter
                 in :attr:`par`; see
                 :func:`~pypeit.core.flexure.spat_flexure_shift`.  Also used to
                 construct the slit illumination profile, if requested via the
@@ -521,6 +525,10 @@ class RawImage:
                 mosaic.  If flats or slits are provided (and used), this *must*
                 be true because these objects are always defined in the mosaic
                 frame.
+            manual_spat_flexure (:obj:`float`, optional):
+                The spatial flexure of the image. This is only set if the user wishes to
+                manually correct the slit traces of this image for spatial flexure.
+                None or ``np.ma.masked`` means that no manual value is set.
             debug (:obj:`bool`, optional):
                 Run in debug mode.
 
@@ -549,7 +557,7 @@ class RawImage:
         if self.par['subtract_scattlight'] and scattlight is None \
                 and self.par['scattlight']['method'] not in ['frame', 'archive', 'gaps']:
             raise PypeItError('Scattered light subtraction requested, but scattered light model not provided.')
-        if self.par['spat_flexure_correct'] and slits is None:
+        if (self.par['spat_flexure_method'] != "skip") and slits is None:
             raise PypeItError('Spatial flexure correction requested but no slits provided.')
         if self.use_flat and flatimages is None:
             raise PypeItError('Flat-field corrections requested but no flat-field images generated '
@@ -607,6 +615,9 @@ class RawImage:
         #     proc_var, var, and datasec_img.
         if self.par['orient']:
             self.orient()
+
+        # Artificial spatial flexure for testing - remove before mering
+        # self.image = np.roll(self.image, 4, axis=2)
 
         #   - Check the shape of the bpm
         if self.bpm.shape != self.image.shape:
@@ -671,11 +682,16 @@ class RawImage:
 
         # Calculate flexure, if slits are provided and the correction is
         # requested.  NOTE: This step must come after trim, orient (just like
-        # bias and dark subtraction) and before field flattening.  Also the
+        # bias and dark subtraction) and before field flattening. Also, the
         # function checks that the slits exist if running the spatial flexure
         # correction, so no need to do it again here.
-        self.spat_flexure_shift = self.spatial_flexure_shift(slits, debug=debug) \
-                                    if self.par['spat_flexure_correct'] else None
+        self.spat_flexure_shift = None
+        # None and masked both mean that no manual spatial flexure is set
+        _manual_spat_flexure = np.ma.masked if manual_spat_flexure is None else manual_spat_flexure
+        if self.par['spat_flexure_method'] != "skip" or not np.ma.is_masked(_manual_spat_flexure):
+            self.spat_flexure_shift = self.spatial_flexure_shift(slits,
+                                                                 manual_spat_flexure=_manual_spat_flexure,
+                                                                 debug=debug)
 
         #   - Subtract scattered light... this needs to be done before flatfielding.
         if self.par['subtract_scattlight']:
@@ -768,60 +784,123 @@ class RawImage:
         return _det, self.image, self.ivar, self.datasec_img, self.det_img, self.rn2img, \
                 self.base_var, self.img_scale, self.bpm
 
-    def spatial_flexure_shift(self, slits, force=False, debug=False):
+    def spatial_flexure_shift(self, slits, force=False, manual_spat_flexure=np.ma.masked, debug=False):
         """
         Calculate a spatial shift in the edge traces due to flexure.
 
         This is a simple wrapper for
-        :func:`~pypeit.core.flexure.spat_flexure_shift`.
+        :func:`~pypeit.core.flexure.spat_flexure_shift`.  The shift is measured
+        relative to the initial (traced) slit edges.
 
         Args:
-            slits (:class:`~pypeit.slittrace.SlitTraceSet`, optional):
+            slits (:class:`~pypeit.slittrace.SlitTraceSet`):
                 Slit edge traces
             force (:obj:`bool`, optional):
                 Force the image to be field flattened, even if the step log
                 (:attr:`steps`) indicates that it already has been.
+            manual_spat_flexure (:obj:`float`, optional):
+                Manually set the spatial flexure shift. If provided, this
+                value is used instead of calculating the shift. The default
+                value is `np.ma.masked`, which means the shift is calculated
+                from the image data. The only way this value is used is if
+                the user sets the `shift` parameter in their pypeit file to
+                be a float.
             debug (:obj:`bool`, optional):
                 Run in debug mode.
 
         Return:
-            float: The calculated flexure correction
+            `numpy.ndarray`_: The calculated flexure correction for the edge of each slit shape is (nslits, 2)
 
         """
         step = inspect.stack()[0][3]
         if self.steps[step] and not force:
-            # Already field flattened
+            # Spatial flexure already calculated
             log.warning('Spatial flexure shift already calculated.')
-            return
+            return None
         if self.nimg > 1:
             raise PypeItError('CODING ERROR: Must use a single image (single detector or detector '
                        'mosaic) to determine spatial flexure.')
 
-        # get filename for QA
-        root = outputfiles.strip_raw_extension(self.filename, self.spectrograph.allowed_extensions)
-        basename = f'{root}_{self.spectrograph.get_det_name(self.det)}'
-        outdir = str(Path(slits.calib_dir).parent) if slits.calib_dir is not None else None
-        qa_outfile = qa.set_qa_filename(basename, 'spat_flexure_qa_corr', out_dir=outdir)
+        # Check if the slits are provided
+        if slits is None:
+            if not np.ma.is_masked(manual_spat_flexure):
+                log.warning('Manual spatial flexure provided without slits - assuming no spatial flexure.')
+            else:
+                log.warning('Cannot calculate spatial flexure without slits - assuming no spatial flexure.')
+            return None
 
-        self.spat_flexure_shift = flexure.spat_flexure_shift(self.image[0], slits, bpm=self._bpm[0],
-                                                             maxlag=self.par['spat_flexure_maxlag'],
-                                                             sigdetect=self.par['spat_flexure_sigdetect'],
-                                                             debug=debug)
+        # First check for manual flexure
+        qa_outfile = None
+        if not np.ma.is_masked(manual_spat_flexure):
+            log.info(f'Adopting a manual spatial flexure of {manual_spat_flexure} pixels')
+            spat_flexure = np.full((slits.nslits, 2), np.float64(manual_spat_flexure))
+        else:
+            # get filename for QA
+            root = outputfiles.strip_raw_extension(self.filename, self.spectrograph.allowed_extensions)
+            basename = f'{root}_{self.spectrograph.get_det_name(self.det)}'
+            outdir = str(Path(slits.calib_dir).parent) if slits.calib_dir is not None else None
+            qa_outfile = qa.set_qa_filename(basename, 'spat_flexure_qa_corr', out_dir=outdir)
+            # Now compute the spatial flexure shift.  NOTE: This is relative to
+            # the initial (traced) slit edges, which are the edges of the slits
+            # in the image; the tweaked edges are defined by the slit
+            # illumination profile, and can be inset by a few pixels.
+            spat_flexure, flexure_gpm \
+                    = flexure.spat_flexure_shift(self.image[0], slits, bpm=self._bpm[0],
+                                                 method=self.par['spat_flexure_method'],
+                                                 maxlag=self.par['spat_flexure_maxlag'],
+                                                 sigdetect=self.par['spat_flexure_sigdetect'],
+                                                 minfrac=self.par['spat_flexure_minfrac'],
+                                                 return_gpm=True, debug=debug)
+
+        # Each spectrograph can optionally post-process the (measured) spatial
+        # flexure values in their own way (by default, a polynomial fit as a
+        # function of the slit position, using only the slit edges with a
+        # measured spatial flexure).  A manual value is used as is, and there
+        # is nothing to fit if the spatial flexure was not measured for any
+        # slit edge (e.g. because the slit edges were not detected).
+        if self.par['spat_flexure_polyord'] is None or not np.ma.is_masked(manual_spat_flexure) \
+                or not np.any(flexure_gpm):
+            _spat_flexure = spat_flexure
+        else:
+            left, right, _ = slits.select_edges(initial=True, pad=-slits.get_pad())
+            slit_cen = 0.5 * (left + right)[left.shape[0] // 2, :]
+            _spat_flexure = self.spectrograph.spatial_flexure(spat_flexure,
+                                                              polyord=self.par['spat_flexure_polyord'],
+                                                              slit_cen=slit_cen, gpm=flexure_gpm)
+
+        # Print the flexure values
+        if np.all(_spat_flexure == _spat_flexure[0, 0]):
+            log.info(f'Spatial flexure: {_spat_flexure[0, 0]} pixels')
+        else:
+            # Print the flexure values for each slit separately
+            for slit in range(_spat_flexure.shape[0]):
+                if _spat_flexure[slit, 0] == _spat_flexure[slit, 1]:
+                    log.info(f'Spatial flexure (Slit {slits.spat_id[slit]}): '
+                             f'{_spat_flexure[slit, 0]:.2f} pixels')
+                else:
+                    log.info(
+                        f'Spatial flexure (Slit {slits.spat_id[slit]}): '
+                        f'left={_spat_flexure[slit, 0]:.2f} pixels; '
+                        f'right={_spat_flexure[slit, 1]:.2f} pixels'
+                    )
 
         # 2D plot
-        if (debug):
+        if debug:
             # Display QA as a debug plot
-            qa.spat_flexure_qa(self.image[0], slits, self.spat_flexure_shift, gpm=np.logical_not(self._bpm[0]), vrange=self.par['spat_flexure_vrange'])
+            qa.spat_flexure_qa(self.image[0], slits, _spat_flexure, gpm=np.logical_not(self._bpm[0]), vrange=self.par['spat_flexure_vrange'])
 
+        # Save QA to file
         if qa_outfile is not None:
             # Generate the QA plot
-            log.info("Generating QA plot for spatial flexure")
-            qa.spat_flexure_qa(self.image[0], slits, self.spat_flexure_shift, gpm=np.logical_not(self._bpm[0]), vrange=self.par['spat_flexure_vrange'], outfile=qa_outfile)
-
+            qa.spat_flexure_qa(self.image[0], slits, _spat_flexure,
+                               gpm=np.logical_not(self._bpm[0]),
+                               vrange=self.par['spat_flexure_vrange'],
+                               outfile=qa_outfile)
+            log.info(f"Generated QA plot for spatial flexure:\n{qa_outfile}")
 
         self.steps[step] = True
         # Return
-        return self.spat_flexure_shift
+        return _spat_flexure
 
     def flatfield(self, flatimages, slits=None, force=False, debug=False):
         """
@@ -884,7 +963,7 @@ class RawImage:
             illum_flat = flatimages.fit2illumflat(slits, spat_flexure=self.spat_flexure_shift, finecorr=False)
             illum_flat *= flatimages.fit2illumflat(slits, spat_flexure=self.spat_flexure_shift, finecorr=True)
             if debug:
-                left, right = slits.select_edges(flexure=self.spat_flexure_shift)
+                left, right, _ = slits.select_edges(spat_flexure=self.spat_flexure_shift)
                 viewer, ch = display.show_image(illum_flat, chname='illum_flat')
                 display.show_slits(viewer, ch, left, right)  # , slits.id)
                 #
@@ -892,7 +971,25 @@ class RawImage:
                 display.show_slits(viewer, ch, left, right)  # , slits.id)
 
         # Retrieve the relative spectral illumination profile
-        spec_illum = flatimages.pixelflat_spec_illum if self.par['use_specillum'] else 1.
+        spec_illum = 1.
+        if self.par['use_specillum']:
+            spec_illum = flatimages.pixelflat_spec_illum
+            # The relative spectral illumination is defined on the slits of the
+            # pixel flat (i.e., at the spatial flexure of the pixel flat).
+            # Remap it to the slits of this frame (i.e., at the spatial flexure
+            # of this frame), so that each slit is corrected by its own
+            # spectral illumination, including the pixels near the slit edges.
+            if slits is not None:
+                spec_illum = flexure.spat_flexure_remap(
+                    spec_illum, slits, spat_flexure=self.spat_flexure_shift,
+                    src_spat_flexure=flatimages.pixelflat_spat_flexure, initial=True)
+            elif np.any(np.asarray(0. if self.spat_flexure_shift is None
+                                   else self.spat_flexure_shift)
+                        != np.asarray(0. if flatimages.pixelflat_spat_flexure is None
+                                      else flatimages.pixelflat_spat_flexure)):
+                log.warning('Slits not provided; the relative spectral illumination cannot be '
+                            'corrected for the difference in spatial flexure between this frame '
+                            'and the pixel flat.')
 
         # Apply flat-field correction
         # NOTE: Using flat.flatfield to effectively multiply image*img_scale is
@@ -1272,7 +1369,7 @@ class RawImage:
                                f"               {tmp[13]}, {tmp[14]}, {tmp[15]}])  # Polynomial terms (coefficients of spec**index)\n"
                     print(strprint)
                     pad = msscattlight.pad // spatbin
-                    offslitmask = slits.slit_img(pad=pad, flexure=None) == -1
+                    offslitmask = slits.slit_img(pad=pad, spat_flexure=self.spat_flexure_shift) == -1
                     from matplotlib import pyplot as plt
                     _frame = self.image[ii, ...]
                     vmin, vmax = 0, np.max(scatt_img)
@@ -1290,8 +1387,8 @@ class RawImage:
                 # Use archival model parameters
                 arx_modpar, _ = self.spectrograph.scattered_light_archive(binning, dispname)
                 if arx_modpar is None:
-                    raise PypeItError(f"{self.spectrograph.name} does not have archival scattered light parameters. Please "
-                               f"set 'scattlight_method' to another option.")
+                    raise PypeItError(f"{self.spectrograph.name} does not have archival scattered light parameters. "
+                                      f"Please set 'scattlight_method' to another option.")
                 scatt_img = scattlight.scattered_light_model(self._scattlight_modpar(arx_modpar), _img)
             elif self.par["scattlight"]["method"] == "frame":
                 # Calculate a model specific for this frame.
@@ -1300,7 +1397,7 @@ class RawImage:
                 _pad = msscattlight.pad if msscattlight is not None \
                     else self.par['scattlight']['finecorr_pad']
                 pad = _pad // spatbin
-                offslitmask = slits.slit_img(pad=pad, flexure=None) == -1
+                offslitmask = slits.slit_img(pad=pad, spat_flexure=self.spat_flexure_shift) == -1
                 # Get starting parameters for the scattered light model
                 x0, bounds = self.spectrograph.scattered_light_archive(binning, dispname)
                 # Perform a fit to the scattered light
@@ -1320,7 +1417,7 @@ class RawImage:
             elif self.par["scattlight"]["method"] == "gaps":
                 # Measure scattered light in inter-slit gaps and interpolate.
                 # Requires spectrograph to implement subtract_scattered_light_gaps().
-                offslitmask = slits.slit_img(flexure=None) == -1
+                offslitmask = slits.slit_img(spat_flexure=self.spat_flexure_shift) == -1
                 scatt_img = self.spectrograph.subtract_scattered_light_gaps(
                     self.image[ii, ...], offslitmask)
             else:
@@ -1330,11 +1427,11 @@ class RawImage:
             # Check if a fine correction to the scattered light should be applied
             if do_finecorr:
                 pad = self.par['scattlight']['finecorr_pad'] // spatbin
-                offslitmask = slits.slit_img(pad=pad, flexure=None) == -1
+                offslitmask = slits.slit_img(pad=pad, spat_flexure=self.spat_flexure_shift) == -1
                 # Check if the user wishes to mask some inter-slit regions
                 if self.par['scattlight']['finecorr_mask'] is not None:
                     # Get the central trace of each slit
-                    left, right, _ = slits.select_edges(flexure=None)
+                    left, right, _ = slits.select_edges(spat_flexure=self.spat_flexure_shift)
                     centrace = 0.5*(left+right)
                     # Now mask user-defined inter-slit regions
                     offslitmask = scattlight.mask_slit_regions(offslitmask, centrace,

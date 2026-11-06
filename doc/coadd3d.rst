@@ -408,7 +408,9 @@ then you do not need to specify the grating correction file. Also, if you
 generate a sensitivity function for each spec2d file, then you do not need
 to specify the grating correction file. The grating correction file is only
 needed if you have one sensitivity function for all spec2d files, even though
-the spec2d files were acquired with different grating angles.
+the spec2d files were acquired with different grating angles.  The
+grating correction accounts for the spatial flexure of the pixel flat (see
+:ref:`coadd3d_spatflex`).
 
 Astrometric correction
 ======================
@@ -429,6 +431,46 @@ file:
 
 If a :doc:`calibrations/align` frame is not available, then the astrometric
 correction will be based on the slit edges.
+
+.. _coadd3d_spatflex:
+
+Spatial flexure
+===============
+
+The spatial flexure of each science frame is determined when the frame is
+reduced with ``run_pypeit`` (see :ref:`flexure-spatial`), and it is stored in
+the frame's ``spec2d`` file.  When constructing a datacube, the spatial flexure
+of each frame is accounted for, and no additional input is required:
+
+    - The slit image, and the RA and Dec of every pixel, are evaluated using
+      the slit edges of each frame shifted by its spatial flexure.
+
+    - The astrometric alignment traces (see `Astrometric correction`_) are
+      shifted by the spatial flexure of each frame *relative* to that of the
+      :doc:`calibrations/align` frame.  The spatial flexure of the alignment
+      frames is not determined by default, in which case it is assumed to be
+      zero.
+
+    - A dedicated sky frame (``skysub_frame``; see :ref:`coadd3d_skysub`) or
+      relative scale-correction frame (``scale_corr``) can have a different
+      spatial flexure from the science frame.  Its sky (or relative scale)
+      image is therefore remapped to the slits of the science frame: each pixel
+      of the science frame is assigned the value at the same fractional position
+      across the slit in the sky (or scale-correction) frame.  This requires
+      the two frames to have the same number of slits; otherwise, the image is
+      applied pixel by pixel, and a warning is printed.
+
+    - The grating correction (see :ref:`coadd3d_gratcorr`) is calculated using
+      the spatial flexure and wavelength image of the pixel flat, so the
+      correction derived from each Flat calibration file does not depend on
+      the science frame.
+
+The spatial flexure of each input frame is recorded in the header of the
+datacube, using the ``SPFLXnnn`` keywords, where ``nnn`` is the (1-based) index
+of the frame in the ``spec2d`` block of the ``coadd3d`` file.  The value is the
+mean spatial flexure (in pixels) of all slit edges, and the comment gives the
+range of the spatial flexure of the slit edges.  A value of zero is recorded if
+the spatial flexure was not determined.
 
 White light image
 =================

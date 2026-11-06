@@ -288,8 +288,8 @@ Spatial Flexure Shift
 
 A spatial shift in the slit positions due to instrument flexure is calculated
 using :func:`~pypeit.core.flexure.spat_flexure_shift` if the
-``spat_flexure_correct`` parameter is true.  See :ref:`flexure` for additional
-discussion.
+``spat_flexure_method`` parameter is set to an option other than ``skip``.
+See :ref:`flexure` for additional discussion.
 
 Flat-fielding
 -------------
