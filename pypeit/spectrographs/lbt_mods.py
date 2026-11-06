@@ -1045,6 +1045,7 @@ class LBTMODS1RSpectrographProc(LBTMODSSpectrograph):
                     else f"{hdu[0].header['CCDXBIN']},{hdu[0].header['CCDYBIN']}"
 
         # Detector 1
+        avg_gain            = np.mean(np.atleast_1d([2.50,2.38,2.81,2.46]))
         detector_dict = dict(
             binning= binning,
             det=1,
@@ -1062,9 +1063,8 @@ class LBTMODS1RSpectrographProc(LBTMODSSpectrograph):
             mincounts       = -1e10,
             numamplifiers   = 4,
             # Because we're reading in the flipped-about-vertical spectrum, the quadrants mapping needs to be changed [1,2,3,4] -> [2,1,4,3]
-            gain            = np.atleast_1d([2.50,2.38,2.81,2.46]),
-            gain[:]         = np.mean(gain), # replace the quadrant-by-quadrant gain with the average in _proc classes
             #gain            = np.atleast_1d([2.50,2.38,2.81,2.46]),
+            gain         = np.atleast_1d([avg_gain,avg_gain,avg_gain,avg_gain]), # replace the quadrant-by-quadrant gain with the average in _proc classes
             ronoise         = np.atleast_1d([4.04,3.78,4.14,4.74])
             #gain            = np.atleast_1d([2.38,2.50,2.46,2.81]),
             #ronoise         = np.atleast_1d([3.78,4.04,4.74,4.14])
@@ -1256,6 +1256,7 @@ class LBTMODS1BSpectrographProc(LBTMODSSpectrograph):
                     else f"{hdu[0].header['CCDXBIN']},{hdu[0].header['CCDYBIN']}"
 
         # Detector 1
+        avg_gain            = np.mean(np.atleast_1d([2.55,1.91,2.09,2.02]))
         detector_dict = dict(
             binning= binning,
             det=1,
@@ -1269,8 +1270,8 @@ class LBTMODS1BSpectrographProc(LBTMODSSpectrograph):
             nonlinear       = 0.99,
             mincounts       = -1e10,
             numamplifiers   = 4,
-            gain            = np.atleast_1d([2.55,1.91,2.09,2.02]),
-            gain[:]         = np.mean(gain), # replace the quadrant-by-quadrant gain with the average in _proc classes
+            #gain            = np.atleast_1d([2.55,1.91,2.09,2.02]),
+            gain         = np.atleast_1d([avg_gain,avg_gain,avg_gain,avg_gain]), # replace the quadrant-by-quadrant gain with the average in _proc classes
             ronoise         = np.atleast_1d([3.41,2.93,2.92,2.76])
             )
         return DetectorContainer(**detector_dict)
@@ -1448,6 +1449,7 @@ class LBTMODS2RSpectrographProc(LBTMODSSpectrograph):
                     else f"{hdu[0].header['CCDXBIN']},{hdu[0].header['CCDYBIN']}"
 
         # Detector 1
+        avg_gain            = np.mean(np.atleast_1d([1.67,1.70,1.66,1.66]))
         detector_dict = dict(
             binning= binning,
             det=1,
@@ -1465,8 +1467,8 @@ class LBTMODS2RSpectrographProc(LBTMODSSpectrograph):
             mincounts       = -1e10,
             numamplifiers   = 4,
             # Because we're reading in the flipped-about-vertical spectrum, the quadrants mapping needs to be changed [1,2,3,4] -> [2,1,4,3]
-            gain            = np.atleast_1d([1.67,1.70,1.66,1.66]),
-            gain[:]         = np.mean(gain), # replace the quadrant-by-quadrant gain with the average in _proc classes
+            #gain            = np.atleast_1d([1.67,1.70,1.66,1.66]),
+            gain         = np.atleast_1d([avg_gain,avg_gain,avg_gain,avg_gain]), # replace the quadrant-by-quadrant gain with the average in _proc classes
             ronoise         = np.atleast_1d([2.65,2.95,2.87,2.78])
             #gain            = np.atleast_1d([1.70,1.67,1.66,1.66]),
             #ronoise         = np.atleast_1d([2.95,2.65,2.78,2.87])
@@ -1654,6 +1656,7 @@ class LBTMODS2BSpectrographProc(LBTMODSSpectrograph):
                     else f"{hdu[0].header['CCDXBIN']},{hdu[0].header['CCDYBIN']}"
 
         # Detector 1
+        avg_gain            = np.mean(np.atleast_1d([1.99,2.06,1.96,2.01]))
         detector_dict = dict(
             binning= binning,
             det=1,
@@ -1667,8 +1670,8 @@ class LBTMODS2BSpectrographProc(LBTMODSSpectrograph):
             nonlinear       = 0.99,
             mincounts       = -1e10,
             numamplifiers   = 4,
-            gain            = np.atleast_1d([1.99,2.06,1.96,2.01]),
-            gain[:]         = np.mean(gain), # replace the quadrant-by-quadrant gain with the average in _proc classes
+            #gain            = np.atleast_1d([1.99,2.06,1.96,2.01]),
+            gain         = np.atleast_1d([avg_gain,avg_gain,avg_gain,avg_gain]), # replace the quadrant-by-quadrant gain with the average in _proc classes
             ronoise         = np.atleast_1d([3.66,3.62,3.72,3.64])
             )
         return DetectorContainer(**detector_dict)
