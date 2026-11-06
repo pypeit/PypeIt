@@ -18,6 +18,10 @@ Breaking Changes
   alignment calibration frames now also store their spatial flexure (datamodel
   version 1.2.0).  Processed files from previous versions should be
   regenerated.
+- The slit-edge calibration files (``Slits``; datamodel version 1.1.7) now
+  record which slit edges were traced, as opposed to inserted (e.g., at the
+  detector boundary); see :ref:`flexure-spatial`.  Slit-edge files from
+  previous versions must be regenerated.
 
 Documentation Updates
 ---------------------
@@ -42,12 +46,42 @@ Documentation Updates
 Dependency Changes
 ------------------
 
+- ``threadpoolctl`` (already required by ``scikit-learn``) is now an explicit
+  dependency; it is used to pin the BLAS/OpenMP thread count while a detector is
+  reduced.
 - Adds support for python 3.14
 - ``pillow`` (already required by ``matplotlib``) is now an explicit
   dependency; it is used to write the QA PNGs.
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
+- PypeIt can now reduce detectors/mosaics concurrently.  With ``[rdx] ncpu``
+  (or ``run_pypeit --ncpu``) greater than 1, the calibration build, the
+  science-image processing, and the extraction are distributed over worker
+  processes, one detector each.  Object finding and global sky subtraction
+  remain serial because they require a cross-detector slitmask barrier.
+  This works on Linux, macOS and Windows: the workers are started with the
+  ``forkserver`` method on Linux and ``spawn`` elsewhere (``PYPEIT_MP_START``
+  overrides this for debugging); ``fork`` is avoided because the main process
+  is already multi-threaded.  On Linux, outputs are bit-identical to the serial
+  run on data where PypeIt is reproducible run-to-run; note that on multi-slit
+  data it currently is not, independently of ``ncpu`` (see Issue #2208).  On
+  other platforms the outputs are scientifically equivalent but not guaranteed
+  to be bit-identical (e.g., ``threadpoolctl`` cannot control Apple's
+  Accelerate BLAS).  Peak memory usage scales with the number of detectors
+  reduced simultaneously (several GB per detector for, e.g., Keck/DEIMOS and
+  MMT/Binospec), which in practice is the limit on how large ``ncpu`` can
+  usefully be.
+- To keep the products independent of ``ncpu``, PypeIt now pins the BLAS/OpenMP
+  thread count to 1 while reducing a detector, in the serial path as well as in
+  the workers.  Thread count changes the order in which the numerical libraries
+  accumulate a reduction, and the sigma-clipped iterative fits in the sky
+  subtraction amplify that last-bit difference into a visibly different sky
+  model.  The trade-off is that a default ``ncpu = 1`` reduction no longer uses
+  multi-threaded linear algebra and is a few percent slower than in previous
+  versions; in exchange, where the pinning takes effect, results are now
+  reproducible across ``ncpu`` settings and across machines with different core
+  counts.
 - Added several methods to determine the spatial flexure, set by the new
   ``spat_flexure_method`` parameter: a single shift for the detector
   (``detector``), a shift for each slit (``slit``), for each slit edge
@@ -61,12 +95,55 @@ Functionality/Performance Improvements and Additions
 - The spatial flexure of each input frame is recorded in the header of the
   datacubes constructed by ``pypeit_coadd_datacube`` (``SPFLXnnn`` keywords);
   see :ref:`coadd3d_spatflex`.
+- Added the ``refine_edges`` slit-edge tracing parameter, which shifts each
+  traced slit edge to the position of the steepest flux gradient (the traced
+  edges are a fraction of a pixel to about a pixel outside it), accounting for
+  the light of the neighbouring slit; the traced edge is kept (with a warning)
+  if an edge cannot be refined.  It is ``True`` by default for all
+  ``SlicerIFU`` spectrographs, so that the edge-based spatial flexure is
+  measured relative to the steepest gradient, and a warning is printed if the
+  ``edge``, ``leftedge`` or ``rightedge`` spatial flexure method is used with
+  ``refine_edges = False``.
 - Added the ``spat_flexure_minfrac`` image-processing parameter: if less than
-  this fraction (10% by default) of the traced slit-edge pixels coincide with
-  an edge detected in the frame at the measured spatial flexure, the slit edges
-  are deemed to be undetected, and no spatial flexure is applied to the frame
-  (e.g., for a short exposure of a standard star, where the slit edges are
-  not visible).
+  this fraction of the traced slit-edge pixels coincide with an edge detected
+  in the frame at the measured spatial flexure, the slit edges are deemed to
+  be undetected, and no spatial flexure is applied to the frame.  The check is
+  disabled by default.  For the ``slit``, ``edge``, ``leftedge`` and
+  ``rightedge`` methods, the slit edges are deemed to be undetected (and no
+  spatial flexure is applied) if fewer than 25% of the slit edges can be
+  refined (e.g., for a short exposure of a standard star, where the slit edges
+  are not visible), unless at least 50% of the traced slit-edge pixels are
+  matched at the detector-level flexure, in which case the detector-level
+  flexure is adopted for all edges.  An edge is refined if its model is a
+  significant (10 sigma) improvement over a constant flux, and if its position
+  is measured to better than 0.1 pixels.  Refined edges whose spatial flexure
+  is inconsistent with that of the other edges (by more than 4 times their
+  robust scatter about a linear fit across the detector, and at least 0.25
+  pixels) are rejected, and their spatial flexure is interpolated from the
+  neighbouring edges.
+- The detector-level spatial flexure is now the average of the peaks of the
+  cross-correlations of the left and right slit edges, computed separately.
+  The detected and traced edges are offset from the steepest flux gradient in
+  opposite directions for left and right edges, by up to about a pixel, so the
+  peak of the single cross-correlation of all edges (as before) was biased
+  when the numbers of left and right edges differed, and was unstable when its
+  left- and right-edge contributions were similar.  Only the traced slit edges
+  are used to measure the spatial flexure, for all methods: the edges inserted
+  by the slit-edge tracing (e.g., at the detector boundary, when only one edge
+  of a long slit is on the detector) are assigned the spatial flexure of the
+  other edge of their slit.  If the traced edges on a detector are all on one
+  side of the slits (e.g., a long slit cut by the detector boundary), the
+  detector-level spatial flexure would be biased by up to about a pixel, so
+  the traced edges are refined (for all methods), and each slit is assigned
+  the spatial flexure of its traced edge (or, if none of them can be refined,
+  the detector-level spatial flexure, provided that the slit edges are clearly
+  detected).  If none of the slit edges were traced (e.g., if the slits were
+  placed at the detector boundaries with ``bound_detector = True``), no
+  spatial flexure is applied.  If the left- and right-edge peaks differ by
+  more than 2.5 pixels (e.g., because the edges of one side are poorly
+  detected), the peak of the single cross-correlation of all edges is used
+  instead.  Each peak, and the fraction of the traced edge pixels of its side
+  that it matches, are printed in the log.
 - The spatial flexure of each frame is accounted for when constructing
   datacubes (``pypeit_coadd_datacube``): the RA and Dec of each detector pixel,
   and the astrometric alignment traces, are now evaluated using the spatial
@@ -92,6 +169,9 @@ Functionality/Performance Improvements and Additions
   AI assistant).
 - Setup GUI now uses a standard button bar that can be moved.
 - Re-enabled the Cancel button on the Setup GUI progress dialog.
+- The ``SlitWavelength`` `ginga` plugin can now show the RMS of the wavelength
+  solution, in addition to the wavelength, in the cursor readout; see the new
+  ``rms_img`` argument of :func:`~pypeit.display.display.show_image`.
 - Increased default font size for Setup GUI.
 - Added an optional residual-CR path to L.A.Cosmic-based cosmic-ray
   rejection, controlled by the new ``cr_median_width`` process
@@ -100,6 +180,13 @@ Functionality/Performance Improvements and Additions
 - Adds ability to select the specific archive of standard stars to use when
   searching for a match to an observed standard.  This is particularly import
   for LBT/MODS.
+- Instrument support for the quicklook viewer (``pypeit_qlview``) is now
+  defined by new ``qlview_*`` hooks of the
+  :class:`~pypeit.spectrographs.spectrograph.Spectrograph` classes; set
+  ``qlview_supported = True`` to offer a spectrograph in the viewer.  Keck/DEIMOS,
+  Keck/LRIS red (Mark4 detector), and Keck/MOSFIRE are currently supported.  The viewer's remote HTTP API
+  identifies instruments by their PypeIt spectrograph name (e.g.,
+  ``keck_deimos``).
 - Added the ``[collate1d] outfile_from`` parameter, which chooses how coadded
   output files are named: ``'coord'`` (the previous behavior, from the object
   sky coordinate) or ``'maskdef_objname'`` (the catalog target name from the
@@ -159,9 +246,68 @@ Functionality/Performance Improvements and Additions
   threshold are masked (``BADWVCALIB``).  Previously, a ``full_template``
   solution was accepted regardless of its RMS, which is still the default.
   See :ref:`wvcalib-rms-threshold`.
+- ``fitting.robust_fit`` now converts its inputs to float once per call
+  rather than copying them on every rejection iteration, reducing memory use
+  for large fits (e.g., the flat-field fine spatial-illumination correction).
+- ``fitting.polyfit2d_general`` now solves fits with more than
+  ``[rdx] fit2d_chunk`` (default 32768) points in chunks, using a sequential QR
+  decomposition, instead of building the full design matrix.  For fits over a
+  whole detector (e.g., the wavelength tilts and the flat-field fine
+  correction), this removes several GB of temporary arrays: the tilts stage of
+  a Binospec long-slit reduction drops from a 16.1 to a 6.9 GiB peak and runs
+  faster.  The coefficients agree with the previous solution to round-off;
+  smaller fits are computed exactly as before.
+- Reduced the memory used by B-spline fits, with no change to the results
+  beyond round-off: the weighted design matrix is formed one B-spline span at
+  a time; for 2D fits (``BSpline2D``), the polynomial basis is only
+  recomputed when the design matrix must be rebuilt, and the cached design
+  matrix stores its B-spline and polynomial factors instead of their product.
+  2D models (including ``BSpline2D.value``) are evaluated directly from these
+  factors, without forming the design matrix, so the fits are as fast as
+  before.  For the 2D flat-field fit of a Binospec long-slit detector, this
+  removes ~5 GiB of temporary arrays.
+- ``fitting.evaluate_fit`` now evaluates 2D fits in chunks of points.  The
+  results are identical, but numpy's 2D evaluation functions no longer
+  allocate temporaries over all points at once (~2 GiB for the flat-field
+  fine correction of a Binospec detector), and the evaluation is faster.
+- Added the expert ``[rdx] fit2d_chunk`` parameter, which sets the number of
+  points processed at a time by the chunked 2D polynomial fits and
+  evaluations above.  It trades peak memory for speed and does not change the
+  results beyond round-off.
+- The vectorized boxcar pre-extraction of the ``Fiber`` pypeline
+  (``FiberFindObjects._preextract_fibers``) now handles a different aperture
+  radius for each fiber, so it is used for the Binospec IFU instead of
+  falling back to the per-fiber loop (Issue #2222).  Pre-extraction of a
+  Binospec IFU detector is ~10x faster (about 70 s to 8 s) and its results
+  are unchanged.
 
 Instrument-specific Updates
 ---------------------------
+
+- Keck/LRIS: the traced slit edges of long-slit observations are now refined
+  to the steepest flux gradient (``refine_edges = True``), since the spatial
+  flexure of such frames (with one slit edge on each detector) is measured
+  from the refined slit edge; see :ref:`flexure-spatial`.
+- Keck/KCWI and Keck/KCRM: the spatial flexure is now determined by default
+  for the arc, tilt, pixel-flat and illumination-flat frames (``edge``
+  method) and for the science frames (``detector`` method, with
+  ``spat_flexure_minfrac = 0.25``); the slit edges of science frames are only
+  illuminated by the sky, and the edges of individual slits cannot be
+  measured reliably, whereas the detector-level shift is consistent to a few
+  thousandths of a pixel between consecutive exposures.  The traced slit
+  edges are refined to the steepest flux gradient (``refine_edges = True``),
+  and the slit edges are no longer
+  tweaked (``tweak_slits = False``), so that everything is relative to the
+  initial slits.  Other changes to the KCWI/KCRM defaults:
+
+  - The wavelength calibration cross-correlates the arc spectra directly
+    with the templates (``cc_synth_arc = False``), instead of synthetic arc
+    spectra.
+  - KCWI: the non-linearity correction (``correct_nonlinear``) and the
+    subtraction of the scattered light from the pixel and illumination flats
+    (``subtract_scattlight``) are no longer applied by default; they can be
+    switched on by the user.  The default ``spat_samp`` and
+    ``tweak_slits_thresh`` of :ref:`flatfieldpar` are now used.
 
 - Magellan/LDSS3: support for the VPH-Blue and VPH-Red grisms, and a rework of
   how the two amplifier files are handled:
@@ -316,6 +462,9 @@ Script Changes
   spec1d files.  Combines both detector sides and produces FITS datacubes
   with 3-axis WCS.
 
+- Added the ``--show_wave_rms`` option to ``pypeit_show_2dspec``, which shows the
+  RMS (in pixels) of the wavelength solution for the slit under the cursor; see
+  :ref:`pypeit_show_2dspec`.
 - Removed -G/--gui option from pypeit_obslog.
 
 - Added ``pypeit_binospec_ifu_extract`` for interactive selection of
@@ -326,6 +475,14 @@ Script Changes
 Testing
 -------
 
+- Added :mod:`pypeit.tests.test_parallel` and an ``--ncpu`` end-to-end
+  regression to ``test_runpypeit``, which reduces ``shane_kast_blue`` serially
+  and with ``--ncpu 2`` and requires the products to match exactly on Linux
+  (and to within a tolerance elsewhere).  The worker-pool tests run on every
+  platform, under both the ``forkserver`` and ``spawn`` start methods.
+- Added a dev-suite ``--ncpu 2`` reduction of the two-detector
+  ``keck_lris_blue/multi_600_4000_slitmask`` setup, with a ``vet_tests`` comparison
+  against the serial products.
 - Add new tests for :mod:`~pypeit.core.pydl`
 - Added new tests for :class:`~pypeit.inputfiles.InputFile` objects.
 - Added tests for MMT/Binospec setup grouping and INCAN-based flat/trace frame
@@ -336,10 +493,22 @@ Testing
   writes are pixel-identical to serial writes, queued figures are isolated
   from later pyplot-state plotting, and writer-thread exceptions re-raise on
   the main thread.
+- Added a test that :func:`~pypeit.core.pca.pca_decomposition` is
+  bit-reproducible across repeated calls and input memory alignments.
 
 Under-the-hood Improvements
 ---------------------------
 
+- Added :mod:`~pypeit.parallel`, a small helper that maps a per-detector
+  function over the detector list either serially or over a
+  ``ProcessPoolExecutor``.  The arguments common to all detectors are sent to
+  each worker once, when it starts, and each detector's own inputs with its
+  job, so any start method works.  Workers are started with the BLAS/OpenMP
+  thread-count environment variables set to 1, re-apply the process-global
+  configuration of the parent (e.g., ``[rdx] fit2d_chunk`` and the matplotlib
+  backend), and buffer their log records and Python warnings, which the parent
+  replays grouped in detector order so that each detector's block stays
+  contiguous in the run log.
 - Adds new :class:`~pypeit.core.fitting.PypeItFitCollection` class to replace
   the pypeit-specific uses of ``pypeit.core.pydl.TraceSet``.  This was
   primarily done to avoid a circular import.
@@ -380,6 +549,34 @@ Under-the-hood Improvements
 Bug Fixes
 ---------
 
+- :func:`~pypeit.core.moment.moment1d` no longer truncates the wider apertures
+  when called with an array of different widths; its integration window was
+  sized by the narrowest aperture (Issues #2158, #2222).  Calls with a single
+  width, or with widths that span no more than one additional pixel, are
+  unchanged.
+- Fixed a bug in :func:`~pypeit.exposure.reduce_exposure` where a detector
+  whose calibrations failed was removed from the detector list *while that list
+  was being iterated*, causing the following detector to be skipped silently
+  and then reduced with calibrations that were never built.
+- Fixed :class:`~pypeit.images.bitmaskarray.BitMaskArray` and
+  :class:`~pypeit.specobjs.SpecObjs` raising ``RecursionError`` when unpickled
+  or deep-copied.  Both classes define ``__getattr__`` methods that read an
+  attribute set by ``__init__``; because :mod:`pickle` builds an instance
+  without calling ``__init__`` and then probes it for ``__setstate__``, the
+  lookup re-entered ``__getattr__`` indefinitely.
+- MMT Binospec: the ``ra``/``dec`` metadata now come from the catalog
+  ``CATRA``/``CATDEC`` header cards instead of ``RA``/``DEC``, which give the
+  instrument rotator axis and are offset from the target by the instrument
+  offset (``IAZOFF``/``IELOFF``, ~594 arcsec for the IFU and ~337 arcsec for
+  the long slits).  Decimal ``CATRA`` values in older headers are now read as
+  hours, not degrees.  For the IFU, the datacube and fiber-extraction WCS no
+  longer read the decimal-degree ``RA`` of spec1d/spec2d headers as hours, and
+  ``POSANG`` is now propagated to those headers so the WCS is correctly
+  rotated.  IFU combination groups are still built from the rotator-axis
+  pointing, now recorded as the ``ra_off``/``dec_off`` offset from the target,
+  so dithers made with the instrument offset (which leave
+  ``CATRA``/``CATDEC`` unchanged) still separate.
+
 - Wavelength solutions that pass exactly through the identified arc lines
   (i.e., with zero degrees of freedom and an RMS of zero) are no longer
   accepted.  If there are too few lines for the order of the final fit
@@ -394,6 +591,31 @@ Bug Fixes
   slit given by ``reference_slit`` could not be calibrated; a clear error
   message is now raised instead.  Also fixed a crash in the echelle wavelength
   calibration when the fit of an order fails.
+- Fixed the 2D Gaussian fit of the white-light image of a datacube
+  (:func:`~pypeit.core.datacube.fitGaussian2D`), used to find point sources in
+  ``pypeit_extract_datacube`` and to determine the datacube weights and
+  alignment.  The model was not normalised to its integrated flux, the initial
+  flux and offset did not depend on the image, and the position of a
+  DAOStarFinder detection was constrained to within one third of the FWHM, so
+  that the fit of a poorly sampled object often failed (or ended at the
+  bounds).  The fit now starts from the centroid of the brightest pixel near
+  the DAOStarFinder detection (whose position can be wrong by more than a
+  pixel for a poorly sampled object), the position is constrained to within
+  the larger of the FWHM and one pixel, and a circular Gaussian is fit before
+  the elliptical one (whose orientation is undetermined at a circular initial
+  guess).  If the elliptical fit fails, the circular fit is adopted; if both
+  fail, the initial position and the input FWHM are adopted with a warning.
+
+- Make reductions reproducible run to run (Issue #2208).
+  :func:`~pypeit.core.pca.pca_decomposition` now uses the exact
+  (``svd_solver='full'``) SVD solver.  With sklearn's default (``'auto'``), the
+  PCA decompositions used in slit-edge tracing, wide-slit tilt tracing, and
+  echelle object tracing were computed with sklearn's unseeded randomized
+  solver, so repeated reductions of the same data gave slightly different
+  results; the difference was amplified downstream, up to ~100% in low-S/N
+  extracted pixels of multi-slit data.  Results of these PCAs now change
+  at the level of the previous run-to-run scatter (~1e-6 pixels in the edge
+  traces).
 - Magellan/LDSS3: fixed the telescope (was MMT), the MJD (was the ``JD`` card,
   unconverted), ``dataext`` (1 to 0), the binning axis used to scale the
   wavelength FWHM (spatial to spectral), and ``default_pypeit_par``, which is
@@ -427,6 +649,23 @@ Bug Fixes
   applied at the spatial flexure of each flat-fielded frame.  It was applied
   at the spatial flexure of the pixel flat, which gave the wrong correction
   near the slit edges when the two flexures differed.
+- Fix the flat-field model of slits (or echelle orders) whose edges are closer
+  than about the ``slit_illum_pad`` padding of :ref:`flatfieldpar` to the edges
+  of the neighbouring slit.  Where the padded footprints of two slits overlap,
+  the overlapping pixels are assigned to only one of the slits, but some of
+  them are within the other slit.  For those pixels, the fit of the spectral
+  response of their slit used the spectral coordinate of the first spectral
+  row (instead of their wavelength tilts), and the spectral model of their slit
+  was not evaluated, so that the pixel flat of up to about two pixels per
+  spectral row near the slit edge could be wrong by up to a factor of 2.  The
+  wavelength tilts and the spectral and spatial models of each slit are now
+  evaluated over its own padded footprint.  Also, the pixels of each slit are
+  now always used to fit its spatial (illumination) response (they could be
+  assigned to the padding of the neighbouring slit, so that the illumination
+  profile of their slit was extrapolated there), and the gap between two
+  slits whose padded footprints overlap is split at its midpoint (it was
+  assigned to the second slit).  See the new ``split_overlap`` option of
+  :func:`~pypeit.slittrace.SlitTraceSet.slit_img`.
 - ``pypeit_coadd_datacube``: dedicated sky frames (``skysub_frame``) and
   relative scale-correction frames (``scale_corr``) are now remapped to the
   slits of each science frame, accounting for the spatial flexure of both
@@ -508,6 +747,23 @@ Bug Fixes
   populates its own portion of the shared ``*_state.json``.
 - Fixes a bug in :class:`~pypeit.bspline.bspline.bspline` which was not
   correctly setting ``xmin`` and ``xmax`` when using the ``x2`` option.
+- MMT Binospec IFU: fix mirrored fiber identification on side B (DET02)
+  (Issue #2220).  The side-B fiber reference profile (from the IDL pipeline)
+  is stored in a frame that is spatially mirrored relative to PypeIt's DET02
+  image and is now mirrored onto that frame when loaded.  Previously every
+  side-B fiber was assigned the name and ID of its mirror partner, so fibers
+  B122, B162, B242, and B294 appeared to be missing (they were labeled as
+  B199, B159, B79, and B27).  The truly dead fibers are now correctly
+  identified as B27, B79, B159, and B199, and side-B reference fiber positions
+  agree with observed flat-field traces to ~0.3 pixel rms (previously ~1 pixel,
+  up to 2.8 pixels).  Science-fiber sky positions were already correct and
+  are now assigned by fiber name.  Side-B calibrations and spec1d files must
+  be regenerated to pick up the corrected fiber IDs.
+- Fiber pypeline: the boxcar aperture of a fiber at the end of a block-slit
+  whose neighbor is a dead fiber is no longer doubled in width; it now uses
+  the block's median fiber spacing across the dead fiber's slot.  This
+  affected three side-B Binospec IFU fibers (B80, B160, and B200), whose
+  boxcar extractions also picked up the dead fiber's slot.
 - MMT/Binospec: flat/trace/illumflat frame typing now requires the
   incandescent lamp to be on (``INCAN`` = ``on``), preventing dark/noisy
   ``INCAN`` = ``off`` exposures from being combined into pixel and trace flats.
@@ -561,3 +817,41 @@ Bug Fixes
 - Spectral flexure was not previously included when generating a wavelength
   image for a spec2d file during ``global_skysub``. This caused a multiple
   correction to the spectral flexure, and only affected IFU data reduction.
+- Fixed ``pypeit_extract_datacube`` failing on datacubes written at the
+  native sampling of the spectrograph (``save_native = True``).  These cubes
+  take their WCS from the CD matrix built by the spectrograph ``get_wcs``
+  method, which is written as ``PCi_j`` with ``CDELTi = 1``.
+  :func:`~pypeit.core.datacube.extract_point_source` read the spaxel size and
+  wavelength step from ``CDELT`` alone, so it took the spaxels to be 1 degree
+  across: the point source was not detected ("No sources found"), and any
+  forced extraction gave counts too large by a factor of ~10\ :sup:`18`.  The
+  pixel scales are now computed from the full linear transformation of the
+  WCS.  The same fix applies to the spaxel size taken from a
+  ``reference_image`` by :func:`~pypeit.core.datacube.create_wcs`.  Affects
+  native cubes from all SlicerIFU spectrographs (Keck/KCWI, Keck/KCRM,
+  Gemini/GNIRS and GTC/MAAT).
+- Fix a memory leak on Python 3.13 and later: the
+  ``inspect.getargvalues(inspect.currentframe())`` idiom used by many
+  ``__init__`` methods to collect their arguments created a reference cycle
+  (PEP 667 made ``frame.f_locals`` a proxy that refers back to the frame), so
+  every ``DataContainer`` (e.g., ``PypeItImage``, ``PypeItFit``) and ``ParSet``
+  was kept alive, along with its arrays, until the cyclic garbage collector
+  ran.  The idiom is replaced by the new :func:`~pypeit.utils.init_arg_values`.
+- ``BSpline2D.fit`` now rebuilds its cached design matrix when ``npoly``,
+  ``xmin`` or ``xmax`` change between calls with the same ``x`` and
+  ``basis_x``; previously it reused the matrix built with the old basis.
+- Keck/LRIS blue (``keck_lris_blue_orig``, data taken before May 2009): fixed
+  :func:`~pypeit.spectrographs.keck_lris.KeckLRISBOrigSpectrograph.get_rawimage`,
+  which attached the detector parameters of the other detector to the data it
+  read (since version 1.1.0).  The gains and read noise of detector 2 (1.63,
+  1.70 e-/ADU; 3.6 e-) were applied to detector 1 and vice versa, so counts in
+  electrons were wrong by 5-9%, the noise model was wrong, and the two
+  amplifiers of each detector were mismatched by about 4%, which the pixel flat
+  did not fully remove near the amplifier boundary.  The outputs of detector 1
+  were also labelled ``DET02`` (and vice versa), so science objects were traced
+  using the standard-star trace of the other detector when both detectors were
+  reduced (and without it when only one was).  Calibration files were
+  named after the correct detector, but the spec2d extensions and spec1d object
+  names were not: they now change (``DET01`` <-> ``DET02``), so coadd1d or
+  fluxing files that list the spec1d objects of existing reductions need the
+  new names.

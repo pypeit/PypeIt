@@ -7,7 +7,6 @@ Implements the flat-field class.
 """
 from pathlib import Path
 import copy
-import inspect
 import gc
 import numpy as np
 
@@ -120,7 +119,7 @@ class FlatImages(calibframe.CalibFrame):
                  illumflat_raw=None, illumflat_spat_bsplines=None, illumflat_bpm=None,
                  illumflat_finecorr=None, illumflat_spat_flexure=None, PYP_SPEC=None, spat_id=None):
         # Parse
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
@@ -637,7 +636,7 @@ class FiberFlatImages(calibframe.CalibFrame):
                  fiber_ids=None, fiber_types=None, fiber_throughput=None,
                  PYP_SPEC=None):
         # Parse
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         d = dict([(k, values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
@@ -1118,13 +1117,33 @@ class FlatField:
         slitid_img_init = self.slits.slit_img(initial=True, spat_flexure=self.spat_flexure)
         #   - an image that uses the extra padding defined by
         #     self.flatpar. This was always 5 pixels in the previous
-        #     version.
-        padded_slitid_img = self.slits.slit_img(initial=True, spat_flexure=self.spat_flexure, pad=pad)
+        #     version.  The padding only extends each slit slightly
+        #     beyond its edges: the pixels on a slit always belong to
+        #     that slit (as in slitid_img_init, which also assigns the
+        #     pixels where two slits overlap, consistently with the
+        #     final flat-field images), and where the padded footprints
+        #     of neighbouring slits overlap, the gap between the slits
+        #     is split at its midpoint.  The pixels of each slit (and
+        #     those of its half of the gap) are therefore used to fit
+        #     its spatial (illumination) response.
+        padded_slitid_img = self.slits.slit_img(initial=True, spat_flexure=self.spat_flexure, pad=pad,
+                                                split_overlap=True)
+        on_slit = slitid_img_init != -1
+        padded_slitid_img[on_slit] = slitid_img_init[on_slit]
         #   - and an image that trims the width of the slit using the
         #     parameter in self.flatpar. This was always 3 pixels in
         #     the previous version.
         # TODO: Fix this for when trim is a tuple
         trimmed_slitid_img = self.slits.slit_img(initial=True, spat_flexure=self.spat_flexure, pad=-trim)
+
+        # The spectral coordinate (the tilts converted to the spectral pixel
+        # index) of each pixel.  For a slitless flat, this is the spectral
+        # pixel itself; otherwise, it is evaluated for each slit separately
+        # (see below).
+        if self.slitless:
+            tilts = np.tile(np.arange(rawflat.shape[0]) / (rawflat.shape[0]-1), (rawflat.shape[1], 1)).T
+            spec_coo = tilts * (nspec-1)
+            tilts = None
 
         # Prep for results
         self.mspixelflat = np.ones_like(rawflat)
@@ -1220,18 +1239,28 @@ class FlatField:
             onslit_padded = padded_slitid_img == slit_spat
             onslit_trimmed = trimmed_slitid_img == slit_spat
 
+            # The padded footprint of this slit, independent of the other
+            # slits.  Where the padded footprints of neighbouring slits
+            # overlap, padded_slitid_img assigns the overlapping pixels to only
+            # one of the slits (the pixels used to fit the spatial response of
+            # each slit are selected with padded_slitid_img), but the models of
+            # this slit are needed over all of its pixels (e.g. its tweaked
+            # pixels, if the slits themselves overlap).  The tilts and the
+            # models of this slit are therefore evaluated over its own padded
+            # footprint.
+            own_padded_img = self.slits.slit_img(slitidx=slit_idx, initial=True,
+                                                 spat_flexure=self.spat_flexure, pad=pad)
+            onslit_own = own_padded_img == slit_spat
+            if not self.slitless:
+                # NOTE: The pixels outside of the footprint are set to 0, but
+                # they are not used for this slit
+                spec_coo = self.wavetilts.fit2tiltimg(own_padded_img, spat_flexure=self.spat_flexure,
+                                                      slits=self.slits) * (nspec-1)
+            own_padded_img = None
+
             # ----------------------------------------------------------
             # Collapse the slit spatially and fit the spectral function
             # TODO: Put this stuff in a self.spectral_fit method?
-
-            # Create the tilts for pixels in this slit only (not full image)
-            if self.slitless:
-                tilts = np.tile(np.arange(rawflat.shape[0]) / (rawflat.shape[0]-1), (rawflat.shape[1], 1)).T
-            else:
-                tilts = self.wavetilts.fit2tiltimg(slitid_img_init, spat_flexure=self.spat_flexure)
-
-            # Convert the tilt image to an image with the spectral pixel index
-            spec_coo = tilts * (nspec-1)
 
             # Only include the trimmed set of pixels in the flat-field
             # fit along the spectral direction.
@@ -1293,7 +1322,7 @@ class FlatField:
             # Construct the model of the flat-field spectral shape
             # including padding on either side of the slit.
             spec_model[...] = 1.
-            spec_model[onslit_padded] = np.exp(spec_bspl.value(spec_coo[onslit_padded])[0])
+            spec_model[onslit_own] = np.exp(spec_bspl.value(spec_coo[onslit_own])[0])
             # ----------------------------------------------------------
 
             # ----------------------------------------------------------
@@ -1427,7 +1456,7 @@ class FlatField:
             spat_illum_fine = 1  # Default value if the fine correction is not performed
             if exit_status <= 1 and self.flatpar['slit_illum_finecorr']:
                 spat_model = np.ones_like(spec_model)
-                spat_model[onslit_padded] = spat_bspl.value(spat_coo_final[onslit_padded])[0]
+                spat_model[onslit_own] = spat_bspl.value(spat_coo_final[onslit_own])[0]
                 specspat_illum = np.fmax(spec_model, 1.0) * spat_model
                 norm_spatspec = rawflat / specspat_illum
                 spat_illum_fine = self.spatial_fit_finecorr(norm_spatspec, onslit_tweak, slit_idx, slit_spat, gpm, doqa=doqa)[onslit_tweak]
@@ -1488,7 +1517,7 @@ class FlatField:
                 continue
 
             # Perform the full 2d fit
-            twod_bspl, twod_gpm_fit, twod_flat_fit, _, exit_status = iterative_bspline_fit(
+            _, twod_gpm_fit, twod_flat_fit, _, exit_status = iterative_bspline_fit(
                 twod_spec_coo_data, twod_flat_data, ivar=twod_ivar_data, basis='poly',
                 basis_x=twod_spat_coo_data, npoly=npoly, xmin=0.0, xmax=1.0, gpm=twod_gpm_data,
                 nord=4, upper=twod_sigrej, lower=twod_sigrej,
@@ -1597,8 +1626,6 @@ class FlatField:
             # Cleanup to save on memory usage
             spec_coo_data = None
             twod_spec_coo_data = None
-            spec_coo = None
-            tilts = None
             gc.collect(2)
 
         # No need to continue if we're just doing the spatial illumination

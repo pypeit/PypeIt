@@ -5,7 +5,6 @@ Implements the objects used to hold slit edge data.
 .. include:: ../include/links.rst
 
 """
-import inspect
 
 from IPython import embed
 
@@ -19,6 +18,7 @@ from astropy.io import fits
 
 from pypeit import PypeItBitMaskError
 from pypeit import log
+from pypeit import utils
 from pypeit import PypeItError
 from pypeit import datamodel
 from pypeit import calibframe
@@ -95,7 +95,7 @@ class SlitTraceSet(calibframe.CalibFrame):
     calib_file_format = 'fits.gz'
     """File format for the calibration frame file."""
 
-    version = '1.1.6'
+    version = '1.1.7'
     """SlitTraceSet data model version."""
 
     bitmask = SlitTraceBitMask()
@@ -163,6 +163,17 @@ class SlitTraceSet(calibframe.CalibFrame):
                                      descr='Spatial coordinates (pixel indices) of all right '
                                            'edges, one per slit.  These traces have been adjusted '
                                            'by the flat-field.  Shape is Nspec by Nslits.'),
+                 'left_traced': dict(otype=np.ndarray, atype=(bool, np.bool_),
+                                     descr='Flags the left edges that were traced in the trace '
+                                           'image (True), as opposed to inserted (False); e.g., '
+                                           'by the left-right synchronization of the edges, or at '
+                                           'the detector boundaries if no edges were found.  '
+                                           'Shape is Nslits.  If None, all edges were traced.'),
+                 'right_traced': dict(otype=np.ndarray, atype=(bool, np.bool_),
+                                      descr='Flags the right edges that were traced in the trace '
+                                            'image (True), as opposed to inserted (False); see '
+                                            'left_traced.  Shape is Nslits.  If None, all edges '
+                                            'were traced.'),
                  'center': dict(otype=np.ndarray, atype=np.floating,
                                descr='Spatial coordinates of the slit centers from left_init, '
                                      'right_init.  Shape is Nspec by Nslits.'),
@@ -187,10 +198,10 @@ class SlitTraceSet(calibframe.CalibFrame):
                  pad=None, spat_id=None, maskdef_id=None, maskdef_designtab=None, maskfile=None,
                  maskdef_posx_pa=None, maskdef_offset=None, maskdef_objpos=None,
                  maskdef_slitcen=None, ech_order=None, nslits=None, left_tweak=None,
-                 right_tweak=None, center=None, mask=None):
+                 right_tweak=None, left_traced=None, right_traced=None, center=None, mask=None):
 
         # Instantiate the DataContainer
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         _d = dict([(k,values[k]) for k in args[1:]])
         # The dictionary passed to DataContainer.__init__ does not
         # contain self.
@@ -254,6 +265,17 @@ class SlitTraceSet(calibframe.CalibFrame):
             self.specmin = np.full(self.nslits, -1, dtype=float)
         if self.specmax is None:
             self.specmax = np.full(self.nslits, self.nspec, dtype=float)
+
+        # The flags of the traced edges
+        if (self.left_traced is None) != (self.right_traced is None):
+            raise PypeItError('Flags of the traced edges must be provided for both the left and '
+                              'the right edges, or for neither.')
+        if self.left_traced is not None:
+            self.left_traced = np.atleast_1d(self.left_traced).astype(bool)
+            self.right_traced = np.atleast_1d(self.right_traced).astype(bool)
+            if self.left_traced.size != self.nslits or self.right_traced.size != self.nslits:
+                raise PypeItError('Number of flags of the traced edges does not match the number '
+                                  'of slits.')
 
         # If the echelle order is provided, check that the number of
         # orders matches the number of provided "slits"
@@ -374,6 +396,23 @@ class SlitTraceSet(calibframe.CalibFrame):
             )
 
         return self
+
+    def traced_edges(self):
+        """
+        Flag the slit edges that were traced in the trace image, as opposed to
+        inserted (e.g., by the left-right synchronization of the edges, or at
+        the detector boundaries if no edges were found); see
+        :attr:`left_traced` and :attr:`right_traced`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array with shape :math:`(N_{\rm slits},
+            2)`, which is True for the traced left (first column) and right
+            (second column) edges.  All edges are flagged as traced if
+            :attr:`left_traced` and :attr:`right_traced` are not defined.
+        """
+        if self.left_traced is None or self.right_traced is None:
+            return np.ones((self.nslits, 2), dtype=bool)
+        return np.column_stack((self.left_traced, self.right_traced))
 
     def init_tweaked(self):
         """
@@ -696,7 +735,7 @@ class SlitTraceSet(calibframe.CalibFrame):
         return left.copy()-_pad[0], right.copy()+_pad[1], self.mask.copy()
 
     def slit_img(self, pad=None, slitidx=None, initial=False, spat_flexure=None, exclude_flag=None,
-                 use_spatial=True):
+                 use_spatial=True, split_overlap=False):
         r"""
         Construct an image identifying each pixel with its associated
         slit.
@@ -714,9 +753,10 @@ class SlitTraceSet(calibframe.CalibFrame):
 
         .. warning::
 
-            - The function does not check that pixels end up in
-              multiple pixels or that the padding is sensible given
-              the separation between slit edges!
+            - Unless ``split_overlap`` is True, the function does not
+              check that pixels end up in multiple slits or that the
+              padding is sensible given the separation between slit
+              edges!
             - All slits are identified in the image, even if they are
               masked with :attr:`mask`.
 
@@ -754,6 +794,19 @@ class SlitTraceSet(calibframe.CalibFrame):
                 where the first column is the shift to apply to the
                 left edge of each slit and the second column is the
                 shift to apply to the right edge of each slit.
+            split_overlap (:obj:`bool`, optional):
+                How to assign the pixels that belong to more than one
+                (padded) slit.  If False, they are assigned to the last of
+                these slits (in the order of ``slitidx``).  If True, they
+                are assigned to the slit whose (padded) edges are the
+                farthest from the pixel, i.e. the slit that the pixel is
+                deepest inside of.  If the padding is the same for all
+                slits and for both of their edges, a pixel on a slit is
+                therefore never assigned to the padding of another slit, and
+                where the padded footprints of two neighbouring slits
+                overlap, the overlap is split at the midpoint between the
+                facing edges of the two slits.  Pixels that belong to only
+                one slit are not affected.
 
         Returns:
             `numpy.ndarray`_: The image with the slit index
@@ -786,11 +839,25 @@ class SlitTraceSet(calibframe.CalibFrame):
         # Find the pixels in each slit, limited by the minimum and
         # maximum spectral position.
         slitid_img = np.full((self.nspec,self.nspat), -1, dtype=int)
+        if split_overlap:
+            # The (signed) distance of each assigned pixel from the nearest
+            # (padded) edge of its slit; negative inside the slit
+            depth = np.full((self.nspec,self.nspat), np.inf)
         for i in slitidx:
             slit_id = self.spat_id[i] if use_spatial else i
             indx = (spat[None,:] > left[:,i,None]) \
                         & (spat[None,:] < right[:,i,None]) \
                         & (spec > self.specmin[i])[:,None] & (spec < self.specmax[i])[:,None]
+            if split_overlap:
+                # Only assign the pixels that are deeper inside this slit
+                # than inside the slit they are already assigned to (if any)
+                rows, cols = np.where(indx)
+                d = np.maximum(left[rows,i] - cols, cols - right[rows,i])
+                deeper = d < depth[rows,cols]
+                rows, cols = rows[deeper], cols[deeper]
+                depth[rows,cols] = d[deeper]
+                slitid_img[rows,cols] = slit_id
+                continue
             slitid_img[indx] = slit_id
         # Return
         return slitid_img

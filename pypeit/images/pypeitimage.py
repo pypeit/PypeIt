@@ -3,7 +3,6 @@
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import inspect
 
 from IPython import embed
 
@@ -193,7 +192,7 @@ class PypeItImage(datamodel.DataContainer):
         super().__init__()
 
         # Get the list of arguments and values provided to the instantiation call.
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         # Loop through them all and assign them directly to attributes of the
         # class if they're part of the datamodel and *not* None.
         for key in args[1:]:

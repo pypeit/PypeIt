@@ -155,3 +155,52 @@ def test_width():
     assert np.absolute(np.mean(xr/sig)-1) < 0.02, 'Second moment should be good to better than 2%'
 
 
+
+
+def test_mixed_widths():
+    """
+    Apertures of different widths in one call match separate scalar-width calls
+    """
+    rng = np.random.default_rng(2222)
+    img = rng.normal(size=(20, 200)) + 10.
+    col = np.column_stack([np.full(20, 30.3), np.full(20, 90.7), np.full(20, 150.5)])
+    col += rng.uniform(-1., 1., size=col.shape)
+    width = np.array([4.2, 12.6, 7.0])
+    _width = np.broadcast_to(width, col.shape)
+
+    mixed = moment.moment1d(img, col, _width)[0]
+    for i, w in enumerate(width):
+        single = moment.moment1d(img, col[:,i], w)[0]
+        assert np.allclose(mixed[:,i], single, rtol=0, atol=1e-12), \
+            f'Aperture {i} with width {w} truncated in mixed-width call'
+
+
+def test_mixed_widths_subpixel_nan_outside_aperture():
+    """
+    Widths that differ but span one pixel keep the original window, so a
+    non-finite pixel just past the aperture does not reach its result
+    """
+    img = np.full((1, 100), 10.)
+    # Aperture 0 spans pixels 10-11 and aperture 1 is only pixel 50
+    col = np.array([[10.5, 50.0]])
+    width = np.array([[0.9, 0.8]])
+    expected = moment.moment1d(img, col, width)[0]
+    # This pixel is two beyond the start of aperture 0
+    img[0,12] = np.nan
+    result = moment.moment1d(img, col, width)[0]
+    assert np.array_equal(result, expected), 'NaN outside the aperture changed the result'
+
+
+def test_mixed_widths_nan_beyond_narrow_aperture():
+    """
+    A non-finite pixel in the padding added for a wider aperture does not
+    reach a narrower one
+    """
+    img = np.full((1, 100), 10.)
+    col = np.array([[20.0, 60.0]])
+    width = np.array([[2.0, 12.0]])
+    expected = moment.moment1d(img, col, width)[0]
+    # In the window of the first aperture only because of the second's width
+    img[0,26] = np.nan
+    result = moment.moment1d(img, col, width)[0]
+    assert np.array_equal(result, expected), 'NaN in the padding changed the narrow aperture'

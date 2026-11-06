@@ -22,6 +22,7 @@ from pypeit import PypeItError
 from pypeit import calibrations
 from pypeit import utils
 from pypeit.history import History
+from pypeit.core import fitting
 from pypeit.metadata import PypeItMetaData
 from pypeit import outputfiles
 from pypeit import exposure
@@ -100,6 +101,8 @@ class PypeIt:
             self.par['rdx'].validate()
         # QA figures are encoded by a thread pool when ncpu > 1
         qaWriter.init(ncpu=self.par['rdx']['ncpu'])
+        # Chunk size used to limit the memory of large 2D polynomial fits
+        fitting.set_polyfit2d_chunk(self.par['rdx']['fit2d_chunk'])
 
         # Write the full parameter set here
         # --------------------------------------------------------------
@@ -141,6 +144,20 @@ class PypeIt:
                 f'calibration section of the {self.spectrograph.name} documentation and the '
                 f'3D coadding section. Please update the frame type(s) in {pypeit_file} and '
                 'rerun.'
+            )
+
+        # The edge-based spatial flexure methods measure the flexure of each
+        # slit edge relative to the steepest flux gradient, so the traced slit
+        # edges should be refined to the steepest flux gradient
+        edge_frames = self.par.edge_flexure_frames()
+        if len(edge_frames) > 0 and not self.par['calibrations']['slitedges']['refine_edges']:
+            log.warning(
+                'The spatial flexure of the following frame types is measured with an edge-based '
+                f'method (edge, leftedge or rightedge): {", ".join(edge_frames)}.\nThese methods '
+                'measure the flexure of each slit edge relative to the steepest flux gradient, '
+                'but the traced slit edges are not refined to the steepest flux gradient.\nWe '
+                'recommend that you set refine_edges = True in the [calibrations][[slitedges]] '
+                'parameter block, and recreate the slit edges.'
             )
 
         # Other Internals
@@ -233,6 +250,14 @@ class PypeIt:
             log.info(f'Detectors to work on: {detectors}')
 
             # Loop on Detectors
+            # TODO: This is a second flat per-detector loop that could be run
+            # concurrently with parallel.map_over_detectors and
+            # pypeit_steps.calib_status_one, exactly as the calibration stage of
+            # exposure.reduce_exposure now is.  It was left serial in the first
+            # version of the detector parallelism because, unlike that stage,
+            # this loop keeps the returned Calibrations object and assigns
+            # self.det as a side effect, so converting it requires auditing what
+            # else reads those.
             for self.det in detectors:
                 log.info(f'Working on detector {self.det}')
 

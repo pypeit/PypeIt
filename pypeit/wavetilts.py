@@ -95,7 +95,7 @@ class WaveTilts(calibframe.CalibFrame):
                  tilt_traces=None):
 
         # Parse
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
@@ -131,7 +131,7 @@ class WaveTilts(calibframe.CalibFrame):
             raise PypeItError('Your tilt solutions are out of sync with your slits.  Remove calibrations '
                        'and restart from scratch.')
 
-    def fit2tiltimg(self, slitmask, spat_flexure=None, chk_version=True):
+    def fit2tiltimg(self, slitmask, spat_flexure=None, slits=None, chk_version=True):
         """
         Generate a tilt image from the fit parameters
         Mainly to allow for spatial flexure
@@ -148,19 +148,26 @@ class WaveTilts(calibframe.CalibFrame):
                 (nslits, 2), where the first column is the shift to apply to the
                 left edge of each slit and the second column is the
                 shift to apply to the right edge of each slit.
+            slits (:class:`~pypeit.slittrace.SlitTraceSet`, optional):
+                The slits of the tilts (i.e. those in the Slits calibration
+                file; only their initial edges are used).  Provide these to
+                avoid reading the Slits calibration file, e.g. when this method
+                is called for each slit separately.  If None, the slits are
+                read from the Slits calibration file.
             chk_version (:obj:`bool`, optional):
                 When reading in existing files written by PypeIt, perform strict
                 version checking to ensure a valid file.  If False, the code
                 will try to keep going, but this may lead to faults and quiet
-                failures.  User beware!
+                failures.  User beware!  Not used if ``slits`` is provided.
 
         Returns:
             `numpy.ndarray`_:  New tilt image
 
         Raises:
             PypeItError:
-                Raised if the slits calibration file cannot be found, or if
-                ``spat_flexure`` has the wrong shape.
+                Raised if the slits calibration file cannot be found, if the
+                slits are not synced with the tilts, or if ``spat_flexure`` has
+                the wrong shape.
         """
         log.info("Generating a tilts image from the fit parameters")
 
@@ -169,13 +176,17 @@ class WaveTilts(calibframe.CalibFrame):
             if self.spat_flexure is None else self.spat_flexure
 
         # Load the slits
-        if self.calib_dir is None or self.slits_filename is None:
-            raise PypeItError('Cannot generate tilts image: the calibration directory and/or the '
-                              'name of the Slits calibration file are not defined.')
-        cal_file = Path(self.calib_dir).absolute() / self.slits_filename
-        if not cal_file.exists():
-            raise PypeItError(f'Slits file {str(cal_file)} not found.  Cannot generate tilts image.')
-        slits = slittrace.SlitTraceSet.from_file(cal_file, chk_version=chk_version)
+        if slits is None:
+            if self.calib_dir is None or self.slits_filename is None:
+                raise PypeItError('Cannot generate tilts image: the calibration directory and/or '
+                                  'the name of the Slits calibration file are not defined.')
+            cal_file = Path(self.calib_dir).absolute() / self.slits_filename
+            if not cal_file.exists():
+                raise PypeItError(f'Slits file {str(cal_file)} not found.  Cannot generate tilts '
+                                  'image.')
+            slits = slittrace.SlitTraceSet.from_file(cal_file, chk_version=chk_version)
+        else:
+            self.is_synced(slits)
         _left, _right, _mask = slits.select_edges(initial=True, spat_flexure=tilts_spat_flexure)
 
         # Check the spatial flexure input

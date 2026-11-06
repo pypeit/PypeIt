@@ -390,6 +390,98 @@ def test_fitgaussian2d_ginga_xy_convention():
         'manual_position did not lock the fit onto the faint source in y (row)'
 
 
+def test_gaussian2d_integrated_flux():
+    """The ``intflux`` parameter of `gaussian2D` must be the integrated flux,
+    including for an asymmetric and rotated Gaussian."""
+    yy, xx = np.mgrid[-30:30:0.05, -30:30:0.05]
+    model = datacube.gaussian2D((xx, yy), 250.0, 0.3, -0.2, 1.7, 0.8, 0.6, 0.0)
+    assert np.isclose(np.sum(model) * 0.05**2, 250.0, rtol=1e-6), \
+        'gaussian2D is not normalised to its integrated flux'
+
+
+def _undersampled_star(x0, y0, sigma, flux, shape, noise, seed):
+    """Image of a pixel-integrated, circular Gaussian star plus Gaussian noise."""
+    from scipy.special import erf
+    ny, nx = shape
+    xedge, yedge = np.arange(nx + 1) - 0.5, np.arange(ny + 1) - 0.5
+    fx = np.diff(0.5 * (1 + erf((xedge - x0) / np.sqrt(2) / sigma)))
+    fy = np.diff(0.5 * (1 + erf((yedge - y0) / np.sqrt(2) / sigma)))
+    return flux * np.outer(fy, fx) + np.random.default_rng(seed).normal(0, noise, shape)
+
+
+@photutils_required
+@pytest.mark.parametrize('fwhm', [0.81, 1.1])
+def test_fitgaussian2d_undersampled_star(fwhm):
+    """An undersampled star (most of its flux in two pixels, as for the KCWI
+    GD50 datacube) must be fit at its position, with its integrated flux,
+    without normalising the image.  The input FWHM of 0.81 pixels (the
+    1.1 arcsec of the dev-suite extraction) is smaller than the FWHM of the
+    star, so the DAOStarFinder position can be wrong by more than a pixel."""
+    for seed in range(4):
+        image = _undersampled_star(10.5, 7.1, 0.45, 700.0, (17, 24), 1.0, seed)
+        popt, pcov, *_ = datacube.fitGaussian2D(image, fwhm=fwhm, norm=False)
+        assert np.all(np.isfinite(pcov)), 'the 2D Gaussian fit of an undersampled star failed'
+        assert np.isclose(popt[1], 10.5, atol=0.05) and np.isclose(popt[2], 7.1, atol=0.05), \
+            'wrong position of an undersampled star'
+        assert np.isclose(popt[0], 700.0, rtol=0.03), 'wrong integrated flux of an undersampled star'
+        # The (pixel-integrated) width is sqrt(0.45**2 + 1/12) = 0.54 pixels
+        assert np.allclose(popt[3:5], 0.54, atol=0.05), 'wrong width of an undersampled star'
+
+
+@photutils_required
+@pytest.mark.parametrize('x0, y0', [(9.70, 6.76), (9.83, 7.29), (10.25, 6.78)])
+def test_fitgaussian2d_undersampled_star_positions(x0, y0):
+    """Undersampled stars at positions where the DAOStarFinder position (with
+    an input FWHM of 0.81 pixels) is more than 1.5 pixels from the star."""
+    image = _undersampled_star(x0, y0, 0.45, 700.0, (17, 24), 1.0, 1)
+    popt, pcov, *_ = datacube.fitGaussian2D(image, fwhm=0.81, norm=False)
+    assert np.all(np.isfinite(pcov)), 'the 2D Gaussian fit of an undersampled star failed'
+    assert np.isclose(popt[1], x0, atol=0.05) and np.isclose(popt[2], y0, atol=0.05), \
+        'wrong position of an undersampled star'
+    assert np.isclose(popt[0], 700.0, rtol=0.03), 'wrong integrated flux of an undersampled star'
+
+
+@photutils_required
+def test_fitgaussian2d_circular_fit(monkeypatch):
+    """If the elliptical 2D Gaussian fit fails, the circular fit is adopted."""
+    image = _undersampled_star(10.5, 7.1, 0.45, 700.0, (17, 24), 1.0, 0)
+    curve_fit = datacube.opt.curve_fit
+
+    def circular_only(func, xdata, ydata, p0=None, **kwargs):
+        if len(p0) == 7:
+            raise RuntimeError('Optimal parameters not found')
+        return curve_fit(func, xdata, ydata, p0=p0, **kwargs)
+
+    monkeypatch.setattr(datacube.opt, 'curve_fit', circular_only)
+    popt, pcov, *_ = datacube.fitGaussian2D(image, fwhm=1.1, norm=False)
+    assert np.isclose(popt[1], 10.5, atol=0.05) and np.isclose(popt[2], 7.1, atol=0.05), \
+        'wrong position of the circular fit'
+    assert np.isclose(popt[3], popt[4]) and popt[5] == 0, 'the circular fit was not adopted'
+    assert np.isclose(popt[0], 700.0, rtol=0.03), 'wrong integrated flux of the circular fit'
+    assert np.all(np.isfinite(np.delete(np.delete(pcov, 5, axis=0), 5, axis=1))), \
+        'the covariance of the circular fit should be finite'
+    assert np.all(np.isinf(pcov[5])), 'the orientation of the circular fit is undetermined'
+
+
+@photutils_required
+def test_fitgaussian2d_failed_fit(monkeypatch):
+    """If the 2D Gaussian fit fails, the initial position and a symmetric
+    Gaussian with the input FWHM are adopted (rather than raising an error)."""
+    image = _undersampled_star(10.5, 7.1, 0.45, 700.0, (17, 24), 1.0, 0)
+
+    def failed_fit(*args, **kwargs):
+        raise RuntimeError('Optimal parameters not found')
+
+    monkeypatch.setattr(datacube.opt, 'curve_fit', failed_fit)
+    popt, pcov, model, init_pos, flux_opt, sigma_opt = datacube.fitGaussian2D(
+        image, init_obj_position=(10.4, 7.0), fwhm=1.1, norm=False)
+    assert np.allclose(popt[1:3], (10.4, 7.0)), 'the initial position was not adopted'
+    fwhm2sigma = 1.0 / (2 * np.sqrt(2 * np.log(2)))
+    assert np.allclose(popt[3:5], 1.1 * fwhm2sigma), 'the input FWHM was not adopted'
+    assert np.all(np.isinf(pcov)), 'the covariance of a failed fit should be infinite'
+    assert flux_opt > 0 and np.isfinite(sigma_opt), 'the optimal extraction failed'
+
+
 @photutils_required
 def test_extract_point_source_manual_position_selects_correct_source():
     """`extract_point_source` must extract the source at `manual_position`,
@@ -516,6 +608,72 @@ def test_extract_point_source_ra_dec_matches_extraction_position():
         'manually-positioned SpecObj RA/DEC does not match the manual_position coordinate'
 
 
+@photutils_required
+def test_extract_point_source_pc_matrix_wcs():
+    """`extract_point_source` must read the spaxel size and wavelength step
+    from the full linear transformation of the cube WCS, not just CDELT.
+    Native-sampling cubes are written from the CD matrix built by
+    `Spectrograph.get_wcs`, which astropy stores as PCi_j with CDELTi=1.
+    Reading CDELT alone gives 1 degree spaxels and 1 m wavelength pixels, so
+    the star is not detected and the extracted counts are wrong by ~1e18.
+    """
+    nwave, ny, nx = 6, 30, 24
+    star_x, star_y, sigma_pix = 11.3, 15.6, 1.5
+    # Non-square spaxels, as for a slicer IFU (slice width x pixel scale)
+    dspat_x, dspat_y = 0.305, 0.25  # arcsec
+    dwave = 1.3                     # Angstrom
+
+    yimg, ximg = np.mgrid[0:ny, 0:nx]
+    image2d = 50.0 * np.exp(-0.5 * ((ximg - star_x) ** 2 + (yimg - star_y) ** 2) / sigma_pix ** 2)
+    flxcube = np.broadcast_to(image2d, (nwave, ny, nx)).copy()
+    ivarcube = np.full((nwave, ny, nx), 1.0e4)
+    bpmcube = np.zeros((nwave, ny, nx), dtype=bool)
+    wave = 5000.0 + dwave * np.arange(nwave)
+    # The cube is in counts/s/Ang/arcsec^2, so the counts per spectral pixel
+    # (with exptime=1) are the summed flux times the voxel size.
+    expected_counts = image2d.sum() * dwave * dspat_x * dspat_y
+
+    # CDELT form, as written by generate_WCS for combined cubes
+    cdelt_wcs = WCS(naxis=3)
+    cdelt_wcs.wcs.crpix = [1.0, 1.0, 1.0]
+    cdelt_wcs.wcs.crval = [150.0, 10.0, wave[0]]
+    cdelt_wcs.wcs.cdelt = [-dspat_x / 3600.0, dspat_y / 3600.0, dwave]
+    cdelt_wcs.wcs.cunit = [u.deg, u.deg, u.Angstrom]
+    cdelt_wcs.wcs.ctype = ['RA---TAN', 'DEC--TAN', 'WAVE']
+
+    # Rotated CD matrix, as built by Spectrograph.get_wcs for native cubes,
+    # then passed through a FITS header as it is when the cube is read back.
+    rot = np.radians(20.0)
+    cdelt1, cdelt2 = -dspat_x / 3600.0, dspat_y / 3600.0
+    cd_wcs = WCS(naxis=3)
+    cd_wcs.wcs.crpix = [1.0, 1.0, 1.0]
+    cd_wcs.wcs.crval = [150.0, 10.0, wave[0]]
+    cd_wcs.wcs.cd = np.array([
+        [cdelt1 * np.cos(rot), abs(cdelt2) * np.sign(cdelt1) * np.sin(rot), 0.0],
+        [-abs(cdelt1) * np.sign(cdelt2) * np.sin(rot), cdelt2 * np.cos(rot), 0.0],
+        [0.0, 0.0, dwave]
+    ])
+    cd_wcs.wcs.cunit = [u.deg, u.deg, u.Angstrom]
+    cd_wcs.wcs.ctype = ['RA---TAN', 'DEC--TAN', 'WAVE']
+    pc_wcs = WCS(cd_wcs.to_header())
+    assert np.allclose(pc_wcs.wcs.cdelt, 1.0), \
+        'test setup error: the header round trip should leave CDELT=1 with the scale in PC'
+
+    extract_kwargs = dict(
+        exptime=1.0, fluxed=False, subpixel=5, boxcar_radius=2.0, fwhm=0.9,
+        opt_prof_method='fit_gauss', spectrograph='keck_kcrm', show_qa=False
+    )
+    for label, wcscube in [('CDELT', cdelt_wcs), ('PC matrix', pc_wcs)]:
+        sobjs, *_ = datacube.extract_point_source(
+            wave, flxcube, ivarcube, bpmcube, wcscube, manual_position=None, **extract_kwargs)
+        assert np.isclose(sobjs[0].BOX_R_PIX, 2.0 / np.sqrt(dspat_x * dspat_y)), \
+            f'{label} WCS: boxcar radius in pixels implies the wrong spaxel size'
+        assert np.allclose(sobjs[0].BOX_COUNTS, expected_counts, rtol=1e-3), \
+            f'{label} WCS: boxcar counts do not match the injected counts'
+        assert np.allclose(sobjs[0].OPT_COUNTS, expected_counts, rtol=1e-3), \
+            f'{label} WCS: optimal counts do not match the injected counts'
+
+
 # ---------------------------------------------------------------------------
 # The cube-axis-order rewrite bundled four separate WCS axis-order/sign
 # changes into one commit. Each test below isolates one of them (RA/Dec
@@ -593,6 +751,52 @@ def test_create_wcs_voxedges_axis_order():
         'voxedges[1] (ybins/Dec) should have 7 Dec bins; got the wrong axis or count'
     assert xbins.size - 1 == 11, \
         'voxedges[2] (xbins/RA) should have 11 RA bins; got the wrong axis or count'
+
+
+def test_create_wcs_reference_image_pc_matrix(tmp_path):
+    """`create_wcs` must take the spaxel size of a `reference` image from the
+    full linear transformation of its WCS, not just CDELT.  The white light
+    images of native-sampling cubes store the scale in PCi_j with CDELTi=1,
+    which previously gave 1 degree spaxels.  The CDELT-form result, including
+    the sign of each axis, must be unchanged.
+    """
+    ref_dspat = 0.3 / 3600.0  # deg/pixel of the reference image
+    ny, nx = 12, 9
+
+    cdelt_wcs = WCS(naxis=2)
+    cdelt_wcs.wcs.crpix = [nx, 0.0]
+    cdelt_wcs.wcs.crval = [150.0, 10.0]
+    cdelt_wcs.wcs.ctype = ['RA---TAN', 'DEC--TAN']
+    cdelt_wcs.wcs.cdelt = [-ref_dspat, ref_dspat]
+
+    cd_wcs = WCS(naxis=2)
+    cd_wcs.wcs.crpix = [nx, 0.0]
+    cd_wcs.wcs.crval = [150.0, 10.0]
+    cd_wcs.wcs.ctype = ['RA---TAN', 'DEC--TAN']
+    cd_wcs.wcs.cd = np.diag([-ref_dspat, ref_dspat])
+
+    ref_files = {}
+    for label, refwcs in [('CDELT', cdelt_wcs), ('PC matrix', cd_wcs)]:
+        ref_files[label] = tmp_path / f"reference_{label.replace(' ', '_')}.fits"
+        fits.PrimaryHDU(np.ones((ny, nx)), header=refwcs.to_header()).writeto(ref_files[label])
+    assert fits.getheader(ref_files['PC matrix'])['CDELT1'] == 1.0, \
+        'test setup error: the CD-matrix reference should be written with CDELT=1'
+
+    # With all six bounds specified explicitly, wcs_bounds() never touches the
+    # image arrays, so trivial placeholders are sufficient here.
+    dummy = np.zeros((2, 2))
+    dummy_gpm = np.ones((2, 2), dtype=int)
+    for label, ref_file in ref_files.items():
+        # Request a different spaxel size, so the reference must override it
+        cubewcs, _, reference_image = datacube.create_wcs(
+            dummy, dummy, dummy, dummy_gpm, 2 * ref_dspat, 1.0,
+            ra_min=150.0, ra_max=150.001, dec_min=10.0, dec_max=10.001,
+            wave_min=5000.0, wave_max=5010.0, reference=str(ref_file), collapse=True
+        )
+        assert np.allclose(cubewcs.wcs.cdelt[:2], [-ref_dspat, ref_dspat], rtol=1e-10, atol=0), \
+            f'{label} reference image: create_wcs did not adopt the reference spaxel size and sign'
+        assert reference_image.shape == (ny, nx), \
+            f'{label} reference image: wrong reference image returned'
 
 
 def test_generate_wcs_sky_right_convention():

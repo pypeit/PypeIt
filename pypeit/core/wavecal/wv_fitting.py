@@ -5,13 +5,13 @@
 
 """
 import numpy as np
-import inspect
 
 from astropy.io import fits
 
 from pypeit.core.wavecal import defs
 from pypeit.core import fitting
 from pypeit import log
+from pypeit import utils
 from pypeit import PypeItError
 from pypeit import datamodel
 
@@ -102,7 +102,7 @@ class WaveFit(datamodel.DataContainer):
                  sigrej=None, shift=None, tcent=None, rms=None, xnorm=None,
                  fwhm=None):
         # Parse
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
