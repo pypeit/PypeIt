@@ -1318,8 +1318,14 @@ def extract_point_source(
 
     # Convert from counts/s/Ang/arcsec**2 to counts. The sensitivity function expects counts as input
     numwave, numyy, numxx = flxcube.shape
-    dspat_x = np.abs(wcscube.wcs.cdelt[0] * wcscube.wcs.cunit[0].to(units.arcsec))
-    dspat_y = np.abs(wcscube.wcs.cdelt[1] * wcscube.wcs.cunit[1].to(units.arcsec))
+    # Get the pixel scales from the full linear transformation of the WCS, not
+    # just CDELT.  Native-sampling cubes store their pixel scale in the PC (or
+    # CD) matrix with CDELT=1.  Note that computing the scales can convert the
+    # WCS units (e.g., Angstrom to m), so cunit must be read afterwards.
+    celestial_wcs = wcscube.celestial
+    spat_scales = wcs.utils.proj_plane_pixel_scales(celestial_wcs)
+    dspat_x = spat_scales[0] * celestial_wcs.wcs.cunit[0].to(units.arcsec)
+    dspat_y = spat_scales[1] * celestial_wcs.wcs.cunit[1].to(units.arcsec)
     arcsecSQ = dspat_x * dspat_y
     dspat = np.sqrt(arcsecSQ)
     if fluxed:
@@ -1328,7 +1334,9 @@ def extract_point_source(
         unitscale = arcsecSQ
     else:
         # Scale the flux and ivar cubes to be in units of counts. pypeit_sensfunc expects counts as input
-        deltawave = wcscube.wcs.cdelt[2]*wcscube.wcs.cunit[2].to(units.Angstrom)
+        spectral_wcs = wcscube.spectral
+        spec_scale = wcs.utils.proj_plane_pixel_scales(spectral_wcs)[0]
+        deltawave = spec_scale * spectral_wcs.wcs.cunit[0].to(units.Angstrom)
         unitscale = exptime * deltawave * arcsecSQ
 
 
@@ -2367,9 +2375,14 @@ def create_wcs(raImg, decImg, waveImg, slitid_img_gpm, dspat, dwave,
     if reference is not None:
         # Load the requested reference image
         reference_image, imgwcs = load_imageWCS(reference)
-        # Update the celestial WCS
+        # Update the celestial WCS.  Get the pixel scale from the full linear
+        # transformation, not just CDELT, so that images with the scale in the
+        # PC (or CD) matrix (e.g. white light images of native cubes) are
+        # supported.  The sign of each axis is taken from the WCS.
         coord_min[:2] = imgwcs.wcs.crval
-        coord_dlt[:2] = imgwcs.wcs.cdelt
+        img_celestial = imgwcs.celestial
+        coord_dlt[:2] = np.copysign(wcs.utils.proj_plane_pixel_scales(img_celestial),
+                                    np.diag(img_celestial.pixel_scale_matrix))
         numdec, numra = reference_image.shape
 
     cubewcs = generate_WCS(coord_min, coord_dlt, numra, equinox=equinox, name=specname)
