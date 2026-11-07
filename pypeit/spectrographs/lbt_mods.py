@@ -882,7 +882,7 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
             mincounts       = -1e10,
             numamplifiers   = 4,
             gain            = np.atleast_1d([1.99,2.06,1.96,2.01]),
-            ronoise         = np.atleast_1d([3.66,3.62,3.72,3.64]),
+            ronoise         = np.atleast_1d([3.66,3.62,3.72,3.64])
 # TODO: The raw image reader sets these up by hand
 #            datasec         = np.atleast_1d('[:,:]'),
 #            oscansec        = np.atleast_1d('[:,:]')
