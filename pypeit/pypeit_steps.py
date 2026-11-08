@@ -14,6 +14,7 @@ from astropy import units
 
 from pypeit import log
 from pypeit import PypeItError
+from pypeit import qaWriter
 from pypeit.calibframe import CalibFrame
 from pypeit.images import buildimage
 from pypeit import specobjs
@@ -25,12 +26,54 @@ from pypeit.core import wave
 
 # local_skyregions
 from pypeit.core import skysub
-from pypeit import io
+from pypeit import outputfiles
 
 from pypeit import slittrace
 from pypeit import calibrations
 
 from IPython import embed
+
+def get_manual_flexure(fitstbl, frame:int):
+    """
+    Return the user-supplied manual spatial flexure for a frame, if any.
+
+    The manual value is taken from the ``shift`` column of the pypeit
+    file.  A blank entry (or ``None``) means no manual value; any
+    numeric entry -- including ``0.`` -- is a user request to override
+    the automatically computed spatial flexure.  See Issue #2180.
+
+    Parameters
+    ----------
+    fitstbl : :class:`~pypeit.metadata.PypeItMetaData`
+        The class holding the metadata for all the frames in this
+        PypeIt run.  Any object supporting ``fitstbl[frame]['shift']``
+        row access (e.g., an `astropy.table.Table`_) may be used.
+    frame : :obj:`int`
+        The index of the frame in ``fitstbl``.
+
+    Returns
+    -------
+    :obj:`float` or None
+        The manual spatial flexure shift in pixels, or None if the
+        user did not provide one.
+    """
+    # The 'shift' column may be absent entirely, e.g. for metadata
+    # built without the user-added columns.
+    if 'shift' not in fitstbl.keys():
+        return None
+    # Blank (or 'None') is the "not set" sentinel; see
+    # PypeItMetaData.set_user_added_columns()
+    manual_flexure = str(fitstbl[frame]['shift']).strip()
+    if manual_flexure.lower() in ['', 'none']:
+        return None
+    try:
+        return float(manual_flexure)
+    except ValueError:
+        raise PypeItError(
+            'Invalid value in the pypeit-file shift column: '
+            f'{manual_flexure}.  Must be a number or blank.'
+        )
+
 
 def get_sci_metadata(spectrograph, fitstbl, frame:int, det):
     """
@@ -58,6 +101,9 @@ def get_sci_metadata(spectrograph, fitstbl, frame:int, det):
 
     # Set binning, obstime, basename, and objtype
     binning = fitstbl['binning'][frame]
+    # NOTE: This determination of obstime is exactly what is done inside of
+    # construct_basename when obstime is not provided.  The only reason this is
+    # done here is because obstime is also returned by this function.
     obstime  = fitstbl.construct_obstime(frame)
     basename = fitstbl.construct_basename(frame, obstime=obstime)
     types  = fitstbl['frametype'][frame].split(',')
@@ -121,10 +167,11 @@ def set_bkg_negative(fitstbl, par, bg_frames:list):
     # Return
     return has_bg, bkg_redux, find_negative
 
-def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str, 
+def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
               reuse_calibs:bool=True,
-              qa_path:str=None, show:bool=False, run_state:dict=None,
-              stop_at_step:str=None):
+              qa_path:str=None, show:bool=False, run_state=None,
+              stop_at_step:str=None, status_only:bool=False,
+              reload_only:bool=False):
     """
     Run Calibration for a single detector, calib_ID pair
 
@@ -149,11 +196,18 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
             defined by the parameters.
         show (:obj:`bool`, optional):
             Show the QA during processing
-        run_state (:obj:`dict`, optional):
-            A dictionary containing the current state of the reduction.
-            If None, a new empty dictionary is created.
+        run_state (:class:`~pypeit.state.run_state.RunPypeItState`, optional):
+            The current state of the reduction.
+            If None, no state tracking is performed.
         stop_at_step (:obj:`str`, optional):
             Run only up to this calibration step.
+        status_only (:obj:`bool`, optional):
+            If True, only check whether calibration output files exist
+            and update the state accordingly, without running any
+            calibrations.
+        reload_only (:obj:`bool`, optional):
+            If True, only reload the calibrations, without running any
+            calibrations.
 
     Returns:
         caliBrate (:class:`~pypeit.calibrations.Calibrations`)
@@ -172,12 +226,12 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
                                             par['rdx']['maskIDs'])
     log.info(f'Building/loading calibrations for detector {det}')
     caliBrate = calibrations.Calibrations.get_instance(
-        fitstbl, par['calibrations'], spectrograph, calibrations_path, 
+        fitstbl, par['calibrations'], spectrograph, calibrations_path,
         calib_ID, grp_frames[0], det,
         qadir=qa_path,
         reuse_calibs=reuse_calibs, show=show, user_slits=user_slits,
-        chk_version=par['rdx']['chk_version'])
-        #, state=run_state)
+        chk_version=par['rdx']['chk_version'],
+        state=run_state)
 
     # Check
     if stop_at_step is not None and stop_at_step not in caliBrate.steps:
@@ -185,9 +239,10 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
             f"Requested stop_at_step={stop_at_step} is not a valid calibration step.\n Allowed "
             f"steps are: {caliBrate.steps}"
         )
-        
+
     # Run
-    caliBrate.run_the_steps(stop_at_step=stop_at_step)
+    caliBrate.run_the_steps(stop_at_step=stop_at_step,
+        reload_only=reload_only, status_only=status_only)
 
     # Success?
     if not caliBrate.success:
@@ -196,8 +251,77 @@ def calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path:str,
             f'{caliBrate.failed_step}.  Continuing to next detector.'
         )
 
+    # Ensure this detector's deferred QA figures are on disk before returning
+    qaWriter.flush()
+
     return caliBrate
 
+
+def calib_status_one(det, spectrograph, fitstbl, par, calib_ID, calibrations_path:str,
+                     reuse_calibs:bool=True, qa_path:str=None, show:bool=False,
+                     run_state=None, stop_at_step:str=None, status_only:bool=False,
+                     reload_only:bool=False):
+    """
+    Build/load the calibrations for one detector and return only the status.
+
+    Thin, detector-first wrapper around :func:`calib_one` for use with
+    :func:`~pypeit.parallel.map_over_detectors`.  The
+    :class:`~pypeit.calibrations.Calibrations` object is deliberately *not*
+    returned: it is large, and every downstream consumer reloads the
+    calibrations from ``Calibrations/*.fits`` anyway (see
+    :func:`load_calibrations_for_frame`), so nothing heavy has to cross a
+    process boundary.
+
+    This must stay a module-level function.  Under the ``fork`` start method a
+    closure would happen to work, but ``spawn`` support is a future goal and
+    requires the mapped function to be importable.
+
+    Parameters
+    ----------
+    det : :obj:`int`, :obj:`tuple`
+        Detector (1-indexed) or mosaic.  First argument, as required by
+        :func:`~pypeit.parallel.map_over_detectors`.
+    spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+        The spectrograph instance.
+    fitstbl : :class:`~pypeit.metadata.PypeItMetaData`
+        The class holding the metadata for all the frames in this PypeIt run.
+    par : :class:`~pypeit.par.pypeitpar.PypeItPar`
+        The parameter set for the reduction.
+    calib_ID : :obj:`str`
+        The calibration group ID.
+    calibrations_path : :obj:`str`
+        Path to the calibration files.
+    reuse_calibs : :obj:`bool`, optional
+        If True, reuse existing calibration files if they exist.
+    qa_path : :obj:`str`, optional
+        Path to the QA files; if None, use the default path defined by the
+        parameters.
+    show : :obj:`bool`, optional
+        Show the QA during processing.
+    run_state : :class:`~pypeit.state.run_state.RunPypeItState`, optional
+        The current state of the reduction.  If None, no state tracking is
+        performed.
+    stop_at_step : :obj:`str`, optional
+        Run only up to this calibration step.
+    status_only : :obj:`bool`, optional
+        If True, only check whether the calibration output files exist and
+        update the state accordingly, without running any calibrations.
+    reload_only : :obj:`bool`, optional
+        If True, only reload the calibrations, without running any.
+
+    Returns
+    -------
+    :obj:`tuple`
+        ``(success, failed_step)``: a :obj:`bool` flagging whether the
+        calibrations completed, and the :obj:`str` naming the step that failed
+        (None if none did).
+    """
+    log.info(f'Calibrating detector {det}')
+    caliBrate = calib_one(spectrograph, fitstbl, par, det, calib_ID, calibrations_path,
+                          reuse_calibs=reuse_calibs, qa_path=qa_path, show=show,
+                          run_state=run_state, stop_at_step=stop_at_step,
+                          status_only=status_only, reload_only=reload_only)
+    return caliBrate.success, caliBrate.failed_step
 
 def process_one_det(spectrograph, fitstbl, par, frames:list, 
                     det, calib_ID:str, calibrations_path:str, bg_frames:list=None,
@@ -302,6 +426,15 @@ def process_one_det(spectrograph, fitstbl, par, frames:list,
         # spatial flexure determined for the background image.
         sciImg = bkg_redux_sciimg.sub(bgimg)
 
+    # Manual (user-supplied) spatial flexure, restored per Issue #2180.
+    # A finite value in the pypeit-file "shift" column overrides the
+    # automatically computed spatial flexure.
+    manual_flexure = get_manual_flexure(fitstbl, frames[0])
+    if manual_flexure is not None:
+        log.info(f'Implementing manual flexure of {manual_flexure}')
+        sciImg.spat_flexure = manual_flexure
+    log.info(f'Spatial flexure being used is: {sciImg.spat_flexure}')
+
     # Write out the science image?
     if sci_outfile is not None:
         # Generate the folder?
@@ -317,6 +450,56 @@ def process_one_det(spectrograph, fitstbl, par, frames:list,
 
     # Return
     return sciImg, bkg_redux_sciimg
+
+def process_one_det_bydet(det, spectrograph, fitstbl, par, frames:list, calib_ID:str,
+                          calibrations_path:str, bg_frames:list=None,
+                          sci_outfile:str=None, bkg_outfile:str=None):
+    """
+    Detector-first adapter for :func:`process_one_det`.
+
+    Reorders the arguments of :func:`process_one_det` so that the detector comes
+    first, as :func:`~pypeit.parallel.map_over_detectors` requires, and emits the
+    progress message the serial loop in
+    :func:`~pypeit.exposure.process_exposure` used to emit itself.  The loop body
+    is otherwise untouched.
+
+    This must stay a module-level function; see :func:`calib_status_one`.
+
+    Parameters
+    ----------
+    det : :obj:`int`, :obj:`tuple`
+        Detector (1-indexed) or mosaic.  First argument, as required by
+        :func:`~pypeit.parallel.map_over_detectors`.
+    spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+        The spectrograph instance.
+    fitstbl : :class:`~pypeit.metadata.PypeItMetaData`
+        The class holding the metadata for all the frames in this PypeIt run.
+    par : :class:`~pypeit.par.pypeitpar.PypeItPar`
+        The parameter set for the reduction.
+    frames : :obj:`list`
+        Indices of the science frames in ``fitstbl`` to process together.
+    calib_ID : :obj:`str`
+        The calibration group ID.
+    calibrations_path : :obj:`str`
+        Path to the calibration files.
+    bg_frames : :obj:`list`, optional
+        Indices of the background frames in ``fitstbl``.  If None or empty, no
+        A-B background subtraction is performed.
+    sci_outfile : :obj:`str`, optional
+        The science output file, if this is a science reduction.
+    bkg_outfile : :obj:`str`, optional
+        The background output file, if this is a background-subtraction
+        reduction.
+
+    Returns
+    -------
+    :obj:`tuple`
+        ``(sciImg, bkg_redux_sciimg)``; see :func:`process_one_det`.
+    """
+    log.info(f'Reducing detector {det}')
+    return process_one_det(spectrograph, fitstbl, par, frames, det, calib_ID,
+                           calibrations_path, bg_frames=bg_frames,
+                           sci_outfile=sci_outfile, bkg_outfile=bkg_outfile)
 
 def findobj_on_det(sciImg, spectrograph, fitstbl, par, frames:list, calib_ID:str, 
                    det, calibrations_path:str, std_outfile:str=None, 
@@ -534,8 +717,9 @@ def load_calibrations_for_frame(spectrograph, fitstbl, par, frame, det,
     return caliBrate
 
 
-def load_skyregions(spectrograph, fitstbl, par, frame, det, caliBrate,
-                    calibrations_path:str, scifile:str=None, initial_slits=False):
+def load_skyregions(spectrograph, fitstbl, user_regions, frame, det,
+                    caliBrate, calibrations_path:str, scifile:str=None,
+                    initial_slits=False, spat_flexure=None):
     """
     Generate or load sky regions, if defined by the user.
 
@@ -562,34 +746,67 @@ def load_skyregions(spectrograph, fitstbl, par, frame, det, caliBrate,
 
     Parameters
     ----------
+    spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+        The spectrograph instance.
+    fitstbl : :class:`~pypeit.metadata.PypeItMetaData`
+        The class holding the metadata for all the frames in this PypeIt
+        run.
+    user_regions : :obj:`str` or :obj:`list`
+        The ``user_regions`` value from
+        :class:`~pypeit.par.pypeitpar.SkySubPar`: ``'user'`` to load a
+        SkyRegions file, a percentage-format definition (e.g.
+        ``:25,75:``), or None/empty for no sky regions.
+    frame : :obj:`int`
+        The index of the frame in ``fitstbl``, used to construct the
+        calibration key.  Only used if ``user_regions = user``.
+    det : :obj:`int`
+        Detector number (1-indexed).
+    caliBrate : :class:`~pypeit.calibrations.Calibrations`
+        The calibration data for the current frame and detector;
+        provides the slits.
+    calibrations_path : :obj:`str`
+        Path to the calibration files.
+    scifile : :obj:`str`, optional
+        The file name used to define the user-based sky regions.  Only
+        used if ``user_regions = user``.
     initial_slits : :obj:`bool`, optional
         Flag to use the initial slits before any tweaking based on the
         slit-illumination profile; see
         :func:`~pypeit.slittrace.SlitTraceSet.select_edges`.
+    spat_flexure : :obj:`float`, optional
+        Spatial flexure shift (in pixels) of the science frame.  If
+        None, no shift is applied.  See Notes.
 
     Returns
     -------
     skymask : `numpy.ndarray`_
         A boolean array used to select sky pixels; i.e., True is a pixel
-        that corresponds to a sky region.  If the ``user_regions`` parameter
-        is not set (or an empty string), the returned value is None.
+        that corresponds to a sky region.  If ``user_regions`` is not set
+        (or an empty string), the returned value is None.
+
+    Notes
+    -----
+    ``spat_flexure`` is only applied to percentage-format
+    ``user_regions``.  A SkyRegions *file* (``user_regions = user``) is
+    loaded as-is: it is created per science frame by
+    ``pypeit_skysub_regions`` in that frame's own pixel coordinates
+    (the GUI applies the frame's flexure at creation time via its
+    ``--flexure`` option), so shifting it here would double-apply the
+    correction.  This matches the pre-2.0.0 (v1.18.1) behavior.
     """
-    if par['reduce']['skysub']['user_regions'] in [None, '']:
+    if user_regions in [None, '']:
         return None
 
-    # Flexure
-    spat_flexure = None
-
     # First priority given to user_regions first
-    if par['reduce']['skysub']['user_regions'] == 'user':
+    if user_regions == 'user':
         # Build the file name
         calib_key = CalibFrame.construct_calib_key(
                             fitstbl['setup'][frame],
                             CalibFrame.ingest_calib_id(fitstbl['calib'][frame]),
                             spectrograph.get_det_name(det))
         regfile = buildimage.SkyRegions.construct_file_name(
-            calib_key, calib_dir=calibrations_path, 
-            basename=io.remove_suffix(scifile))
+            calib_key, calib_dir=calibrations_path,
+            basename=outputfiles.strip_raw_extension(scifile, spectrograph.allowed_extensions))
         regfile = Path(regfile).absolute()
         if not regfile.exists():
             raise PypeItError(
@@ -598,9 +815,16 @@ def load_skyregions(spectrograph, fitstbl, par, frame, det, caliBrate,
                 'See documentation.'
             )
         log.info(f'Loading SkyRegions file: {regfile}')
+        # NOTE: Deliberately do NOT apply spat_flexure here.  The
+        # SkyRegions file is created per science frame by
+        # pypeit_skysub_regions on that frame itself, so the saved mask
+        # is already in the frame's pixel coordinates (the GUI applies
+        # the frame's flexure at creation time via its --flexure
+        # option).  Shifting again here would double-apply it.  This
+        # matches the pre-2.0.0 (v1.18.1) behavior.
         return buildimage.SkyRegions.from_file(regfile).image.astype(bool)
 
-    skyregtxt = par['reduce']['skysub']['user_regions']
+    skyregtxt = user_regions
     if isinstance(skyregtxt, list):
         skyregtxt = ",".join(skyregtxt)
     log.info(f'Generating skysub mask based on the user defined regions: {skyregtxt}')
@@ -800,6 +1024,73 @@ def extract_det(spectrograph, fitstbl, par,
     # Return
     return spec2DObj, sobjs
 
+def extract_det_bydet(det, spectrograph, fitstbl, par, frames, calib_ID:str,
+                      calibrations_path:str, sciImg=None, final_sky=None,
+                      sobjs_obj=None, calib_slits=None, bkg_redux_final_sky=None,
+                      bkg_redux:bool=False, find_negative:bool=False, show:bool=False):
+    """
+    Detector-first adapter for :func:`extract_det`.
+
+    Reorders the arguments of :func:`extract_det` so that the detector comes
+    first, as :func:`~pypeit.parallel.map_over_detectors` requires.  The five
+    per-detector objects (``sciImg``, ``final_sky``, ``sobjs_obj``,
+    ``calib_slits`` and ``bkg_redux_final_sky``) are keyword arguments with None
+    defaults because they are supplied through the mapper's ``payload``, which
+    the parent slices per detector so that each worker only ever receives its own
+    data.  They are not genuinely optional: :func:`extract_det` takes the first
+    four as required positional arguments.
+
+    This must stay a module-level function; see :func:`calib_status_one`.
+
+    Parameters
+    ----------
+    det : :obj:`int`, :obj:`tuple`
+        Detector (1-indexed) or mosaic.  First argument, as required by
+        :func:`~pypeit.parallel.map_over_detectors`.
+    spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+        The spectrograph instance.
+    fitstbl : :class:`~pypeit.metadata.PypeItMetaData`
+        The class holding the metadata for all the frames in this PypeIt run.
+    par : :class:`~pypeit.par.pypeitpar.PypeItPar`
+        The parameter set for the reduction.
+    frames : :obj:`list`
+        List of frames to extract; stacked if more than one is provided.
+    calib_ID : :obj:`str`
+        The calibration group ID.
+    calibrations_path : :obj:`str`
+        Path to the calibration files.
+    sciImg : :class:`~pypeit.images.pypeitimage.PypeItImage`
+        Data container holding this detector's image and its related images
+        (e.g., ivar, mask).  Supplied through the mapper's ``payload``.
+    final_sky : `numpy.ndarray`_
+        Final global sky model for this detector.  Supplied through the mapper's
+        ``payload``.
+    sobjs_obj : :class:`~pypeit.specobjs.SpecObjs`
+        The objects found on this detector during object finding.  Supplied
+        through the mapper's ``payload``.
+    calib_slits : :class:`~pypeit.slittrace.SlitTraceSet`
+        Slits to use instead of those from the calibrations.  Supplied through
+        the mapper's ``payload``.
+    bkg_redux_final_sky : `numpy.ndarray`_, optional
+        Final global sky model for the background-reduced science image.
+        Supplied through the mapper's ``payload``.
+    bkg_redux : :obj:`bool`, optional
+        Indicates whether the reduction involves background subtraction.
+    find_negative : :obj:`bool`, optional
+        Indicates whether to find negative objects during the reduction.
+    show : :obj:`bool`, optional
+        Show the QA during processing.
+
+    Returns
+    -------
+    :obj:`tuple`
+        ``(spec2DObj, sobjs)``; see :func:`extract_det`.
+    """
+    return extract_det(spectrograph, fitstbl, par, frames, det, calib_ID,
+                       calibrations_path, sciImg, final_sky, sobjs_obj, calib_slits,
+                       bkg_redux_final_sky=bkg_redux_final_sky, bkg_redux=bkg_redux,
+                       find_negative=find_negative, show=show)
+
 def instantiate_objfind(sciImg, spectrograph, fitstbl, par, frames, det,
                         caliBrate, bkg_redux, find_negative, 
                         show:bool=False):
@@ -854,9 +1145,11 @@ def instantiate_objfind(sciImg, spectrograph, fitstbl, par, frames, det,
     else:
         # Build the initial sky mask
         initial_skymask = load_skyregions(
-            spectrograph, fitstbl, par, frames[0], det,
-            caliBrate, str(caliBrate.calib_dir), initial_slits=spectrograph.pypeline != 'SlicerIFU',
-            scifile=fitstbl.frame_paths(frames[0]))
+            spectrograph, fitstbl,
+            par['reduce']['skysub']['user_regions'], frames[0], det,
+            caliBrate, str(caliBrate.calib_dir), initial_slits=spectrograph.pypeline not in ['SlicerIFU', 'Fiber'],
+            scifile=fitstbl.frame_paths(frames[0]),
+            spat_flexure=sciImg.spat_flexure)
             
 
     objFind = find_objects.FindObjects.get_instance(

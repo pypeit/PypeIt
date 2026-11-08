@@ -15,7 +15,7 @@ class ViewFits(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
-        from pypeit.spectrographs import available_spectrographs
+        from pypeit.spectrographs.util import available_spectrographs
         parser = super().get_parser(description='View FITS files with ginga', width=width)
         parser.add_argument('spectrograph', type=str,
                             help='A valid spectrograph identifier: {0}'.format(

@@ -11,7 +11,7 @@ import numpy as np
 
 from pypeit import log
 from pypeit import PypeItError
-from pypeit.bitmask import BitMask
+from pypeit.core.bitmask import BitMask
 
 class FrameTypeBitMask(BitMask):
     """
@@ -50,12 +50,12 @@ class FrameTypeBitMask(BitMask):
 
         .. todo::
             - This should probably be a general function in
-              :class:`pypeit.bitmask.BitMask`
+              :class:`pypeit.core.bitmask.BitMask`
     
         Args:
             type_bits (int, list, `numpy.ndarray`_):
                 The bit mask for each frame.
-            bitmask (:class:`pypeit.bitmask.BitMask`, optional):
+            bitmask (:class:`pypeit.core.bitmask.BitMask`, optional):
                 The bit mask used to pull out the bit names.  Uses
                 :class:`FrameTypeBitMask` by default.
             join (:obj:`bool`, optional):

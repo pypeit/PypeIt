@@ -7,7 +7,7 @@ Script to install files from the github repo into the user's cache.
 
 from pypeit import dataPaths
 from pypeit.scripts import scriptbase
-from pypeit.spectrographs import available_spectrographs
+from pypeit.spectrographs.util import available_spectrographs
 
 class CacheGithubData(scriptbase.ScriptBase):
 
@@ -52,8 +52,8 @@ class CacheGithubData(scriptbase.ScriptBase):
         import github
 
         from pypeit import log
-        from pypeit import cache
-        from pypeit.pypeitdata import PypeItDataPath
+        from pypeit.pkg import cache
+        from pypeit.pkg.pypeitdata import PypeItDataPath
 
         # Initialize the log
         cls.init_log(args)

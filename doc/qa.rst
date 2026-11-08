@@ -18,6 +18,14 @@ The basic arrangement is that individual PNG files are created
 and then a set of HTML files are generated to organize
 viewing of the PNGs.
 
+Because the QA output is non-interactive PNGs, ``run_pypeit`` forces the
+headless matplotlib ``Agg`` backend (unless ``-s/--show`` is used), which
+avoids GUI-toolkit overhead during figure generation.  When PypeIt is run with
+``[rdx] ncpu`` (or ``run_pypeit --ncpu``) greater than 1, the PNG encoding and
+file writes are handed to a small pool of background threads (the rendering
+itself stays on the main thread); the figures and their content are identical
+to a serial run.  See :ref:`run-pypeit-ncpu`.
+
 
 HTML
 ====

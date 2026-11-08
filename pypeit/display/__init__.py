@@ -7,7 +7,7 @@ import numpy
 
 from ginga.misc.Bunch import Bunch
 
-required_plugins = ['SlitWavelength', 'Spec1dView']
+required_plugins = ['SlitWavelength', 'Spec1dView', 'QLView']
 
 def plugins_available(return_report=False):
     available_plugins = []
@@ -22,7 +22,7 @@ def plugins_available(return_report=False):
     result = (numpy.all(indx),)
     if return_report:
         result += ('' if result[0] else \
-                    'Missing plugins: {0}'.format(required_plugins[numpy.logical_not(indx)]),)
+                   f'Missing plugins: {numpy.asarray(required_plugins)[numpy.logical_not(indx)]}',)
     return result
 
 def setup_SlitWavelength():
@@ -36,3 +36,8 @@ def setup_Spec1dView():
                  module='spec1dview', klass='Spec1dView',
                  ptype='local', workspace='right', start=False,
                  category='PypeIt', menu='Spec1dView', tab='Spec1dView')
+
+def setup_QLView():
+    return Bunch(module='pypeit.display.qlview.qlview', klass='QLView',
+                 ptype='local', workspace='right', start=False,
+                 category='PypeIt', menu='QLView', tab='QLView')

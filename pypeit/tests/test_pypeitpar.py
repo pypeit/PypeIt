@@ -6,41 +6,47 @@ import os
 from IPython import embed
 
 import pytest
+from configobj import ConfigObj
 
 from pypeit.par import pypeitpar
 from pypeit.par import parset
 from pypeit.par import util
+from pypeit.core import fitting
 from pypeit.spectrographs.util import load_spectrograph
 
 
-def test_eval_tuple():
-    # one tuple
-    t = ['(1', '2', '3)']
-    assert util.eval_tuple(t) == [(1,2,3)], 'Bad tuple evaluation'
-    # two tuples
-    t = ['(1', '2)', '(3', '4)']
-    assert util.eval_tuple(t) == [(1,2),(3,4)], 'Bad tuple evaluation'
-    # a tuple with a mix of int and float types
-    t = ['(1', '2.3)', '(3', '4)']
-    assert util.eval_tuple(t) == [(1,2.3),(3,4)], 'Bad tuple evaluation'
-    # a tuple with a string
-    t = ['(1', '2.3)', '(test', '4)']
-    assert util.eval_tuple(t) == [(1, 2.3), ('test', 4)], 'Bad tuple evaluation'
+def test_detnum_mixed_tuple():
+    """Test parsing of detnum with mixed int and tuple values."""
 
+    # Mixed int and tuple
+    cfg = ConfigObj(['[rdx]', 'detnum = 1,(2,6)'])
+    result = util.recursive_dict_evaluate(dict(cfg))
+    assert result['rdx']['detnum'] == [1, (2, 6)]
 
-def test_eval_list():
-    # one list
-    t = ['[1', '2', '3]']
-    assert util.eval_list(t) == [[1,2,3]], 'Bad list evaluation'
-    # two lists
-    t = ['[1', '2]', '[3', '4]']
-    assert util.eval_list(t) == [[1,2],[3,4]], 'Bad list evaluation'
-    # a list with a mix of int and float types
-    t = ['[1', '2.3]', '[3', '4]']
-    assert util.eval_list(t) == [[1,2.3],[3,4]], 'Bad list evaluation'
-    # a list with a string
-    t = ['[1', '2.3]', '[test', '4]']
-    assert util.eval_list(t) == [[1, 2.3], ['test', 4]], 'Bad list evaluation'
+    # Single tuple
+    cfg = ConfigObj(['[rdx]', 'detnum = (2,6)'])
+    result = util.recursive_dict_evaluate(dict(cfg))
+    assert result['rdx']['detnum'] == [(2, 6)]
+
+    # Plain list of ints
+    cfg = ConfigObj(['[rdx]', 'detnum = 1,2,3'])
+    result = util.recursive_dict_evaluate(dict(cfg))
+    assert result['rdx']['detnum'] == [1, 2, 3]
+
+    # Multiple tuples (DEIMOS style)
+    cfg = ConfigObj(['[rdx]', 'detnum = (1,5),(2,6),(3,7),(4,8)'])
+    result = util.recursive_dict_evaluate(dict(cfg))
+    assert result['rdx']['detnum'] == [(1, 5), (2, 6), (3, 7), (4, 8)]
+
+    # Single tuple GMOS style
+    cfg = ConfigObj(['[rdx]', 'detnum = (1,2,3)'])
+    result = util.recursive_dict_evaluate(dict(cfg))
+    assert result['rdx']['detnum'] == [(1, 2, 3)]
+
+    # Int followed by multiple tuples
+    cfg = ConfigObj(['[rdx]', 'detnum = 1,(2,6),(3,7)'])
+    result = util.recursive_dict_evaluate(dict(cfg))
+    assert result['rdx']['detnum'] == [1, (2, 6), (3, 7)]
 
 
 def test_framegroup():
@@ -88,6 +94,30 @@ def test_telluric():
 
 def test_redux():
     pypeitpar.ReduxPar()
+
+def test_ncpu_default_and_override():
+    par = pypeitpar.ReduxPar()
+    assert par['ncpu'] == 1, 'ncpu must default to 1 (fully serial)'
+    par = pypeitpar.ReduxPar.from_dict({'spectrograph': 'shane_kast_blue', 'ncpu': 4})
+    assert par['ncpu'] == 4, 'ncpu must be set by the configuration'
+    par = pypeitpar.ReduxPar(ncpu=0)
+    assert par['ncpu'] == 1, 'ncpu < 1 must be reset to 1'
+
+def test_ncpu_assignment_revalidates():
+    # Item assignment bypasses the validation done at instantiation, so the
+    # run_pypeit --ncpu override re-runs validate(); check it resets a bad value
+    par = pypeitpar.ReduxPar()
+    par['ncpu'] = -2
+    par.validate()
+    assert par['ncpu'] == 1, 'validate() must reset ncpu < 1 to 1'
+
+def test_fit2d_chunk():
+    par = pypeitpar.ReduxPar()
+    assert par['fit2d_chunk'] == fitting.DEFAULT_POLYFIT2D_CHUNK, 'Wrong default 2D fit chunk size'
+    par = pypeitpar.ReduxPar.from_dict({'spectrograph': 'shane_kast_blue', 'fit2d_chunk': 1000})
+    assert par['fit2d_chunk'] == 1000, 'fit2d_chunk must be set by the configuration'
+    with pytest.raises(ValueError):
+        pypeitpar.ReduxPar(fit2d_chunk=0)
 
 def test_wavelengthsolution():
     pypeitpar.WavelengthSolutionPar()
@@ -282,3 +312,5 @@ def test_lists():
     with pytest.raises(TypeError):
         p['calibrations']['alignment']['locations'] = 0.0
         _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config())  # Once as tuple
+
+

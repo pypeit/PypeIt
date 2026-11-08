@@ -3,26 +3,23 @@
 .. include:: ../include/links.rst
 """
 import datetime
-import glob
 import io
 from pathlib import Path
-import os
-import warnings
 
 from astropy.table import Table, column
 from astropy.io import ascii
 import configobj
+from IPython import embed
 import numpy as np
 import yaml
 
-from pypeit import utils
-from pypeit.io import files_from_extension
-from pypeit import log, __version__
+from pypeit import log
 from pypeit import PypeItError
+from pypeit import utils
+from pypeit import __version__
+from pypeit.io import files_from_extension
+from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.par.pypeitpar import PypeItPar
-
-from IPython import embed
 
 
 class InputFile:
@@ -36,42 +33,77 @@ class InputFile:
     We currently support comments in the configuration section, and commented
     out data lines in the data sections. Other comments are not preserved.
 
-    Args:
-        config (:obj:`dict` or :obj:`list`):
-            Configuration dict or list of config lines
-            Converted to a ConfigObj
-        file_paths (list):
-            List of file paths for the data files
-        data_table (`astropy.table.Table`_):
-            Data block
-        setup (:obj:`dict`):
-            dict defining the Setup
-            The first key contains the name
-        vet (bool,Optional):
-            Whether or not to vet the file after iniitialization. Defaults to True.
-            The vet() method can be called after initialization if needed.
-        preserve_comments (bool, Optional):
-            Whether or not to preserve comments in the input file
+    Parameters
+    ----------
+    config : :obj:`dict`, :obj:`list`, optional
+        Configuration dictionary or list of config lines.  This is converted to
+        a `ConfigObj`_ instance.
+    file_paths : list, optional
+        List of string or `Path`_ objects with the file paths for the data files
+    data_table : `astropy.table.Table`_, optional
+        Data block
+    setup : :obj:`dict`, optional
+        Dictionary with the instrument setup/configuration.  The first key
+        contains the setup name.
+    vet : bool, optional
+        If True, vet the file after iniitialization.  The :func:`vet` method can
+        be called after initialization, if needed.
+    preserve_comments : bool, optional
+        If True, (try to) preserve the comments in the input file.
+
+    Attributes
+    ----------
+    data : `astropy.table.Table`_
+        Table with the data in the data block
+    file_paths : list
+        List of `Path` objects with the directory paths for data files
+    setup : dict
+        Dictionary with the instrument setup/configuration.
+    preserve_comments : bool
+        Flag to preserve comments in the input file.
+    config : `ConfigObj`_
+        Parameters parsed from the configuration block of the input file.
     """
-    flavor = 'Generic' # Type of InputFile
 
-    # Data block items
+    flavor = 'Generic'
+    """
+    Defines the type of the input file.
+    """
+
     required_columns = []
-    data_block = None  # Defines naming of data block
-    datablock_required = False # Denotes whether the data block is required
-    
-    setup_required = False # Denotes whether the setup block is required
+    """
+    Sets the required columns in the data table.
+    """
 
-    def __init__(self, 
-                 config=None, 
-                 file_paths:list=None,
-                 data_table:Table=None,
-                 setup:dict=None,
-                 vet:bool=True,
-                 preserve_comments:bool=False):
+    data_block = None
+    """
+    Defines the name of data block.
+    """
+
+    datablock_required = False
+    """
+    Sets whether or not the data block is required.
+    """
+    
+    setup_required = False
+    """
+    Sets whether or not the setup block is required.
+    """
+
+    def __init__(
+        self, 
+        config=None, 
+        file_paths:list=None,
+        data_table:Table=None,
+        setup:dict=None,
+        vet:bool=True,
+        preserve_comments:bool=False
+    ):
         # Load up
         self.data = data_table
-        self.file_paths = file_paths
+        self.file_paths = (
+            None if file_paths is None else [Path(fp).absolute() for fp in file_paths]
+        )
         self.setup = setup
         self.preserve_comments = preserve_comments
         self.config = None if config is None else configobj.ConfigObj(config)
@@ -86,7 +118,7 @@ class InputFile:
         lines = lines[np.array([ len(l.strip()) > 0 and l.strip()[0] != '#' for l in lines ])]
 
         # Remove appended comments and return
-        return np.array([ l.split('#')[0].strip() for l in lines ])
+        return np.array([l.split('#')[0].strip() for l in lines])
         
     @staticmethod
     def readlines(ifile:str):
@@ -107,11 +139,12 @@ class InputFile:
             `numpy.ndarray`_: Returns a list of the valid lines in the files.
         """
         # Check the files
-        if not os.path.isfile(ifile):
-            raise PypeItError('The filename does not exist -\n' + ifile)
+        _ifile = Path(ifile).absolute()
+        if not _ifile.is_file():
+            raise FileNotFoundError(f'Input file {ifile} does not exist!')
 
         # Read the input lines and replace special characters
-        with open(ifile, 'r') as f:
+        with open(_ifile, 'r') as f:
             return np.array([l.replace('\t', ' ').rstrip()  for l in f.readlines()])
         
     @classmethod
@@ -214,12 +247,14 @@ class InputFile:
         log.info(f'{cls.flavor} input file loaded successfully.')
 
         # Instantiate
-        return cls(config=list(lines[is_config]), 
-                  file_paths=paths, 
-                  data_table=usrtbl, 
-                  setup=sdict,
-                  vet=vet,
-                  preserve_comments=preserve_comments)
+        return cls(
+            config=list(lines[is_config]), 
+            file_paths=paths, 
+            data_table=usrtbl, 
+            setup=sdict,
+            vet=vet,
+            preserve_comments=preserve_comments
+        )
 
     def vet(self):
         """ Check for required bits and pieces of the Input file
@@ -272,7 +307,46 @@ class InputFile:
             or there is no data table!
         """
         # Return
-        return self.path_and_files('filename',include_commented_out=self.preserve_comments)
+        return self.path_and_files('filename', include_commented_out=self.preserve_comments)
+
+    @staticmethod
+    def _strip_legacy_quotes(obj):
+        """
+        Remove the extra double quotes that older versions of PypeIt wrote
+        around setup values that include a colon (e.g., ``'"SINGLE:B"'``).
+
+        Before the fix for Issue #2099, :func:`~pypeit.utils.yamlify` wrapped
+        such strings in double quotes before they were written with
+        ``yaml.dump``, so the quotes became part of the value when the setup
+        block was read back in.  The quotes are removed here so that setup
+        blocks in older files still match the metadata read from the raw
+        files.
+
+        Strings that start and end with a double quote and contain a colon
+        have the outer quotes removed.  Dictionaries and lists are processed
+        recursively.  Anything else is returned unchanged, including any
+        element of a dictionary or list that is not such a string.
+
+        Parameters
+        ----------
+        obj : :obj:`object`
+            Object parsed from the setup block.
+
+        Returns
+        -------
+        :obj:`object`
+            The object with the quotes removed from all affected strings.
+        """
+        if isinstance(obj, dict):
+            return {k: InputFile._strip_legacy_quotes(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [InputFile._strip_legacy_quotes(v) for v in obj]
+        if isinstance(obj, str) and len(obj) > 1 and obj[0] == obj[-1] == '"' and ':' in obj:
+            log.warning(f'Removing the extra quotes from the setup value {obj}, written by an '
+                        'older version of PypeIt.  Regenerate your PypeIt file with '
+                        'pypeit_setup or directly edit it to avoid this warning.')
+            return obj[1:-1]
+        return obj
 
     @staticmethod
     def _parse_setup_lines(lines):
@@ -296,7 +370,7 @@ class InputFile:
 
         # Slurp
         ystr = '\n'.join(line_list)
-        sdict = yaml.safe_load(ystr)
+        sdict = InputFile._strip_legacy_quotes(yaml.safe_load(ystr))
         for key in sdict:
             if 'Setup' in key:
                 tsetup = key.split()[1].strip()
@@ -363,10 +437,11 @@ class InputFile:
 
         # Backwards compatability (i.e. the leading |)
         if list(tbl.keys())[0] == 'col0':
-            message = 'Your PypeIt file has leading | characters in the data table, which is the old '\
-                'format.  Please update your file to remove leading and trailing | characters '\
+            log.warning(
+                'Your PypeIt file has leading | characters in the data table, which is the old '
+                'format.  Please update your file to remove leading and trailing | characters '
                 'because their inclusion will be deprecated.'
-            warnings.warn(message, DeprecationWarning)
+            )
             tbl.remove_column('col0')
             tbl.remove_column('_1')
 
@@ -442,30 +517,38 @@ class InputFile:
                 break
         return start, end
 
-    def path_and_files(self, key:str, skip_blank=False, include_commented_out=False, check_exists=True) -> list[str]:
-        """Generate a list of the filenames with 
-        the full path from the column of the data `astropy.table.Table`_
-        specified by `key`.  The files must exist and be 
-        within one of the paths for this to succeed.
+    def path_and_files(
+            self, key:str, skip_blank=False, include_commented_out=False, check_exists=True
+    ) -> list[str]:
+        """
+        Generate a list of the filenames with the full path from the column of
+        the data `astropy.table.Table`_ specified by ``key``.  The files must
+        exist and be within one of the paths for this to succeed.
 
-        Args:
-            key (str): Column of self.data with the filenames of interest
-            skip_blank (bool, optional): If True, ignore any
-                entry that is '', 'none' or 'None'. Defaults to False.
-            check_exists (bool, optional):If False, PypeIt will not
-                check if 'key' exists as a file. Defaults to True.
-            include_commented_out (bool,Optional): If False, commented out files will not be included. If True, they
-                are included, without the "#" character.
+        Parameters
+        ----------
+        key : str
+            Column in :attr:`data` with the filenames of interest
+        skip_blank : bool, optional
+            If True, ignore any entry that is '', 'none' or 'None'.
+        check_exists : bool, optional
+            If False, PypeIt will not check if the files exist.
+        include_commented_out : bool, optional
+            If False, commented out files will not be included. If True, they
+            are included, without the "#" character.
 
-        Returns:
-            list: List of the full paths to each data file
-            or None if `filename` is not part of the data table
-            or there is no data table!
+        Returns
+        -------
+        list
 
-        Raises:
-            PypeItError:
-                Raised if the path+file does not exist
-
+            List of strings, where each string provides the full path to each
+            data file.  None is returned if :attr:`data` is not defined or if
+            ``key`` is not one of its columns.
+              
+        Raises
+        ------
+        FileNotFoundError:
+            Raised if ``check_exists`` is True and any of the files do not exist.
         """
         if self.data is None or key not in self.data.keys():
             return None
@@ -489,18 +572,21 @@ class InputFile:
                 name = row[key]
 
             # Searching..
-            if len(self.file_paths) > 0:
+            if self.file_paths is not None and len(self.file_paths) > 0:
                 for p in self.file_paths:
-                    filename = os.path.join(p,name)
-                    if os.path.isfile(filename):
+                    filename = p / name
+                    if filename.is_file():
                         break
             else:
-                filename = row[key]
+                filename = Path(name).absolute()
 
             # Check we got a good hit
-            if check_exists and not os.path.isfile(filename):
-                raise PypeItError(f"{name} does not exist in one of the provided paths.  Modify your input {self.flavor} file")
-            data_files.append(filename)
+            if check_exists and not filename.is_file():
+                raise FileNotFoundError(
+                    f'{name} does not exist in one of the provided paths.  Modify your input '
+                    f'{self.flavor} file.'
+                )
+            data_files.append(str(filename))
 
         # Return
         return data_files
@@ -578,7 +664,7 @@ class InputFile:
                     # paths and Setupfiles
                     if self.file_paths is not None:
                         for path in self.file_paths:
-                            f.write(' path '+path+'\n')
+                            f.write(f' path {path}\n')
                     if self.data is not None:
                         with io.StringIO() as ff:
                             self.data.write(ff, format='ascii.fixed_width',
@@ -591,56 +677,103 @@ class InputFile:
 
         log.info(f'{self.flavor} input file written to: {input_file}')
 
-    def get_spectrograph(self, pypeit_fits:bool=False):
+    # TODO: Should we add the spectrograph instance as an attribute?
+    def get_spectrograph(self, spectrograph_name:str=None, pypeit_fits:bool=False):
         """
         Use the configuration lines to instantiate the relevant
         :class:`~pypeit.spectrographs.spectrograph.Spectrograph` subclass.
 
-        Args:
-            pypeit_fits (:obj:`bool`, optional):
-                The spectrograph loader is being called from a post-processing
-                script where the expected input files are PypeIt-written FITS files
-                only.  This has the effect of overriding the :attr:`allowed_extensions`
-                attribute to be ``[".fits"]``.
+        Parameters
+        ----------
+        spectrograph_name : str, optional
+            The name of the spectrograph to load.  If None, the spectrograph
+            name is pulled from the configuration.  If the configuration is None
+            or the ``['rdx']['spectrograph']`` configuration entry is not
+            available, an exception is raised.
+        pypeit_fits : :obj:`bool`, optional
+            The spectrograph loader is being called from a post-processing
+            script where the expected input files are PypeIt-written FITS files
+            only.  This has the effect of overriding the :attr:`allowed_extensions`
+            attribute to be ``[".fits"]``.
 
-        Returns:
-            :class:`~pypeit.spectrographs.spectrograph.Spectrograph`:
+        Returns
+        -------
+        :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
             Spectrograph subclass instance using the relevant configuration
             parameter.
 
-        Raises:
-            :class:`~pypeit.exceptions.PypeItError`:
-                Raised if the relevant configuration parameter is not available.
+        Raises
+        ------
+        :class:`~pypeit.exceptions.PypeItError`
+            Raised if the configuration or the relevant parameter is not available.
         """
-        if 'rdx' not in self.config.keys() or 'spectrograph' not in self.config['rdx'].keys():
-            raise PypeItError('Cannot define spectrograph.  Configuration file missing \n'
-                       '    [rdx]\n    spectrograph=\n entry.')
-        return load_spectrograph(self.config['rdx']['spectrograph'], pypeit_fits=pypeit_fits)
+        if spectrograph_name is None:
+            if (
+                self.config is None
+                or 'rdx' not in self.config.keys()
+                or 'spectrograph' not in self.config['rdx'].keys()
+            ):
+                raise PypeItError(
+                    'Cannot define spectrograph.  Configuration block is missing or does not '
+                    'include the spectrograph definition (in the rdx parameter block).'
+                )
+            _spec = self.config['rdx']['spectrograph']
+        else:
+            _spec = spectrograph_name
 
-    def get_pypeitpar(self, config_specific_file=None, pypeit_fits:bool=False):
+        return load_spectrograph(_spec, pypeit_fits=pypeit_fits)
+
+    def get_pypeitpar(
+        self, config_specific_file=None, spectrograph_name:str=None, pypeit_fits:bool=False,
+        require_rawfile:bool=True
+    ):
         """
         Use the configuration lines and a configuration-specific example file to
         build the full parameter set.
 
-        Args:
-            config_specific_file (:obj:`str`, `Path`_, optional):
-                The file to use to generate the default, configuration-specific
-                parameters.  If None and instance contains filenames, use the
-                first file.  If None and instance provides no filenames,
-                configuration-specific parameters are not set.
-            pypeit_fits (:obj:`bool`, optional):
-                The spectrograph loader is being called from a post-processing
-                script where the expected input files are PypeIt-written FITS files
-                only.  This has the effect of overriding the :attr:`allowed_extensions`
-                attribute to be ``[".fits"]``.
+        Parameters
+        ----------
+        config_specific_file : :obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_, optional
+            The object used to generate the default, configuration-specific
+            parameters using
+            :func:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`.
+            If None and :attr:`filenames` are available, use the first file.  If
+            None and :attr:`filenames` are *not* available, use
+            :func:`~pypeit.spectrographs.spectrograph.Spectrograph.default_pypeit_par`
+            to generate the parameters instead.
+        spectrograph_name : str, optional
+            The name of the spectrograph to load.  If None, the spectrograph
+            name is pulled from the configuration.  If the configuration is None
+            or the ``['rdx']['spectrograph']`` configuration entry is not
+            available, an exception is raised.
+        pypeit_fits : :obj:`bool`, optional
+            The spectrograph loader is being called from a post-processing
+            script where the expected input files are PypeIt-written FITS files
+            only.  This has the effect of overriding the :attr:`allowed_extensions`
+            attribute to be ``[".fits"]``.
+        require_rawfile : :obj:`bool`, optional
+            If True (default), any failure to read ``config_specific_file`` (e.g.,
+            because the raw file is no longer available on disk) is raised as an
+            exception. If False, that failure is caught and the configuration-specific
+            parameters fall back to
+            :func:`~pypeit.spectrographs.spectrograph.Spectrograph.default_pypeit_par`,
+            so a fully populated :class:`~pypeit.par.pypeitpar.PypeItPar` is still
+            returned. Use this for post-processing scripts that only need the
+            parameter set (e.g., to determine the science/QA output directories)
+            and cannot guarantee the raw data are still present.
 
-        Returns:
-            :obj:`tuple`: A tuple with the spectrograph instance, the
-            parameters, and the file name used to generate the
-            configuration-specific parameters.  That latter will be None if the
-            no example file was available.
+        Returns
+        -------
+        spec : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+            Spectrograph subclass instance.
+        par : :class:`~pypeit.par.pypeitpar.PypeItPar`
+            Parameter set generated by merging the configuration-specific parameters
+            with the configuration parameters.
+        config_specific_file : :obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_
+            The object used to generate the configuration-specific parameters,
+            which can be None.
         """
-        spec = self.get_spectrograph(pypeit_fits=pypeit_fits)
+        spec = self.get_spectrograph(spectrograph_name=spectrograph_name, pypeit_fits=pypeit_fits)
 
         if config_specific_file is None:
             _files = self.filenames
@@ -648,10 +781,23 @@ class InputFile:
                 config_specific_file = _files[0]
 
         # Get the configuration-specific parameters based on the file
-        spec_par = spec.default_pypeit_par() if config_specific_file is None \
-                    else spec.config_specific_par(config_specific_file)
-        par = PypeItPar.from_cfg_lines(cfg_lines=spec_par.to_config(),
-                                       merge_with=(self.cfg_lines,))
+        if config_specific_file is None:
+            spec_par = spec.default_pypeit_par()
+        elif require_rawfile:
+            spec_par = spec.config_specific_par(config_specific_file)
+        else:
+            try:
+                spec_par = spec.config_specific_par(config_specific_file)
+            except PypeItError as e:
+                log.warning(
+                    f'Could not determine configuration-specific parameters from '
+                    f'{config_specific_file}; falling back to default parameters for '
+                    f'{spec.name}. Original error: {e}'
+                )
+                spec_par = spec.default_pypeit_par()
+        par = pypeitpar.PypeItPar.from_cfg_lines(
+            cfg_lines=spec_par.to_config(), merge_with=(self.cfg_lines,)
+        )
         return spec, par, config_specific_file
 
 
@@ -694,64 +840,191 @@ class PypeItFile(InputFile):
         """
         return {row['filename']:row['frametype'] for row in self.data}
 
-    def get_pypeitpar(self):
+    def get_pypeitpar(
+        self, config_specific_file=None, spectrograph_name:str=None, pypeit_fits:bool=False,
+        require_rawfile:bool=True
+    ):
         """
-        Override the base class function to use files with specific frametypes
-        and the contents of the PypeIt File (including and modifications away
-        from vales in the FITS headers) for the config-specific parameters.
+        Use the configuration lines and a configuration-specific example file to
+        build the full parameter set.
 
-        Returns:
-            :obj:`tuple`: A tuple with the spectrograph instance, the
-            parameters, and the file name used to generate the
-            configuration-specific parameters.  That latter will be None if the
-            no example file was available.
+        This overrides the base class function to use files with specific
+        frametypes and the contents of the PypeIt File (including and
+        modifications away from values in the FITS headers) for the
+        config-specific parameters.
+
+        .. warning::
+
+            The calling sequence is purposely kept consistent with the base
+            class, however only the ``config_specific_file`` is used.  An
+            exception will be raised if ``spectrograph_name`` is not None or
+            ``pypeit_fits`` is True.
+
+        Parameters
+        ----------
+        config_specific_file : :obj:`str`, `Path`_, optional
+            The file used to generate the default, configuration-specific
+            parameters.  Note that this *must* be a file name, unlike the type
+            options available to the base class.  The behavior of this parameter
+            is defined as follows:
+                
+                - If None and filenames are present, the file to use is
+                  determined as follows:
+
+                    - If the frametypes are not defined or there are no science,
+                      standard, arc, or trace frames, the first data file is
+                      used.
+
+                    - If the frametypes are defined, the first science or
+                      standard frame is used.
+
+                    - If the frametypes are defined and there are no science or
+                      standard frames, the first arc or trace frame is used.
+
+                - If not None, the filenames are expected to be present and the
+                  provided string must be a file that is listed by the data
+                  table.  If it is not, an exception is raised.
+
+        spectrograph_name : str, optional
+            Provided for consistency with the base class.  This must always be
+            ``None``.  The name of the spectrograph in pypeit files is always
+            defined by the "rdx" parameter set.
+        pypeit_fits : :obj:`bool`, optional
+            Provided for consistency with the base class.  The files provided by
+            the pypeit file are, by definition, raw files, meaning this
+            parameter must always be False.
+        require_rawfile : :obj:`bool`, optional
+            If True (default), any failure to read the config-specific raw file
+            (e.g., because it is no longer available on disk) is raised as an
+            exception. If False, that failure is caught and the
+            configuration-specific parameters fall back to
+            :func:`~pypeit.spectrographs.spectrograph.Spectrograph.default_pypeit_par`,
+            so a fully populated :class:`~pypeit.par.pypeitpar.PypeItPar` is still
+            returned. Use this for post-processing scripts that only need the
+            parameter set (e.g., to determine the science/QA output directories)
+            and cannot guarantee the raw data are still present. Note this is
+            rarely needed in practice: :func:`~pypeit.spectrographs.spectrograph.Spectrograph.get_meta_value`
+            reads directly from the data table's own columns first, and only
+            resorts to reading the raw file if a required value is missing from
+            the table.
+
+        Returns
+        -------
+        spec : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+            Spectrograph subclass instance.
+        par : :class:`~pypeit.par.pypeitpar.PypeItPar`
+            Parameter set used to controle the data processing.  If a valid
+            ``config_specific_file`` is defined (see above), the paraemters are
+            determined using
+            :func:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`.
+            Otherwise, the parameters are determined by
+            :func:`~pypeit.spectrographs.spectrograph.Spectrograph.default_pypeit_par`
+        config_specific_file : `Path`_
+            The path to the file used to generate the configuration-specific
+            parameters, which can be None.
         """
-        if 'frametype' not in self.data.keys():
-            raise PypeItError('PypeIt file must provide the frametype column.')
+        # Check the input
+        if spectrograph_name is not None:
+            raise PypeItError(
+                f'For instances of {self.__class__.__name__}, the spectrograph must always be '
+                'defined by the parameter block.  Calls to `get_pypeitpar` cannot independently '
+                'define the spectrograph name.'
+            )
+        if pypeit_fits:
+            raise PypeItError(
+                f'For instances of {self.__class__.__name__}, the provided files are, by '
+                'definition, raw data files.  Calls to `get_pypeitpar` cannot indicate that the '
+                'files are output FITS files produced by PypeIt.'
+            )
 
         # NOTE: self.filenames is a property function that generates the full
-        # set of file names each time they are requested.  However, this should
-        # only be done once in the code below because as soon as a relevant file
-        # is found the loops are discontinued using `break`.
-        filenames = self.filenames
+        # set of file names each time they are requested.  Generate the set here
+        # so that it only needs to be done once.
+        try:
+            filenames = self.filenames
+        except Exception as e:
+            log.warning(
+                'Unable to define filenames.  Proceeding by assuming filenames are not defined.  '
+                f'Original exception raised is: {e}'
+            )
+            filenames = None
 
-        # Search for the first science/standard frame
-        config_specific_file = None
-        for idx, row in enumerate(self.data):
-            if 'science' in row['frametype'] or 'standard' in row['frametype']:
-                config_specific_file = filenames[idx]
-                break
-
-        # If no science/standard frames available, search for an arc/trace
-        # instead.
         if config_specific_file is None:
-            for idx, row in enumerate(self.data):
-                if 'arc' in row['frametype'] or 'trace' in row['frametype']:
-                    config_specific_file = filenames[idx]
-                    break
+            if filenames is None:
+                _config_specific_file = None
+            elif 'frametype' not in self.data.keys():
+                _config_specific_file = filenames[0]
+            else:
+                # Search for the first science/standard frame
+                _config_specific_file = None
+                csf_indx = None
+                for idx, row in enumerate(self.data):
+                    if 'science' in row['frametype'] or 'standard' in row['frametype']:
+                        _config_specific_file = filenames[idx]
+                        csf_indx = np.array([idx])
+                        break
 
-        # If we still don't have a file matching the above, just use the first one
-        if config_specific_file is None and filenames is not None:
-            config_specific_file = filenames[0]
+                # If no science/standard frames available, search for an arc/trace
+                # instead.
+                if _config_specific_file is None:
+                    for idx, row in enumerate(self.data):
+                        if 'arc' in row['frametype'] or 'trace' in row['frametype']:
+                            _config_specific_file = filenames[idx]
+                            csf_indx = np.array([idx])
+                            break
+        else:
+            if filenames is None:
+                raise PypeItError(
+                    f'When providing a config_specific_file for a {self.__class__.__name__}, a '
+                    'data table with a set of raw files must be included.'
+                )
+            _config_specific_file = Path(config_specific_file).absolute()
+            csf_indx = np.where(self.data['filename'] == _config_specific_file.name)[0]
+            if len(csf_indx) == 0:
+                raise PypeItError(
+                    f'The provided file ({config_specific_file}) is not one of the files '
+                    'included in the data table.'
+                )
+            if len(csf_indx) > 1:
+                raise PypeItError(
+                    f'The provided file ({config_specific_file}) matches to more than one file '
+                    'in the data table.'
+                )
 
         # Load the spectrograph
         spec = self.get_spectrograph()
 
-        # Check file extensions
-        if config_specific_file is not None:
-            spec._check_extensions(config_specific_file)
+        if _config_specific_file is None:
+            spec_par = spec.default_pypeit_par()
+        else:
+            # Check file extensions
+            spec._check_extensions(_config_specific_file)
 
-        # Send the Row of the metadata table corresponding to the file
-        csf_idx = self.data['filename'] == Path(config_specific_file).name
-        data_row = self.data[csf_idx].copy()
-        # Use the full path to the ``config_specific_file`` for insurance
-        data_row['filename'] = config_specific_file
-        spec_par = spec.default_pypeit_par() if config_specific_file is None \
-                    else spec.config_specific_par(data_row)
+            # Send the Row of the metadata table corresponding to the file
+            # NOTE: csf_indx needs to be a single element array/list such that
+            # `self.data[csf_indx]` returns a Table object.  If it is an
+            # integer, `self.data[csf_indx]` returns a Row object, which does
+            # not have a `copy()` method.
+            data_row = self.data[csf_indx].copy()
+            # Use the full path to the ``config_specific_file`` for insurance
+            data_row['filename'] = str(_config_specific_file)
+            if require_rawfile:
+                spec_par = spec.config_specific_par(data_row)
+            else:
+                try:
+                    spec_par = spec.config_specific_par(data_row)
+                except PypeItError as e:
+                    log.warning(
+                        f'Could not determine configuration-specific parameters from '
+                        f'{_config_specific_file}; falling back to default parameters for '
+                        f'{spec.name}. Original error: {e}'
+                    )
+                    spec_par = spec.default_pypeit_par()
 
-        par = PypeItPar.from_cfg_lines(cfg_lines=spec_par.to_config(),
-                                       merge_with=(self.cfg_lines,))
-        return spec, par, config_specific_file
+        par = pypeitpar.PypeItPar.from_cfg_lines(
+            cfg_lines=spec_par.to_config(), merge_with=(self.cfg_lines,)
+        )
+        return spec, par, _config_specific_file
 
 
 class SensFile(InputFile):
@@ -815,6 +1088,7 @@ class FluxFile(InputFile):
         # Return
         return sens_files
 
+
 class Coadd1DFile(InputFile):
     """Child class for coaddition in 1D
     """
@@ -876,9 +1150,6 @@ class Coadd1DFile(InputFile):
             sid = sid * len(self.data)
         # Return
         return sid
-
-
-
 
 
 class Coadd2DFile(InputFile):
@@ -1083,6 +1354,7 @@ class FlexureFile(InputFile):
         # Done
         log.info('.flex file successfully vetted.')
 
+
 class Collate1DFile(InputFile):
     """Child class for collate 1D script
     """
@@ -1096,22 +1368,56 @@ class Collate1DFile(InputFile):
     def filenames(self):
         """ List of path + filename's
 
-        Allows for wildcads
+        Allows for wildcards
 
         Returns:
             list or None: List of the full paths to each data file
             or None if `filename` is not part of the data table
             or there is no data table!
         """
-        all_files = []
-        paths = [os.getcwd()] if len(self.file_paths) == 0 else self.file_paths
-        # Paths?
-        for p in paths:
-            for row in self.data['filename']:
-                all_files += glob.glob(os.path.join(p, row))
 
-        # Return
+        # TODO: Raise an exception if 'filename' is not a valid column in
+        # self.data?
+
+        # Instantiate lists
+        paths = []
+        files = []
+        all_files = []
+
+        if self.file_paths is not None and len(self.file_paths) > 0:
+            # File paths are defined so use them
+            paths = self.file_paths
+            files = self.data['filename']
+
+        # The file paths are not defined, but the path may be defined by the
+        # entries in the data table.  Build the list of paths and files from the
+        # filename column of the data table.
+        # NOTE: If the filename column doesn't give a path, this approach will
+        # also lead to the current working directory being added to the list of
+        # paths.  That is, calling Path(f).parent will yield the current working
+        # directory if `f` is a filename, even if `f` is not a valid file!
+        if len(paths) == 0:
+            for f in self.data['filename']:
+                try:
+                    p = Path(f)
+                except:
+                    continue
+                if p.parent.is_dir():
+                    paths += [p.parent]
+                    files += [p.name]
+
+        # If the paths are still empty, just use the current directory and copy
+        # the filenames
+        if len(paths) == 0:
+            paths = [Path().absolute()]
+            files = self.data['filename']
+
+        # Populate the list of files, allowing for wildcards in the file name
+        for p in paths:
+            for f in files:
+                all_files += sorted(map(lambda x : str(x), p.glob(f)))
         return all_files
+
 
 class RawFiles(InputFile):
     """Child class for a list of raw files
@@ -1132,8 +1438,6 @@ class RawFiles(InputFile):
         log.info('.rawfiles file successfully vetted.')
 
 
-# NOTE: I originally had this in pypeit/io.py, but I think it was causing a
-# circular import.  Moving it here solved the issue.
 def grab_rawfiles(file_of_files:str=None, list_of_files:list=None, raw_paths:list=None, 
                   extension:str='.fits'):
     """
@@ -1175,6 +1479,139 @@ def grab_rawfiles(file_of_files:str=None, list_of_files:list=None, raw_paths:lis
         # An actual list
         return [str(p / f) for p in _raw_paths for f in list_of_files if (p / f).exists()]
 
-    # Find all files that have the correct extension
-    return files_from_extension(_raw_paths, extension=extension)
+    # Find all files that have the correct extension.  Force the returned list
+    # to contain strings, not Path objects.
+    return [str(f) for f in files_from_extension(_raw_paths, extension=extension)]
 
+
+def target_match_key(target):
+    """
+    Normalize a target name for permissive matching.
+
+    Parameters
+    ----------
+    target : :obj:`str`
+        Target name, e.g. ``J0750+6927``.
+
+    Returns
+    -------
+    :obj:`str`
+        Normalized target name, e.g. ``J0750p6927``.
+    """
+    return str(target).strip().replace(' ', '').replace('+', 'p').replace('-', 'm')
+
+
+def target_matches(value, target):
+    """
+    Compare target names, allowing either the literal or sanitized form.
+
+    Parameters
+    ----------
+    value : :obj:`str`
+        Target name to test, e.g. as read from a PypeIt file data table.
+    target : :obj:`str`
+        Target name to compare against, e.g. as provided on the command
+        line.
+
+    Returns
+    -------
+    :obj:`bool`
+        True if ``value`` and ``target`` are identical, or if their
+        :func:`target_match_key`-normalized forms are identical.
+    """
+    _value = str(value).strip()
+    _target = str(target).strip()
+    return _value == _target or target_match_key(_value) == target_match_key(_target)
+
+
+def matching_science_rows(pypeit_file, target):
+    """
+    Select science rows matching a target from a PypeIt input file.
+
+    Parameters
+    ----------
+    pypeit_file : :class:`~pypeit.inputfiles.PypeItFile`
+        The parsed PypeIt reduction file.
+    target : :obj:`str`
+        Target name to match against the data block's ``target`` column;
+        see :func:`target_matches`.
+
+    Returns
+    -------
+    :obj:`list`
+        List of data-table rows with frame type ``science`` whose target
+        matches ``target``.
+
+    Raises
+    ------
+    PypeItError
+        If ``pypeit_file`` has no data block, the data block has no
+        ``target`` column, or no matching science rows are found.
+    """
+    if pypeit_file.data is None:
+        raise PypeItError('The PypeIt file has no data block.')
+    if 'target' not in pypeit_file.data.keys():
+        raise PypeItError('The PypeIt file data block has no target column.')
+
+    rows = [
+        row for row in pypeit_file.data
+        if any(ft.strip() == 'science' for ft in str(row['frametype']).split(','))
+        and target_matches(row['target'], target)
+    ]
+    if len(rows) == 0:
+        unique_targets = sorted({str(row['target']).strip() for row in pypeit_file.data})
+        raise PypeItError(
+            f'No science rows found for target={target}. Available targets are: '
+            f'{", ".join(unique_targets)}.'
+        )
+    return rows
+
+
+def science_row_group_key(row):
+    """
+    Construct the grouping key used by :func:`group_science_rows`.
+
+    Parameters
+    ----------
+    row : `astropy.table.Row`_
+        Data-table row to key.
+
+    Returns
+    -------
+    :obj:`str`
+        The row's ``comb_id`` (if present and usable), otherwise its
+        ``filename``.
+    """
+    if 'comb_id' not in row.colnames:
+        return str(row['filename'])
+    comb_id = str(row['comb_id']).strip()
+    return comb_id if comb_id.lower() not in ('', 'none', '-1') else str(row['filename'])
+
+
+def group_science_rows(rows):
+    """
+    Group science rows by comb_id, using the first row in each group as the expected spec2d stem.
+
+    Parameters
+    ----------
+    rows : :obj:`list`
+        Science rows to group, e.g. as returned by :func:`matching_science_rows`.
+
+    Returns
+    -------
+    :obj:`list`
+        List of groups, where each group is a :obj:`list` of rows sharing
+        the same ``comb_id`` (or, if a row has no usable ``comb_id``, a
+        single-row group keyed by its own ``filename``); see
+        :func:`science_row_group_key`.
+    """
+    groups = []
+    seen = set()
+    for row in rows:
+        key = science_row_group_key(row)
+        if key in seen:
+            continue
+        seen.add(key)
+        group = [r for r in rows if science_row_group_key(r) == key]
+        groups.append(group)
+    return groups

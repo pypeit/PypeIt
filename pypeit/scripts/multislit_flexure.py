@@ -4,19 +4,7 @@ Script to measure and correct for flexure in multi-slit data.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import os
-
-from IPython import embed
-
-import numpy as np
-
-from pypeit import log
-from pypeit import inputfiles
-from pypeit.spectrographs.util import load_spectrograph
-from pypeit.par import pypeitpar
-from pypeit.core import flexure
 from pypeit.scripts import scriptbase
-
 
 # TODO: Maybe not a good idea to name this script the same as the
 # flexure.MultiSlitFlexure class, but it is technically okay...
@@ -49,6 +37,13 @@ class MultiSlitFlexure(scriptbase.ScriptBase):
     def main(cls, args):
 
         from astropy.io import fits
+        from IPython import embed
+
+        from pypeit import log
+        from pypeit import inputfiles
+        from pypeit.spectrographs.util import load_spectrograph
+        from pypeit.par import pypeitpar
+        from pypeit import multislit_flexure
 
         # Initialize the log
         cls.init_log(args)
@@ -69,7 +64,7 @@ class MultiSlitFlexure(scriptbase.ScriptBase):
         # Loop to my loop
         for filename in flexFile.filenames:
             # Instantiate
-            mdFlex = flexure.MultiSlitFlexure(s1dfile=filename)
+            mdFlex = multislit_flexure.MultiSlitFlexure(s1dfile=filename)
             # Initalize 
             log.info("Setup")
             mdFlex.init(spectrograph, par['flexure'])

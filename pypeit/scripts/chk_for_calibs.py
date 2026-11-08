@@ -7,7 +7,7 @@ which do not have sufficient calibs
 """
 
 from pypeit.scripts import scriptbase
-from pypeit.spectrographs import available_spectrographs
+from pypeit.spectrographs.util import available_spectrographs
 
 
 class ChkForCalibs(scriptbase.ScriptBase):

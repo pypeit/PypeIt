@@ -6,7 +6,6 @@ Script to install user extinction file into the PypeIt cache.
 """
 
 from pypeit.scripts import scriptbase
-from pypeit import cache
 
 class InstallExtinctfile(scriptbase.ScriptBase):
 
@@ -24,7 +23,9 @@ class InstallExtinctfile(scriptbase.ScriptBase):
     @classmethod
     def main(cls, args):
         import numpy as np
+
         from pypeit import log
+        from pypeit.pkg import cache
 
         # Initialize the log
         cls.init_log(args)

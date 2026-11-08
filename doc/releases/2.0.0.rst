@@ -102,13 +102,11 @@ Bug Fixes
 - Fixed Coadd2d filenames to remove spaces from objet names (as is done in the
   main PypeIt run).
 
-----
-
 AI Use
-======
+------
 
 Deprecation of linetools dependency
------------------------------------
+:::::::::::::::::::::::::::::::::::
 
 We used Claude to aid in the removal of the linetools dependency from PypeIt
 with the following prompts:

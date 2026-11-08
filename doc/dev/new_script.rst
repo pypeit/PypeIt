@@ -31,8 +31,8 @@ The important components of the scripts are:
    :class:`~pypeit.scripts.scriptbase.ScriptBase` as their base class.  Note
    that the class has no instantiation method.
 
- * The :func:`~pypeit.scripts.scriptbase.ScriptBase.get_parser` function is used
-   to return an instance of `argparse.ArgumentParser`_ used to parse the
+ * The :func:`~pypeit.scripts.scriptbase.ScriptBase.get_parser` function 
+   returns an instance of :class:`argparse.ArgumentParser` used to parse the
    command-line arguments.
 
  * The :func:`~pypeit.scripts.scriptbase.ScriptBase.main` function performs the
@@ -52,26 +52,35 @@ The base class, :class:`~pypeit.scripts.scriptbase.ScriptBase`, provides the
 common entry point function
 (:func:`~pypeit.scripts.scriptbase.ScriptBase.entry_point`) used during
 installation.  To ensure that the script is properly installed by `pip`_, you
-need to add this entry point to the ``setup.cfg`` file.  All of the PypeIt
-scripts are listed in the ``[options.entry_points]`` group.  To add your script,
-you enter a new line with the following format:
+need to add this entry point to the ``pypeit/pyproject.toml`` file.  All of the
+PypeIt scripts are listed in the ``[options.entry_points]`` group.  To add your
+script, you enter a new line with the following format:
 
 .. code-block:: ini
 
     pypeit_new_script = pypeit.scripts.new_script:NewScript.entry_point
 
-Lastly, you should add the import of the script module to the
-``pypeit/scripts/__init__.py`` file; i.e., add:
+Lastly, you should add the script module name to the ``__all__`` list in
+the ``pypeit/scripts/__init__.py`` file; i.e., add:
 
 .. code-block:: python
 
-    from pypeit.scripts import new_script
+    __all__ = [
+        ...
+        'new_script',
+        ...
+    ]
+
+Preferably add the new script name in a way that maintains the alphabetical
+ordering of the scripts in the list.
 
 Note that the script files in the ``pypeit/scripts`` directory:
 
- * Should not be executable (i.e., no xs in their permissions)
- * Should not start with an env statement; i.e., ``#!/usr/bin/env python``
- * Should not end with the ``if __name__ == '__main__':`` block
+- Should not be executable (i.e., no ``x`` in their permissions)
+
+- Should not start with an env statement; i.e., ``#!/usr/bin/env python``
+
+- Should not end with the ``if __name__ == '__main__':`` block
 
 Creating the executables from the raw script files is all handled by `pip`_
 installing PypeIt.  To ensure the script is installed, from the top-level
