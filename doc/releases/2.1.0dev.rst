@@ -165,6 +165,12 @@ Functionality/Performance Improvements and Additions
   points processed at a time by the chunked 2D polynomial fits and
   evaluations above.  It trades peak memory for speed and does not change the
   results beyond round-off.
+- The vectorized boxcar pre-extraction of the ``Fiber`` pypeline
+  (``FiberFindObjects._preextract_fibers``) now handles a different aperture
+  radius for each fiber, so it is used for the Binospec IFU instead of
+  falling back to the per-fiber loop (Issue #2222).  Pre-extraction of a
+  Binospec IFU detector is ~10x faster (about 70 s to 8 s) and its results
+  are unchanged.
 
 Instrument-specific Updates
 ---------------------------
@@ -398,6 +404,11 @@ Under-the-hood Improvements
 Bug Fixes
 ---------
 
+- :func:`~pypeit.core.moment.moment1d` no longer truncates the wider apertures
+  when called with an array of different widths; its integration window was
+  sized by the narrowest aperture (Issues #2158, #2222).  Calls with a single
+  width, or with widths that span no more than one additional pixel, are
+  unchanged.
 - Fixed a bug in :func:`~pypeit.exposure.reduce_exposure` where a detector
   whose calibrations failed was removed from the detector list *while that list
   was being iterated*, causing the following detector to be skipped silently
@@ -567,6 +578,19 @@ Bug Fixes
   reference point (``CRVAL``) rather than the sky position of the source
   actually used for the extraction (the fitted or manually-specified
   position). Affects any SlicerIFU-pypeline point-source extraction.
+- Fixed ``pypeit_extract_datacube`` failing on datacubes written at the
+  native sampling of the spectrograph (``save_native = True``).  These cubes
+  take their WCS from the CD matrix built by the spectrograph ``get_wcs``
+  method, which is written as ``PCi_j`` with ``CDELTi = 1``.
+  :func:`~pypeit.core.datacube.extract_point_source` read the spaxel size and
+  wavelength step from ``CDELT`` alone, so it took the spaxels to be 1 degree
+  across: the point source was not detected ("No sources found"), and any
+  forced extraction gave counts too large by a factor of ~10\ :sup:`18`.  The
+  pixel scales are now computed from the full linear transformation of the
+  WCS.  The same fix applies to the spaxel size taken from a
+  ``reference_image`` by :func:`~pypeit.core.datacube.create_wcs`.  Affects
+  native cubes from all SlicerIFU spectrographs (Keck/KCWI, Keck/KCRM,
+  Gemini/GNIRS and GTC/MAAT).
 - Fix a memory leak on Python 3.13 and later: the
   ``inspect.getargvalues(inspect.currentframe())`` idiom used by many
   ``__init__`` methods to collect their arguments created a reference cycle
