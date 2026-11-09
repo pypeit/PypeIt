@@ -1,9 +1,57 @@
 
-Version 2.1.0dev
-================
+Version 3.0.0
+=============
 
 Breaking Changes
----------------------
+----------------
+
+- ``spec2d`` files and ``Slits`` calibration files written by previous versions
+  of PypeIt cannot be read.  The ``pad`` element of the
+  :class:`~pypeit.slittrace.SlitTraceSet` datamodel (version 1.1.6) is now a
+  2-element float array (the padding of the left and right edges) instead of
+  an integer, and :class:`~pypeit.spec2dobj.Spec2DObj` (version 1.1.2) nests
+  this object.  Old files cannot be read, even when skipping the datamodel
+  version check; data must be reprocessed.
+- ``Flat`` calibration files written by previous versions of PypeIt cannot be
+  read.  The spatial B-spline models saved by
+  :class:`~pypeit.flatfield.FlatImages` (version 1.2.0) are now
+  :class:`~pypeit.containers.bspline.BSplineContainer` objects, replacing the
+  removed ``pypeit.bspline.bspline`` class.
+- Because of the two changes above, existing ``Calibrations`` directories
+  cannot be reused.  Delete them (or at least the ``Slits`` and ``Flat`` files)
+  before re-running :ref:`run-pypeit` or ``pypeit_ql`` (see
+  :doc:`../quicklook`) on data reduced with a previous version.
+- The ``[reduce][[cube]] align`` parameter has been removed and replaced by
+  ``alignment_method``, which selects the method used to spatially align the
+  datacubes (``none``, ``phase``, ``cc``, ``fit``, or ``user``).  Coadd3d files
+  that set ``align`` will fault; replace ``align = True`` with
+  ``alignment_method = phase`` and ``align = False`` with ``alignment_method =
+  none``.  Note that the default has also changed: previously the datacubes
+  were not aligned by default, whereas the default is now ``alignment_method =
+  phase``.
+- The meaning of the ``shift`` column in the PypeIt file has changed; see the
+  manual spatial flexure bug fix below.  A blank entry means no manual
+  override, whereas *any* number, including 0, now overrides the automatically
+  computed spatial flexure.  PypeIt files written by previous versions of
+  ``pypeit_setup --flexure`` fill this column with 0, which will now disable
+  the automatic spatial flexure correction for every frame.  Blank the column
+  (or regenerate the PypeIt file) to restore the automatic correction.
+- The root name of the output ``spec1d`` and ``spec2d`` files is now
+  constructed by removing the raw-file extension recognized by the
+  spectrograph, instead of only removing ``.fits``.  This changes the output
+  file names of spectrographs whose raw files have other extensions:
+  ``aat_uhrf`` (``.FTS``), ``mdm_modspec`` (``.fit``), and ``wht_isis_blue``
+  (``.fit``, ``.fit.gz``); e.g., the outputs for the raw file ``a001.fit`` were
+  previously named ``spec1d_a001.fit-...`` and are now named
+  ``spec1d_a001-...``.  Post-processing input files (e.g., coadd1d or fluxing
+  files) that list these outputs must be updated.
+- Keck/LRIS blue (``keck_lris_blue_orig``) ``spec2d`` extensions and ``spec1d``
+  object names now use the correct detector (``DET01`` <-> ``DET02``); see the
+  related bug fix below.  Post-processing input files that list the objects in
+  existing reductions must be updated.
+- The ``scikit-image`` optional-dependency group has been renamed to
+  ``datacube`` (which now also includes ``photutils``); i.e., use ``pip install
+  "pypeit[datacube]"`` instead of ``pip install "pypeit[scikit-image]"``.
 
 Documentation Updates
 ---------------------
@@ -30,6 +78,11 @@ Dependency Changes
 - Adds support for python 3.14
 - ``pillow`` (already required by ``matplotlib``) is now an explicit
   dependency; it is used to write the QA PNGs.
+- ``pydantic`` (version 2.0 or later) is now a required dependency; it is used
+  by the reduction-state layer (:mod:`pypeit.state`).
+- The ``scikit-image`` optional-dependency group has been renamed to
+  ``datacube`` and now also includes ``photutils``, which is needed for the
+  ``alignment_method = fit`` datacube alignment option.
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
@@ -321,6 +374,10 @@ Script Changes
   RMS (in pixels) of the wavelength solution for the slit under the cursor; see
   :ref:`pypeit_show_2dspec`.
 - Removed -G/--gui option from pypeit_obslog.
+
+- Fixed the ``pypeit_install_ql_calibs`` entry point, which pointed to a
+  non-existent module, and removed the ``pypeit_ql_multislit`` entry point,
+  whose module was removed when the script was deprecated in version 1.13.0.
 
 - Added ``pypeit_binospec_ifu_extract`` for interactive selection of
   Binospec IFU fibers and extraction of combined 1D spectra from spec1d
