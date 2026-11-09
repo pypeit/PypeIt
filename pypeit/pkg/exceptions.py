@@ -4,6 +4,7 @@ Provides pypeit specific exceptions.
 
 __all__ = [
     'PypeItError',
+    'PypeItWavelengthCalibrationError',
     'PypeItBitMaskError',
     'PypeItDataModelError',
     'PypeItPathError'
@@ -11,6 +12,9 @@ __all__ = [
 
 class PypeItError(Exception):
     pass
+
+class PypeItWavelengthCalibrationError(PypeItError):
+    """A wavelength fit failed because the data cannot support a solution."""
 
 class PypeItBitMaskError(PypeItError):
     pass

@@ -151,7 +151,7 @@ def show_image(inp, chname='Image', waveimg=None, rms_img=None, mask=None, exten
         raise ValueError('Input cuts must only have two elements, the lower and upper cut.')
 
     # Instantiate viewer
-    viewer = connect_to_ginga()
+    viewer = connect_to_ginga(allow_new=True)
     # Read or set the image data.  This will fail if the input is a
     # string and astropy.io.fits cannot read the image.
     img = io.fits_open(inp)[exten].data if isinstance(inp, str) else inp

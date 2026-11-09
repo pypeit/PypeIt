@@ -17,6 +17,7 @@ import yaml
 from pypeit import __version__
 from pypeit import log
 from pypeit import PypeItError
+from pypeit import PypeItWavelengthCalibrationError
 from pypeit import alignframe
 from pypeit import flatfield
 from pypeit import edgetrace
@@ -1334,6 +1335,10 @@ class Calibrations:
                                                           bias=self.msbias, bpm=self.msbpm)
             traceImage = traceImage.sub(lampoff_flat)
 
+        # Show the traceImage if requested
+        if self.show:
+            traceImage.show()
+
         edges = edgetrace.EdgeTraceSet(traceImage, self.spectrograph, self.par['slitedges'],
                                        qa_path=self.qa_path, auto=True)
         if not edges.success:
@@ -1488,11 +1493,19 @@ class Calibrations:
         # wavelength calibration.  Create EchelleCalibrations and
         # EchelleBuildWaveCalib subclasses instead..
         log.info(f'Preparing a {wavecalib.WaveCalib.calib_type} calibration frame.')
+
+        log.test(f"Relevant information:\n{self.par['wavelengths']}\n{self.spectrograph.pypeline}")
+
         waveCalib = wavecalib.BuildWaveCalib(self.msarc, self.slits, self.spectrograph,
                                              self.par['wavelengths'], lamps, meta_dict=meta_dict,
                                              det=self.det, qa_path=self.qa_path)
-        self.wv_calib = waveCalib.run(skip_QA=(not self.write_qa),
-                                      prev_wvcalib=self.wv_calib)
+        try:
+            self.wv_calib = waveCalib.run(skip_QA=(not self.write_qa),
+                                          prev_wvcalib=self.wv_calib)
+        except PypeItWavelengthCalibrationError:
+            # A partial solution must not be reused as a processed calibration.
+            self.wv_calib = None
+            raise
         # If orders were found, save slits to disk
         #   or if redo_slits
         if (self.par['wavelengths']['redo_slits'] is not None) or (
@@ -1675,20 +1688,21 @@ class Calibrations:
                     self.state.safe_write()
             try:
                 getattr(self, f'get_{step}')(force=force)
-            except Exception:
-                # A step that raises (an unrecoverable error mid-build, e.g. a
-                # PypeItError thrown deep in get_flats) must not leave the state
-                # stuck at 'running': otherwise the Dashboard / pypeit_status
-                # would keep showing the step as in-progress forever, even
-                # though the run has died.  Mark it 'fail' and persist so the
-                # failure is visible, then re-raise so the run still aborts
-                # with a non-zero exit code.
-                if self.state is not None:
-                    self.state.safe_update_calib(step, self.calib_ID, self.det,
-                                                 'status', 'fail')
-                    if not status_only:
-                        self.state.safe_write()
-                raise
+            except Exception as e:
+                if step == 'wv_calib' and isinstance(e, PypeItWavelengthCalibrationError):
+                    log.warning(f'Wavelength calibration failed for calibration group '
+                                f'{self.calib_ID}, detector {self.det}: {e}. '
+                                'Skipping this group/detector.')
+                    self.success = False
+                else:
+                    # Unrecoverable errors must not leave the state stuck at
+                    # 'running'.  Persist the failure before propagating it.
+                    if self.state is not None:
+                        self.state.safe_update_calib(step, self.calib_ID, self.det,
+                                                     'status', 'fail')
+                        if not status_only:
+                            self.state.safe_write()
+                    raise
 
             # Update state
             if self.state is not None:
