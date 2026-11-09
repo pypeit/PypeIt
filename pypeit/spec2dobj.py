@@ -49,7 +49,9 @@ class Spec2DObj(datamodel.DataContainer):
             Primary header if instantiated from a FITS file
 
     """
-    version = '1.1.1'
+    # NOTE: Bumped to 1.1.2 when the nested SlitTraceSet changed to version
+    # 1.1.6 (pad changed from an integer to a 2-element array).
+    version = '1.1.2'
 
     # TODO 2d data model should be expanded to include:
     # waveimage  --  flexure and heliocentric corrections should be applied to the final waveimage and since this is unique to
