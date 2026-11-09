@@ -17,6 +17,7 @@ from astropy.io import fits
 from pypeit import log
 from pypeit import utils
 from pypeit import PypeItError
+from pypeit import PypeItWavelengthCalibrationError
 from pypeit import qa
 from pypeit.core import arc
 from pypeit.core import fitting
@@ -1228,7 +1229,8 @@ class BuildWaveCalib:
 
             # Check that we have at least one good 2D fit
             if not np.any([fit2d.success for fit2d in self.wv_calib.wv_fit2d]):
-                raise PypeItError("No successful 2D Wavelength fits.  Cannot proceed.")
+                raise PypeItWavelengthCalibrationError(
+                    "No successful 2D Wavelength fits.  Cannot proceed.")
 
         # Deal with mask
         self.update_wvmask()

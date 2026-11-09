@@ -18,6 +18,7 @@ from astropy import stats
 
 from pypeit import log
 from pypeit import PypeItError
+from pypeit import PypeItWavelengthCalibrationError
 from pypeit import utils
 from pypeit.core import fitting
 from pypeit.core.plot import pyplot_rcparams, pyplot_rcparams_default
@@ -62,21 +63,21 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
     min_spec = 0.0
     max_spec = 1.0
     xnspecmin1 = float(nspec-1)
-    # Normalize for orders
-    min_order = np.min(all_orders)
-    max_order = np.max(all_orders)
-
     # Guard against a degenerate fit: the order-direction normalization divides
     # by (max_order - min_order), so a single unique order yields a divide-by-
     # zero -> NaNs -> an opaque "SVD did not converge" failure downstream.  Fail
     # early with a clear message instead.  (See Shane/Hamspec Report 08.)
     n_unique_orders = np.unique(all_orders).size
     if n_unique_orders < 2:
-        raise PypeItError(
+        raise PypeItWavelengthCalibrationError(
             f'2D wavelength fit needs >= 2 unique orders but only got '
             f'{n_unique_orders}.  Almost no orders were wavelength-calibrated; '
             f'check the per-order solutions / reidentification (e.g. the arc '
             f'archive coverage or order identification).')
+
+    # Normalize for orders
+    min_order = np.min(all_orders)
+    max_order = np.max(all_orders)
 
     if debug:
         # set some plotting parameters
