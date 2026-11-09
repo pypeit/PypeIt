@@ -1,0 +1,57 @@
+
+Version 3.1.0dev
+================
+
+Breaking Changes
+----------------
+
+- placeholder
+
+
+Documentation Updates
+---------------------
+
+- placeholder
+
+
+Dependency Changes
+------------------
+
+- placeholder
+
+
+Functionality/Performance Improvements and Additions
+----------------------------------------------------
+
+- placeholder
+
+
+Instrument-specific Updates
+---------------------------
+
+- placeholder
+
+
+Script Changes
+--------------
+
+- placeholder
+
+
+Testing
+-------
+
+- placeholder
+
+
+Under-the-hood Improvements
+---------------------------
+
+- placeholder
+
+
+Bug Fixes
+---------
+
+- placeholder
+

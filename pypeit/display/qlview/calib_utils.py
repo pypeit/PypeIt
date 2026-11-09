@@ -5,6 +5,9 @@ These functions are generic (not instrument-specific).  They live in the
 viewer instead of :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
 because :func:`recommend_calibrations` depends on :mod:`pypeit.scripts.ql`,
 which itself imports the spectrograph classes.
+
+.. include:: ../include/links.rst
+
 """
 
 from __future__ import annotations

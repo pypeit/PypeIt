@@ -15,5 +15,6 @@ python:
       path: .
       extra_requirements:
         - docs
+        - qlview
         - specutils
 
