@@ -9,7 +9,8 @@
                      [--calibs_only] [--overwrite_calibs] [--det DET [DET ...]]
                      [--slitspatnum SLITSPATNUM] [--maskID MASKID]
                      [--boxcar_radius BOXCAR_RADIUS] [--snr_thresh SNR_THRESH]
-                     [--ignore_std] [--skip_display] [--removetrace] [--coadd2d]
+                     [--manual_extract MANUAL_EXTRACT] [--ignore_std]
+                     [--skip_display] [--removetrace] [--coadd2d]
                      [--spec_samp_fact SPEC_SAMP_FACT]
                      [--spat_samp_fact SPAT_SAMP_FACT] [--offsets OFFSETS]
                      [--weights WEIGHTS] [--only_slits ONLY_SLITS [ONLY_SLITS ...]]
@@ -128,6 +129,11 @@
       --snr_thresh SNR_THRESH
                             Change the default S/N threshold used during source
                             detection (default: None)
+      --manual_extract MANUAL_EXTRACT
+                            Force extraction at a specific spatial position. Format:
+                            det:spat:spec:fwhm[:boxcar_rad]. Multiple entries
+                            separated by semicolons. All values in pixels. (default:
+                            None)
       --ignore_std          If standard star observations are automatically
                             detected, ignore those frames. Otherwise, they are
                             included with the reduction of the science frames.
