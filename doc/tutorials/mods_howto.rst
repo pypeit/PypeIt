@@ -177,8 +177,9 @@ of the user-defined parameters mentioned in item 3 above.
 
 .. note:: 
 
-   The proc classes work in ADUs and not electrons (the conversion gain, which is ~2 e-/ADU, is not applied), 
-   so snr_thresh = 10/sqrt(2) will find sources above 10-sigma.
+   Because the proc classes work on data that has been overscan subtracted and flat fielded on a quadrant-to-quadrant basis, instead
+   of using the individual quadrant gains, they use the average gain over the detector. Using the gain is necessary for accurate statistical 
+   uncertainties and error propagation. 
 
 .. note::
 
