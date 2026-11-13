@@ -1051,8 +1051,9 @@ class CoAdd2D:
         ----------
         offsets : array-like
             Offsets, in pixels, applied to the input exposures.
-        pixscale : float
+        pixscale : float, array-like
             Pixel scale used to convert the offsets to arcseconds for reporting.
+            Either a single value for all exposures or one value per exposure.
         offsets_method : str
             Description of how the offsets were determined.
         """
@@ -1062,8 +1063,9 @@ class CoAdd2D:
             msg_string += f' Summary of offsets from {offsets_method}     \n'
             msg_string += '---------------------------------------------------------------------------------\n'
             msg_string += '          file#      offset (pixels)    offset (arcsec)\n'
-            for iexp, off in enumerate(offsets):
-                msg_string += f'            {iexp:2d}            {off:6.2f}              {off*pixscale:6.3f}\n'
+            _pixscale = np.broadcast_to(pixscale, np.shape(offsets))
+            for iexp, (off, ps) in enumerate(zip(offsets, _pixscale)):
+                msg_string += f'            {iexp:2d}            {off:6.2f}              {off*ps:6.3f}\n'
             msg_string += '---------------------------------------------------------------------------------'
             log.info(msg_string)
 
@@ -1304,9 +1306,15 @@ class CoAdd2D:
             if None in dithoffs:
                 raise PypeItError('Dither offsets keyword not found for one or more spec2d files. '
                            'Choose another option for `offsets`')
-            dithoffs_pix = - np.array(dithoffs) / pixscale
+            # Convert the offsets of each exposure to pixels using the
+            # (binned) platescale of that exposure, which can differ among
+            # exposures (e.g., for JWST/NIRSpec, where the platescale is
+            # specific to the slit).
+            pixscales = np.array([parse.parse_binning(d.binning)[1]*d.platescale
+                                  for d in self.coadd2d_stack.detectors])
+            dithoffs_pix = - np.array(dithoffs) / pixscales
             self.offsets = dithoffs_pix[0] - dithoffs_pix
-            self.offsets_report(self.offsets, pixscale, 'header keyword')
+            self.offsets_report(self.offsets, pixscales, 'header keyword')
 
         elif self.obj_id_bri is None and self.par['coadd2d']['offsets'] == 'auto':
             raise PypeItError('Offsets cannot be computed because no unique reference object '

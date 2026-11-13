@@ -363,3 +363,65 @@ def test_ifu_get_datacube_bins_wavelength_axis_first():
         assert xbins.size - 1 == num_slices, \
             f"{spec_name}: get_datacube_bins()[2] should be the {num_slices} slice bins, " \
             f"not the {xbins.size - 1} wavelength bins"
+
+
+def test_jwst_nirspec_slit_platescale_fallback(tmp_path, monkeypatch):
+    from pypeit.spectrographs import jwst_nirspec
+    spec = load_spectrograph('jwst_nirspec')
+
+    # Minimal "cal" file with one slit but no ASDF extension (i.e., no GWCS)
+    sci = astropy.io.fits.ImageHDU(data=np.zeros((5, 5), dtype=np.float32), name='SCI')
+    sci.header['SLTNAME'] = 'S200A1'
+    cal_file = tmp_path / 'jw00000000000_00000_00001_nrs1_cal.fits'
+    astropy.io.fits.HDUList([astropy.io.fits.PrimaryHDU(), sci]).writeto(cal_file)
+
+    # stdatamodels not installed: fall back to the nominal platescale
+    monkeypatch.setattr(jwst_nirspec, 'stdatamodels_installed', lambda: False)
+    assert spec.get_slit_platescale(cal_file, 'S200A1') is None
+
+    # GWCS cannot be read: fall back to the nominal platescale
+    monkeypatch.setattr(jwst_nirspec, 'stdatamodels_installed', lambda: True)
+    assert spec.get_slit_platescale([cal_file], 'S200A1') is None
+    with pytest.raises(PypeItError, match='not found'):
+        jwst_nirspec.slit_platescale_from_gwcs(cal_file, 'S200A2')
+
+    # The nominal platescale is the along-slit one
+    assert spec.get_detector_par(1).platescale == 0.105
+
+
+def test_jwst_nirspec_dithoff_meta():
+    spec = load_spectrograph('jwst_nirspec')
+    hdr = astropy.io.fits.Header()
+    hdr['FILENAME'] = 'jw01967012001_03102_00001_nrs1_assign_wcs.fits'
+    hdr['YOFFSET'] = 0.919
+    # Raw files: the dither offset is -YOFFSET
+    assert spec.compound_meta([hdr], 'dithoff') == -0.919
+    # PypeIt output files: the (slit-specific) DITHOFF card is used
+    hdr['DITHOFF'] = -1.0405
+    assert spec.compound_meta([hdr], 'dithoff') == -1.0405
+    # Not a science frame
+    hdr['FILENAME'] = 'jw01967012001_03102_00001_nrs1_cal.fits'
+    assert spec.compound_meta([hdr], 'dithoff') == 0
+
+
+def test_jwst_nirspec_slit_dithoff_fallback(monkeypatch):
+    from pypeit.spectrographs import jwst_nirspec
+    spec = load_spectrograph('jwst_nirspec')
+    # stdatamodels not installed: fall back to the metadata value
+    monkeypatch.setattr(jwst_nirspec, 'stdatamodels_installed', lambda: False)
+    assert spec.get_slit_dithoff(None, 0, 'S200A1') is None
+
+
+def test_jwst_nirspec_slit_has_source():
+    from pypeit.spectrographs.jwst_nirspec import slit_has_source
+    hdr = astropy.io.fits.Header
+    # Fixed slits: only the targeted slit includes the source
+    pri = hdr({'EXP_TYPE': 'NRS_FIXEDSLIT', 'FXD_SLIT': 'S200A2'})
+    assert slit_has_source(pri, hdr({'SLTNAME': 'S200A2'}))
+    assert not slit_has_source(pri, hdr({'SLTNAME': 'S200A1'}))
+    # MSA: background slitlets do not include a source
+    pri = hdr({'EXP_TYPE': 'NRS_MSASPEC'})
+    assert slit_has_source(pri, hdr({'SLTNAME': '289', 'SRCALIAS': '20013731',
+                                     'SRCRA': 53.06, 'SRCDEC': -27.89}))
+    assert not slit_has_source(pri, hdr({'SLTNAME': '254', 'SRCALIAS': 'BKG254',
+                                         'SRCRA': 0.0, 'SRCDEC': 0.0}))

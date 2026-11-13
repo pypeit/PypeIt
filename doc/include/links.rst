@@ -134,6 +134,8 @@
 .. _specutils.Spectrum: https://specutils.readthedocs.io/en/stable/api/specutils.Spectrum.html
 .. _specutils.SpectrumList: https://specutils.readthedocs.io/en/stable/api/specutils.SpectrumList.html
 .. _jdaviz: https://jdaviz.readthedocs.io/en/latest/
+.. _jwst: https://jwst-pipeline.readthedocs.io/en/latest/
+.. _stdatamodels: https://stdatamodels.readthedocs.io/en/latest/
 .. _jupyter notebook: https://jupyter.org/
 .. _ppxf: https://pypi.org/project/ppxf/
 .. _ds9: https://sites.google.com/cfa.harvard.edu/saoimageds9

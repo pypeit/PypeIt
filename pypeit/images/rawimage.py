@@ -431,7 +431,7 @@ class RawImage:
         return np.array(rn2)
 
     def process(self, par, bpm=None, scattlight=None, flatimages=None, bias=None, slits=None, dark=None,
-                mosaic=False, slit_slices=None, kludge_err=1, debug=False):
+                mosaic=False, slit_slices=None, slit_platescale=None, kludge_err=1, debug=False):
         """
         Process the data.
 
@@ -554,6 +554,10 @@ class RawImage:
                 (0-indexed, exclusive end) giving the bounding box of the slit
                 in the full detector pixel frame, one entry per detector.  Only
                 used by :class:`NIRSpecRawImage`.
+            slit_platescale (:obj:`float`, optional):
+                Along-slit platescale (arcsec/pixel) of the slit being
+                processed, which replaces the nominal platescale of the
+                detector(s).  Only used by :class:`NIRSpecRawImage`.
             kludge_err (:obj:`float`, optional):
                 Multiplicative scaling factor applied to variance estimates.
                 Only used by :class:`NIRSpecRawImage`.  Default is 1.
@@ -2032,7 +2036,8 @@ class NIRSpecRawImage(RawImage):
         self.steps[inspect.stack()[0][3]] = True
 
     def process(self, par, bpm=None, scattlight=None, flatimages=None, bias=None,
-                slits=None, dark=None, mosaic=False, slit_slices=None, kludge_err=1, debug=False):
+                slits=None, dark=None, mosaic=False, slit_slices=None, slit_platescale=None,
+                kludge_err=1, debug=False):
         """
         Process JWST NIRSpec data into a :class:`~pypeit.images.pypeitimage.PypeItImage`.
 
@@ -2100,6 +2105,17 @@ class NIRSpecRawImage(RawImage):
                 tuples (0-indexed, exclusive end) giving the bounding box of
                 the slit in the full detector pixel frame, one entry per
                 detector.  Used by :func:`trim`.
+            slit_platescale (:obj:`float`, optional):
+                Along-slit platescale (arcsec/pixel) of the slit being
+                processed (see
+                :func:`~pypeit.spectrographs.jwst_nirspec.JWSTNIRSpecSpectrograph.get_slit_platescale`).
+                If provided, it replaces the nominal platescale of the
+                detector(s) (and mosaic).  This is needed for the full-frame
+                science and background images, for which the slit is not
+                known when the image is read.  If None, the platescale
+                returned by
+                :func:`~pypeit.spectrographs.jwst_nirspec.JWSTNIRSpecSpectrograph.get_rawimage`
+                is used.
             kludge_err (:obj:`float`, optional):
                 Reserved for future use as a variance scaling factor.
                 Currently unused.  Default is 1.
@@ -2112,6 +2128,11 @@ class NIRSpecRawImage(RawImage):
         """
 
         self.slit_slices = slit_slices
+
+        # Update the platescale for this slit
+        if slit_platescale is not None:
+            for d in (self.detector if self.mosaic is None else [*self.detector, self.mosaic]):
+                d.platescale = float(slit_platescale)
 
         # Set input to attributes
         self.par = par

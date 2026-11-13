@@ -4,6 +4,9 @@ Module for JWST NIRSpec specific methods.
 .. include:: ../include/links.rst
 """
 import copy
+import functools
+import importlib.util
+from io import BytesIO
 from pathlib import Path
 
 import numpy as np
@@ -100,10 +103,21 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
             specaxis=1,
             specflip=False,
             spatflip=False,
-            xgap=180.,
+            # NOTE: For NIRSpec, xgap is used as the gap (in pixels, along the
+            # dispersion direction) between NRS1 and NRS2 when building the
+            # mosaic.  146 px is the separation between the full 2048-pixel
+            # arrays (NRS1 column 2048 to NRS2 column 1) given by the CRDS FPA
+            # reference file (e.g., jwst_nirspec_fpa_0011.asdf).  Excluding
+            # the 4 reference columns on each side, this is the ~2.8 mm (~156
+            # px) gap between responsive columns quoted by Jakobsen et al.
+            # (2022, A&A, 661, A80).
+            xgap=146.,
             ygap=0.,
             ysize=1.,
-            platescale=0.1,
+            # Spatial-direction (along-slit) platescale: 105 mas/pixel
+            # (Jakobsen et al. 2022). The platescale in the dispersion
+            # direction is 103 mas/pixel.
+            platescale=0.105,
             darkcurr=33.12,  # e-/pixel/hour  (=0.0092 e-/pixel/s)
             saturation=55100.,
             nonlinear=0.95,  # need to look up and update
@@ -327,7 +341,19 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
             # the dither information is stored in all frame type, but we want it only for science frames
             if fname is not None and '_assign_wcs' not in fname:
                 return 0
-            return round(headarr[0].get('YOFFSET'), 3) if headarr[0].get('YOFFSET') is not None else 0.0
+            # The PypeIt output files (e.g., spec2d) record the dither offset
+            # of the reduced slit, measured from the center of the slit (see
+            # get_slit_dithoff); use it if available.
+            if headarr[0].get('DITHOFF') is not None:
+                return headarr[0]['DITHOFF']
+            # YOFFSET is the offset (arcsec) along the slit in the SI ideal
+            # frame, measured from the reference point of the aperture.  A
+            # positive YOFFSET moves the trace to *larger* spatial pixels in
+            # the PypeIt image, which is opposite to the sign convention
+            # adopted by PypeIt for ``dithoff`` (e.g., used by coadd2d when
+            # offsets='header'), so we flip the sign here.
+            yoffset = headarr[0].get('YOFFSET')
+            return 0.0 if yoffset is None else -round(yoffset, 3) + 0.0
 
         elif meta_key == 'dithpat':
             # the dither information is stored in all frame type, but we want it only for science frames
@@ -542,14 +568,26 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         Read raw images and generate a few other bits and pieces
         that are key for image processing.
 
-        Based on readmhdufits.pro
+        This reads either the full-frame JWST images (e.g., the
+        ``_assign_wcs.fits`` science frames) or, when ``keys`` selects the
+        ``SCI`` extension of a slit (see
+        :func:`~pypeit.calibrations.NIRSpecSlitCalibrations._build_calibimage`),
+        the cutout of a single slit in the JWST ``_cal.fits`` or
+        ``_interpolatedflat.fits`` files.  In the latter case, the slit is
+        identified by the ``SLTNAME`` keyword of the HDU header, and the
+        nominal platescale of the returned detector(s) (and mosaic) is
+        replaced by the along-slit platescale of that slit, computed from
+        the slit GWCS (see :func:`get_slit_platescale`).  For full-frame
+        images, the slit is not known here, and the nominal platescale is
+        returned; the platescale of the slit is then set by
+        :func:`~pypeit.images.rawimage.NIRSpecRawImage.process`.
 
         Parameters
         ----------
         raw_file : :obj:`str` or :obj:`list` of :obj:`str`
             File(s) to read
-        det : :obj:`int`
-            1-indexed detector to read
+        det : :obj:`int`, :obj:`tuple`
+            1-indexed detector or tuple of detectors (for a mosaic) to read
         keys : :obj:`list` of or single int, :obj:`str` or :obj:`tuple` of (string, int)
             A list of keys or a single key identifying the HDU to read.  If a key is a tuple, it is of the
             form `(name, ver)` where `ver` is an `EXTVER`` value that must
@@ -558,8 +596,8 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
 
         Returns
         -------
-        detector_par : :class:`pypeit.images.detector_container.DetectorContainer`
-            Detector metadata parameters.
+        detector_par : :class:`~pypeit.images.detector_container.DetectorContainer`, :class:`~pypeit.images.mosaic.Mosaic`
+            Detector (or mosaic) metadata parameters.
         raw_img : `numpy.ndarray`_
             Raw image for this detector.
         hdu : `astropy.io.fits.HDUList`_
@@ -613,6 +651,17 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         # Grab the detector or mosaic parameters
         mosaic = None if nimg == 1 else self.get_mosaic_par(det, hdu=None)
         detectors = [self.get_detector_par(det, hdu=None)] if nimg == 1 else mosaic.detectors
+
+        # When reading the cutout of a single slit from the JWST _cal.fits
+        # files, use the along-slit platescale of that slit.  For the
+        # full-frame science images, the slit is not known here, and the
+        # platescale is updated by NIRSpecRawImage.process.
+        slit_name = hdul[keys[0]].header.get('SLTNAME')
+        if slit_name is not None:
+            platescale = self.get_slit_platescale(file_list, slit_name)
+            if platescale is not None:
+                for d in (detectors if mosaic is None else [*detectors, mosaic]):
+                    d.platescale = platescale
 
         # Read the image(s)
         raw_img = [None]*nimg
@@ -689,115 +738,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         else:
             log.warning(f'Detector {det} not supported.')
             return raw_files
-
-    # def make_mosaic(self, img_list, det, slit_slices):
-    #     """
-    #     Create a mosaic image from the provided list of images.
-    #     The images are assumed to be trimmed and oriented to follow
-    #     the PypeIt shape convention of ``(nspec,nspat)``.
-    #
-    #     Args:
-    #         img_list (:obj:`list` or `numpy.ndarray`_):
-    #             List of images to be combined into a mosaic.  The images must
-    #             be trimmed and oriented to follow the PypeIt shape
-    #             convention of ``(nspec,nspat)``.
-    #         det (:obj:`tuple`):
-    #             Tuple of detector numbers used to construct the mosaic.  Must be
-    #             one among the list of possible mosaics as hard-coded by the
-    #             :func:`allowed_mosaics` function.
-    #         slit_slices (:obj:`list`):
-    #             List of slices for the slit in the form
-    #             ``[(spec_lo, spec_hi), (spat_lo, spat_hi)]`` for each detector
-    #             in the mosaic.  The slices are used to determine the spatial
-    #             offset between the two detectors in the mosaic.
-    #     Returns:
-    #         `numpy.ndarray`_: The mosaic image constructed from the provided
-    #         list of images.  The image is trimmed and oriented to
-    #         follow the PypeIt shape convention of ``(nspec,nspat)``.
-    #     """
-    #
-    #
-    #     nimg, _ = self.validate_det(det)
-    #
-    #     if nimg == 1:
-    #         raise PypeItError('Mosaic cannot be made with only one detector!')
-    #     else:
-    #         if len(img_list) != 2:
-    #             raise PypeItError('Mosaic can only be made with two images!')
-    #         if det not in self.allowed_mosaics:
-    #             raise PypeItError(f'Mosaic with detectors {det} is not allowed! '
-    #                        f'Allowed mosaics are: {self.allowed_mosaics}')
-    #
-    #     detector_gap = int(self.get_detector_par(1).xgap)
-    #     spat_offset = (slit_slices[1][1].start - slit_slices[0][1].start)
-    #     spec_lo1, spec_hi1 = 0, img_list[0].shape[0]
-    #     spec_lo2, spec_hi2 = img_list[0].shape[0] + detector_gap, \
-    #                          img_list[0].shape[0] + detector_gap + img_list[1].shape[0]
-    #     shape = (img_list[0].shape[0] + img_list[1].shape[0] + detector_gap,
-    #              np.max([img_list[0].shape[1], img_list[1].shape[1]]) + np.abs(spat_offset))
-    #
-    #     if spat_offset >= 0:
-    #         # Detector nrs2 starts at a larger spat value than detector nrs1
-    #         spat_lo1, spat_hi1 = 0, img_list[0].shape[1]  # nrs1 not shifted spatially
-    #         spat_lo2, spat_hi2 = spat_offset, spat_offset + img_list[1].shape[1] # nrs2 shifted spatially
-    #     else:
-    #         # Detector nrs1 starts at larger spat value than detector nrs1
-    #         spat_lo1, spat_hi1 = np.abs(spat_offset), img_list[0].shape[1] + np.abs(spat_offset)
-    #         spat_lo2, spat_hi2 = 0, img_list[1].shape[1]
-    #
-    #
-    #     nrs1_slice = np.s_[spec_lo1: spec_hi1, spat_lo1: spat_hi1]
-    #     nrs2_slice = np.s_[spec_lo2: spec_hi2, spat_lo2: spat_hi2]
-    #
-    #     # Create the mosaic
-    #     mosaic = np.zeros(shape, dtype=img_list[0].dtype)
-    #     mosaic[nrs1_slice] = img_list[0]
-    #     mosaic[nrs2_slice] = img_list[1]
-    #
-    #     return mosaic
-
-    # @staticmethod
-    # def get_slit_slice(cal_data, slit_name):
-    #     """
-    #     Get the pixel slice for a named slit from JWST calibration data.
-    #
-    #     Args:
-    #         cal_data: JWST MultiSlitModel calibration data
-    #         slit_name (:obj:`str`): The slit name, e.g. 'S200A1'.
-    #
-    #     Returns:
-    #         :obj:`tuple`: A tuple of two slices ``(spec_slice, spat_slice)``.
-    #     """
-    #     slit_names = np.array([slit.name for slit in cal_data.slits])
-    #     if slit_name not in slit_names:
-    #         raise PypeItError(f'Slit name {slit_name} not found in '
-    #                           f'calibration data {cal_data.meta.filename}')
-    #     #TODO: THIS VALUES DO NOT SEEM ACCURATE. FIX IT
-    #     indx = np.where(slit_names == slit_name)[0][0]
-    #     this_slit = cal_data.slits[indx]
-    #
-    #     # --- Get slit geometry ---
-    #     slit_xstart = int(this_slit.xstart)
-    #     slit_xsize = int(this_slit.xsize)
-    #     slit_ystart = int(this_slit.ystart)
-    #     slit_ysize = int(this_slit.ysize)
-    #
-    #     # Convert slit position to 0-indexed full-frame coordinates
-    #     # xstart = slit_xstart - 1 + subarray_xstart - 1
-    #     # ystart = slit_ystart - 1 + subarray_ystart - 1
-    #     xstart = slit_xstart - 1
-    #     ystart = slit_ystart - 1
-    #     xstop = xstart + slit_xsize
-    #     ystop = ystart + slit_ysize
-    #
-    #
-    #     # spec_lo = this_slit.xstart - 1
-    #     # spec_hi = spec_lo + this_slit.xsize
-    #     # spat_lo = this_slit.ystart - 1
-    #     # spat_hi = spat_lo + this_slit.ysize
-    #
-    #     # spat_start, spat_end, spec_start, spec_end = ystart, ystop, xstart, xstop
-    #     return ystart, ystop, xstart, xstop
+        
 
     def get_nirspec_slits(self, fitstbl, calib_ID, par):
         """
@@ -931,3 +872,395 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
 
         return gd_slits_sources, slit_det_map
 
+    def get_slit_platescale(self, cal_files, slit_name):
+        """
+        Compute the along-slit (spatial) platescale of a single NIRSpec slit
+        from the GWCS stored in the JWST calibrated (``_cal.fits``) files.
+
+        The NIRSpec platescale is not uniform: it ranges from ~0.103 to ~0.108
+        arcsec/pixel across the MSA (depending on quadrant and shutter row)
+        and is ~0.1053 arcsec/pixel for the fixed slits.  This method uses
+        :func:`slit_platescale_from_gwcs` to measure it for the requested slit.
+        When the slit falls on both detectors, the mean of the values
+        measured on each detector is returned.
+
+        The platescale is used to replace the nominal one for the
+        calibration images of the slit (see :func:`get_rawimage`) and for the
+        science frames (see
+        :func:`~pypeit.calibrations.NIRSpecSlitCalibrations.get_slit_slices`
+        and :func:`~pypeit.images.rawimage.NIRSpecRawImage.process`).
+
+        .. warning::
+
+            Reading the GWCS requires the ``stdatamodels`` package, which
+            provides the ``asdf`` converters for the JWST-specific transforms.
+            If ``stdatamodels`` is not installed (or the GWCS cannot be
+            evaluated), this method returns None and the nominal
+            platescale from :func:`get_detector_par` is used instead, which
+            can be off by up to ~3% for MSA slits.
+
+        Args:
+            cal_files (:obj:`str`, `Path`_, :obj:`list`):
+                One or more JWST ``_cal.fits`` files (e.g., one per detector
+                for a mosaic) that include the slit.
+            slit_name (:obj:`str`):
+                Name of the slit (the ``SLTNAME`` header keyword).
+
+        Returns:
+            :obj:`float`: The along-slit platescale in arcsec/pixel, or None
+            if it could not be computed.
+        """
+        nominal = self.get_detector_par(1).platescale
+        if not stdatamodels_installed():
+            if str(slit_name) in _STDATAMODELS_WARNED:
+                return None
+            if len(_STDATAMODELS_WARNED) == 0:
+                log.warning('The stdatamodels package is NOT installed!  PypeIt requires it to '
+                            'read the slit GWCS from the JWST _cal.fits files and compute the '
+                            'along-slit platescale of each NIRSpec slit.  Falling back to the '
+                            f'nominal platescale ({nominal} arcsec/pixel), which can be off by '
+                            'up to ~3% for MSA slits and propagates to, e.g., the offsets '
+                            'computed by pypeit_coadd_2dspec from the header dither offsets.  '
+                            'We strongly recommend installing it with: pip install stdatamodels')
+            else:
+                log.warning(f'stdatamodels is not installed; using the nominal platescale '
+                            f'({nominal} arcsec/pixel) for slit {slit_name}.')
+            _STDATAMODELS_WARNED.add(str(slit_name))
+            return None
+
+        _cal_files = [cal_files] if isinstance(cal_files, (str, Path)) else list(cal_files)
+        platescales = []
+        for cal_file in _cal_files:
+            try:
+                platescales.append(slit_platescale_from_gwcs(cal_file, slit_name))
+            except Exception as e:
+                log.warning(f'Could not compute the platescale of slit {slit_name} from the GWCS '
+                            f'in {Path(cal_file).name}: {type(e).__name__}: {e}')
+        if len(platescales) == 0:
+            log.warning(f'Using the nominal platescale ({nominal} arcsec/pixel) for slit '
+                        f'{slit_name}.')
+            return None
+
+        return float(np.mean(platescales))
+
+    def get_slit_dithoff(self, fitstbl, frame, slit_name):
+        """
+        Return the dither offset of a frame for a specific slit, measured
+        from the center of the slit.
+
+        The ``dithoff`` metadata of the NIRSpec frames is set by
+        :func:`compound_meta` to the negative of the ``YOFFSET`` header
+        keyword, which is measured from the reference point of the aperture.
+        For MSA observations, this reference point is not the center of the
+        slit, and it changes with the pointing, such that the offsets of
+        frames taken in different visits or with different MSA
+        configurations cannot be compared.  Instead, this method uses the
+        position of the source in the slit (see
+        :func:`slit_source_offset_from_gwcs`), which is measured from the
+        center of the slit in every frame, and returns its negative, to
+        follow the ``PypeIt`` sign convention for ``dithoff``.
+
+        The position is measured using the JWST ``_cal.fits`` file(s) of the
+        same exposure as the frame (i.e., with the same
+        :func:`rawfile_basename`).  When the slit falls on both detectors,
+        the mean of the values measured on each detector is used.
+
+        .. warning::
+
+            This requires the ``stdatamodels`` package to be installed.  If
+            the offset cannot be computed, None is returned and the
+            ``dithoff`` value in the metadata table (i.e., ``-YOFFSET``) is
+            used, which is only reliable for frames taken in the same visit.
+
+        Args:
+            fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
+                The metadata table for the frames being reduced.
+            frame (:obj:`int`):
+                0-indexed row in the metadata table with the frame.
+            slit_name (:obj:`str`):
+                Name of the slit (the ``SLTNAME`` header keyword).
+
+        Returns:
+            :obj:`float`: The dither offset in arcsec, or None if it could
+            not be computed.
+        """
+        fallback = ('Using the dither offset from the YOFFSET header keyword, which is only '
+                    'reliable for frames taken in the same visit.')
+        if not stdatamodels_installed():
+            log.warning(f'stdatamodels is not installed; cannot compute the position of the '
+                        f'source in slit {slit_name}.  {fallback}')
+            return None
+
+        # The calibrated files of the same exposure
+        basename = self.rawfile_basename(fitstbl.frame_paths(frame))
+        cal_files = [f for f in fitstbl.find_frame_files('arc')
+                     if self.rawfile_basename(f) == basename]
+
+        offsets = []
+        for cal_file in cal_files:
+            with fits.open(cal_file) as hdul:
+                slit_hdr = [h.header for h in hdul if h.name == 'SCI'
+                            and h.header.get('SLTNAME', '').strip() == str(slit_name).strip()]
+                if len(slit_hdr) == 0:
+                    # Slit not on this detector
+                    continue
+                if not slit_has_source(hdul[0].header, slit_hdr[0]):
+                    log.info(f'Slit {slit_name} does not include a planned source.  {fallback}')
+                    return None
+            try:
+                offset = slit_source_offset_from_gwcs(cal_file, slit_name)
+            except Exception as e:
+                log.warning(f'Could not compute the position of the source in slit {slit_name} '
+                            f'from the GWCS in {Path(cal_file).name}: {type(e).__name__}: {e}')
+                continue
+            if offset is not None:
+                offsets.append(offset)
+
+        if len(offsets) == 0:
+            log.warning(f'Could not determine the position of the source in slit {slit_name} '
+                        f'for {Path(fitstbl.frame_paths(frame)).name}.  {fallback}')
+            return None
+
+        dithoff = -round(float(np.mean(offsets)), 4) + 0.0
+        log.info(f'Dither offset of slit {slit_name} (from the slit center): {dithoff:.4f} arcsec')
+        return dithoff
+
+
+_STDATAMODELS_WARNED = set()
+"""
+Slits for which the warning about the missing ``stdatamodels`` package has
+been issued.  The full warning is issued only once per process, and a short
+one once per slit.
+"""
+
+
+def slit_has_source(primary_hdr, slit_hdr):
+    """
+    Check if a NIRSpec slit includes the planned source, such that the source
+    position recorded by the JWST pipeline (``SRCYPOS``) follows the dither
+    pattern.
+
+    For the slits that do not include a planned source (i.e., the fixed slits
+    other than the one targeted by the observation, and the MSA background
+    slitlets), the JWST pipeline sets ``SRCYPOS`` to 0 in all the exposures,
+    regardless of the dither pattern.
+
+    Args:
+        primary_hdr (`astropy.io.fits.Header`_):
+            Primary header of the JWST ``_cal.fits`` file.
+        slit_hdr (`astropy.io.fits.Header`_):
+            Header of the ``SCI`` extension of the slit.
+
+    Returns:
+        :obj:`bool`: True if the slit includes the planned source.
+    """
+    if primary_hdr.get('EXP_TYPE') == 'NRS_FIXEDSLIT':
+        return str(slit_hdr.get('SLTNAME', '')).strip() \
+                    == str(primary_hdr.get('FXD_SLIT', '')).strip()
+    alias = str(slit_hdr.get('SRCALIAS') or '').strip().upper()
+    ra, dec = slit_hdr.get('SRCRA'), slit_hdr.get('SRCDEC')
+    return not alias.startswith('BKG') and ra not in (None, 0) and dec not in (None, 0)
+
+
+def stdatamodels_installed():
+    """
+    Check if the ``stdatamodels`` package is installed.
+
+    ``stdatamodels`` is needed to read the GWCS of NIRSpec slits (see
+    :func:`slit_platescale_from_gwcs`).  It is not imported here: once
+    installed, it registers its ``asdf`` converters for the JWST-specific
+    transforms via ``asdf`` entry points.
+
+    Returns:
+        :obj:`bool`: True if ``stdatamodels`` is installed.
+    """
+    return importlib.util.find_spec('stdatamodels') is not None
+
+
+def slit_platescale_from_gwcs(cal_file, slit_name, nsamp=15):
+    """
+    Measure the along-slit (spatial) platescale of a NIRSpec slit from the
+    GWCS stored in a JWST calibrated (``_cal.fits``) file.
+
+    The GWCS of each slit is read directly from the ``ASDF`` extension of the
+    file using ``asdf``, without opening the file as a JWST datamodel.  The
+    WCS is evaluated at ``nsamp`` positions along the spectral direction at
+    the center of the slit and one pixel above it (along the slit, i.e.,
+    detector +y in the JWST frame), and the median sky separation between
+    the two sets of positions is returned.
+
+    .. warning::
+
+        This requires the ``stdatamodels`` package to be installed.  It
+        provides the ``asdf`` converters for the JWST-specific transforms used
+        by the NIRSpec GWCS (``tag:stsci.edu:jwst_pipeline/*`` tags) and
+        registers them automatically with ``asdf``, but it does not need to
+        be imported.
+
+    Args:
+        cal_file (:obj:`str`, `Path`_):
+            JWST ``_cal.fits`` file.
+        slit_name (:obj:`str`):
+            Name of the slit (the ``SLTNAME`` header keyword).
+        nsamp (:obj:`int`, optional):
+            Number of positions sampled along the spectral direction.
+
+    Returns:
+        :obj:`float`: The along-slit platescale in arcsec/pixel.
+    """
+    return _slit_gwcs_measurements(str(Path(cal_file).resolve()), str(slit_name).strip(),
+                                   int(nsamp))[0]
+
+
+def slit_source_offset_from_gwcs(cal_file, slit_name):
+    """
+    Measure the position of the source along a NIRSpec slit, relative to the
+    center of the slit, from the GWCS stored in a JWST calibrated
+    (``_cal.fits``) file.
+
+    The JWST pipeline records the position of the source in the slit
+    (``source_ypos``, also in the ``SRCYPOS`` header keyword of the slit) in
+    the ``slit_frame`` coordinate frame of the slit GWCS: in units of the slit
+    length relative to the slit center for the fixed slits, and in units of
+    the shutter pitch relative to the center of the shutter that contains the
+    source for the MSA.  The detector -> ``slit_frame`` transform of the GWCS
+    is used to find the detector rows of the source and of the center of the
+    slit (the midpoint of ``slit_ymin`` and ``slit_ymax``) at the center of
+    the slit in the spectral direction.  Their difference, converted to
+    arcsec with the along-slit platescale (see
+    :func:`slit_platescale_from_gwcs`), is returned.
+
+    Contrary to the ``YOFFSET`` header keyword, which is measured from the
+    reference point of the aperture (e.g., of the whole MSA for MSA
+    observations) and therefore depends on the pointing, this offset is
+    measured from the center of the slit in every exposure.  The offsets of
+    different exposures can then be compared even if they were taken in
+    different visits, with different pointings or MSA configurations.
+
+    .. warning::
+
+        This requires the ``stdatamodels`` package to be installed; see
+        :func:`slit_platescale_from_gwcs`.
+
+    Args:
+        cal_file (:obj:`str`, `Path`_):
+            JWST ``_cal.fits`` file.
+        slit_name (:obj:`str`):
+            Name of the slit (the ``SLTNAME`` header keyword).
+
+    Returns:
+        :obj:`float`: The offset in arcsec of the source from the center of
+        the slit, along the slit, which is positive when the source is at
+        larger spatial pixels in the ``PypeIt`` frame.  None if the source
+        position is not defined.
+    """
+    platescale, offset_pix = _slit_gwcs_measurements(str(Path(cal_file).resolve()),
+                                                     str(slit_name).strip(), 15)
+    return None if offset_pix is None else offset_pix * platescale
+
+
+def _slit_rows(wcs, slit_y, xpix):
+    """
+    Find the detector rows where the ``slit_frame`` y coordinate of a NIRSpec
+    slit GWCS has the provided values.
+
+    Args:
+        wcs (`gwcs.wcs.WCS`):
+            Slit GWCS.
+        slit_y (array-like):
+            Values of the ``slit_frame`` y coordinate.
+        xpix (:obj:`float`):
+            Detector column (spectral direction) at which to evaluate the
+            transform.
+
+    Returns:
+        `numpy.ndarray`_: Detector rows, NaN for the values outside the slit.
+    """
+    (_, _), (y0, y1) = wcs.bounding_box.bounding_box(order='F')
+    y = np.arange(y0, y1, 0.01)
+    sy = wcs.get_transform('detector', 'slit_frame')(np.full_like(y, xpix), y)[1]
+    indx = np.isfinite(sy)
+    y, sy = y[indx], sy[indx]
+    if y.size < 2:
+        return np.full(np.size(slit_y), np.nan)
+    srt = np.argsort(sy)
+    rows = np.interp(slit_y, sy[srt], y[srt])
+    outside = (np.asarray(slit_y) < sy.min()) | (np.asarray(slit_y) > sy.max())
+    return np.where(outside, np.nan, rows)
+
+
+@functools.lru_cache(maxsize=1024)
+def _slit_gwcs_measurements(cal_file, _slit_name, nsamp):
+    """
+    Cached worker for :func:`slit_platescale_from_gwcs` and
+    :func:`slit_source_offset_from_gwcs`.
+
+    The GWCS of the slit is read only once to measure both quantities.  The
+    result is cached because the same slit is processed for multiple
+    calibration steps and frames during a reduction.
+
+    Args:
+        cal_file (:obj:`str`):
+            Full path to the JWST ``_cal.fits`` file.
+        _slit_name (:obj:`str`):
+            Name of the slit, with no leading or trailing spaces.
+        nsamp (:obj:`int`):
+            Number of positions sampled along the spectral direction to
+            measure the platescale.
+
+    Returns:
+        :obj:`tuple`: The along-slit platescale in arcsec/pixel and the
+        offset of the source from the center of the slit in pixels (None if
+        the source position is not defined).
+    """
+    # asdf is a dependency of stdatamodels
+    import asdf
+
+    with fits.open(cal_file) as hdul:
+        # The slits in the ASDF tree are in the same order as the SCI extensions
+        names = [h.header.get('SLTNAME', '').strip() for h in hdul if h.name == 'SCI']
+        if _slit_name not in names:
+            raise PypeItError(f'Slit {_slit_name} not found in {cal_file}.')
+        try:
+            buf = BytesIO(hdul['ASDF'].data.tobytes())
+        except KeyError:
+            raise PypeItError(f'No ASDF extension found in {cal_file}.')
+    islit = names.index(_slit_name)
+
+    # NOTE: Lazy loading is required because the data arrays referenced by the
+    # ASDF tree are stored in the other FITS extensions, not in the ASDF one.
+    with asdf.open(buf, lazy_load=True, lazy_tree=True) as af:
+        slits = af.tree['slits']
+        if str(slits[islit]['name']).strip() != _slit_name:
+            # Unexpected order; fall back to (slower) searching by name
+            islit = [str(s['name']).strip() for s in slits].index(_slit_name)
+        slit = slits[islit]
+        wcs = slit['meta']['wcs']
+
+        # Platescale: sample the center of the slit, avoiding the edges of the
+        # bounding box
+        (x0, x1), (y0, y1) = wcs.bounding_box.bounding_box(order='F')
+        x = np.linspace(x0, x1, nsamp + 2)[1:-1]
+        y = np.full_like(x, 0.5 * (y0 + y1))
+        ra0, dec0 = np.radians(wcs(x, y)[:2])
+        ra1, dec1 = np.radians(wcs(x, y + 1)[:2])
+
+        # Rows of the source and of the center of the slit
+        src_ypos = slit.get('source_ypos')
+        slit_ymin, slit_ymax = slit.get('slit_ymin'), slit.get('slit_ymax')
+        offset_pix = None
+        if src_ypos is not None and slit_ymin is not None and slit_ymax is not None:
+            src_row, cen_row = _slit_rows(wcs, [src_ypos, 0.5 * (slit_ymin + slit_ymax)],
+                                          0.5 * (x0 + x1))
+            if np.isfinite(src_row) and np.isfinite(cen_row):
+                offset_pix = float(src_row - cen_row)
+
+    # Haversine angular separation
+    hav = np.sin((dec1 - dec0) / 2)**2 + np.cos(dec0) * np.cos(dec1) * np.sin((ra1 - ra0) / 2)**2
+    sep = np.degrees(2 * np.arcsin(np.sqrt(hav))) * 3600
+    if not np.any(np.isfinite(sep)):
+        raise PypeItError(f'GWCS of slit {_slit_name} in {cal_file} could not be evaluated.')
+    platescale = float(np.nanmedian(sep))
+    log.info(f'Platescale of slit {_slit_name} from the GWCS in {Path(cal_file).name}: '
+             f'{platescale:.5f} arcsec/pixel')
+    return platescale, offset_pix

@@ -65,6 +65,7 @@ specutils = [
 
 jwst = [
     "jwst>=1.19",
+    "stdatamodels>=4.0",
 ]
 test = [
     "pygit2",

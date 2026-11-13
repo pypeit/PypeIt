@@ -89,6 +89,25 @@ PypeIt has a few optional dependencies that improve and/or expand functionality.
 
         pip install "pypeit[specutils]"
 
+    - To reduce JWST/NIRSpec data (see :ref:`jwst_nirspec`), you should
+      install the `stdatamodels`_ package.  It is needed to read the slit GWCS in the JWST ``_cal.fits``
+      files and compute the platescale of each slit; without it, PypeIt warns
+      you and uses the nominal NIRSpec platescale, which can be off by up to
+      ~3% for some MSA slits.  It is included with the `jwst`_ pipeline package,
+      which is also needed to run ``pypeit_preprocess_jwst``, and can be
+      installed with:
+
+      .. code-block:: console
+
+        pip install "pypeit[jwst]"
+
+      If you only need to reduce the JWST pipeline outputs, you can install
+      the much lighter ``stdatamodels`` package alone, *e.g.*:
+
+      .. code-block:: console
+
+        pip install stdatamodels
+
 .. note::
 
     Whether or not it is correct syntax to use the quotes in the commands above

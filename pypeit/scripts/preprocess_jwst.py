@@ -428,7 +428,7 @@ class PreprocessJWST(scriptbase.ScriptBase):
 
         for rate_file in rate_list:
             assign_wcs_file = output_dir / rate_file.name.replace('_rate.fits',
-                                                                  '_msa._assign_wcs')
+                                                                  '_assign_wcs')
             if assign_wcs_file.exists() and not args.overwrite_stage2:
                 log.info(f'Stage 2 output {assign_wcs_file} already exists. Skipping stage 2 '
                          'processing.')

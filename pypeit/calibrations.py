@@ -267,6 +267,7 @@ class Calibrations:
 
         # spectrograph-specific
         self.slit_slices = None
+        self.slit_platescale = None
 
     def check_calibrations(self, file_list, check_lamps=True):
         """
@@ -2979,6 +2980,20 @@ class NIRSpecSlitCalibrations(Calibrations):
         :attr:`slit_slices`.  When multiple calibration files are provided
         (e.g. one per detector in a mosaic), one tuple is appended per file.
 
+        The along-slit platescale of the slit is also computed from the slit
+        GWCS stored in the calibration files (see
+        :func:`~pypeit.spectrographs.jwst_nirspec.JWSTNIRSpecSpectrograph.get_slit_platescale`)
+        and stored in :attr:`slit_platescale`.  This is passed to the
+        processing of the science (and background) frames, which are full-frame
+        images and do not carry the slit information (see
+        :func:`~pypeit.images.rawimage.NIRSpecRawImage.process`); the
+        calibration images of the slit get the same platescale directly
+        when they are read (see
+        :func:`~pypeit.spectrographs.jwst_nirspec.JWSTNIRSpecSpectrograph.get_rawimage`).
+        :attr:`slit_platescale` is None if the platescale could not be
+        computed (e.g., because ``stdatamodels`` is not installed), in which
+        case the nominal detector platescale is used.
+
         Args:
             force (:obj:`str`, optional):
                 Currently ignored; reserved for future use.
@@ -3019,6 +3034,10 @@ class NIRSpecSlitCalibrations(Calibrations):
                 spec_start = slit_ystart -1
                 spec_end = spec_start + slit_ysize
                 self.slit_slices.append((spat_start, spat_end, spec_start, spec_end))
+
+        # Along-slit platescale from the slit GWCS
+        self.slit_platescale = self.spectrograph.get_slit_platescale(
+            cal_files, self.user_slits['slit_info'])
 
         return self.slit_slices
 

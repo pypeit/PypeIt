@@ -374,6 +374,47 @@ class NIRSpecSlitPypeIt(PypeIt):
         """NIRSpec uses a different calibration workflow -- skip standard checks."""
         pass
 
+    def _set_slit_dithoff(self, calib_ID, frametype, slit_name, header_dithoff):
+        """
+        Set the dither offsets of the frames to reduce to the values specific
+        to a slit.
+
+        The ``dithoff`` column of the metadata table is set by
+        :func:`~pypeit.spectrographs.jwst_nirspec.JWSTNIRSpecSpectrograph.compound_meta`
+        to the negative of the ``YOFFSET`` header keyword, which is measured
+        from the reference point of the aperture and cannot be used to compare
+        exposures taken in different visits.  Before reducing a slit, this
+        method replaces it, for the frames of the given type in the
+        calibration group, with the offset of the source from the center of
+        that slit (see
+        :func:`~pypeit.spectrographs.jwst_nirspec.JWSTNIRSpecSpectrograph.get_slit_dithoff`),
+        such that this value is recorded in the headers of the output
+        files.  If the latter cannot be computed, the header value is used.
+
+        .. note::
+
+            The ``dithoff`` column is therefore specific to the slit being
+            reduced, and it is reset for every slit.
+
+        Args:
+            calib_ID (:obj:`str`):
+                Calibration group of the frames.
+            frametype (:obj:`str`):
+                Type of the frames to update (``'science'`` or
+                ``'standard'``).
+            slit_name (:obj:`str`):
+                Name of the slit being reduced.
+            header_dithoff (`numpy.ndarray`_):
+                The dither offsets computed from the headers, i.e., the
+                original ``dithoff`` column of the metadata table.
+        """
+        if 'dithoff' not in self.fitstbl.keys():
+            return
+        for frame in np.where(self.fitstbl.find_frames(frametype, calib_ID))[0]:
+            slit_dithoff = self.spectrograph.get_slit_dithoff(self.fitstbl, frame, slit_name)
+            self.fitstbl['dithoff'][frame] = header_dithoff[frame] if slit_dithoff is None \
+                                                else slit_dithoff
+
     def calib_all(self):
         """
         Process all calibration frames for all NIRSpec slits.
@@ -423,10 +464,22 @@ class NIRSpecSlitPypeIt(PypeIt):
         :func:`reduce_calibID` (which internally calls the unified
         :func:`~pypeit.exposure.reduce_exposure` with ``slitname``
         and ``detnum`` set for the NIRSpec slit-by-slit path).
+
+        Before reducing each slit, the ``dithoff`` column of the metadata
+        table is set to the dither offsets specific to that slit (see
+        :func:`_set_slit_dithoff`), such that they are recorded in the
+        headers of the output files.  The original values are restored at
+        the end.
         """
         self.par.validate_keys(required=['rdx', 'calibrations', 'scienceframe', 'reduce',
                                          'flexure'])
         self.tstart = time.perf_counter()
+
+        # The dither offsets computed from the headers; they are replaced by
+        # the slit-specific values while reducing each slit (see
+        # _set_slit_dithoff) and restored at the end.
+        header_dithoff = self.fitstbl['dithoff'].copy() if 'dithoff' in self.fitstbl.keys() \
+                            else None
 
         # ################################################################
         # Standard Star(s) Loop
@@ -448,6 +501,8 @@ class NIRSpecSlitPypeIt(PypeIt):
                     else f'SRC name: {isource}'
                 log.info(f'Processing {obj_str} ({ii + 1}/{len(gd_slits_sources)})')
 
+                if header_dithoff is not None:
+                    self._set_slit_dithoff(calib_ID, 'standard', islit, header_dithoff)
                 reduce_calibID(
                     self.spectrograph, self.par, self.fitstbl,
                     calib_ID, self.calibrations_path,
@@ -476,6 +531,8 @@ class NIRSpecSlitPypeIt(PypeIt):
                     else f'SRC name: {isource}'
                 log.info(f'Processing {obj_str} ({ii + 1}/{len(gd_slits_sources)})')
 
+                if header_dithoff is not None:
+                    self._set_slit_dithoff(calib_ID, 'science', islit, header_dithoff)
                 reduce_calibID(
                     self.spectrograph, self.par, self.fitstbl,
                     calib_ID, self.calibrations_path,
@@ -483,6 +540,10 @@ class NIRSpecSlitPypeIt(PypeIt):
                     reduce_standard=False, overwrite=self.overwrite,
                     show=self.show, run_state=self.run_state, reuse_calibs=self.reuse_calibs)
             log.info(f'Finished calibration group {calib_ID}')
+
+        # Restore the dither offsets computed from the headers
+        if header_dithoff is not None:
+            self.fitstbl['dithoff'] = header_dithoff
 
         # Finish
         self.print_end_time()

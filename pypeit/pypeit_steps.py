@@ -433,6 +433,7 @@ def process_one_det(spectrograph, fitstbl, par, frames:list,
         flatimages=caliBrate.flatimages,
         slits=caliBrate.slits,  # For flexure correction
         slit_slices=caliBrate.slit_slices,
+        slit_platescale=caliBrate.slit_platescale,
         ignore_saturation=False)
 
     # get no bkg subtracted sciImg to generate a global sky model without bkg subtraction.
@@ -457,6 +458,7 @@ def process_one_det(spectrograph, fitstbl, par, frames:list,
                                                 flatimages=caliBrate.flatimages,
                                                 slits=caliBrate.slits,
                                                slit_slices=caliBrate.slit_slices,
+                                               slit_platescale=caliBrate.slit_platescale,
                                                 ignore_saturation=False)
 
         # NOTE: If the spatial flexure exists for sciImg, the subtraction
