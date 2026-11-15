@@ -340,9 +340,11 @@ Testing
   spectrum, that the median-width floor of
   :func:`~pypeit.core.arc.detect_lines` rejects single-pixel spikes but no arc
   line, is skipped for spectra with few lines and is off when matching
-  ``curve_fit``, and that the ``fast_line_fit`` parameter is parsed and
+  ``curve_fit``, that the ``fast_line_fit`` parameter is parsed and
   applied by :class:`~pypeit.wavecalib.BuildWaveCalib` and
-  :class:`~pypeit.wavetilts.BuildWaveTilts`.
+  :class:`~pypeit.wavetilts.BuildWaveTilts`, and that
+  :func:`~pypeit.core.wavecal.wvutils.get_xcorr_arc` always uses the
+  ``curve_fit``-matching fit.
 - Added dev-suite ``vet_tests`` (``test_arcfit.py``) that the lines detected
   in the stored arc spectra of the wavelength calibrations obey the
   median-width floor, and that the Keck/DEIMOS ``830G_L_8100`` solution,
@@ -404,7 +406,14 @@ Under-the-hood Improvements
   with ``curve_fit``, and no lower bound is placed on the width.  Most of the
   speed-up is then lost, because these are the lines on which ``curve_fit`` is
   slowest.  :data:`~pypeit.core.arc.ARCFIT_MATCH_CURVEFIT` sets the same
-  option for all callers.  Fits that failed with NaN
+  option for all callers.  The synthetic arc spectra used for the
+  cross-correlations of the wavelength calibration
+  (:func:`~pypeit.core.wavecal.wvutils.get_xcorr_arc`) are always built with
+  the ``curve_fit``-matching option, so that the lines whose fit fails are
+  left out of them as before: the ``full_template`` cross-correlations are
+  very sensitive to the set of lines in the synthetic arc, and building it
+  with the fast fit moved about 2% of the development-suite slits by more
+  than one pixel, as many for the worse as for the better.  Fits that failed with NaN
   values now return the -999 sentinel.  Setting
   ``pypeit.core.arc.USE_VECTORIZED_ARCFIT = False`` restores the previous
   implementation.  Known limitation, not introduced by this change: the

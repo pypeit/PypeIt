@@ -496,12 +496,30 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, input_thresh=None,
         `numpy.ndarray`_: Synthetic arc spectrum to be used for
         cross-correlations, shape = (nspec,)
 
+    Notes:
+        The lines are always detected with
+        :data:`~pypeit.core.arc.ARCFIT_MATCH_CURVEFIT` set to True, i.e. with
+        the line fit that reproduces the legacy, per-line ``curve_fit``, so
+        that lines whose fit fails are left out of the synthetic arc.  The
+        cross-correlations used by
+        :func:`~pypeit.core.wavecal.autoid.full_template` and
+        :func:`~pypeit.core.wavecal.autoid.reidentify` are very sensitive to
+        the set of lines in the synthetic arc; this keeps that set independent
+        of the ``fast_line_fit`` parameter.
+
     """
 
-    # Run line detection to get the locations and amplitudes of the lines
-    tampl1, tampl1_cont, tcent1, twid1, centerr1, w1, arc1, nsig1 = arc.detect_lines(
-        inspec1, sigdetect=sigdetect, input_thresh=input_thresh, 
-        fwhm=fwhm, cont_subtract=cont_sub, debug=debug)
+    # Run line detection to get the locations and amplitudes of the lines.
+    # The synthetic arc is always built with the legacy-matching line fit
+    # (option A of the vectorized fit): lines whose fit fails are left out of
+    # it, exactly as with the per-line curve_fit.  The cross-correlations of
+    # full_template are very sensitive to which lines enter the synthetic arc,
+    # so this keeps them identical to the legacy fit regardless of the
+    # fast_line_fit setting.
+    with arc.arcfit_options(match_curvefit=True):
+        tampl1, tampl1_cont, tcent1, twid1, centerr1, w1, arc1, nsig1 = arc.detect_lines(
+            inspec1, sigdetect=sigdetect, input_thresh=input_thresh,
+            fwhm=fwhm, cont_subtract=cont_sub, debug=debug)
 
     ampl = tampl1 if use_raw_arc else tampl1_cont
 

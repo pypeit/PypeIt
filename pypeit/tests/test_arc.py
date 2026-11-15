@@ -334,3 +334,30 @@ def test_detect_lines_floor_explicit_value():
         assert np.array_equal(g, good[w[good] > frac * med])
 
 # Many more functions in pypeit.core.arc that need tests!
+
+
+def test_get_xcorr_arc_uses_legacy_fit(monkeypatch):
+    """The synthetic cross-correlation arc does not depend on fast_line_fit."""
+    from pypeit.core.wavecal import wvutils
+    flux = skyspec.load_sky_spectrum('paranal_sky.fits').flux
+    # The two line fits disagree on which lines fail on this spectrum ...
+    nfit = []
+    for match in [False, True]:
+        with arc.arcfit_options(match_curvefit=match):
+            nfit.append(np.sum(arc.detect_lines(flux, sigdetect=5.)[2] != -999.))
+    assert nfit[0] != nfit[1]
+    # ... but get_xcorr_arc always uses the legacy-matching fit
+    seen = []
+    _detect_lines = arc.detect_lines
+    def _spy(*a, **k):
+        seen.append(arc.ARCFIT_MATCH_CURVEFIT)
+        return _detect_lines(*a, **k)
+    monkeypatch.setattr(arc, 'detect_lines', _spy)
+    xarc = {}
+    for match in [False, True]:
+        with arc.arcfit_options(match_curvefit=match):
+            xarc[match] = wvutils.get_xcorr_arc(flux, fwhm=4.)
+            # The option is restored afterwards
+            assert arc.ARCFIT_MATCH_CURVEFIT is match
+    assert seen == [True, True]
+    assert np.array_equal(xarc[False], xarc[True])

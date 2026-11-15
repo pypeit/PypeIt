@@ -66,7 +66,10 @@ because these are the lines on which ``curve_fit`` is slowest.
 
 For the wavelength calibration and the tilts, this is set by the
 ``fast_line_fit`` parameter of
-:class:`~pypeit.par.pypeitpar.WavelengthSolutionPar`.
+:class:`~pypeit.par.pypeitpar.WavelengthSolutionPar`.  The synthetic arc
+spectra used for cross-correlation
+(:func:`~pypeit.core.wavecal.wvutils.get_xcorr_arc`) are always built with
+this set to True.
 """
 
 ARCFIT_MIN_WIDTH = 0.35
