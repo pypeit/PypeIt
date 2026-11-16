@@ -2944,7 +2944,7 @@ def get_wave_bins(thismask_stack, waveimg_stack, wave_grid):
     return wave_grid[ind_lower:ind_upper + 1]
 
 
-def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
+def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0, spat_scale=None):
     """
     Determine the spatial bins for a 2d coadd and relative pixel coordinate
     images. This routine loops over all the images being coadded and creates an
@@ -2980,6 +2980,16 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
         Spatial sampling for 2d coadd spatial bins in pixels. A value > 1.0
         (i.e. bigger pixels) will downsample the images spatially, whereas < 1.0
         will oversample. Default = 1.0
+    spat_scale : array-like, optional
+        Ratio between the spatial pixel scale (e.g., arcsec/pixel) of each
+        image and that of the first image, i.e., ``platescale[i] /
+        platescale[0]``.  Length must be nimgs.  The spatial positions relative
+        to the reference trace of each image are multiplied by this factor, so
+        that the spatial grid is expressed in pixels of the first image.  This
+        is relevant when the images being coadded have different pixel scales
+        (e.g., JWST/NIRSpec, where the pixel scale depends on the position of
+        the slit on the detector).  If None, all the images are assumed to have
+        the same pixel scale.
 
     Returns
     -------
@@ -2993,12 +3003,17 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
     """
 
     nimgs = len(thismask_stack)
+    if spat_scale is None:
+        spat_scale = np.ones(nimgs, dtype=float)
+    elif len(spat_scale) != nimgs:
+        raise PypeItError(f'Length of spat_scale ({len(spat_scale)}) does not match the number '
+                          f'of images ({nimgs}).')
     dspat_stack = []
     spat_min = np.inf
     spat_max = -np.inf
-    for thismask, trace in zip(thismask_stack, trace_stack):
+    for thismask, trace, scale in zip(thismask_stack, trace_stack, spat_scale):
         nspec, nspat = thismask.shape
-        dspat_iexp = (np.arange(nspat)[np.newaxis, :] - trace[:, np.newaxis]) / spat_samp_fact
+        dspat_iexp = (np.arange(nspat)[np.newaxis, :] - trace[:, np.newaxis]) * scale / spat_samp_fact
         dspat_stack.append(dspat_iexp)
         spat_min = min(spat_min, np.amin(dspat_iexp[thismask]))
         spat_max = max(spat_max, np.amax(dspat_iexp[thismask]))
@@ -3017,7 +3032,7 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
 def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack,
                     inmask_stack, thismask_stack, waveimg_stack,
                     wave_grid, spat_samp_fact=1.0, maskdef_dict=None,
-                    weights=None, interp_dspat=True):
+                    weights=None, interp_dspat=True, spat_scale=None):
     """
     Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs.
 
@@ -3091,7 +3106,12 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
         interp_dspat (bool, optional):
            Interpolate in the spatial coordinate image to faciliate running
            through core.extract.local_skysub_extract. This can be slow.   Default=True.
-
+        spat_scale (array-like, optional):
+            Ratio between the spatial pixel scale of each image and that of the
+            first image, i.e., ``platescale[i] / platescale[0]``, with length
+            nimgs.  Used to express the spatial positions of all the images in
+            pixels of the first image; see :func:`get_spat_bins`.  If None, all
+            the images are assumed to have the same pixel scale.
 
 
     Returns:
@@ -3147,7 +3167,8 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
 
     # Determine the wavelength grid that we will use for the current slit/order
     wave_bins = get_wave_bins(thismask_stack, waveimg_stack, wave_grid)
-    dspat_bins, dspat_stack = get_spat_bins(thismask_stack, ref_trace_stack, spat_samp_fact=spat_samp_fact)
+    dspat_bins, dspat_stack = get_spat_bins(thismask_stack, ref_trace_stack, spat_samp_fact=spat_samp_fact,
+                                            spat_scale=spat_scale)
 
     skysub_stack = [sciimg - skymodel for sciimg, skymodel in zip(sciimg_stack, skymodel_stack)]
     #sci_list = [weights_stack, sciimg_stack, skysub_stack, tilts_stack,

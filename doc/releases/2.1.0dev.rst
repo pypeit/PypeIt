@@ -162,10 +162,18 @@ Functionality/Performance Improvements and Additions
   points processed at a time by the chunked 2D polynomial fits and
   evaluations above.  It trades peak memory for speed and does not change the
   results beyond round-off.
-- ``pypeit_coadd_2dspec``: when using the dither offsets recorded in the headers
-  (``offsets = header``), the offset of each exposure is converted to pixels
-  using the platescale of that exposure, instead of the platescale of the first
-  exposure.
+- ``pypeit_coadd_2dspec`` now supports exposures with different spatial
+  platescales (e.g., JWST/NIRSpec slits).  The offsets of each exposure are
+  computed in pixels of that exposure: the dither offsets recorded in the
+  headers (``offsets = header``) are converted to pixels using the platescale
+  of each exposure, instead of that of the first exposure, and the offsets
+  from the brightest object (``offsets = auto``) and from the slitmask design
+  (``offsets = maskdef_offsets``) account for the platescale ratios.  The
+  spatial positions of each exposure are rescaled to pixels of the first
+  exposure when building the coadded image (see the new ``spat_scale``
+  argument of :func:`~pypeit.core.coadd.compute_coadd2d`), and the offsets
+  summary reports the arcsec offsets using the platescale of each exposure.
+  Nothing changes when all the exposures have the same platescale.
 
 Instrument-specific Updates
 ---------------------------

@@ -351,6 +351,16 @@ In the latter case, the dither offsets recorded in the headers of the spec2d
 files (see :ref:`jwst_nirspec_dithoff`) are converted to pixels using the
 platescale of the slit in each exposure (see :ref:`jwst_nirspec_platescale`).
 
+The platescale of the same source can differ between exposures, e.g., when
+coadding observations from different visits in which the source falls on a
+different MSA slitlet.  The coadded image is built on a spatial grid in pixels
+of the first exposure, and the spatial pixel positions of each exposure are
+rescaled by the ratio between its platescale and that of the first exposure,
+so that the exposures are aligned along the whole slit, not only at the
+position of the reference object.  The offsets reported by
+``pypeit_coadd_2dspec`` are in pixels of each exposure, and their conversion
+to arcsec uses the platescale of that exposure.
+
 .. _jwst_nirspec_dithoff:
 
 Dither offsets
@@ -433,7 +443,7 @@ it for that slit instead of the nominal value.  For a slit that falls on both
 detectors, the average of the values measured on the two detectors is used.
 The value is recorded in the detector parameters of the spec2d files and of
 the calibration files (e.g., ``Edges``), and is used, e.g., by the object
-finding and by ``pypeit_coadd_2dspec`` when ``offsets = header``.
+finding and by ``pypeit_coadd_2dspec`` (see :ref:`jwst_nirspec_coadd`).
 
 .. warning::
 
