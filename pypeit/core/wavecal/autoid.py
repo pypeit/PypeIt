@@ -936,6 +936,8 @@ def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample
         if this_cent.size == 0:
             log.warning(f'No arc lines found for FWHM map in slit {sl+1}/{nslits}; '
                         f'using a constant FWHM of {fwhm:.1f} pixels.')
+            # With no measured widths, use synthetic samples across the spectrum
+            # to produce a constant, serializable FWHM map at the configured value.
             this_cent = np.array([0.0, image.shape[0]/2.0, image.shape[0]-1.0])
             this_samp = np.full(3, 0.5)
             this_fwhm = np.full(3, fwhm)
