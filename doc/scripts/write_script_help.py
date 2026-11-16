@@ -4,7 +4,7 @@ Dynamically build the rst documentation with the script help text.
 
 from importlib import resources
 
-from pypeit.scripts import script_classes
+from pypeit.scripts.util import script_classes
 
 
 def write_help(script_cls, opath, width=80):

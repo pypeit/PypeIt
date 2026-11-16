@@ -28,25 +28,27 @@ class SkySubRegions(scriptbase.ScriptBase):
                             help='Use flexure corrected slit edges?')
         parser.add_argument('-s', '--standard', default=False, action='store_true',
                             help='List standard stars as well?')
-        parser.add_argument('-v', '--verbosity', type=int, default=1,
-                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
-                                 'Level 2 writes a log with filename skysub_regions_YYYYMMDD-HHMM.log')
         parser.add_argument('--try_old', default=False, action='store_true',
                             help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
         from IPython import embed
         from pypeit import spec2dobj
         import os
         import astropy.io.fits as fits
-        from pypeit import msgs
-        from pypeit import io
-        from pypeit.core.gui.skysub_regions import SkySubGUI
+        from pypeit import log
+        from pypeit import PypeItError
+        from pypeit import outputfiles
+        from pypeit.gui.skysub_regions import SkySubGUI
         from pypeit.images import buildimage
         from pypeit.images.detector_container import DetectorContainer
         from pypeit.edgetrace import EdgeTraceSet
+        from pypeit.spectrographs.util import load_spectrograph
+
+        # Initialize the log
+        cls.init_log(args)
 
         chk_version = not args.try_old
 
@@ -71,14 +73,14 @@ class SkySubRegions(scriptbase.ScriptBase):
         key = EdgeTraceSet.calib_type.upper()
         if key not in spec2DObj.calibs:
             # TODO: Until I can figure out a better approach...
-            msgs.error(f'EdgeTrace calibration frame not recorded in {args.file}!')
+            raise PypeItError(f'EdgeTrace calibration frame not recorded in {args.file}!')
         calib_key, _ = EdgeTraceSet.parse_key_dir(spec2DObj.calibs[key], from_filename=True)
 
         # Use the appropriate class to get the "detector" number
         det = spec2DObj.detector.parse_name(detname)
 
         # Setup for PypeIt imports
-        msgs.reset(verbosity=args.verbosity)
+        log.init(level=log.level)
 
         # Grab the slit edges
         slits = spec2DObj.slits
@@ -89,9 +91,11 @@ class SkySubRegions(scriptbase.ScriptBase):
             spat_flexure = spec2DObj.sci_spat_flexure
 
         # Derive an appropriate output filename
+        spec = load_spectrograph(specname)
         file_base = os.path.basename(fname)
-        regfile = buildimage.SkyRegions.construct_file_name(calib_key, calib_dir=calib_dir,
-                                                            basename=io.remove_suffix(file_base))
+        regfile = buildimage.SkyRegions.construct_file_name(
+            calib_key, calib_dir=calib_dir,
+            basename=outputfiles.strip_raw_extension(file_base, spec.allowed_extensions))
 
         # Finally, initialise the GUI
         skyreg = SkySubGUI.initialize(det, frame, slits, pypeline, specname, outname=regfile,

@@ -1,0 +1,368 @@
+{
+    "pypeit_file": "shane_kast_blue_A.pypeit",
+    "current_step": "flats",
+    "current_det": 2,
+    "current_calibID": 0,
+    "previous_step": "scattlight",
+    "bias": [
+        {
+            "calib_id": 0,
+            "det": 1,
+            "step": "bias",
+            "required": true,
+            "output_file": "Bias_A_0_DET01.fits",
+            "status": "success",
+            "mean": 1001.0,
+            "std": 3.0
+        },
+        {
+            "calib_id": 0,
+            "det": 2,
+            "step": "bias",
+            "required": true,
+            "output_file": "Bias_A_0_DET02.fits",
+            "status": "success",
+            "mean": 1002.0,
+            "std": 3.0
+        }
+    ],
+    "dark": [],
+    "slits": [
+        {
+            "calib_id": 0,
+            "det": 1,
+            "step": "slits",
+            "required": true,
+            "output_file": "Slits_A_0_DET01.fits.gz",
+            "status": "success",
+            "nslits": 3,
+            "slits": {
+                "10": {
+                    "status": "success",
+                    "center": 1000.0,
+                    "slitord_id": 10
+                },
+                "20": {
+                    "status": "success",
+                    "center": 2000.0,
+                    "slitord_id": 20
+                },
+                "30": {
+                    "status": "success",
+                    "center": 3000.0,
+                    "slitord_id": 30
+                }
+            }
+        },
+        {
+            "calib_id": 0,
+            "det": 2,
+            "step": "slits",
+            "required": true,
+            "output_file": "Slits_A_0_DET02.fits.gz",
+            "status": "success",
+            "nslits": 3,
+            "slits": {
+                "10": {
+                    "status": "success",
+                    "center": 1000.0,
+                    "slitord_id": 10
+                },
+                "20": {
+                    "status": "success",
+                    "center": 2000.0,
+                    "slitord_id": 20
+                },
+                "30": {
+                    "status": "success",
+                    "center": 3000.0,
+                    "slitord_id": 30
+                }
+            }
+        }
+    ],
+    "arc": [
+        {
+            "calib_id": 0,
+            "det": 1,
+            "step": "arc",
+            "required": true,
+            "output_file": "Arc_A_0_DET01.fits",
+            "status": "success"
+        },
+        {
+            "calib_id": 0,
+            "det": 2,
+            "step": "arc",
+            "required": true,
+            "output_file": "Arc_A_0_DET02.fits",
+            "status": "success"
+        }
+    ],
+    "tiltimg": [
+        {
+            "calib_id": 0,
+            "det": 1,
+            "step": "tiltimg",
+            "required": true,
+            "output_file": "Tiltimg_A_0_DET01.fits",
+            "status": "success"
+        },
+        {
+            "calib_id": 0,
+            "det": 2,
+            "step": "tiltimg",
+            "required": true,
+            "output_file": "Tiltimg_A_0_DET02.fits",
+            "status": "success"
+        }
+    ],
+    "wv_calib": [
+        {
+            "calib_id": 0,
+            "det": 1,
+            "step": "wv_calib",
+            "required": true,
+            "output_file": "WaveCalib_A_0_DET01.fits",
+            "status": "success",
+            "slits": {
+                "10": {
+                    "status": "success",
+                    "rms": 0.060000000000000005
+                },
+                "20": {
+                    "status": "success",
+                    "rms": 0.07
+                },
+                "30": {
+                    "status": "success",
+                    "rms": 0.08
+                }
+            }
+        },
+        {
+            "calib_id": 0,
+            "det": 2,
+            "step": "wv_calib",
+            "required": true,
+            "output_file": "WaveCalib_A_0_DET02.fits",
+            "status": "success",
+            "slits": {
+                "10": {
+                    "status": "success",
+                    "rms": 0.060000000000000005
+                },
+                "20": {
+                    "status": "success",
+                    "rms": 0.07
+                },
+                "30": {
+                    "status": "success",
+                    "rms": 0.08
+                }
+            }
+        }
+    ],
+    "tilts": [
+        {
+            "calib_id": 0,
+            "det": 1,
+            "step": "tilts",
+            "required": true,
+            "output_file": "Tilts_A_0_DET01.fits.gz",
+            "status": "success",
+            "slits": {
+                "10": {
+                    "status": "success",
+                    "rms": 0.03
+                },
+                "20": {
+                    "status": "success",
+                    "rms": 0.04
+                },
+                "30": {
+                    "status": "success",
+                    "rms": 0.05
+                }
+            }
+        },
+        {
+            "calib_id": 0,
+            "det": 2,
+            "step": "tilts",
+            "required": true,
+            "output_file": "Tilts_A_0_DET02.fits.gz",
+            "status": "success",
+            "slits": {
+                "10": {
+                    "status": "success",
+                    "rms": 0.03
+                },
+                "20": {
+                    "status": "success",
+                    "rms": 0.04
+                },
+                "30": {
+                    "status": "success",
+                    "rms": 0.05
+                }
+            }
+        }
+    ],
+    "scattlight": [],
+    "flats": [
+        {
+            "calib_id": 0,
+            "det": 1,
+            "step": "flats",
+            "required": true,
+            "input_files": [
+                "b3.fits.gz",
+                "b4.fits.gz",
+                "b5.fits.gz",
+                "b6.fits.gz",
+                "b7.fits.gz",
+                "b8.fits.gz",
+                "b9.fits.gz",
+                "b10.fits.gz"
+            ],
+            "output_file": "Flat_A_0_DET01.fits",
+            "status": "success",
+            "corrections": [
+                "pixelflat",
+                "spat_illum"
+            ],
+            "pixelflat_source": "raw",
+            "pixelflat_files": [
+                "b3.fits.gz",
+                "b4.fits.gz",
+                "b5.fits.gz",
+                "b6.fits.gz",
+                "b7.fits.gz"
+            ],
+            "illumflat_files": [
+                "b8.fits.gz",
+                "b9.fits.gz",
+                "b10.fits.gz"
+            ],
+            "slits": {
+                "10": {
+                    "status": "success",
+                    "corrections": {
+                        "pixelflat": {
+                            "mean": 1.0,
+                            "rms": 0.03
+                        },
+                        "spat_illum": {
+                            "mean": 1.0,
+                            "rms": 0.03
+                        }
+                    }
+                },
+                "20": {
+                    "status": "success",
+                    "corrections": {
+                        "pixelflat": {
+                            "mean": 1.01,
+                            "rms": 0.031
+                        },
+                        "spat_illum": {
+                            "mean": 1.01,
+                            "rms": 0.031
+                        }
+                    }
+                },
+                "30": {
+                    "status": "skip",
+                    "corrections": {
+                        "pixelflat": {
+                            "mean": 1.02,
+                            "rms": 0.032
+                        },
+                        "spat_illum": {
+                            "mean": 1.02,
+                            "rms": 0.032
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "calib_id": 0,
+            "det": 2,
+            "step": "flats",
+            "required": true,
+            "input_files": [
+                "b3.fits.gz",
+                "b4.fits.gz",
+                "b5.fits.gz",
+                "b6.fits.gz",
+                "b7.fits.gz",
+                "b8.fits.gz",
+                "b9.fits.gz",
+                "b10.fits.gz"
+            ],
+            "output_file": "Flat_A_0_DET02.fits",
+            "status": "success",
+            "corrections": [
+                "pixelflat",
+                "spat_illum"
+            ],
+            "pixelflat_source": "raw",
+            "pixelflat_files": [
+                "b3.fits.gz",
+                "b4.fits.gz",
+                "b5.fits.gz",
+                "b6.fits.gz",
+                "b7.fits.gz"
+            ],
+            "illumflat_files": [
+                "b8.fits.gz",
+                "b9.fits.gz",
+                "b10.fits.gz"
+            ],
+            "slits": {
+                "10": {
+                    "status": "success",
+                    "corrections": {
+                        "pixelflat": {
+                            "mean": 1.0,
+                            "rms": 0.03
+                        },
+                        "spat_illum": {
+                            "mean": 1.0,
+                            "rms": 0.03
+                        }
+                    }
+                },
+                "20": {
+                    "status": "success",
+                    "corrections": {
+                        "pixelflat": {
+                            "mean": 1.01,
+                            "rms": 0.031
+                        },
+                        "spat_illum": {
+                            "mean": 1.01,
+                            "rms": 0.031
+                        }
+                    }
+                },
+                "30": {
+                    "status": "skip",
+                    "corrections": {
+                        "pixelflat": {
+                            "mean": 1.02,
+                            "rms": 0.032
+                        },
+                        "spat_illum": {
+                            "mean": 1.02,
+                            "rms": 0.032
+                        }
+                    }
+                }
+            }
+        }
+    ],
+    "align": []
+}

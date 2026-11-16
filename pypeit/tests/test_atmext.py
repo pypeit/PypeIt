@@ -6,14 +6,8 @@ from IPython import embed
 import numpy as np
 import pytest
 
-from astropy import units
-
-from pypeit.core import flux_calib
 from pypeit import telescopes
-from pypeit.par.pypeitpar import Coadd1DPar
-
-
-from pypeit.pypmsgs import PypeItError
+from pypeit import PypeItError
 from pypeit.core.atmextinction import AtmosphericExtinction
 
 

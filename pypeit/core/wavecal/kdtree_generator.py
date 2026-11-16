@@ -9,21 +9,25 @@ from within PypeIt - it should be run as a standalone script, and
 it's only purpose is to generate a KD Tree with the desired patterns.
 """
 
+# TODO: Is the statement below true?  It seems like this *can be* used, even if
+# it's rare.
 # NOTE: No longer used.  Use KD tree in scikit-learn:
 #   https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KDTree.html
 # See benchmarks here:
 #   https://jakevdp.github.io/blog/2013/04/29/benchmarking-nearest-neighbor-searches-in-python/
 
-import os
-
-from pypeit.core.wavecal import waveio
-from astropy.table import vstack
-#import numba as nb
-from scipy.spatial import cKDTree
-import numpy as np
+# TODO: We should not be using pickle.  Consider using the KDTree generator in
+# scikit-learn and a skops.io serialization that allows users to validate the
+# contents of the file.  See: https://scikit-learn.org/stable/model_persistence.html
 import pickle
 
+from astropy.table import vstack
+import numpy as np
+from scipy.spatial import cKDTree
+
 from pypeit import dataPaths
+from pypeit import log
+from pypeit.core.wavecal import waveio
 
 def trigon(linelist, numsrch, maxlin):
     """ Generate a series of trigon patterns, given an input list of detections or lines from a linelist
@@ -228,6 +232,59 @@ def hexagon(linelist, numsrch, maxlin):
                             pattern[cnt, 3] = (linelist[xxxx] - linelist[l]) / (linelist[ll] - linelist[l])
                             cnt += 1
     return pattern, index
+
+
+def load_tree(polygon=4, numsearch=20):
+    """
+    Load a KDTree of ThAr patterns that is stored on disk
+
+    Parameters
+    ----------
+    polygon : int
+        Number of sides to the polygon used in pattern matching:
+
+            - polygon=3  -->  trigon (two anchor lines and one floating line)
+            - polygon=4  -->  tetragon (two anchor lines and two floating lines)
+            - polygon=5  -->  pentagon (two anchor lines and three floating lines)
+
+    numsearch : int
+        Number of consecutive detected lines used to generate a pattern.
+        For example, if numsearch is 4, then for a trigon, the following
+        patterns will be generated (assuming line #1 is the left
+        anchor):
+
+            - 1 2 3  (in this case line #3 is the right anchor)
+            - 1 2 4  (in this case line #4 is the right anchor)
+            - 1 3 4  (in this case line #4 is the right anchor)
+
+    Returns
+    -------
+    file_load : KDTree instance
+        The KDTree containing the patterns
+    index : ndarray
+        For each pattern in the KDTree, this array stores the
+        corresponding index in the linelist
+    """
+
+    filename = dataPaths.linelist.get_file_path(
+                    f'ThAr_patterns_poly{polygon}_search{numsearch}.kdtree')
+    fileindx = dataPaths.linelist.get_file_path(
+                    f'ThAr_patterns_poly{polygon}_search{numsearch}.index.npy')
+    try:
+        with open(filename, "rb", encoding="utf-8") as f_obj:
+            # TODO: We should not be using pickle
+            file_load = pickle.load(f_obj)
+        index = np.load(fileindx)
+    except FileNotFoundError:
+        log.info(
+            'The requested KDTree was not found on disk\nplease be patient while the ThAr KDTree '
+            'is built and saved to disk.'
+        )
+        file_load, index = main(
+            polygon, numsearch=numsearch, verbose=True, ret_treeindx=True, outname=filename
+        )
+
+    return file_load, index
 
 
 def main(polygon, numsearch=8, maxlinear=100.0, use_unknowns=True, leafsize=30, verbose=False,

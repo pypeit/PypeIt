@@ -1,0 +1,535 @@
+"""
+Module for Shane/Kast specific methods.
+
+.. include:: ../include/links.rst
+"""
+
+from IPython import embed
+
+import numpy as np
+
+from astropy.time import Time
+from astropy.coordinates import SkyCoord
+from astropy.coordinates import EarthLocation
+from astropy.coordinates import AltAz
+
+from pypeit import log
+from pypeit import PypeItError
+from pypeit import telescopes
+from pypeit.core import framematch
+from pypeit.core import meta
+from pypeit.spectrographs import spectrograph
+from pypeit.images import detector_container
+from pypeit.core import parse
+
+
+class ShaneHamspecSpectrograph(spectrograph.Spectrograph):
+    """
+    Child to handle Shane/Hamspec specific code
+    """
+    ndet = 1
+    telescope = telescopes.ShaneTelescopePar()
+    url = 'https://mthamilton.ucolick.org/techdocs/instruments/hamspec/index.html/'
+    ql_supported = False
+
+    name = 'shane_hamspec'
+    camera = 'Hamspec'
+    supported = True
+    header_name = 'hamspec'
+    pypeline = 'Echelle'
+    ech_fixed_format = False
+
+    @classmethod
+    def default_pypeit_par(cls):
+        """
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of PypeIt methods.
+        """
+        par = super().default_pypeit_par()
+
+        # Copied from Keck/HIRES
+
+        # No bias or dark frames are taken with Hamspec, so subtract the
+        # overscan (the raw frames have a 64-column overscan, two amps) and
+        # disable bias subtraction for every processed image type.
+        turn_off_on = dict(use_biasimage=False, use_overscan=True,
+                           overscan_method='median')
+        par.reset_all_processimages_par(**turn_off_on)
+
+        # Slit tracing
+        par['calibrations']['slitedges']['edge_thresh'] = 8.0
+        par['calibrations']['slitedges']['fit_order'] = 5  # 8 was too high
+        par['calibrations']['slitedges']['max_shift_adj'] = 0.5
+        par['calibrations']['slitedges']['trace_thresh'] = 10.
+        par['calibrations']['slitedges']['left_right_pca'] = True
+        par['calibrations']['slitedges']['length_range'] = 0.3
+        par['calibrations']['slitedges']['max_nudge'] = 0.
+        par['calibrations']['slitedges']['overlap'] = True
+        par['calibrations']['slitedges']['dlength_range'] = 0.25
+
+        # The real edge tracing already finds ~the true number of orders
+        # (~100).  Leaving add_missed_orders on inserts ~140 spurious orders in
+        # the dark detector regions (Hamspec orders do not fill the detector),
+        # which corrupts the echelle order-number identification.  Disable it.
+        par['calibrations']['slitedges']['add_missed_orders'] = False
+        par['calibrations']['slitedges']['order_width_poly'] = 2
+        par['calibrations']['slitedges']['order_gap_poly'] = 3
+
+        par['calibrations']['tilts']['tracethresh'] = 15
+        # The orders are only ~6-12 pixels wide, so a linear spatial
+        # dependence of the tilts across each order is sufficient.
+        par['calibrations']['tilts']['spat_order'] = 1
+        par['calibrations']['tilts']['spec_order'] = 5
+
+        # 1D wavelength solution
+        par['calibrations']['wavelengths']['lamps'] = ['ThAr']
+        # Per-order acceptance gate: RMS < frac x FWHM (~3 px), i.e. ~0.75 px.
+        # The former 0.1 (~0.3 px) masked half of the solved orders on the
+        # 2014 e2v test (63 solved -> 33 kept); per Q&A 51 keep more orders.
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.25
+        par['calibrations']['wavelengths']['sigdetect'] = 5.
+        par['calibrations']['wavelengths']['n_first'] = 3
+        par['calibrations']['wavelengths']['n_final'] = 4
+
+        par['calibrations']['wavelengths']['match_toler'] = 1.5
+        # Reidentification parameters.  We follow the Keck/NIRES recipe: a
+        # single composite-arc template (built from the legacy ThAr solution,
+        # one ThAr spectrum + wavelength solution per order) is reidentified
+        # against each observed order by cross-correlation.  This avoids the
+        # HIRES-style 'echelle' angle_fits model, which would need ThAr at
+        # many cross-disperser settings we do not have (see Report 04).
+        par['calibrations']['wavelengths']['method'] = 'echelle'
+        # Era-matched wavelength archives (Q&A 52/58): Hamspec has had two
+        # detectors -- the Loral 2Kx2K (through ~2010, 2048 spectral pixels)
+        # and the e2v 4Kx4K (from ~2013, 4096) -- each with its own archive.
+        # Default to the (canonical) Loral era; config_specific_par switches
+        # to the e2v files when the frames are from that detector.
+        par['calibrations']['wavelengths']['ech_angle_fits_file'] = \
+            'shane_hamspec_loral_angle_fits.fits'
+        par['calibrations']['wavelengths']['ech_composite_arc_file'] = \
+            'shane_hamspec_loral_composite_arc.fits'
+        par['calibrations']['wavelengths']['cc_shift_range'] = (-200.,200.)
+        # Cross-correlate the stacked arcs directly for the order
+        # identification: building synthetic line-arcs and continuum
+        # subtracting the CCF (the defaults) is prohibitively slow on the
+        # ~100-order x 4k Hamspec format.
+        par['calibrations']['wavelengths']['ech_direct_cc'] = True
+        # NOTE (Q36a): lowering cc_thresh to 0.5 and enabling reid_cont_sub were
+        # tried to pick up the bluer orders but did not help (no extra orders,
+        # higher RMS), so keep the original values.  The blue-order coverage
+        # limit is in the observed-data matching, not these thresholds.
+        par['calibrations']['wavelengths']['cc_thresh'] = 0.6
+        par['calibrations']['wavelengths']['cc_local_thresh'] = 0.25
+        par['calibrations']['wavelengths']['reid_cont_sub'] = False
+
+        # Echelle parameters
+        par['calibrations']['wavelengths']['echelle'] = True
+        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 5
+        par['calibrations']['wavelengths']['ech_norder_coeff'] = 3
+        par['calibrations']['wavelengths']['ech_sigrej'] = 2.0
+        # Hamspec is a single detector (unlike the HIRES mosaic this was copied
+        # from), so do not separate the 2D wavelength fit by detector — there is
+        # no det_img and ech_separate_2d=True crashes echelle_2dfit.
+        par['calibrations']['wavelengths']['ech_separate_2d'] = False
+        par['calibrations']['wavelengths']['bad_orders_maxfrac'] = 0.5
+
+        # Flats
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
+        par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
+        par['calibrations']['flatfield']['slit_illum_finecorr'] = False
+
+        # Object finding & Extraction
+        # The target fills the very short (~7 px) Hamspec slit, so the
+        # smashed spatial profile has no peak and peak-detection object
+        # finding fails even on a bright star.  Instead, always extract a
+        # single object forced at the center of each order, with FWHM and
+        # boxcar radius set by the order width.
+        par['reduce']['findobj']['force_center_obj'] = True
+        # With the star filling the narrow slit there are no sky pixels to
+        # fit, so turn off sky subtraction entirely: skip the global sky fit
+        # during object finding (the global sky model is then zero) and do
+        # not evaluate a local sky during extraction.
+        par['reduce']['findobj']['skip_skysub'] = True
+        par['reduce']['skysub']['no_local_sky'] = True
+        par['reduce']['skysub']['bspline_spacing'] = 0.6
+        par['reduce']['skysub']['global_sky_std'] = False
+        # local sky subtraction operates on entire slit
+        par['reduce']['extraction']['model_full_slit'] = True
+        # The echelle orders are very short in the spatial direction (~7 px on
+        # the Loral CCD), so trim only 1 edge pixel each side — the default
+        # (5,5), or even (3,3), leaves too few pixels for object finding and no
+        # objects are detected on the standard/science.
+        par['reduce']['findobj']['find_trim_edge'] = [1, 1]
+        # Continnum order for determining thresholds
+
+        # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] = 5 #[9, 11, 11, 9, 9, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7]
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_10500_R120000.fits'
+        par['sensfunc']['IR']['pix_shift_bounds'] = (-40.0,40.0)
+        
+        # Telluric parameters
+        # HIRES is usually oversampled, so the helio shift can be large
+        par['telluric']['pix_shift_bounds'] = (-40.0,40.0)
+        # Similarly, the resolution guess is higher than it should be
+        par['telluric']['resln_frac_bounds'] = (0.25,1.25)
+
+        # Coadding
+        par['coadd1d']['wave_method'] = 'log10'        
+
+
+        # Set the default exposure time ranges for the frame typing
+        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
+        par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
+        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
+        par['calibrations']['pixelflatframe']['exprng'] = [0, None]
+        par['calibrations']['traceframe']['exprng'] = [0, None]
+        par['calibrations']['arcframe']['exprng'] = [None, 61]
+        par['calibrations']['standardframe']['exprng'] = [1, 301]
+        #
+        par['scienceframe']['exprng'] = [301, None]
+        #par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
+        return par
+
+    def init_meta(self):
+        """
+        Define how metadata are derived from the spectrograph files.
+
+        That is, this associates the PypeIt-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
+        """
+        self.meta = {}
+        # Required (core)
+        self.meta['ra'] = dict(ext=0, card='RA')
+        self.meta['dec'] = dict(ext=0, card='DEC')
+        self.meta['target'] = dict(ext=0, card='OBJECT')
+        self.meta['decker'] = dict(ext=0, card='PLATENAM')  # Aperture plate
+        # Follow the XIDL hamspec convention (Q&A 43): the echelle angle is the
+        # dewar height (DHEITRAW) and the cross-disperser angle is the grating
+        # tilt (GTILTRAW).  Both are raw stepper counts present in every era's
+        # headers (DHEITVAL is absent in the older Loral data).
+        self.meta['echangle'] = dict(ext=0, card='DHEITRAW', rtol=1e-2)
+        self.meta['xdangle'] = dict(ext=0, card='GTILTRAW', rtol=1e-2)
+
+        self.meta['binning'] = dict(ext=0, card=None, default='1,1')
+        self.meta['dispname'] = dict(ext=0, card=None, default='Hamspec')
+
+        self.meta['mjd'] = dict(ext=0, card=None, compound=True)
+        self.meta['exptime'] = dict(ext=0, card='EXPTIME')
+        self.meta['airmass'] = dict(ext=0, card=None, compound=True)
+        # Detector era (Loral 2Kx2K through ~2010 vs e2v 4Kx4K from ~2013),
+        # derived from the raw frame size exactly as in get_detector_par.
+        # Used to select the era-matched wavelength-calibration archives in
+        # get_echelle_angle_files (Q&A 52).
+        self.meta['detector'] = dict(ext=0, card=None, compound=True)
+        # Additional ones, generally for configuration determination or time
+        self.meta['filter1'] = dict(ext=0, card='DFILTNAM')
+        self.meta['lampstat01'] = dict(ext=0, card='LAMPPOS')
+
+    def compound_meta(self, headarr, meta_key):
+        """
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
+
+        Args:
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
+
+        Returns:
+            object: Metadata value read from the header(s).
+        """
+        if meta_key == 'mjd':
+            # The exposure start time (UT, ISOT) is in the 'DATE' card for
+            # the 4kx4k data and in 'DATE-OBS' for the older Loral data.
+            hdr = headarr[0]
+            date = hdr['DATE'] if hdr.get('DATE') not in (None, '') \
+                else hdr['DATE-OBS']
+            return Time(date, format='isot').mjd
+        elif meta_key == 'airmass':
+            # The raw headers have no AIRMASS card, so compute it from the
+            # pointing (RA/DEC), the exposure time, and the Shane/Lick
+            # location via the reusable pypeit.core.meta.airmass helper.
+            ra, dec = meta.convert_radec(headarr[0]['RA'], headarr[0]['DEC'])
+            # The header time (the 'mjd' meta) is the start of the exposure;
+            # compute the airmass at the exposure midpoint (see meta.airmass).
+            obstime = Time(self.compound_meta(headarr, 'mjd'), format='mjd')
+            return meta.airmass(ra, dec, obstime,
+                                self.telescope['longitude'],
+                                self.telescope['latitude'],
+                                self.telescope['elevation'],
+                                exptime=headarr[0]['EXPTIME'])
+        elif meta_key == 'detector':
+            # Same frame-size test as get_detector_par: the Loral 2Kx2K
+            # frames are 2080 columns, the e2v 4Kx4K frames are 4160.
+            return 'Loral2Kx2K' if headarr[0]['NAXIS1'] < 3000 \
+                else 'e2v4Kx4K'
+        raise PypeItError("Not ready for this compound meta")
+
+    def configuration_keys(self):
+        """
+        Return the metadata keys that define a unique instrument
+        configuration.
+
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
+        """
+        # decker is not included because arcs are often taken with a 0.5" slit.
+        # The configuration is set by the dewar height (echangle <- DHEITRAW)
+        # and the grating tilt (xdangle <- GTILTRAW); this follows the XIDL
+        # hamspec convention (see Report 07, Q&A 43) and matches init_meta.
+        # Both must match for frames to share a calibration.
+        return ['echangle', 'xdangle', 'binning']
+
+    def check_frame_type(self, ftype, fitstbl, exprng=None):
+        """
+        Check for frames of the provided type.
+
+        Args:
+            ftype (:obj:`str`):
+                Type of frame to check. Must be a valid frame type; see
+                frame-type :ref:`frame_type_defs`.
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames to check.
+            exprng (:obj:`list`, optional):
+                Range in the allowed exposure time for a frame of type
+                ``ftype``. See
+                :func:`pypeit.core.framematch.check_frame_exptime`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array with the flags selecting the
+            exposures in ``fitstbl`` that are ``ftype`` type frames.
+        """
+        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        if ftype in ['science', 'standard']:
+            return good_exp & self.lamps(fitstbl, 'Off')
+        if ftype == 'bias':
+            return good_exp # & (fitstbl['target'] == 'Bias')
+        # The aperture plate (PLATENAM) is stored under the PypeIt 'decker'
+        # meta key.  The plate name is '<slit width in um>:<slit length in
+        # arcsec>'.  Specific plates are used for each flat type: a long
+        # (and/or wide) plate floods the detector for the pixelflat, while
+        # the shorter science plate defines the order edges (trace) and slit
+        # illumination (illumflat).  The plates differ by era: the 4kx4k
+        # (2014) data use 800:6.0 (pixelflat) / 640:5.0 (science); the Loral
+        # (2010) data use 800:5.0 (pixelflat) / 800:2.5 (science).
+        pixelflat_plates = ['800:6.0', '800:5.0']
+        sciflat_plates = ['640:5.0', '800:2.5']        # -> trace/illumflat
+        if ftype in ['pixelflat']:
+            return good_exp & self.lamps(fitstbl, 'flat') \
+                & np.isin(fitstbl['decker'], pixelflat_plates)
+        if ftype in ['trace', 'illumflat']:
+            return good_exp & self.lamps(fitstbl, 'flat') \
+                & np.isin(fitstbl['decker'], sciflat_plates)
+        if ftype in ['pinhole', 'dark']:
+            # Don't type pinhole or dark frames
+            return np.zeros(len(fitstbl), dtype=bool)
+        if ftype in ['arc', 'tilt']:
+            return good_exp & self.lamps(fitstbl, 'arcs')
+
+        log.warning('Cannot determine if frames are of type {0}.'.format(ftype))
+        return np.zeros(len(fitstbl), dtype=bool)
+  
+    def lamps(self, fitstbl, status):
+        """
+        Check the lamp status.
+
+        Args:
+            fitstbl (`astropy.table.Table`_):
+                The table with the fits header meta data.
+            status (:obj:`str`):
+                The status to check. Can be ``'off'``, ``'arcs'``, or
+                ``'dome'``.
+
+        Returns:
+            `numpy.ndarray`_: A boolean array selecting fits files that meet
+            the selected lamp status.
+
+        Raises:
+            ValueError:
+                Raised if the status is not one of the valid options.
+        """
+        if status.lower() == 'off':
+            # Check if all are off.  The LAMPPOS card reads 'Off' (capital
+            # O), so compare case-insensitively against 'off'/'none'.
+            return np.all(np.array(
+                [np.isin(np.char.lower(np.asarray(fitstbl[k], dtype=str)),
+                         ['off', 'none'])
+                 for k in fitstbl.keys() if 'lampstat' in k]), axis=0)
+        elif status == 'arcs':
+            # Check if any arc lamps are on
+            arc_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,2) ]
+            return np.any(np.array([ fitstbl[k] == 'Thorium-Argon' for k in fitstbl.keys()
+                                            if k in arc_lamp_stat]), axis=0)
+        elif status == 'flat':
+            # Check if any dome lamps are on
+            dome_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,2) ]
+            return np.any(np.array([ fitstbl[k] == 'PolarQuartz' for k in fitstbl.keys()
+                                            if k in dome_lamp_stat]), axis=0)
+        else:
+            raise ValueError('No implementation for status = {0}'.format(status))
+
+
+
+    def get_detector_par(self, det, hdu=None):
+        """
+        Return metadata for the selected detector.
+        https://mthamilton.ucolick.org/techdocs/instruments/hamspec/CCDs/
+
+        Hamspec has used two CCDs over the years, which differ in size, number
+        of amplifiers, gain, and read noise.  We pick the right one from the
+        raw-frame column count (the e2v has 4160 columns, the Loral 1485x2080).
+        The gain/read-noise/amp values come from the XIDL hamspec pipeline
+        (``hamspec_strct.pro``).
+
+        Args:
+            det (:obj:`int`):
+                1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
+
+        Returns:
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
+        """
+        binning = '1,1' if hdu is None \
+            else self.get_meta_value(self.get_headarr(hdu), 'binning')
+        # Decide which CCD this is from the raw column count (e2v=4160).
+        # Default (no hdu) is the e2v 4kx4k.
+        ncol = None if hdu is None else hdu[0].header.get('NAXIS1', None)
+        is_loral = ncol is not None and ncol < 3000
+
+        if is_loral:
+            # Loral 2Kx2K (the older detector, used e.g. for the 2010 Cooke
+            # data): single amplifier, 2048 data + 32 overscan columns.
+            # gain/readno from XIDL hamspec_strct.pro (Loral2Kx2K).
+            detector_dict = dict(
+                binning=binning, det=1, dataext=0,
+                specaxis=1, specflip=False, spatflip=True,
+                platescale=0.5,   # arcsec; approximate, verify if needed
+                saturation=65535., mincounts=-1e10, nonlinear=0.86,
+                numamplifiers=1,
+                gain=np.asarray([1.2]),
+                ronoise=np.asarray([18.0]),
+                xgap=0., ygap=0., ysize=1., darkcurr=0.0,
+                # rows, columns on the raw frame, 1-indexed
+                datasec=np.asarray(['[:, 1:2048]']),
+                oscansec=np.asarray(['[:, 2049:2080]']),
+            )
+            return detector_container.DetectorContainer(**detector_dict)
+
+        # e2v CCD203-82 4kx4k thin: two amplifiers, split in columns.
+        detector_dict = dict(
+            binning=binning,
+            det=1,
+            dataext=0,
+            specaxis=1,
+            specflip=False,
+            spatflip=True,
+            platescale=0.5, # arcsec
+            saturation=65535.,
+            mincounts=-1e10,
+            nonlinear=0.86,
+            numamplifiers=2,
+            gain=np.asarray([0.92,0.92]),
+            ronoise=np.asarray([3.2,3.2]),
+            xgap=0.,
+            ygap=0.,
+            ysize=1.,
+            darkcurr=0.0,  # e-/pixel/hour
+            # These are rows, columns on the raw frame, 1-indexed
+            datasec=np.asarray(['[:, 1:2048]', '[:, 2049:4096]']),
+            oscansec=np.asarray(['[:, 4098:4125]', '[:, 4129:4157]']),
+        )
+        return detector_container.DetectorContainer(**detector_dict)
+
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        Args:
+            scifile (:obj:`str`):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
+            adjusted for configuration specific parameter values.
+        """
+        par = super().config_specific_par(scifile, inp_par=inp_par)
+
+        # Select the era-matched wavelength archives (see default_pypeit_par)
+        # from the detector era of this configuration (Loral 2Kx2K vs e2v
+        # 4Kx4K, identified from the raw frame size via the 'detector' meta).
+        era = 'loral' \
+            if self.get_meta_value(scifile, 'detector') == 'Loral2Kx2K' \
+            else 'e2v'
+        par['calibrations']['wavelengths']['ech_angle_fits_file'] = \
+            f'shane_hamspec_{era}_angle_fits.fits'
+        par['calibrations']['wavelengths']['ech_composite_arc_file'] = \
+            f'shane_hamspec_{era}_composite_arc.fits'
+
+        # Return
+        return par
+
+
+
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['DFILTNAM', 'GTILTRAW', 'PLATENAM']
+
+
+
+    def order_platescale(self, order_vec, binning=None):
+        """
+        Return the platescale for each echelle order.
+
+        This routine is only defined for echelle spectrographs, and it is
+        undefined in the base class.
+
+        Args:
+            order_vec (`numpy.ndarray`_):
+                The vector providing the order numbers.
+            binning (:obj:`str`, optional):
+                The string defining the spectral and spatial binning.
+
+        Returns:
+            `numpy.ndarray`_: An array with the platescale for each order
+            provided by ``order``.
+        """
+        det = self.get_detector_par(1)
+        binspectral, binspatial = parse.parse_binning(binning)
+
+        # Assume no significant variation (which is likely true)
+        return np.ones_like(order_vec)*det.platescale*binspatial

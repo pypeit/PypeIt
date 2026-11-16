@@ -10,7 +10,8 @@ import numpy as np
 
 from astropy.time import Time
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit import io
 from pypeit.core import framematch
@@ -50,7 +51,16 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         """
         # Binning
         # TODO: Could this be detector dependent??
-        binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
+        if hdu is None:
+            binning = '1,1'
+            gain = np.atleast_1d(1.02)
+            ronoise = np.atleast_1d(2.9)
+        else:
+            headarr = self.get_headarr(hdu)
+            binning = self.get_meta_value(headarr, 'binning')
+            # these are not meta values
+            gain = np.atleast_1d(headarr[0].get('EGAIN', 1.02))
+            ronoise = np.atleast_1d(headarr[0].get('ENOISE', 2.9))
 
         # Detector 1
         detector_dict = dict(
@@ -69,8 +79,8 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
             nonlinear       = 0.99,
             mincounts       = -1e10,
             numamplifiers   = 1,
-            gain            = np.atleast_1d(1.02), # depends on the readout
-            ronoise         = np.atleast_1d(2.9), # depends on the readout
+            gain            = gain, # depends on the readout
+            ronoise         = ronoise, # depends on the readout
             datasec         = np.atleast_1d('[1:1024, 1:2048]'),
             oscansec        = np.atleast_1d('[1:1024, 2049:2176]'),
             )
@@ -192,7 +202,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
             ttime = Time(time, format='isot')
             return ttime.mjd
         else:
-            msgs.error("Not ready for this compound meta")
+            raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -273,7 +283,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         # Get the binning
-        msgs.info("Custom bad pixel mask for MAGE")
+        log.info("Custom bad pixel mask for MAGE")
         hdu = io.fits_open(filename)
         binspatial, binspec = parse.parse_binning(hdu[0].header['BINNING'])
         hdu.close()

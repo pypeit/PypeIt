@@ -23,7 +23,7 @@ TBD
 Other
 ~~~~~
 
-Ombudsperson: John O'Meara (WMKO Chief Scientist)
+**Ombudsperson**: John O'Meara (WMKO Chief Scientist)
 
 Maintainers
 -----------
@@ -41,7 +41,23 @@ TBD.  Likely to include:
 Voting Members
 --------------
 
-TBD
+- M\. Brodheim (WMKO)
+- A\. Carvalho (Harvard)
+- R\. Cooke (Durham)
+- F\. Davies (MPIA)
+- T\. Ellsworth-Bowers (Lowell)
+- M\. Geha (Yale)
+- J\. Hennawi (UCSB)
+- B\. Holden (UCO)
+- O\. Kuhn (LBT)
+- J\. O'Meara (WMKO)
+- D\. Pelliccia (UCO)
+- T\. Pickering (Steward/MMT)
+- X\. Prochaska (UCSC/UCO)
+- D\. Reichwein (UCO)
+- S\. Simha (Chicago)
+- F\. Wang (Michigan)
+- K\. Westfall (UCO)
 
 Code/Documentation Contributors
 -------------------------------
@@ -49,54 +65,9 @@ Code/Documentation Contributors
 The list of contributors to the code repository below is exactly as provided by
 GitHub `here <https://github.com/pypeit/PypeIt/graphs/contributors>`__.
 
-- Shane Bechtel (@ShaneBechtel)
-- Edward Betts (@EdwardBetts)
-- Max Brodheim (@MNBrod)
-- Adolfo Carvalho (@Adolfo1519)
-- Chloe Cheng (@chloe-mt-cheng)
-- Ryan Cooke (@rcooke-ast)
-- Fred Davies (@freddavies)
-- Greg Doppmann (@gdoppmann)
-- Timothy Ellsworth-Bowers (@tbowers7)
-- Emanuele Paolo Farina (@EmAstro)
-- Andreas Flörs (@afloers)
-- Dan Foreman-Mackey (@dfm)
-- Joseph Hennawi (@jhennawi)
-- Brad Holden (@bpholden)
-- Chris Howk (@jchowk)
-- Tiffany Hsyu (@tiffanyhsyu)
-- Jacob Isbell (@jwisbell)
-- David Jones (@Raindogjones)
-- Milan Sharma Mandigo-Stoba (@finagle29)
-- Heather Martin (@hnmartin)
-- Chris Montalbán (@Allonck)
-- Isabel Montoya Arroyave (@isabelmontoyaa)
-- Riccardo Nanni (@Rik-ad-astra)
-- Jackson O'Donnell (@jhod0)
-- Silvia Onorato (@SilviaOnorato)
-- Debora Pelliccia (@debora-pe)
-- Timothy Pickering (@tepickering)
-- J\. Xavier Prochaska (@profxj)
-- Dusty Reichwein (@badpandabear)
-- Nathan Sandford (@NathanSandford)
-- Vasco Schiavo (@VascoSch92) 
-- Sunhil Simha (@SunilSimha)
-- Gregory Simonian (@gregosimo)
-- Marijana Smailagic (@marijana777)
-- Nicolas Tejos (@ntejos)
-- Kristen Thyng (@kthyng)
-- Kaew Samaporn Tinyanont (@stinyanont)
-- Erik Tollerud (@eteq)
-- Suk Sien Tie (@suksien)
-- Zlatan Vasović (@zlatanvasovic)
-- Alexa Villaume (@AlexaVillaume)
-- Feige Wang (@feigewang)
-- Asher Wasserman (@adwasser)
-- Kyle Westfall (@kbwestfall)
-- Matt Wilde (@mattcwilde)
-- Mackenna Wood (@woodml)
-- Daming Yang (@dmyang42)
-- David Young (@thespacedoctor)
+.. include:: include/contributors.rst
+
+*Last Updated*: 29 July 2026
 
 Other contributors
 ------------------

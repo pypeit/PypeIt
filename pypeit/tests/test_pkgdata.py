@@ -12,16 +12,16 @@ import pytest
 
 import github
 
-from linetools.spectra import xspectrum1d
-
-from pypeit.pypmsgs import PypeItPathError
-from pypeit.pypeitdata import PypeItDataPath
+from pypeit import PypeItPathError
+from pypeit.pkg.pypeitdata import PypeItDataPath
 from pypeit import dataPaths
-from pypeit import io
-from pypeit import cache
+from pypeit.pkg import cache
+from pypeit.core import skyspec
 from pypeit.core.wavecal import waveio
+from pypeit import onespec
 
 
+@pytest.mark.remote_data
 def test_cloud_url():
 
     # The telgrid files live on a cloud server.  Test for file existance (or URL change)
@@ -35,6 +35,7 @@ def test_cloud_url():
            f"Got status {get.status_code} (!= 200) for URL {telgrid_src[0]}"
 
 
+@pytest.mark.remote_data
 def test_fetch_github_files():
 
     # These are commonly used files, do all three in one test; the test just ensures
@@ -50,6 +51,7 @@ def test_fetch_github_files():
                             force_update=True)
     
 
+@pytest.mark.remote_data
 def test_github_contents():
 
     # In case we're working in a fork
@@ -74,6 +76,7 @@ def test_github_contents():
             'tests/ directory expected to have subdirectories'
     
 
+@pytest.mark.remote_data
 def test_filepath_routines():
 
     filepath, format = dataPaths.reid_arxiv.get_file_path("keck_deimos_600ZD.fits",
@@ -94,8 +97,8 @@ def test_filepath_routines():
 def test_load_sky_spectrum():
 
     # Load in the most common sky spectrum, check that the return is valid
-    skyspec = io.load_sky_spectrum("paranal_sky.fits")
-    assert isinstance(skyspec, xspectrum1d.XSpectrum1D)
+    sky = skyspec.load_sky_spectrum("paranal_sky.fits")
+    assert isinstance(sky, onespec.OneSpec)
 
 
 def test_search_cache():
@@ -140,6 +143,7 @@ def test_pygit2():
 #    assert date is not None, 'Failed to get most recent tag version'
 
 
+@pytest.mark.remote_data
 def test_waveio_load_reid_arxiv():
 
     # Test the extension logic, given the download/cache system
@@ -162,6 +166,7 @@ def test_datapath():
         p = PypeItDataPath('junk')
 
 
+@pytest.mark.remote_data
 def test_truediv():
     p = PypeItDataPath('tests')
 
@@ -183,6 +188,7 @@ def test_truediv():
     assert str(_p.path.relative_to(p.path)) == subdir, 'Wrong subdirectory'
 
 
+@pytest.mark.remote_data
 def test_get_file_path():
     f = 'b1.fits.gz'
     # NOTE: Setting to_pkg symlink only needs to be done once for each unique file
@@ -196,6 +202,7 @@ def test_get_file_path():
                                          to_pkg='symlink')[1] == 'npz', 'Wrong file format'
 
 
+@pytest.mark.remote_data
 def test_cache_to_pkg():
     test_file_name = 'cache_test.txt'
     test_file = dataPaths.tests.path / test_file_name

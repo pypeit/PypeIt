@@ -1,8 +1,9 @@
 .. code-block:: console
 
     $ pypeit_coadd_1dspec -h
-    usage: pypeit_coadd_1dspec [-h] [--debug] [--show] [--par_outfile PAR_OUTFILE]
-                               [-v VERBOSITY]
+    usage: pypeit_coadd_1dspec [-h] [-v VERBOSITY] [--log_file LOG_FILE]
+                               [--log_level LOG_LEVEL] [--debug] [--show]
+                               [--par_outfile PAR_OUTFILE]
                                coadd1d_file
     
     Coadd 1D spectra produced by PypeIt
@@ -103,12 +104,19 @@
     
     options:
       -h, --help            show this help message and exit
+      -v, --verbosity VERBOSITY
+                            Verbosity level, which must be 0, 1, or 2. Level 0
+                            includes warning and error messages, level 1 adds
+                            informational messages, and level 2 adds debugging
+                            messages and the calling sequence.
+      --log_file LOG_FILE   Name for the log file. If set to "default", a default
+                            name is used. If None, a log file is not produced.
+      --log_level LOG_LEVEL
+                            Verbosity level for the log file. If a log file is
+                            produce and this is None, the file log will match the
+                            console stream log.
       --debug               show debug plots?
       --show                show QA during coadding process
       --par_outfile PAR_OUTFILE
                             Output to save the parameters
-      -v, --verbosity VERBOSITY
-                            Verbosity level between 0 [none] and 2 [all]. Default:
-                            1. Level 2 writes a log with filename
-                            coadd_1dspec_YYYYMMDD-HHMM.log
     

@@ -16,6 +16,8 @@ from pypeit.spectrographs.util import load_spectrograph
 
 from pypeit.tests.tstutils import data_output_path
 
+det = 1
+
 @pytest.fixture
 def fitstbl():
 
@@ -39,6 +41,7 @@ def multi_caliBrate(fitstbl):
     # Grab a science file for configuration specific parameters
     indx = fitstbl.find_frames('science', index=True)[0]
     sci_file = fitstbl.frame_paths(indx)
+    calib_ID = fitstbl.calib_groups[0]
     # Par
     spectrograph = load_spectrograph('shane_kast_blue')
     par = spectrograph.config_specific_par(sci_file)
@@ -48,45 +51,47 @@ def multi_caliBrate(fitstbl):
     calib_par['bpm_usebias'] = False
     calib_par['slitedges']['sync_predict'] = 'nearest'
 
-    multi_caliBrate = calibrations.MultiSlitCalibrations(fitstbl, calib_par, spectrograph,
-                                                         data_output_path('Calibrations'))
+    multi_caliBrate = calibrations.MultiSlitCalibrations(
+        fitstbl, calib_par, spectrograph, data_output_path('Calibrations'),
+        calib_ID, indx, det)
     multi_caliBrate.success = True
-    return reset_calib(multi_caliBrate)
-
-
-def reset_calib(calib):
-    # Find the first science row
-    frame = calib.fitstbl.find_frames('science', index=True)[0]
-    # Set
-    det = 1
-    calib.set_config(frame, det)
-    return calib
-
+    return multi_caliBrate
 
 ###################################################
 # TESTS BEGIN HERE
 
+@pytest.mark.remote_data
 def test_abstract_init(fitstbl):
+    frame = fitstbl.find_frames('science', index=True)[0]
     par = pypeitpar.CalibrationsPar()
     spectrograph = load_spectrograph('shane_kast_blue')
     caldir = data_output_path('Calibrations')
-    calib = calibrations.Calibrations.get_instance(fitstbl, par, spectrograph, caldir)
+    calib_ID = fitstbl.calib_groups[0]
+    calib = calibrations.Calibrations.get_instance(
+        fitstbl, par, spectrograph, caldir,calib_ID,frame,det)
     assert isinstance(calib, calibrations.MultiSlitCalibrations), 'Wrong calibration object type'
     spectrograph = load_spectrograph('keck_nires')
-    calib = calibrations.Calibrations.get_instance(fitstbl, par, spectrograph, caldir)
+    calib = calibrations.Calibrations.get_instance(
+        fitstbl, par, spectrograph, caldir, calib_ID,frame,det)
     assert isinstance(calib, calibrations.MultiSlitCalibrations), 'Wrong calibration object type'
     spectrograph = load_spectrograph('keck_kcwi')
-    calib = calibrations.Calibrations.get_instance(fitstbl, par, spectrograph, caldir)
+    calib = calibrations.Calibrations.get_instance(
+        fitstbl, par, spectrograph, caldir, calib_ID,frame,det)
     assert isinstance(calib, calibrations.IFUCalibrations), 'Wrong calibration object type'
 
 
+@pytest.mark.remote_data
 def test_instantiate(fitstbl):
+    frame = fitstbl.find_frames('science', index=True)[0]
     par = pypeitpar.CalibrationsPar()
     spectrograph = load_spectrograph('shane_kast_blue')
     caldir = data_output_path('Calibrations')
-    caliBrate = calibrations.MultiSlitCalibrations(fitstbl, par, spectrograph, caldir)
+    calib_ID = fitstbl.calib_groups[0]
+    caliBrate = calibrations.MultiSlitCalibrations(
+        fitstbl, par, spectrograph, caldir, calib_ID, frame, det)
 
 
+@pytest.mark.remote_data
 def test_bias(multi_caliBrate):
     """
     This should produce nothing as we have no bias frames
@@ -97,6 +102,7 @@ def test_bias(multi_caliBrate):
     multi_caliBrate.get_bias()
 
 
+@pytest.mark.remote_data
 def test_arc(multi_caliBrate):
     arc = multi_caliBrate.get_arc()
     assert isinstance(arc, buildimage.ArcImage), 'arc has wrong type'
@@ -107,6 +113,7 @@ def test_arc(multi_caliBrate):
     shutil.rmtree(multi_caliBrate.calib_dir)
 
 
+@pytest.mark.remote_data
 def test_tiltimg(multi_caliBrate):
     tilt = multi_caliBrate.get_tiltimg()
     assert isinstance(tilt, buildimage.TiltImage), 'tilt has wrong type'
@@ -117,6 +124,7 @@ def test_tiltimg(multi_caliBrate):
     shutil.rmtree(multi_caliBrate.calib_dir)
 
 
+@pytest.mark.remote_data
 def test_bpm(multi_caliBrate):
     # Build
     bpm = multi_caliBrate.get_bpm()
@@ -131,6 +139,7 @@ def test_bpm(multi_caliBrate):
 #   - get_tilts
 
 
+@pytest.mark.remote_data
 def test_asn(multi_caliBrate):
     caldir = Path().absolute()
     ofile = caldir / 'test.calib'
@@ -159,6 +168,7 @@ def test_asn(multi_caliBrate):
     ofile.unlink()
 
 
+@pytest.mark.remote_data
 def test_asn_calib_ID_dict(multi_caliBrate):
 
     caldir = Path().absolute()

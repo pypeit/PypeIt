@@ -3,10 +3,9 @@ from importlib import resources
 import os
 import subprocess
 
-from IPython import embed
-import numpy
+import astropy.table
 
-from pypeit.utils import string_table
+from IPython import embed
 
 
 def tellgrid_table(root, ofile):
@@ -38,13 +37,21 @@ def tellgrid_table(root, ofile):
         raise ValueError(
             'Unexpected output from `aws` call.  Splitting each entry should yield 5 components.'
         )
-    data = [['File', 'Size', 'Last Modified (UTC)']] + [
-        [d[4], ' '.join(d[2:4]), ' '.join(d[:2])] for d in data
-    ]
-    lines = string_table(numpy.atleast_1d(data), delimeter='rst')
-    with open(ofile, 'w') as f:
-        f.write(lines)
+    
+    data_table = []
+    for d in data:
+        data_table.append(
+            {
+                'File': d[4],
+                'Size': ' '.join(d[2:4]),
+                'Last Modified (UTC)': ' '.join(d[:2]),
+            }
+        )
 
+    tbl = astropy.table.Table(data_table)
+
+    tbl.write(ofile, format="ascii.rst", overwrite=True)
+    print(f'Wrote: {ofile}')
 
 def main():
     output_root = resources.files('pypeit').parent / 'doc' / 'include'

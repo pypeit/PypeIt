@@ -5,7 +5,7 @@ import pytest
 
 from astropy.io import fits
 
-from pypeit.pypmsgs import PypeItDataModelError
+from pypeit import PypeItDataModelError
 from pypeit.tests.tstutils import data_output_path
 from pypeit.images.mosaic import Mosaic
 from pypeit.spectrographs.util import load_spectrograph

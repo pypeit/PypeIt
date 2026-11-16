@@ -4,10 +4,8 @@ Dynamically build table listing available standard stars.
 
 from importlib import resources
 
-import numpy as np
 from astropy import table
 
-from pypeit.utils import string_table
 from pypeit import dataPaths
 from pypeit.core import standard
 
@@ -28,17 +26,9 @@ def write_tables(path):
 
         # get table data
         tbl = table.Table.read(f, comment='#', format='ascii')
+        tbl.meta = {}
 
-        # create the table for the rst file
-        data_table = np.empty((len(tbl)+1, len(tbl.keys())), dtype=object)
-        data_table[0,:] = tbl.keys()
-
-        for i, row in enumerate(tbl):
-            data_table[i+1,:] = [str(v) for v in row]
-
-        lines = string_table(data_table, delimeter='rst')
-        with open(ofile, 'w') as f:
-            f.write(lines)
+        tbl.write(ofile, format="ascii.rst", overwrite=True)
         print(f'Wrote: {ofile}')
 
 

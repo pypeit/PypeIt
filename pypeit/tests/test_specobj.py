@@ -14,7 +14,7 @@ from astropy.io import fits
 
 from pypeit import specobj
 from pypeit.tests.tstutils import data_output_path
-from pypeit import msgs
+from pypeit import log
 
 
 def test_init():

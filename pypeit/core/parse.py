@@ -5,14 +5,15 @@ parse module.
 .. include:: ../include/links.rst
 
 """
-import inspect
+import re
 
 from IPython import embed
 
 import numpy as np
 
-# Logging
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
+from pypeit.utils import eval_tuple
 
 
 def load_sections(string, fmt_iraf=True):
@@ -95,6 +96,45 @@ def get_dnum(det, caps=False, prefix=True):
     return dnum
 
 
+# TODO: How do we parse the values of detnum that are included in the pypeit
+# file?  I'm embarrassed that I can't remember!
+def eval_detectors(det:str | None) -> None | int | list[int] | tuple | list[tuple]:
+    """
+    Convert the provided string into one or more detectors or detector mosaics
+    to process.
+
+    The expected format is to be a comma-separated list of integers or tuples.
+    If tuples are expected, the string *must* contain the parentheses.  I.e.,
+    ``'1,2'`` will be interpreted as a list of two detectors (1 and 2), whereas
+    ``'(1,2)'`` will be interpreted as a single mosaic made up of detectors 1
+    and 2.
+
+    Parameters
+    ----------
+    det
+        The string list of detectors or detector mosaics to parse.  The input
+        can be None; and None is returned if it is.
+
+    Returns
+    -------
+        The parsed set of detectors or mosaics that can be interpreted by
+        PypeIt.
+    """
+    if det is None:
+        return None
+    _det = det.replace(' ', '').replace('[', '').replace(']', '')
+    if '(' in _det:
+        parsed = eval_tuple(_det.split(','))
+        return parsed[0] if len(parsed) == 1 else parsed
+    if ',' in _det:
+        parsed = list(map(int, _det.split(',')))
+        return parsed[0] if len(parsed) == 1 else parsed
+    try:
+        return int(_det)
+    except:
+        raise PypeItError(f'Unable to parse {det} into a set of detectors or detector mosaics.')
+
+
 def binning2string(binspectral, binspatial):
     """
     Convert the binning from integers to a string following the PypeIt
@@ -155,7 +195,7 @@ def parse_binning(binning:str):
         elif 'x' in binning:
             binspectral, binspatial = [int(item) for item in binning.split('x')]  # LRIS
         elif binning == 'None':
-            msgs.warn("Assuming unbinned, i.e.  1x1")
+            log.warning("Assuming unbinned, i.e.  1x1")
             binspectral, binspatial = 1,1
         else:
             binspectral, binspatial = [int(item) for item in binning.strip().split(' ')]  # Gemini
@@ -164,12 +204,12 @@ def parse_binning(binning:str):
     elif isinstance(binning, np.ndarray):
         binspectral, binspatial = binning
     else:
-        msgs.error("Unable to parse input binning: {}".format(binning))
+        raise PypeItError("Unable to parse input binning: {}".format(binning))
     # Return
     return binspectral, binspatial
 
 
-def parse_slitspatnum(slitspatnum):
+def parse_slitspatnum(slitspatnum:(str|list)):
     """
     Parse the ``slitspatnum`` into a list of detectors and SPAT_IDs.
 
@@ -182,6 +222,15 @@ def parse_slitspatnum(slitspatnum):
         and spatial pixels coordinates for each slit.  The shape of each
         array is ``(nslits,)``, where ``nslits`` is the number of
         ``slitspatnum`` entries parsed (1 if only a single string is provided).
+
+    Examples:
+        >>> from pypeit.core import parse
+        >>> parse.parse_slitspatnum('1:150,2:200')
+        (array(['1', '2'], dtype='<U1'), array([150, 200]))
+        >>> parse.parse_slitspatnum(['1:150,2:200','3:250'])
+        (array(['1', '2', '3'], dtype='<U1'), array([150, 200, 250]))
+        >>> parse.parse_slitspatnum(['1:150','2:200','3:250'])
+        (array(['1', '2', '3'], dtype='<U1'), array([150, 200, 250]))
     """
     _slitspatnum = slitspatnum if isinstance(slitspatnum,list) else [slitspatnum]
     _slitspatnum = np.concatenate([item.split(',') for item in _slitspatnum])
@@ -410,7 +459,7 @@ def parse_image_location(inp, spec):
     
     """
     if ';' in inp:
-        msgs.error(f'Image location string provided ({inp}) includes a semi-colon!')
+        raise PypeItError(f'Image location string provided ({inp}) includes a semi-colon!')
     # Split the components of the string
     _inp = inp.split(':')
 
@@ -424,14 +473,14 @@ def parse_image_location(inp, spec):
         det = tuple(-d for d in det)
 
     if len(det) > 1 and det not in spec.allowed_mosaics:
-        msgs.error(f'{det} is not a valid mosaic for {spec.name}.')
+        raise PypeItError(f'{det} is not a valid mosaic for {spec.name}.')
     elif len(det) > 1 and det in spec.allowed_mosaics:
         # we use detname, which is a string (e.g., 'DET01', 'MSC01')
         detname = spec.get_det_name(det)
     elif len(det) == 1:
         detname = spec.get_det_name(det[0])
     else:
-        msgs.error(f'Unable to parse detector identifier in: {inp}')
+        raise PypeItError(f'Unable to parse detector identifier in: {inp}')
 
     return (neg, detname) + tuple(float(p) for p in _inp[1:])
 
@@ -469,4 +518,31 @@ def fix_config_par_image_location(par):
 
 def flip_fits_slice(s: str) -> str:
     return '[' + ','.join(s.strip('[]').split(',')[::-1]) + ']'
+
+
+def safe_name_component(name):
+    """
+    Sanitize a string for use as a single output-filename component.
+
+    Externally supplied names (e.g. a catalog object name) may contain path
+    separators (``/``, ``\\``), a drive/stream colon, or other characters that
+    are invalid or dangerous in a filename.  Any character outside a
+    conservative safe set (letters, digits, ``.``, ``+``, ``-``, ``_``) is
+    replaced with an underscore, so the result is always a single, portable
+    path component that cannot escape a directory.
+
+    Args:
+        name (:obj:`str`):
+            The raw name.
+
+    Returns:
+        :obj:`str`: A filename-safe component.  Never empty: if the input
+        reduces to nothing usable (empty or only dots, e.g. ``''``, ``'.'``,
+        ``'..'``), ``'_'`` is returned.
+    """
+    safe = re.sub(r'[^A-Za-z0-9.+_-]', '_', str(name).strip())
+    # Reject a component that is empty or made only of dots.
+    if len(safe.strip('.')) == 0:
+        return '_'
+    return safe
 
