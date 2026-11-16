@@ -4,17 +4,21 @@ Implements APF-specific functions
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import os
+from pathlib import Path
 
 import numpy as np
+from astropy.io import fits
+from astropy.table import Table
 from astropy.time import Time
 from IPython import embed
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit import io
+from pypeit import par
 from pypeit.core import framematch
-from pypeit.core import parse
+from pypeit.par import parset
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 
@@ -70,11 +74,12 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
-
+        
         par['calibrations']['flatfield']['slit_illum_finecorr'] = False
         par['calibrations']['flatfield']['tweak_slits'] = False
         par['calibrations']['flatfield']['spat_samp'] = 0.7
-        par['calibrations']['flatfield']['slit_trim'] = 0
+        # this is for the 8" decker
+        par['calibrations']['flatfield']['slit_trim'] = 3
 
 
         # Processing steps
@@ -87,7 +92,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
 
         # no sky subtraction on standard stars
         par['reduce']['skysub']['global_sky_std'] = False
-
+        par['reduce']['skysub']['no_local_sky'] = True
         # skip sky subtraction when searching for objects
         # this is because the sky subtraction is not very good with narrow
         # slits and the usual APF target is bright
@@ -187,12 +192,12 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
             elif "Pinhole" in decker_str:
                 return 'Pinhole'
             else:
-                msgs.error(f"Unrecognized decker {decker_str}")
+                raise PypeItError(f"Unrecognized decker {decker_str}")
 
         if meta_key == 'binning':
             return f"{headarr[0]['RBIN']+1},{headarr[0]['CBIN']+1}"
 
-        msgs.error("Not ready for this compound meta")
+        raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -328,7 +333,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         if ftype in ['pinhole']:
             return good_exp & (fitstbl['idname'] == 'NarrowFlat') & (fitstbl['decker'] == 'Pinhole')
 
-        msgs.warn(f'Cannot determine if frames are of type {ftype}.')
+        log.debug(f'Cannot determine if frames are of type {ftype}.')
         return np.zeros(len(fitstbl), dtype=bool)
 
     def is_science(self, fitstbl):
@@ -339,15 +344,20 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         return np.logical_not(np.isin(fitstbl['idname'], ['WideFlat', 'NarrowFlat', \
                                                           'ThAr', 'Dark', 'Bias', 'Iodine']))
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -356,8 +366,12 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = super().config_specific_par(scifile, inp_par=inp_par)
-        decker = self.get_meta_value(scifile, 'decker')
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
+
+        # Adjust parameters based on decker and binning used
+        decker = self.get_meta_value(inp, 'decker')
+        binning = self.get_meta_value(inp, 'binning')
 
         if decker == '3.0':
             par['reduce']['trim_edge'] = [0, 0]
@@ -366,13 +380,13 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
             par['reduce']['findobj']['find_trim_edge'] = [0, 0]
             par['calibrations']['slitedges']['pad'] = 5
             par['reduce']['extraction']['sn_gauss'] = 400
+            par['calibrations']['flatfield']['slit_trim'] = 0
             # basically always use the Gaussian model for optimal extraction
-
-        binning = self.get_meta_value(scifile, 'binning')
 
         if binning == "2,2":
             par['calibrations']['slitedges']['min_edge_side_sep'] = 2.0
             par['calibrations']['slitedges']['pad'] = 2
+            par['calibrations']['flatfield']['slit_trim'] = 1
             par['reduce']['skysub']['no_local_sky'] = True
             par['reduce']['extraction']['sn_gauss'] = 400
             par['reduce']['extraction']['model_full_slit'] = True
@@ -425,8 +439,8 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         """ Read the image
         """
         # Check for file; allow for extra .gz, etc. suffix
-        if not os.path.isfile(raw_file):
-            msgs.error(f'{raw_file} not found!')
+        if not Path(raw_file).is_file():
+            raise PypeItError(f'{raw_file} not found!')
         hdu = io.fits_open(raw_file)
 
         head0 = hdu[0].header
@@ -455,3 +469,15 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
 
         return self.get_detector_par(1, hdu=hdu), \
                 full_image, hdu, head0['EXPTIME'], rawdatasec_img, oscansec_img
+
+
+    def final_config_frametypes(self, setup, table):
+        """
+        Correct the table frametype values for the given setup, if necessary.
+        """
+
+        is_wideflat = table['frametype'] == 'pixelflat,trace'
+        is_narrowflat = table['frametype'] == 'trace'
+        if np.any(is_narrowflat) and setup['decker'] == '3.0':
+            table['frametype'][is_wideflat] = 'pixelflat'
+

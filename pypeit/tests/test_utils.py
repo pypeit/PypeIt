@@ -1,27 +1,37 @@
-"""
-Module to run tests on methods in utils.py
-"""
+"""Module to run tests on methods in utils.py"""
+
+import json
+import gzip
 import os
+import pathlib
 
 from IPython import embed
 
+import pytest
 import yaml
-
 import numpy as np
 
 from pypeit import utils
-from pypeit import msgs
+from pypeit import log
 from pypeit.tests.tstutils import data_output_path
 from pypeit import io
 
 
-def test_calc_ivar():
+# Move this to tstutils?
+def _cleanup_file(path):
+    try:
+        path.unlink()
+    except Exception:
+        pass
+
+
+def test_inverse():
     """ Run the parameter setup script
     """
     x = np.array([-1.0, -0.1, 0.0, 0.1, 1.0])
     res = utils.inverse(x)
     assert np.array_equal(res, np.array([0.0, 0.0, 0.0, 10.0, 1.0]))
-    assert np.array_equal(utils.calc_ivar(res), np.array([0.0, 0.0, 0.0, 0.1, 1.0]))
+    assert np.array_equal(utils.inverse(res), np.array([0.0, 0.0, 0.0, 0.1, 1.0]))
 
 
 def test_nearest_unmasked():
@@ -93,28 +103,16 @@ def test_yamlify():
     """ This tests the yamlify method and also the approach to 
     writing and reading the Setup block of PypeIt"""
 
-    obj = dict(a=1., b='acb', datasec='[2:23,:2048]', d=dict(c=3))
+    obj = {'Setup A': dict(a=np.float64(1.), b=np.str_('acb'), amp=np.str_('SINGLE:B'),
+                           datasec='[2:23,:2048]', time='12:30:00', d=dict(c=np.int64(3)))}
 
-    new_obj = utils.yamlify(obj)
+    # Write and read the object as done for the setup block of a PypeIt file
+    sdict = yaml.safe_load(yaml.dump(utils.yamlify(obj)))
 
-    # Write
-    tst_file = data_output_path('tst.yaml')
-    with open(tst_file, 'w') as f:
-        setup_lines = io.dict_to_lines(new_obj, level=1)
-        f.write('\n'.join(setup_lines)+'\n')
-
-    # Read
-    with open(tst_file, 'r') as f:
-        lines = f.readlines()
-
-    # Strip white space
-    lines = [line.strip() for line in lines]
-    # Add back in \n
-    ystr = '\n'.join(lines)
-    sdict = yaml.safe_load(ystr)
-
-    # Clean up
-    os.remove(tst_file)
+    # Values with colons must not gain quotes (Issue #2099)
+    assert sdict == {'Setup A': dict(a=1., b='acb', amp='SINGLE:B', datasec='[2:23,:2048]',
+                                     time='12:30:00', d=dict(c=3))}, \
+        'yamlify + yaml.dump should round-trip exactly'
 
 
 def test_add_sub_dict():
@@ -144,3 +142,145 @@ def test_occurrences():
     tstarr = np.array([2, 2, 1,  1, 3, 1, 3, 3, 1, 1])
     outarr = utils.occurrences(inparr)
     assert np.array_equal(outarr, tstarr), 'Occurrences has failed'
+
+
+
+def test_radeccoord():
+    lcoord = ['J124511+144523', '124511+144523',
+                  'J12:45:11+14:45:23', ('12:45:11', '+14:45:23'),
+                  ('12:45:11', '14:45:23'), ('12 45 11', '+14 45 23')]
+    for radec in lcoord:
+        coord = utils.radec_to_coord(radec)
+        # Test
+        np.testing.assert_allclose(coord.ra.value, 191.2958333333333)
+    # List
+    coords = utils.radec_to_coord(lcoord)
+    assert len(coords) == 6
+    # Galactic
+    gcoord = utils.radec_to_coord((280.5,-32.9), gal=True) # LMC
+    assert np.isclose(gcoord.icrs.ra.value, 80.8456130588062)
+    assert np.isclose(gcoord.icrs.dec.value, -69.78267074987376)
+
+
+def test_loadjson_plain_success():
+    data = {"a": 1, "b": "text", "c": [1, 2, 3]}
+    fn = pathlib.Path('test_loadjson_plain.json')
+    try:
+        with open(fn, "wt") as f:
+            json.dump(data, f)
+
+        loaded = utils.loadjson(fn)
+        assert loaded == data
+    finally:
+        _cleanup_file(fn)
+
+
+def test_loadjson_gzip_success():
+    data = {"x": 42, "y": "gz"}
+    fn = pathlib.Path('test_loadjson.json.gz')
+    try:
+        # Write gzipped JSON bytes
+        with gzip.open(fn, "wb") as f:
+            f.write(json.dumps(data).encode("ascii"))
+
+        loaded = utils.loadjson(fn)
+        assert loaded == data
+    finally:
+        _cleanup_file(fn)
+
+
+def test_loadjson_missing_file():
+    fn = pathlib.Path('file_does_not_exist_hopefully.json')
+    if fn.exists():
+        _cleanup_file(fn)
+    with pytest.raises(FileNotFoundError):
+        utils.loadjson(fn)
+
+
+def test_loadjson_invalid_json_plain():
+    fn = pathlib.Path('bad_json.json')
+    try:
+        with open(fn, "wt") as f:
+            f.write("this is not json")
+        with pytest.raises(json.JSONDecodeError):
+            utils.loadjson(fn)
+    finally:
+        _cleanup_file(fn)
+
+
+def test_loadjson_invalid_json_gzip():
+    fn = pathlib.Path('bad_json.json.gz')
+    try:
+        # Valid gzip container but content is not JSON
+        with gzip.open(fn, "wb") as f:
+            f.write(b"not json content")
+        with pytest.raises(json.JSONDecodeError):
+            utils.loadjson(fn)
+    finally:
+        _cleanup_file(fn)
+
+
+def test_loadjson_bad_gzip_container():
+    fn = pathlib.Path('not_a_gzip.json.gz')
+    try:
+        # Create a plain text file with a .gz suffix so gzip reading fails
+        with open(fn, "wt") as f:
+            f.write("plain text, not gzipped")
+        # gzip.BadGzipFile is a subclass of OSError on many Pythons; be permissive
+        with pytest.raises(OSError):
+            utils.loadjson(fn)
+    finally:
+        _cleanup_file(fn)
+
+
+def test_eval_tuple():
+    # one tuple
+    t = ['(1', '2', '3)']
+    assert utils.eval_tuple(t) == [(1,2,3)], 'Bad tuple evaluation'
+    # two tuples
+    t = ['(1', '2)', '(3', '4)']
+    assert utils.eval_tuple(t) == [(1,2),(3,4)], 'Bad tuple evaluation'
+    # a tuple with a mix of int and float types
+    t = ['(1', '2.3)', '(3', '4)']
+    assert utils.eval_tuple(t) == [(1,2.3),(3,4)], 'Bad tuple evaluation'
+    # a tuple with a string
+    t = ['(1', '2.3)', '(test', '4)']
+    assert utils.eval_tuple(t) == [(1, 2.3), ('test', 4)], 'Bad tuple evaluation'
+
+
+def test_eval_list():
+    # one list
+    t = ['[1', '2', '3]']
+    assert utils.eval_list(t) == [[1,2,3]], 'Bad list evaluation'
+    # two lists
+    t = ['[1', '2]', '[3', '4]']
+    assert utils.eval_list(t) == [[1,2],[3,4]], 'Bad list evaluation'
+    # a list with a mix of int and float types
+    t = ['[1', '2.3]', '[3', '4]']
+    assert utils.eval_list(t) == [[1,2.3],[3,4]], 'Bad list evaluation'
+    # a list with a string
+    t = ['[1', '2.3]', '[test', '4]']
+    assert utils.eval_list(t) == [[1, 2.3], ['test', 4]], 'Bad list evaluation'
+
+
+def test_init_arg_values():
+    class _Holder:
+        def __init__(self, a, b=2, big=None):
+            args, values = utils.init_arg_values()
+            self.d = {k: values[k] for k in args[1:]}
+
+    big = np.zeros(10)
+    h = _Holder(1, big=big)
+    assert h.d == {'a': 1, 'b': 2, 'big': big}, 'Wrong arguments returned'
+
+    # The returned values must not create a frame -> f_locals -> frame
+    # reference cycle (PEP 667), so the instance is freed as soon as its last
+    # reference is dropped, without the cyclic garbage collector.
+    import gc
+    import weakref
+    gc.disable()
+    try:
+        ref = weakref.ref(_Holder(1))
+        assert ref() is None, 'Instance kept alive by a reference cycle'
+    finally:
+        gc.enable()

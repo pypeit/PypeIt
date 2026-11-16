@@ -6,7 +6,8 @@ from importlib import resources
 
 import numpy
 
-from pypeit.utils import to_string, string_table
+from pypeit.utils import to_string
+from rst_table import format_rst_table
 from pypeit.datamodel import DataContainer
 from pypeit.images import buildimage
 
@@ -76,7 +77,7 @@ def basic_pypeitimage_datamodel(obj):
 
     # Parse
     data_table = data_table[numpy.asarray(keep_rows)]
-    return [string_table(data_table, delimeter='rst')]
+    return [format_rst_table(data_table)]
 
 def single_table_datamodel(obj, output_root, ext, descr):
 
@@ -87,7 +88,7 @@ def single_table_datamodel(obj, output_root, ext, descr):
     data_table[2,:] = [f'``{ext}``', '`astropy.io.fits.BinTableHDU`_', '...', descr]
 
     lines = [''] + [f'Version {obj.version}'] + [''] \
-                + [string_table(data_table, delimeter='rst')]
+                + [format_rst_table(data_table)]
 
     ofile = output_root / f'datamodel_{obj.__name__.lower()}.rst'
     with open(ofile, 'w') as f:
@@ -143,7 +144,7 @@ def edges_datamodel(output_root):
     data_table[20,:] = [ '...', '...', '...', '...']
 
     lines = [''] + [f'Version {EdgeTraceSet.version}'] + [''] \
-                + [string_table(data_table, delimeter='rst')]
+                + [format_rst_table(data_table)]
 
     ofile = output_root / f'datamodel_{EdgeTraceSet.__name__.lower()}.rst'
     with open(ofile, 'w') as f:
@@ -183,9 +184,9 @@ def slits_datamodel(output_root):
         data_table[i+1,:] = [f'``{key}``', t, combined[key].description]
 
     lines = [''] + [f'Version {SlitTraceSet.version}'] + [''] \
-                + [string_table(hdu_table, delimeter='rst')] + [''] \
+                + [format_rst_table(hdu_table)] + [''] \
                 + ['MASKDEF_DESIGNTAB content'] + [''] \
-                + [string_table(data_table, delimeter='rst')]
+                + [format_rst_table(data_table)]
 
     ofile = output_root / f'datamodel_{SlitTraceSet.__name__.lower()}.rst'
     with open(ofile, 'w') as f:
@@ -219,7 +220,7 @@ def wavecalib_datamodel(output_root):
 
 
     lines = [''] + [f'Version {WaveCalib.version}'] + [''] \
-                + [string_table(data_table, delimeter='rst')]
+                + [format_rst_table(data_table)]
 
     ofile = output_root / f'datamodel_{WaveCalib.__name__.lower()}.rst'
     with open(ofile, 'w') as f:
@@ -243,7 +244,7 @@ def flatfield_datamodel(output_root):
                        FlatImages.datamodel['pixelflat_model']['descr']]
     data_table[5,:] = ['``PIXELFLAT_SPAT_ID-?-BSPLINE``', '`astropy.io.fits.BinTableHDU`_', '...',
                        'bspline model of the pixelflat for ``spat_id=?``; see '
-                       ':class:`~pypeit.bspline.bspline.bspline`']
+                       ':class:`~pypeit.containers.bspline.BSplineContainer`']
     data_table[6,:] = ['...', '...', '...', '...']
     data_table[7,:] = ['``PIXELFLAT_SPAT_ID-?-FINECORR``', '`astropy.io.fits.BinTableHDU`_', '...',
                        '2D polynomial fits to the fine correction of the spatial illumination '
@@ -260,7 +261,7 @@ def flatfield_datamodel(output_root):
                         FlatImages.datamodel['illumflat_raw']['descr']]
     data_table[13,:] = ['``ILLUMFLAT_SPAT_ID-?-BSPLINE``', '`astropy.io.fits.BinTableHDU`_', '...',
                         'bspline model of the illumflat for ``spat_id=?``; see '
-                        ':class:`~pypeit.bspline.bspline.bspline`']
+                        ':class:`~pypeit.containers.bspline.BSplineContainer`']
     data_table[14,:] = ['...', '...', '...', '...']
     data_table[15,:] = ['``ILLUMFLAT_SPAT_ID-?-FINECORR``', '`astropy.io.fits.BinTableHDU`_', '...',
                         '2D polynomial fits to the fine correction of the spatial illumination '
@@ -273,7 +274,7 @@ def flatfield_datamodel(output_root):
                         FlatImages.datamodel['spat_id']['descr']]
 
     lines = [''] + [f'Version {FlatImages.version}'] + [''] \
-                + [string_table(data_table, delimeter='rst')]
+                + [format_rst_table(data_table)]
 
     ofile = output_root / f'datamodel_{FlatImages.__name__.lower()}.rst'
     with open(ofile, 'w') as f:

@@ -3,18 +3,24 @@ Module for NOT ALFOSC spectrograph
 
 .. include:: ../include/links.rst
 """
+from pathlib import Path
+
 from IPython import embed
 
 import numpy as np
 
+from astropy.io import fits
+from astropy.table import Table
 from astropy.time import Time
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
+from pypeit.par import parset
 
 
 class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
@@ -195,7 +201,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         elif meta_key == 'ra':
             objra = headarr[0]['OBJRA'] # Given in hours, not deg
             return objra*15.
-        msgs.error("Not ready for this compound meta")
+        raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -266,18 +272,23 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc','tilt']:
             return good_exp & (fitstbl['idname'] == 'WAVE,LAMP')
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -286,37 +297,41 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        # Wavelength calibrations
-        if self.get_meta_value(scifile, 'dispname') == 'Grism_#3':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism3.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#4':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism4.fits'
-            par['calibrations']['wavelengths']['lamps'] = ['HeI','NeI']
-        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#5':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism5.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#7':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism7.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#8':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism8.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#10':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism10.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#11':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism11.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#17':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism17.fits'
-        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#18':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism18.fits'
-            par['calibrations']['wavelengths']['lamps'] = ['HeI','NeI','ArI','ArII']
-        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#19':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism19.fits'
-            par['calibrations']['wavelengths']['lamps'] = ['HeI','NeI','ArI','ArII']
-        elif self.get_meta_value(scifile, 'dispname') == 'Grism_#20':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism20.fits'
-        else:
-            msgs.warn('not_alfosc.py: YOU NEED TO ADD IN THE WAVELENGTH SOLUTION FOR THIS GRISM')
+        # Adjust parameters based on grating used
+        grating = self.get_meta_value(inp, 'dispname')
+
+        # Wavelength calibrations (metadata has already removed the '#')
+        match grating.replace('#',''):
+            case 'Grism_3':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism3.fits'
+            case 'Grism_4':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism4.fits'
+                par['calibrations']['wavelengths']['lamps'] = ['HeI','NeI']
+            case 'Grism_5':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism5.fits'
+            case 'Grism_7':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism7.fits'
+            case 'Grism_8':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism8.fits'
+            case 'Grism_10':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism10.fits'
+            case 'Grism_11':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism11.fits'
+            case 'Grism_17':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism17.fits'
+            case 'Grism_18':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism18.fits'
+                par['calibrations']['wavelengths']['lamps'] = ['HeI','NeI','ArI','ArII']
+            case 'Grism_19':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism19.fits'
+                par['calibrations']['wavelengths']['lamps'] = ['HeI','NeI','ArI','ArII']
+            case 'Grism_20':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism20.fits'
+            case _:
+                log.warning('not_alfosc.py: YOU NEED TO ADD IN THE WAVELENGTH SOLUTION FOR THIS GRISM')
 
         # Return
         return par

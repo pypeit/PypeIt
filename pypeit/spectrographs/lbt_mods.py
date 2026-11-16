@@ -3,18 +3,25 @@ Module for LBT/MODS specific methods.
 
 .. include:: ../include/links.rst
 """
+from pathlib import Path
+
+from IPython import embed
+
 import numpy as np
 from astropy.io import fits
+from astropy.table import Table
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit import utils
 from pypeit import io
 from pypeit.core import framematch
-from pypeit.par import pypeitpar
+from pypeit.par import parset
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images.detector_container import DetectorContainer
+
 
 # TODO: FW: test MODS1B and MODS2B
 
@@ -80,7 +87,7 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         self.meta['dispname'] = dict(ext=0, card='GRATNAME')
-        #self.meta['filter'] = dict(ext=0, card='FILTNAME')
+        self.meta['filter1'] = dict(ext=0, card='FILTNAME')
         self.meta['dichroic'] = dict(ext=0, card='DICHNAME')
         self.meta['idname'] = dict(ext=0, card='IMAGETYP')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
@@ -103,7 +110,7 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
             binspatial, binspec = parse.parse_binning(np.array([headarr[0]['CCDXBIN'], headarr[0]['CCDYBIN']]))
             binning = parse.binning2string(binspatial, binspec)
             return binning
-        msgs.error("Not ready for this compound meta")
+        raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -140,7 +147,7 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
             :obj:`list`: List of keywords from the raw data files that should
             be propagated in output files.
         """
-        return ['INSTRUME', 'MASKNAME', 'DICHNAME', 'GRATNAME', 'CCDXBIN', 'CCDYBIN']
+        return ['INSTRUME', 'MASKNAME', 'DICHNAME', 'GRATNAME', 'CCDXBIN', 'CCDYBIN', 'FILTNAME']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -170,7 +177,8 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
                    & (fitstbl['dispname'] != 'Flat')
         if ftype == 'bias':
             return good_exp  & (fitstbl['idname'] == 'BIAS')
-        if ftype in ['pixelflat', 'trace', 'illumflat']:
+        #if ftype in ['pixelflat', 'trace', 'illumflat']:
+        if ftype in ['trace', 'illumflat']:
             # Flats and trace frames are typed together
             return good_exp  & (fitstbl['idname'] == 'FLAT') & (fitstbl['decker'] != 'Imaging')
         if ftype in ['slitless_pixflat']:
@@ -182,7 +190,7 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
         if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['idname'] == 'COMP') & (fitstbl['dispname'] != 'Flat')
 
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
     def get_rawimage(self, raw_file, det):
@@ -219,7 +227,7 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
         fil = utils.find_single_file(f'{raw_file}*', required=True)
 
         # Read
-        msgs.info(f'Reading LBT/MODS file: {fil}')
+        log.info(f'Reading LBT/MODS file: {fil}')
         hdu = io.fits_open(fil)
         head = hdu[0].header
 
@@ -404,15 +412,20 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -421,9 +434,13 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        if self.get_meta_value(scifile, 'dispname') == 'G670L':
+        # Adjust parameters based on grating used
+        grating = self.get_meta_value(inp, 'dispname')
+
+        if grating == 'G670L':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'lbt_mods1r_red.fits'
 
@@ -459,7 +476,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
         # Call the base-class method to generate the empty bpm
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
-        msgs.info("Using hard-coded BPM for  MODS1R")
+        log.info("Using hard-coded BPM for  MODS1R")
 
         # TODO: Fix this
         # Get the binning
@@ -564,31 +581,35 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
-        .. todo::
-            Document the changes made!
-
         Args:
-            scifile (str):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
-            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
 
         Returns:
-            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
-        #par = super(LBTMODS1BSpectrograph, self).config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        if self.get_meta_value(scifile, 'dispname') == 'G400L':
+        # Adjust parameters based on grating used
+        grating = self.get_meta_value(inp, 'dispname')
+
+        if grating == 'G400L':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'lbt_mods1b_blue.fits'
 
@@ -623,7 +644,7 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
         """
         # Call the base-class method to generate the empty bpm
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
-        msgs.info("Using hard-coded BPM for  MODS1B")
+        log.info("Using hard-coded BPM for  MODS1B")
 
         # Get the binning
         hdu = io.fits_open(filename)
@@ -731,15 +752,20 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -748,8 +774,13 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = super().config_specific_par(scifile, inp_par=inp_par)
-        if self.get_meta_value(scifile, 'dispname') == 'G670L':
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
+
+        # Adjust parameters based on grating used
+        grating = self.get_meta_value(inp, 'dispname')
+
+        if grating == 'G670L':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'lbt_mods2r_red.fits'
         return par
@@ -783,7 +814,7 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
         """
         # Call the base-class method to generate the empty bpm
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
-        msgs.info("Using hard-coded BPM for  MODS2R")
+        log.info("Using hard-coded BPM for  MODS2R")
 
         # Get the binning
         hdu = io.fits_open(filename)
@@ -889,30 +920,35 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
-        .. todo::
-            Document the changes made!
-
         Args:
-            scifile (str):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
-            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
 
         Returns:
-            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        if self.get_meta_value(scifile, 'dispname') == 'G400L':
+        # Adjust parameters based on grating used
+        grating = self.get_meta_value(inp, 'dispname')
+
+        if grating == 'G400L':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'lbt_mods1b_blue.fits'
 
@@ -948,7 +984,7 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
         """
         # Call the base-class method to generate the empty bpm
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
-        msgs.info("Using hard-coded BPM for  MODS2B")
+        log.info("Using hard-coded BPM for  MODS2B")
 
         # Get the binning
         hdu = io.fits_open(filename)
@@ -1077,15 +1113,20 @@ class LBTMODS1RSpectrographProc(LBTMODSSpectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -1094,9 +1135,13 @@ class LBTMODS1RSpectrographProc(LBTMODSSpectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        if self.get_meta_value(scifile, 'dispname') == 'G670L':
+        # Adjust parameters based on grating used
+        grating = self.get_meta_value(inp, 'dispname')
+
+        if grating == 'G670L':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'lbt_mods1r_red.fits'
 
@@ -1104,6 +1149,80 @@ class LBTMODS1RSpectrographProc(LBTMODSSpectrograph):
 
     # The processed images have been bad-pixel corrected already, so it is not necessary to 
     # generate a bad pixel mask, bpm_img, with function bpm.
+
+    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table,
+                       trim_std_pixs=None, log10_blaze_function=None):
+        """
+        This routine is for performing instrument- and/or disperser-specific
+        tweaks to standard stars so that sensitivity function fits will be
+        well behaved.
+
+        This function was adapted from the version in shane_kast.py. It helps, because using trim_std_pixs 
+        to trim the spectrum by x1,x2 pixels at either end was not producing the desired results. 
+
+        NOTE: if the `trim_std_pixs` parameter is not None, then the standard star spectrum will be only trimmed
+        by the specified number of pixels at the start and end of the spectrum, and no other tweaks will be
+        performed.
+
+        Parameters
+        ----------
+        wave_in: `numpy.ndarray`_
+            Input standard star wavelengths (:obj:`float`, ``shape = (nspec,)``)
+        counts_in: `numpy.ndarray`_
+            Input standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        counts_ivar_in: `numpy.ndarray`_
+            Input inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        gpm_in: `numpy.ndarray`_
+            Input good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
+        meta_table: :obj:`dict`
+            Table containing meta data that is slupred from the :class:`~pypeit.specobjs.SpecObjs`
+            object.  See :meth:`~pypeit.specobjs.SpecObjs.unpack_object` for the
+            contents of this table.
+        trim_std_pixs: :obj:`list` or :obj:`tuple`, optional
+            List or tuple of two integers specifying the number of pixels to
+            trim from the start and end of the standard star spectrum. If None,
+            no trimming is applied. Default=None.
+        log10_blaze_function: `numpy.ndarray`_ or None
+            Input blaze function to be tweaked, optional. Default=None.
+
+        Returns
+        -------
+        wave_out: `numpy.ndarray`_
+            Output standard star wavelengths (:obj:`float`, ``shape = (nspec,)``)
+        counts_out: `numpy.ndarray`_
+            Output standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        counts_ivar_out: `numpy.ndarray`_
+            Output inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        gpm_out: `numpy.ndarray`_
+            Output good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
+        log10_blaze_function_out: `numpy.ndarray`_ or None
+            Output blaze function after being tweaked.
+        """
+
+        if trim_std_pixs is not None:
+            return super().tweak_standard(wave_in, counts_in, counts_ivar_in, gpm_in, meta_table,
+                                          trim_std_pixs=trim_std_pixs, log10_blaze_function=log10_blaze_function)
+
+        # Could check the wavelenghts here to do something more robust to header/meta data issues
+
+        if 'DICHROIC' in meta_table.keys():
+            ddmode = meta_table['DICHROIC'].strip()
+            if ddmode == "Dual":
+                edge_region = (wave_in < 5500.0) | (wave_in > 10300.0)
+                gpm_out = gpm_in & np.logical_not(edge_region)
+            elif ddmode == 'Red':
+                edge_region = (wave_in < 4950.0) | (wave_in > 10300.0)
+                gpm_out = gpm_in & np.logical_not(edge_region)
+            else:
+                gpm_out = gpm_in
+
+        if log10_blaze_function is not None:
+            log10_blaze_function_out = log10_blaze_function[valid_wave]
+        else:
+            log10_blaze_function_out = None
+
+        return wave_in, counts_in, counts_ivar_in, gpm_out, log10_blaze_function_out
+
 
 class LBTMODS1BSpectrographProc(LBTMODSSpectrograph):
     """
@@ -1187,31 +1306,35 @@ class LBTMODS1BSpectrographProc(LBTMODSSpectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
-        .. todo::
-            Document the changes made!
-
         Args:
-            scifile (str):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
-            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
 
         Returns:
-            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        # Start with instrument wide
-        #par = super(LBTMODS1BSpectrograph, self).config_specific_par(scifile, inp_par=inp_par)
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        if self.get_meta_value(scifile, 'dispname') == 'G400L':
+        # Adjust parameters based on grating used
+        grating = self.get_meta_value(inp, 'dispname')
+
+        if grating == 'G400L':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'lbt_mods1b_blue.fits'
 
@@ -1219,6 +1342,78 @@ class LBTMODS1BSpectrographProc(LBTMODSSpectrograph):
 
     # The processed images have been bad-pixel corrected already, so it is not necessary to 
     # generate a bad pixel mask, bpm_img, with function bpm.
+
+
+    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table,
+                       trim_std_pixs=None, log10_blaze_function=None):
+        """
+        This routine is for performing instrument- and/or disperser-specific
+        tweaks to standard stars so that sensitivity function fits will be
+        well behaved.
+
+        This function was adapted from the version in shane_kast.py. It helps, because using trim_std_pixs 
+        to trim the spectrum by x1,x2 pixels at either end was not producing the desired results. 
+
+        NOTE: if the `trim_std_pixs` parameter is not None, then the standard star spectrum will be only trimmed
+        by the specified number of pixels at the start and end of the spectrum, and no other tweaks will be
+        performed.
+
+        Parameters
+        ----------
+        wave_in: `numpy.ndarray`_
+            Input standard star wavelengths (:obj:`float`, ``shape = (nspec,)``)
+        counts_in: `numpy.ndarray`_
+            Input standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        counts_ivar_in: `numpy.ndarray`_
+            Input inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        gpm_in: `numpy.ndarray`_
+            Input good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
+        meta_table: :obj:`dict`
+            Table containing meta data that is slupred from the :class:`~pypeit.specobjs.SpecObjs`
+            object.  See :meth:`~pypeit.specobjs.SpecObjs.unpack_object` for the
+            contents of this table.
+        trim_std_pixs: :obj:`list` or :obj:`tuple`, optional
+            List or tuple of two integers specifying the number of pixels to
+            trim from the start and end of the standard star spectrum. If None,
+            no trimming is applied. Default=None.
+        log10_blaze_function: `numpy.ndarray`_ or None
+            Input blaze function to be tweaked, optional. Default=None.
+
+        Returns
+        -------
+        wave_out: `numpy.ndarray`_
+            Output standard star wavelengths (:obj:`float`, ``shape = (nspec,)``)
+        counts_out: `numpy.ndarray`_
+            Output standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        counts_ivar_out: `numpy.ndarray`_
+            Output inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        gpm_out: `numpy.ndarray`_
+            Output good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
+        log10_blaze_function_out: `numpy.ndarray`_ or None
+            Output blaze function after being tweaked.
+        """
+
+        if trim_std_pixs is not None:
+            return super().tweak_standard(wave_in, counts_in, counts_ivar_in, gpm_in, meta_table,
+                                          trim_std_pixs=trim_std_pixs, log10_blaze_function=log10_blaze_function)
+
+        if 'DICHROIC' in meta_table.keys():
+            ddmode = meta_table['DICHROIC'].strip()
+            if ddmode == "Dual":
+                edge_region = (wave_in < 3170.0) | (wave_in > 5800.0)
+                gpm_out = gpm_in & np.logical_not(edge_region)
+            elif ddmode == 'Blue':
+                edge_region = (wave_in < 3170.0) | (wave_in > 6500.0)
+                gpm_out = gpm_in & np.logical_not(edge_region)
+            else:
+                gpm_out = gpm_in
+
+        if log10_blaze_function is not None:
+            log10_blaze_function_out = log10_blaze_function[valid_wave]
+        else:
+            log10_blaze_function_out = None
+
+        return wave_in, counts_in, counts_ivar_in, gpm_out, log10_blaze_function_out
 
 class LBTMODS2RSpectrographProc(LBTMODSSpectrograph):
     """
@@ -1315,15 +1510,20 @@ class LBTMODS2RSpectrographProc(LBTMODSSpectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -1332,14 +1532,93 @@ class LBTMODS2RSpectrographProc(LBTMODSSpectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = super().config_specific_par(scifile, inp_par=inp_par)
-        if self.get_meta_value(scifile, 'dispname') == 'G670L':
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
+
+        # Adjust parameters based on grating used
+        grating = self.get_meta_value(inp, 'dispname')
+
+        if grating == 'G670L':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'lbt_mods2r_red.fits'
         return par
 
     # The processed images have been bad-pixel corrected already, so it is not necessary to 
     # generate a bad pixel mask, bpm_img, with function bpm.
+
+    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table,
+                       trim_std_pixs=None, log10_blaze_function=None):
+        """
+        This routine is for performing instrument- and/or disperser-specific
+        tweaks to standard stars so that sensitivity function fits will be
+        well behaved.
+
+        This function was adapted from the version in shane_kast.py. It helps, because using trim_std_pixs 
+        to trim the spectrum by x1,x2 pixels at either end was not producing the desired results. 
+
+        NOTE: if the `trim_std_pixs` parameter is not None, then the standard star spectrum will be only trimmed
+        by the specified number of pixels at the start and end of the spectrum, and no other tweaks will be
+        performed.
+
+        Parameters
+        ----------
+        wave_in: `numpy.ndarray`_
+            Input standard star wavelengths (:obj:`float`, ``shape = (nspec,)``)
+        counts_in: `numpy.ndarray`_
+            Input standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        counts_ivar_in: `numpy.ndarray`_
+            Input inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        gpm_in: `numpy.ndarray`_
+            Input good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
+        meta_table: :obj:`dict`
+            Table containing meta data that is slupred from the :class:`~pypeit.specobjs.SpecObjs`
+            object.  See :meth:`~pypeit.specobjs.SpecObjs.unpack_object` for the
+            contents of this table.
+        trim_std_pixs: :obj:`list` or :obj:`tuple`, optional
+            List or tuple of two integers specifying the number of pixels to
+            trim from the start and end of the standard star spectrum. If None,
+            no trimming is applied. Default=None.
+        log10_blaze_function: `numpy.ndarray`_ or None
+            Input blaze function to be tweaked, optional. Default=None.
+
+        Returns
+        -------
+        wave_out: `numpy.ndarray`_
+            Output standard star wavelengths (:obj:`float`, ``shape = (nspec,)``)
+        counts_out: `numpy.ndarray`_
+            Output standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        counts_ivar_out: `numpy.ndarray`_
+            Output inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        gpm_out: `numpy.ndarray`_
+            Output good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
+        log10_blaze_function_out: `numpy.ndarray`_ or None
+            Output blaze function after being tweaked.
+        """
+
+        if trim_std_pixs is not None:
+            return super().tweak_standard(wave_in, counts_in, counts_ivar_in, gpm_in, meta_table,
+                                          trim_std_pixs=trim_std_pixs, log10_blaze_function=log10_blaze_function)
+
+        # Could check the wavelenghts here to do something more robust to header/meta data issues
+
+        if 'DICHROIC' in meta_table.keys():
+            ddmode = meta_table['DICHROIC'].strip()
+            if ddmode == "Dual":
+                edge_region = (wave_in < 5500.0) | (wave_in > 10300.0)
+                gpm_out = gpm_in & np.logical_not(edge_region)
+            elif ddmode == 'Red':
+                edge_region = (wave_in < 4950.0) | (wave_in > 10300.0)
+                gpm_out = gpm_in & np.logical_not(edge_region)
+            else:
+                gpm_out = gpm_in
+
+        if log10_blaze_function is not None:
+            log10_blaze_function_out = log10_blaze_function[valid_wave]
+        else:
+            log10_blaze_function_out = None
+
+        return wave_in, counts_in, counts_ivar_in, gpm_out, log10_blaze_function_out
+
 
 class LBTMODS2BSpectrographProc(LBTMODSSpectrograph):
     """
@@ -1423,31 +1702,35 @@ class LBTMODS2BSpectrographProc(LBTMODSSpectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
-        .. todo::
-            Document the changes made!
-
         Args:
-            scifile (str):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
-            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
 
         Returns:
-            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        # Start with instrument wide
-        #par = super(LBTMODS2BSpectrograph, self).config_specific_par(scifile, inp_par=inp_par)
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        if self.get_meta_value(scifile, 'dispname') == 'G400L':
+        # Adjust parameters based on grating used
+        grating = self.get_meta_value(inp, 'dispname')
+
+        if grating == 'G400L':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'lbt_mods1b_blue.fits'
 
@@ -1456,3 +1739,74 @@ class LBTMODS2BSpectrographProc(LBTMODSSpectrograph):
 
     # The processed images have been bad-pixel corrected already, so it is not necessary to 
     # generate a bad pixel mask, bpm_img, with function bpm.
+
+    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table,
+                       trim_std_pixs=None, log10_blaze_function=None):
+        """
+        This routine is for performing instrument- and/or disperser-specific
+        tweaks to standard stars so that sensitivity function fits will be
+        well behaved.
+
+        This function was adapted from the version in shane_kast.py. It helps, because using trim_std_pixs 
+        to trim the spectrum by x1,x2 pixels at either end was not producing the desired results. 
+
+        NOTE: if the `trim_std_pixs` parameter is not None, then the standard star spectrum will be only trimmed
+        by the specified number of pixels at the start and end of the spectrum, and no other tweaks will be
+        performed.
+
+        Parameters
+        ----------
+        wave_in: `numpy.ndarray`_
+            Input standard star wavelengths (:obj:`float`, ``shape = (nspec,)``)
+        counts_in: `numpy.ndarray`_
+            Input standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        counts_ivar_in: `numpy.ndarray`_
+            Input inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        gpm_in: `numpy.ndarray`_
+            Input good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
+        meta_table: :obj:`dict`
+            Table containing meta data that is slupred from the :class:`~pypeit.specobjs.SpecObjs`
+            object.  See :meth:`~pypeit.specobjs.SpecObjs.unpack_object` for the
+            contents of this table.
+        trim_std_pixs: :obj:`list` or :obj:`tuple`, optional
+            List or tuple of two integers specifying the number of pixels to
+            trim from the start and end of the standard star spectrum. If None,
+            no trimming is applied. Default=None.
+        log10_blaze_function: `numpy.ndarray`_ or None
+            Input blaze function to be tweaked, optional. Default=None.
+
+        Returns
+        -------
+        wave_out: `numpy.ndarray`_
+            Output standard star wavelengths (:obj:`float`, ``shape = (nspec,)``)
+        counts_out: `numpy.ndarray`_
+            Output standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        counts_ivar_out: `numpy.ndarray`_
+            Output inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        gpm_out: `numpy.ndarray`_
+            Output good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
+        log10_blaze_function_out: `numpy.ndarray`_ or None
+            Output blaze function after being tweaked.
+        """
+
+        if trim_std_pixs is not None:
+            return super().tweak_standard(wave_in, counts_in, counts_ivar_in, gpm_in, meta_table,
+                                          trim_std_pixs=trim_std_pixs, log10_blaze_function=log10_blaze_function)
+
+        if 'DICHROIC' in meta_table.keys():
+            ddmode = meta_table['DICHROIC'].strip()
+            if ddmode == "Dual":
+                edge_region = (wave_in < 3170.0) | (wave_in > 5800.0)
+                gpm_out = gpm_in & np.logical_not(edge_region)
+            elif ddmode == 'Blue':
+                edge_region = (wave_in < 3170.0) | (wave_in > 6500.0)
+                gpm_out = gpm_in & np.logical_not(edge_region)
+            else:
+                gpm_out = gpm_in
+
+        if log10_blaze_function is not None:
+            log10_blaze_function_out = log10_blaze_function[valid_wave]
+        else:
+            log10_blaze_function_out = None
+
+        return wave_in, counts_in, counts_ivar_in, gpm_out, log10_blaze_function_out

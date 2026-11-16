@@ -15,7 +15,8 @@ class TellFit(scriptbase.ScriptBase):
     def get_parser(cls, width=None):
         par = TelluricPar()
         parser = super().get_parser(description='Telluric correct a spectrum',
-                                    width=width, formatter=scriptbase.SmartFormatter)
+                                    width=width, formatter=scriptbase.SmartFormatter,
+                                    default_log_file=True)
         parser.add_argument("spec1dfile", type=str,
                             help="spec1d or coadd file that will be used for telluric correction.")
         parser.add_argument("--objmodel", type=str, default=None,
@@ -52,17 +53,14 @@ class TellFit(scriptbase.ScriptBase):
                             help="Show the telluric corrected spectrum")
         parser.add_argument("--par_outfile", default='telluric.par',
                             help="Name of output file to save the parameters used by the fit")
-        parser.add_argument('-v', '--verbosity', type=int, default=1,
-                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
-                                 'Level 2 writes a log with filename tellfit_YYYYMMDD-HHMM.log')
         parser.add_argument('--chk_version', default=False, action='store_true',
                             help='Ensure the datamodels are from the current PypeIt version. '
                                  'By default (consistent with previous functionality) this is '
                                  'not enforced and crashes may ensue ...')
         return parser
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
         """
         Executes telluric correction.
         """
@@ -71,15 +69,16 @@ class TellFit(scriptbase.ScriptBase):
 
         from astropy.io import fits
 
-        from pypeit import msgs
+        from pypeit import log
+        from pypeit import PypeItError
         from pypeit import dataPaths
         from pypeit.par import pypeitpar
         from pypeit.spectrographs.util import load_spectrograph
         from pypeit.core import telluric
         from pypeit import inputfiles
 
-        # Set the verbosity, and create a logfile if verbosity == 2
-        msgs.set_logfile_and_verbosity('tellfit', args.verbosity)
+        # Initialize the log
+        cls.init_log(args)
 
         # Determine the spectrograph
         header = fits.getheader(args.spec1dfile)
@@ -114,26 +113,26 @@ class TellFit(scriptbase.ScriptBase):
                 par['telluric']['telgridfile'] = par['sensfunc']['IR']['telgridfile']
             else:
                 par['telluric']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
-                msgs.warn(f"No telluric file given. Using PCA method with {par['telluric']['telgridfile']}.")
+                log.warning(f"No telluric file given. Using PCA method with {par['telluric']['telgridfile']}.")
 
         # Checks
         if par['telluric']['telgridfile'] is None:
-            msgs.error('A file with the telluric grid must be provided.')
+            raise PypeItError('A file with the telluric grid must be provided.')
         elif not os.path.isfile(dataPaths.telgrid.get_file_path(par['telluric']['telgridfile'])):
-            msgs.error(f"{par['telluric']['telgridfile']} does not exist.  Either the file was not"
+            raise PypeItError(f"{par['telluric']['telgridfile']} does not exist.  Either the file was not"
                        "downloaded successfully or the file name is incorrect.")
 
         # Write the par to disk
         # TODO: Make it optional to write this file?  Is the relevant metadata
         # saved to the main output file?
-        msgs.info(f'Writing the telluric fitting parameters to {args.par_outfile}')
+        log.info(f'Writing the telluric fitting parameters to {args.par_outfile}')
         par['telluric'].to_config(args.par_outfile, section_name='telluric', include_descr=False)
 
         # Parse the output filename
         outfile = (os.path.basename(args.spec1dfile)).replace('.fits','_tellcorr.fits')
         modelfile = (os.path.basename(args.spec1dfile)).replace('.fits','_tellmodel.fits')
-        msgs.info(f'Telluric-corrected spectrum will be saved to: {outfile}.')
-        msgs.info(f'Best-fit telluric model will be saved to: {modelfile}.')
+        log.info(f'Telluric-corrected spectrum will be saved to: {outfile}.')
+        log.info(f'Best-fit telluric model will be saved to: {modelfile}.')
 
         # Run the telluric fitting procedure.
         if par['telluric']['objmodel']=='qso':
@@ -227,6 +226,6 @@ class TellFit(scriptbase.ScriptBase):
                 chk_version=args.chk_version,
             )
         else:
-            msgs.error("Object model is not supported yet. Must be 'qso', 'star', or 'poly'.")
+            raise PypeItError("Object model is not supported yet. Must be 'qso', 'star', or 'poly'.")
 
 

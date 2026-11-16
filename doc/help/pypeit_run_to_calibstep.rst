@@ -1,9 +1,11 @@
 .. code-block:: console
 
     $ pypeit_run_to_calibstep -h
-    usage: pypeit_run_to_calibstep [-h] [--science_frame SCIENCE_FRAME]
+    usage: pypeit_run_to_calibstep [-h] [-v VERBOSITY] [--log_file LOG_FILE]
+                                   [--log_level LOG_LEVEL]
+                                   [--science_frame SCIENCE_FRAME]
                                    [--calib_group CALIB_GROUP] [--det DET]
-                                   [-v VERBOSITY] [-r REDUX_PATH] [-s]
+                                   [-r REDUX_PATH] [-s]
                                    pypeit_file step
     
     Run PypeIt to a single calibration step for an input frame
@@ -16,6 +18,17 @@
     
     options:
       -h, --help            show this help message and exit
+      -v, --verbosity VERBOSITY
+                            Verbosity level, which must be 0, 1, or 2. Level 0
+                            includes warning and error messages, level 1 adds
+                            informational messages, and level 2 adds debugging
+                            messages and the calling sequence.
+      --log_file LOG_FILE   Name for the log file. If set to "default", a default
+                            name is used. If None, a log file is not produced.
+      --log_level LOG_LEVEL
+                            Verbosity level for the log file. If a log file is
+                            produce and this is None, the file log will match the
+                            console stream log.
       --science_frame SCIENCE_FRAME
                             Raw science frame to reduce as listed in your PypeIt
                             file, e.g. b28.fits.gz. Either this or the calib_group
@@ -24,8 +37,6 @@
                             Calibration group ID to reduce. Either this or the frame
                             must be provided
       --det DET             Detector to reduce
-      -v, --verbosity VERBOSITY
-                            Verbosity level between 0 [none] and 2 [all]
       -r, --redux_path REDUX_PATH
                             Path to directory for the reduction. Only advised for
                             testing

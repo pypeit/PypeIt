@@ -7,7 +7,7 @@ from importlib import resources
 
 import numpy
 
-from pypeit.utils import string_table
+from rst_table import format_rst_table
 
 from IPython import embed
 
@@ -27,7 +27,7 @@ def write_dependency_table(project_file, path):
     data_table[1,:] = ['Required for users', ', '.join([f'``{u}``' for u in user_requires])]
     data_table[2,:] = ['Required for developers', ', '.join([f'``{d}``' for d in dev_requires])]
 
-    lines = string_table(data_table, delimeter='rst', has_header=False)
+    lines = format_rst_table(data_table, has_header=False)
     with open(ofile, 'w') as f:
         f.write(lines)
     print(f'Wrote: {ofile}')

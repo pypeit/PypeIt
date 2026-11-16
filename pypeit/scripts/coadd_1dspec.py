@@ -13,7 +13,8 @@ import numpy as np
 from astropy.io import fits
 from astropy.time import Time
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import inputfiles
 from pypeit import coadd1d
 from pypeit import inputfiles
@@ -38,7 +39,7 @@ def build_coadd_file_name(spec1dfiles, spectrograph):
         try:
             mjd_list.append(float(fits.getheader(f)['MJD']))
         except Exception as e:
-            msgs.error(f"Failed to read MJD from {f}: {e}")
+            raise PypeItError(f"Failed to read MJD from {f}: {e}")
 
     start_mjd = np.min(mjd_list)
     end_mjd = np.max(mjd_list)
@@ -58,8 +59,10 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
-        parser = super().get_parser(description='Coadd 1D spectra produced by PypeIt',
-                                    width=width, formatter=scriptbase.SmartFormatter)
+        parser = super().get_parser(
+            description='Coadd 1D spectra produced by PypeIt', width=width,
+            formatter=scriptbase.SmartFormatter, default_log_file=True
+        )
 
         parser.add_argument('coadd1d_file', type=str,
                             help="R|File to guide coadding process.\n\n"
@@ -140,18 +143,15 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
                             help="show QA during coadding process")
         parser.add_argument("--par_outfile", default='coadd1d.par',
                             help="Output to save the parameters")
-        parser.add_argument('-v', '--verbosity', type=int, default=1,
-                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
-                                 'Level 2 writes a log with filename coadd_1dspec_YYYYMMDD-HHMM.log')
-        #parser.add_argument("--test_spec_path", type=str, help="Path for testing")
         return parser
 
-    @staticmethod
-    def main(args):
-        """ Runs the 1d coadding steps
+    @classmethod
+    def main(cls, args):
         """
-        # Set the verbosity, and create a logfile if verbosity == 2
-        msgs.set_logfile_and_verbosity('coadd_1dspec', args.verbosity)
+        Runs the 1d coadding steps
+        """
+        # Initialize the log
+        cls.init_log(args)
 
         # Load the file
         #config_lines, spec1dfiles, objids = read_coaddfile(args.coadd1d_file)
@@ -171,7 +171,7 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
                                                  merge_with=(coadd1dFile.cfg_lines,))
         # Check that sensfunc column is populated if this is echelle
         if spectrograph.pypeline == 'Echelle' and coadd1dFile.sensfiles is None:
-            msgs.error("To coadd echelle spectra, the 'sensfile' column must present in your .coadd1d file")
+            raise PypeItError("To coadd echelle spectra, the 'sensfile' column must present in your .coadd1d file")
 
         # Write the par to disk
         print("Writing the parameters to {}".format(args.par_outfile))
@@ -201,7 +201,7 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
         coAdd1d.run()
         # Save to file
         coAdd1d.save(coaddfile)
-        msgs.info('Coadding complete')
+        log.info('Coadding complete')
 
 
 

@@ -89,6 +89,38 @@ This will:
     - Apply an offset to generate tilts and wavelengths for the associated
       science/standard images
 
+.. _flexure-spatial-manual:
+
+Manual correction
+-----------------
+
+If the automated cross-correlation fails for a given frame (or you simply
+know the offset better than the code does), you can supply the spatial
+flexure shift yourself via the ``shift`` column in the data block of your
+:doc:`../pypeit_file`.  Running :ref:`pypeit_setup` with the ``-f``
+(``--flexure``) option includes this column in the generated pypeit file:
+
+.. code-block:: console
+
+    pypeit_setup -r /path/to/raw -s shane_kast_blue -c A -f
+
+The column is blank by default, meaning no manual correction: the
+automatically computed value (if ``spat_flexure_correct = True``) is
+used.  Set the column to any number (in pixels, including ``0.0``) for
+a science or standard frame to override the automatic determination
+for that frame:
+
+.. code-block:: console
+
+    filename |                 frametype | ... | shift
+    b27.fits |                   science | ... |   2.5
+    b28.fits |                   science | ... |
+     b1.fits |                  arc,tilt | ... |
+
+Here, ``b27.fits`` is reduced with a fixed spatial flexure of 2.5 pixels,
+while frames with a blank ``shift`` entry (e.g. ``b28.fits``) use the
+default behavior.
+
 ----
 
 .. _flexure-spectral:
@@ -315,7 +347,7 @@ The file has the following two extensions:
 HDU Name               HDU Type                        Data Type  Description                                                                                                  
 =====================  ==============================  =========  ==========================================================================
 ``PRIMARY``            `astropy.io.fits.PrimaryHDU`_   ...        Empty data HDU.  Contains basic header information.                                                          
-``FLEXURE``            `astropy.io.fits.BinTableHDU`_  ...        All data from the :class:`~pypeit.core.flexure.MultiSlitFlexure` datamodel
+``FLEXURE``            `astropy.io.fits.BinTableHDU`_  ...        All data from the :class:`~pypeit.multislit_flexure.MultiSlitFlexure` datamodel
 =====================  ==============================  =========  ==========================================================================
 
 Inspecting

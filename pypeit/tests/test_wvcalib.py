@@ -16,6 +16,7 @@ from pypeit.tests.tstutils import data_output_path
 from pypeit.core.wavecal import waveio
 
 
+@pytest.mark.remote_data
 def test_load_template():
     # Test full read
     ret = waveio.load_template('gemini_gmos_r831_ham.fits', 1)
