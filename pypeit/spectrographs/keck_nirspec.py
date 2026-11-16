@@ -367,7 +367,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         self.lamps_list = par['calibrations']['wavelengths']['lamps']
         
         # wavelength calibration
-        supported_filters = ['NIRSPEC-1', 'Yband-new', 
+        supported_filters = ['NIRSPEC-1', 'Yband-new', 'HeI',
                              'Jband-new', 'NIRSPEC-3', 
                              'Hband-new', 'NIRSPEC-5', 
                              'NIRSPEC-7', 'Kband-new', 'KL']
@@ -420,7 +420,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['echelle_pad'] = 0
             par['calibrations']['wavelengths']['stretch_func'] = 'quadratic'
 
-        if self.filter2 == 'NIRSPEC-1' or self.filter2 == 'Yband-new':
+        if self.filter2 == 'NIRSPEC-1' or self.filter2 == 'Yband-new' or self.filter1 == 'HeI':
             par['calibrations']['wavelengths']['n_final'] = 3
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
             par['calibrations']['wavelengths']['cc_thresh'] = 0.5
@@ -497,7 +497,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         #msgs.info(lamps_list, 'Xe' in lamps_list[0])
         #msgs.info('filter1 = ', filter1)
         if 'Xe' in lamps_list[0]:
-            if band == 'NIRSPEC-1' or band == 'Yband-new':
+            if band == 'NIRSPEC-1' or band == 'Yband-new' or band == 'HeI':
                 angle_fits_file = 'keck_nirspec_y_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_y_composite_arc.fits'
             if band == 'NIRSPEC-3' or band == 'Jband-new':
@@ -517,7 +517,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
                 composite_arc_file = 'keck_nirspec_l_composite_arc.fits'
         elif 'OH' in lamps_list[0]:
             msgs.info('Using OH Lines')
-            if band == 'NIRSPEC-1' or band == 'Yband-new':
+            if band == 'NIRSPEC-1' or band == 'Yband-new' or band == 'HeI':
                 angle_fits_file = 'keck_nirspec_y_OH_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_y_composite_OH.fits'
             if band == 'NIRSPEC-3' or band == 'Jband-new':
