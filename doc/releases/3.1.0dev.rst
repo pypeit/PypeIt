@@ -1,0 +1,90 @@
+
+Version 3.1.0dev
+================
+
+Breaking Changes
+----------------
+
+- placeholder
+
+
+Documentation Updates
+---------------------
+
+- Added a :ref:`spectrograph page <jwst_nirspec>` for JWST/NIRSpec, describing
+  the preprocessing with the JWST pipeline and the reduction workflow.
+
+
+Dependency Changes
+------------------
+
+- ``stdatamodels`` is added to the ``jwst`` optional dependencies.  It is
+  needed to compute the platescale of each JWST/NIRSpec slit and the position
+  of the source in the slit from the GWCS in the JWST ``_cal.fits`` files;
+  without it, PypeIt falls back to the nominal NIRSpec platescale and to the
+  dither offsets from the ``YOFFSET`` header keyword.
+
+
+Functionality/Performance Improvements and Additions
+----------------------------------------------------
+
+- ``pypeit_coadd_2dspec`` now supports exposures with different spatial
+  platescales (e.g., JWST/NIRSpec slits).  The offsets of each exposure are
+  computed in pixels of that exposure: the dither offsets recorded in the
+  headers (``offsets = header``) are converted to pixels using the platescale
+  of each exposure, instead of that of the first exposure, and the offsets
+  from the brightest object (``offsets = auto``) and from the slitmask design
+  (``offsets = maskdef_offsets``) account for the platescale ratios.  The
+  spatial positions of each exposure are rescaled to pixels of the first
+  exposure when building the coadded image (see the new ``spat_scale``
+  argument of :func:`~pypeit.core.coadd.compute_coadd2d`), and the offsets
+  summary reports the arcsec offsets using the platescale of each exposure.
+  Nothing changes when all the exposures have the same platescale.
+
+
+Instrument-specific Updates
+---------------------------
+
+- JWST/NIRSpec: the along-slit platescale of each slit is now computed from
+  the slit GWCS stored in the JWST ``_cal.fits`` files and used for that slit,
+  both in the calibration and in the science products (e.g., by object finding
+  and by ``pypeit_coadd_2dspec`` when using the header dither offsets).  This
+  requires the ``stdatamodels`` package; if it is not installed, PypeIt issues
+  a warning and uses the nominal platescale.  See :ref:`jwst_nirspec`.
+- JWST/NIRSpec: the nominal platescale is updated from 0.1 to 0.105
+  arcsec/pixel (along the slit; Jakobsen et al. 2022) and the gap between the
+  NRS1 and NRS2 detectors from 180 to 146 pixels (CRDS FPA reference file).
+- JWST/NIRSpec: the sign of the dither offset (``dithoff``) read from the
+  ``YOFFSET`` header keyword is flipped to match the PypeIt convention, so that
+  ``pypeit_coadd_2dspec`` with ``offsets = header`` shifts the frames in the
+  correct direction.  In addition, the dither offset written to the spec2d and
+  spec1d files is now measured, for each slit, from the position of the source
+  relative to the center of the slit (using the slit GWCS), instead of from the
+  reference point of the aperture.  This allows to coadd with ``offsets =
+  header`` MSA exposures taken in different visits.  Spec2d files reduced
+  before this change must be re-reduced.  See :ref:`jwst_nirspec`.
+
+
+Script Changes
+--------------
+
+- placeholder
+
+
+Testing
+-------
+
+- placeholder
+
+
+Under-the-hood Improvements
+---------------------------
+
+- placeholder
+
+
+Bug Fixes
+---------
+
+- placeholder
+
