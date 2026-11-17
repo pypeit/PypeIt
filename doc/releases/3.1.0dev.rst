@@ -86,12 +86,11 @@ Script Changes
   so problems are reported immediately, in the terminal.
 - The Setup GUI now shows raw files with ``pypeit_view_fits``, in a single
   separate window.
-- ``pypeit_qlview`` now runs the quicklook viewer in a separate process that
-  uses PypeIt's in-process ginga viewer (no remote-control connection), and
-  returns immediately.  Added the ``--no_clear`` option, which opens the
-  viewer in an already open PypeIt viewer, and the ``--foreground`` option,
-  which runs the viewer in the same process and returns when its window is
-  closed.
+- ``pypeit_qlview`` no longer uses a remote-control connection to ``ginga``.
+  If a PypeIt viewer window is already open (e.g., opened by a previous
+  ``pypeit_qlview`` or by ``pypeit_show_2dspec``), the quicklook viewer is
+  opened in that window; otherwise, a new window is opened in a separate
+  process.  In either case, the script returns immediately.
 
 
 Testing

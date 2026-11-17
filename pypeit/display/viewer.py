@@ -784,6 +784,10 @@ class PypeItViewer(GingaShellViewer):
             return True
         _port = get_port() if port is None else port
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # NOTE: Allow binding to the port as soon as a previous viewer has
+        # closed it (i.e., while the closed connection is in the TIME_WAIT
+        # state).  This does not allow two viewers to listen on the same port.
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             server.bind(('127.0.0.1', _port))
         except OSError:

@@ -6,8 +6,9 @@ file browser, slit-overlay renderer, and one-click quicklook reduction
 interface.  Configuration (initial raw/reduced paths, instrument,
 reduction backend, etc.) is read from ``~/.pypeit/quicklook.cfg`` at startup.
 
-By default, the viewer runs in a separate (background) process, and the script
-returns immediately.
+If a PypeIt viewer is already open, the plugin is opened in that viewer;
+otherwise, a new viewer is opened in a separate (background) process.  In
+either case, the script returns immediately.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
@@ -21,19 +22,13 @@ class QLViewer(scriptbase.ScriptBase):
     @classmethod
     def get_parser(cls, width=None):
         parser = super().get_parser(
-            description='Launch the PypeIt quicklook viewer (QLView) in Ginga.  By default, '
-                        'the viewer runs in a separate process and this script returns '
-                        'immediately.',
+            description='Launch the PypeIt quicklook viewer (QLView) in Ginga.  If a PypeIt '
+                        'viewer is already open (e.g., from a previous call to this script, or '
+                        'to pypeit_show_2dspec, pypeit_view_fits, or pypeit_show_1dspec), the '
+                        'plugin is opened in that viewer; otherwise, a new viewer is opened.  '
+                        'In either case, the script returns immediately.',
             width=width,
         )
-        parser.add_argument('--no_clear', default=False, action='store_true',
-                            help='If a PypeIt viewer is already open (e.g., from a previous call '
-                                 'to this script, or to pypeit_show_2dspec, pypeit_view_fits, '
-                                 'or pypeit_show_1dspec), open QLView in that viewer and return '
-                                 'immediately.')
-        parser.add_argument('--foreground', default=False, action='store_true',
-                            help='Run the viewer in this process; the script returns when the '
-                                 'viewer window is closed.')
         return parser
 
     @classmethod
@@ -48,28 +43,31 @@ class QLViewer(scriptbase.ScriptBase):
         cls.init_log(args)
 
         # Open QLView in an already open viewer?
-        if args.no_clear:
-            if viewer.send_command('qlview'):
-                log.info('Opened QLView in the open PypeIt viewer.')
-                return
-            log.info('No open PypeIt viewer found; opening a new one.')
-
-        if not args.foreground:
-            # Run the viewer in a separate process, which keeps running after
-            # this script returns.
-            subprocess.Popen([sys.executable, '-c',
-                              'from pypeit.scripts.qlview import QLViewer; '
-                              'QLViewer.entry_point()', '--foreground'],
-                             start_new_session=True)
-            log.info('Started the PypeIt quicklook viewer in a separate process.')
+        if viewer.send_command('qlview'):
+            log.info('Opened QLView in the open PypeIt viewer.')
             return
 
+        # Otherwise, open a new viewer in a separate process, which keeps
+        # running after this script returns.
+        subprocess.Popen([sys.executable, '-c',
+                          'from pypeit.scripts.qlview import QLViewer; QLViewer.run_viewer()'],
+                         start_new_session=True)
+        log.info('Started the PypeIt quicklook viewer in a separate process.')
+
+    @staticmethod
+    def run_viewer():
+        """
+        Open the viewer with QLView in this process and wait for the user to
+        close its window.
+
+        This is run by :meth:`main` in a separate process.
+        """
+        from pypeit.display import viewer
         from pypeit.display.display import launch_qlview
 
         v = viewer.get_viewer()
-        # Allow other PypeIt scripts (with --no_clear) to use this viewer
+        # Allow later calls to this script (and other PypeIt scripts) to use
+        # this viewer
         v.listen()
         launch_qlview(v)
-
-        # Wait for the user to close the window
         v.show(message='close the window to exit')

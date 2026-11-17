@@ -204,15 +204,12 @@ The following describes a typical workflow for using the GUI.
 Launching the Viewer
 ====================
 
-The viewer is launched with ``pypeit_qlview``.  It opens a new window, which runs
-in a separate process, and returns to the command prompt immediately; the
-viewer exits when its window is closed (see :ref:`pypeit_ginga_viewer`).
-
-To open the plugin in a PypeIt viewer that is already open (e.g., one started
-by a previous ``pypeit_qlview``, or by ``pypeit_show_2dspec``), use
-``pypeit_qlview --no_clear``.  To run the viewer in the same process, use
-``pypeit_qlview --foreground``; the command then returns when the window is
-closed.
+The viewer can be launched with ``pypeit_qlview``.  If a PypeIt viewer window is
+already open (e.g., one opened by a previous ``pypeit_qlview``, or by
+``pypeit_show_2dspec``, ``pypeit_view_fits``, or ``pypeit_show_1dspec``), the
+plugin is opened in that window; otherwise, a new window is opened (see
+:ref:`pypeit_ginga_viewer`).  In either case, the command returns to the prompt
+immediately; the viewer exits when its window is closed.
 
 .. _qlview-config:
 
