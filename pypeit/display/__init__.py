@@ -7,7 +7,7 @@ import numpy
 
 from ginga.misc.Bunch import Bunch
 
-required_plugins = ['Spec1dView', 'Spec2dView']
+required_plugins = ['Spec1dView', 'Spec2dView', 'QLView']
 
 def plugins_available(return_report=False):
     available_plugins = []
@@ -38,7 +38,7 @@ def pypeit_plugin_specs():
     :obj:`list`
         List of ``ginga.misc.Bunch.Bunch`` plugin specifications.
     """
-    return [setup_Spec1dView(), setup_Spec2dView()]
+    return [setup_Spec1dView(), setup_Spec2dView(), setup_QLView()]
 
 def setup_Spec1dView():
     return Bunch(path=os.path.join(os.path.split(__file__)[0], 'spec1dview.py'),
@@ -51,3 +51,8 @@ def setup_Spec2dView():
                  name='Spec2dView', module='spec2dview', klass='Spec2dView',
                  ptype='global', workspace='right', start=False,
                  category='PypeIt', menu='Spec2dView', tab='Spec2dView')
+
+def setup_QLView():
+    return Bunch(module='pypeit.display.qlview.qlview', klass='QLView',
+                 ptype='local', workspace='right', start=False,
+                 category='PypeIt', menu='QLView', tab='QLView')

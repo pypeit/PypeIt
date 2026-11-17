@@ -75,6 +75,10 @@ class Spec2DDisplay:
         PypeIt name of the spectrograph, if available.
     waveimg : `numpy.ndarray`_
         Wavelength image, if available.
+    rms_img : `numpy.ndarray`_
+        Image with the RMS of the wavelength solution of the slit that each
+        pixel falls in (see :func:`wave_rms_image`), shown with the wavelength
+        in the cursor readout.  None if not requested or not available.
     channels : :obj:`list`
         :class:`ChannelImage` objects for each channel to show.  Other
         channels can be constructed using :meth:`make_channel`.
@@ -115,6 +119,7 @@ class Spec2DDisplay:
     detnames: list
     pyp_spec: str = None
     waveimg: np.ndarray = None
+    rms_img: np.ndarray = None
     channels: list = field(default_factory=list)
     left: np.ndarray = None
     right: np.ndarray = None
@@ -201,6 +206,48 @@ class Spec2DDisplay:
             return ChannelImage(name=name, image=image, cuts=(-5.0, 5.0),
                                 show_traces=not self.removetrace, key=key)
         return None
+
+
+def wave_rms_image(slits, wavesol, flexure=None):
+    """
+    Construct an image with the RMS of the wavelength solution of each slit.
+
+    Each wavelength solution has a single RMS, measured in pixels, so every
+    pixel in a given slit (or echelle order) is assigned the same value.
+
+    Parameters
+    ----------
+    slits : :class:`~pypeit.slittrace.SlitTraceSet`
+        Slit traces used to associate each pixel with a slit.
+    wavesol : `astropy.table.Table`_
+        Wavelength-calibration diagnostics table, as constructed by
+        :func:`~pypeit.wavecalib.WaveCalib.wave_diagnostics`.  Can be None.
+    flexure : :obj:`float`, optional
+        Spatial flexure shift, in pixels, applied to the slit edges.
+
+    Returns
+    -------
+    `numpy.ndarray`_
+        Image with the RMS, in pixels, of the wavelength solution for the slit
+        that each pixel falls in.  Pixels that are not in an unmasked slit, or
+        that are in a slit without a wavelength solution, are set to 0.  None is
+        returned if the diagnostics table is unavailable.
+    """
+    if wavesol is None or any(c not in wavesol.colnames for c in ['SpatOrderID', 'RMS']):
+        return None
+
+    # RMS for each slit, matched by spatial/order ID; 0 means no solution
+    wave_id = np.asarray(wavesol['SpatOrderID'])
+    wave_rms = np.asarray(wavesol['RMS'], dtype=float)
+    slit_rms = np.zeros(slits.nslits, dtype=float)
+    for i, slitord_id in enumerate(slits.slitord_id):
+        indx = np.where(wave_id == slitord_id)[0]
+        if indx.size > 0:
+            slit_rms[i] = wave_rms[indx[0]]
+
+    # Pixels outside of all (unmasked) slits have an index of -1
+    slitidx_img = slits.slit_img(flexure=flexure, use_spatial=False)
+    return np.where(slitidx_img >= 0, slit_rms[slitidx_img], 0.)
 
 
 def get_detnames(file):
@@ -381,7 +428,7 @@ def _read_old_datamodel(file, detname):
 
 def load_spec2d_display(file, det=None, channels=None, prefix='', showmask=None,
                         removetrace=False, ignore_extract_mask=False, spat_id=None,
-                        maskID=None, try_old=False):
+                        maskID=None, try_old=False, show_wave_rms=False):
     """
     Read a spec2d file and construct what is needed to display one detector.
 
@@ -412,6 +459,10 @@ def load_spec2d_display(file, det=None, channels=None, prefix='', showmask=None,
         Only show the slit with this slit-mask ID.
     try_old : :obj:`bool`, optional
         Attempt to read files written with an older datamodel.
+    show_wave_rms : :obj:`bool`, optional
+        Construct the image with the RMS of the wavelength solution of each
+        slit (see :func:`wave_rms_image`), shown with the wavelength in the
+        cursor readout.
 
     Returns
     -------
@@ -445,6 +496,10 @@ def load_spec2d_display(file, det=None, channels=None, prefix='', showmask=None,
         sciimg, skymodel, objmodel, ivarmodel, img_gpm, model_gpm, bpmmask, waveimg, slits \
                 = _read_old_datamodel(_file, detname)
         slit_left, slit_right, slit_mask, slit_spat_id, slit_mask_id, slit_slid_IDs = slits
+        rms_img = None
+        if show_wave_rms:
+            log.warning('Cannot show the wavelength RMS when the spec2d file cannot be '
+                        'parsed directly.')
         # Ignore any spec1d file
     else:
         # Use the parsed SpecObjs object
@@ -454,6 +509,14 @@ def load_spec2d_display(file, det=None, channels=None, prefix='', showmask=None,
         ivarmodel = spec2DObj.ivarmodel
         bpmmask = spec2DObj.bpmmask
         waveimg = spec2DObj.waveimg
+        # RMS of the wavelength solution in each slit, shown with the wavelength
+        rms_img = None
+        if show_wave_rms and waveimg is not None:
+            rms_img = wave_rms_image(spec2DObj.slits, spec2DObj.wavesol,
+                                     flexure=spec2DObj.sci_spat_flexure)
+            if rms_img is None:
+                log.warning(f'{_file} does not include the wavelength-calibration '
+                            'diagnostics; cannot show the wavelength RMS.')
 
         img_gpm = spec2DObj.select_flag(invert=True)
         if not np.any(img_gpm):
@@ -481,7 +544,8 @@ def load_spec2d_display(file, det=None, channels=None, prefix='', showmask=None,
             spec1d_file = None
 
     out = Spec2DDisplay(file=_file, detname=detname, detnames=detnames, pyp_spec=pyp_spec,
-                        waveimg=waveimg, prefix=prefix, removetrace=removetrace,
+                        waveimg=waveimg, rms_img=rms_img, prefix=prefix,
+                        removetrace=removetrace,
                         showmask=showmask, sciimg=sciimg, skymodel=skymodel,
                         objmodel=objmodel, ivarmodel=ivarmodel, img_gpm=img_gpm,
                         model_gpm=model_gpm, bpmmask=bpmmask)

@@ -31,7 +31,8 @@ from pypeit.display.viewer import get_viewer, show
 TAG_PREFIX = 'pypeit'
 
 
-def connect_to_ginga(host=None, port=None, raise_err=False, allow_new=False):
+def connect_to_ginga(host=None, port=None, raise_err=False, allow_new=False,
+                     disable_plugins=None):
     """
     Return the PypeIt ginga viewer.
 
@@ -70,8 +71,8 @@ def _clear_channel(ch, tagpfx=TAG_PREFIX):
         canvas.delete_objects_by_tag(tags, redraw=True)
 
 
-def show_image(inp, chname='Image', waveimg=None, mask=None, exten=0, cuts=None, clear=False,
-               wcs_match=False, viewer=None):
+def show_image(inp, chname='Image', waveimg=None, rms_img=None, mask=None, exten=0, cuts=None,
+               clear=False, wcs_match=False, viewer=None):
     """
     Display an image using Ginga.
 
@@ -86,7 +87,15 @@ def show_image(inp, chname='Image', waveimg=None, mask=None, exten=0, cuts=None,
         chname (:obj:`str`, optional):
             The name of the ginga channel to use.
         waveimg (:obj:`numpy.ndarray`, optional):
-            Wavelength image
+            Wavelength image.
+        rms_img (:obj:`numpy.ndarray`, optional):
+            Per-pixel image of the wavelength-fit RMS, with the same shape as
+            *waveimg*.  Each slit has a single RMS, so every pixel within a
+            given slit holds the same value.  When provided the DEC readout
+            in the ginga info bar is overloaded to show the wavelength-solution
+            RMS of the slit under the cursor.  Pixels outside all slits should
+            be zero or ``nan``; those values are suppressed in the display.
+            Ignored when *waveimg* is ``None``.
         mask (:class:`~pypeit.images.ImageBitMaskArray`, optional):
             A bitmask array that designates a pixel as being masked.  Currently
             this is only used when displaying the spectral extraction result.
@@ -135,7 +144,7 @@ def show_image(inp, chname='Image', waveimg=None, mask=None, exten=0, cuts=None,
     # is done when the viewer is created.
     from pypeit.display.slitwavelength import SlitImage
     ch = viewer.channel(chname)
-    image = SlitImage(wav_np=waveimg, logger=viewer.shell.logger)
+    image = SlitImage(wav_np=waveimg, rms_np=rms_img, logger=viewer.shell.logger)
     image.load_data(img)
     image.set(name=chname, path=None)
     # These commands set up the viewer. They can be found at
@@ -733,4 +742,40 @@ def show_1dspec(filename, ext=0, masked=True, fluxed=False, extraction='OPT', ch
     # load the file
     shell.load_file(str(filename), chname=chname, wait=False)
     shell.change_channel(chname)
+    viewer.pending = True
+
+
+def launch_qlview(viewer=None):
+    """
+    Open the PypeIt quicklook viewer (QLView) in the PypeIt ginga viewer.
+
+    Opens the QLView local plugin on a dedicated ``"QuickLook"`` channel.
+    QLView is self-contained: it provides its own raw-data and
+    calibration file browsers and drives the ``pypeit_ql`` reduction
+    pipeline from within the viewer.  If QLView is already open in the
+    viewer, its channel is brought to the front.
+
+    Configuration (initial paths, instrument, reduction backend, file
+    filters, etc.) is read from ``~/.pypeit/quicklook.cfg`` at plugin start-up.
+    See ``pypeit_qlview --help`` and the QLView plugin documentation for
+    details.
+
+    This function does not wait for the user; call :func:`show` to do so.
+
+    Parameters
+    ----------
+    viewer : :class:`~pypeit.display.viewer.GingaShellViewer`, optional
+        Viewer to use.  If None, use PypeIt's in-process viewer (see
+        :func:`~pypeit.display.viewer.get_viewer`).
+    """
+    if viewer is None:
+        viewer = get_viewer()
+    shell = viewer.shell
+
+    chname, plname = "QuickLook", "QLView"
+    channel = viewer.channel(chname)
+    if not channel.opmon.is_active(plname):
+        shell.start_local_plugin(chname, plname)
+    shell.change_channel(chname)
+    viewer._update(0.2)
     viewer.pending = True

@@ -57,7 +57,9 @@ class FlatImages(calibframe.CalibFrame):
     .. include:: ../include/class_datamodel_flatimages.rst
 
     """
-    version = '1.1.2'
+    # NOTE: Bumped to 1.2.0 when the nested spatial B-spline models changed
+    # from pypeit.bspline.bspline.bspline to BSplineContainer.
+    version = '1.2.0'
 
     # Calibration frame attributes
     calib_type = 'Flat'

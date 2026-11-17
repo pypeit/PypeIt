@@ -236,8 +236,10 @@ def _builtin_command(name):
         Command name: ``'spec2d'`` (show a spec2d file; see
         :meth:`~pypeit.display.spec2dview.Spec2dView.load_spec2d`),
         ``'spec1d'`` (show a 1D spectrum; see
-        :func:`~pypeit.display.display.show_1dspec`), or ``'view_fits'``
-        (show an image; see :meth:`~pypeit.scripts.view_fits.ViewFits.show`).
+        :func:`~pypeit.display.display.show_1dspec`), ``'view_fits'``
+        (show an image; see :meth:`~pypeit.scripts.view_fits.ViewFits.show`),
+        or ``'qlview'`` (open the quicklook viewer; see
+        :func:`~pypeit.display.display.launch_qlview`).
 
     Returns
     -------
@@ -252,6 +254,9 @@ def _builtin_command(name):
     if name == 'view_fits':
         from pypeit.scripts.view_fits import ViewFits
         return lambda **kwargs: ViewFits.show(argparse.Namespace(**kwargs))
+    if name == 'qlview':
+        from pypeit.display.display import launch_qlview
+        return lambda **kwargs: launch_qlview(get_viewer())
     return None
 
 
@@ -560,8 +565,8 @@ class PypeItViewer(GingaShellViewer):
         basedir.mkdir(parents=True, exist_ok=True)
         self.rv = _ReferenceViewer(layout=default_layout, plugins=plugins, appname='ginga',
                                    basedir=str(basedir), channels=[])
-        # The remote-control and SAMP plugins are not needed
-        self.rv.add_default_plugins(except_global=['RC', 'SAMP'])
+        # The remote-control, SAMP, and Catalogs plugins are not needed
+        self.rv.add_default_plugins(except_global=['RC', 'SAMP'], except_local=['Catalogs'])
         for spec in pypeit_plugin_specs():
             self.rv.add_plugin_spec(spec)
         parser = argparse.ArgumentParser()

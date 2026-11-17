@@ -53,6 +53,10 @@ class Show2DSpec(scriptbase.ScriptBase):
                             help='Upon completion embed in ipython shell')
         parser.add_argument('--ignore_extract_mask', default=False, action='store_true',
                             help='Ignore the extraction mask')
+        parser.add_argument('--show_wave_rms', default=False, action='store_true',
+                            help='Show the RMS (in pixels) of the wavelength solution for the '
+                                 'slit under the cursor in the ginga readout. Use of this option '
+                                 'on many-slit frames may take a long time')
 #        parser.add_argument('--sensfunc', type=str, default=None,
 #                            help='Pass in a sensfunc to display the sky-subtracted image with a '
 #                                 'flux calibration')
@@ -97,7 +101,8 @@ class Show2DSpec(scriptbase.ScriptBase):
         kwargs = dict(file=str(Path(args.file).absolute()), det=args.det, channels=show_channels,
                       prefix=args.prefix, showmask=args.showmask, removetrace=args.removetrace,
                       ignore_extract_mask=args.ignore_extract_mask, spat_id=args.spat_id,
-                      maskID=args.maskID, try_old=args.try_old)
+                      maskID=args.maskID, try_old=args.try_old,
+                      show_wave_rms=args.show_wave_rms)
 
         # Read the file before opening the viewer, so that any problem (e.g., an
         # incompatible datamodel version) is reported immediately.

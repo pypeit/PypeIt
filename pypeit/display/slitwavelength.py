@@ -32,14 +32,21 @@ class SlitImage(AstroImage):
 
     Parameters
     ----------
-    wav_np : `numpy.ndarray`_
-        Wavelength map image
+    wav_np : `numpy.ndarray`_, optional
+        Wavelength map image.
+    rms_np : `numpy.ndarray`_, optional
+        Per-pixel image of the wavelength-fit RMS.  Each slit has a single
+        RMS, so every pixel within a given slit holds the same value.  Must
+        have the same shape as *wav_np* when provided.  Pixels outside all
+        slits should be 0 or ``nan``; those values are suppressed in the
+        readout.
     **kwargs:
         Keyword arguments for `AstroImage`_
     """
-    def __init__(self, wav_np=None, **kwargs):
+    def __init__(self, wav_np=None, rms_np=None, **kwargs):
         super(SlitImage, self).__init__(**kwargs)
         self.wav_np = wav_np
+        self.rms_np = rms_np
 
     def info_xy(self, data_x, data_y, settings):
         """
@@ -73,12 +80,22 @@ class SlitImage(AstroImage):
         # Convert wavelength value to a string. Return an empty
         # string if the provided coordinate is off the image
         _ht, _wd = self.wav_np.shape
-        wav_s = '{:<14.6g}'.format(self.wav_np[_d_y, _d_x]) \
-                    if 0 <= _d_y < _ht and 0 <= _d_x < _wd else ''
+        in_bounds = 0 <= _d_y < _ht and 0 <= _d_x < _wd
+        wav_s = '{:<14.6g}'.format(self.wav_np[_d_y, _d_x]) if in_bounds else ''
+
+        # Build the RMS readout when an RMS image has been supplied and the
+        # cursor is inside a slit (rms value > 0 and finite).
+        rms_lbl = ''
+        rms_s = ''
+        if self.rms_np is not None and in_bounds:
+            rms_val = self.rms_np[_d_y, _d_x]
+            if np.isfinite(rms_val) and rms_val > 0:
+                rms_lbl = 'RMS'
+                rms_s = '{:<10.4g}'.format(rms_val)
 
         # TODO: Not sure we need this try/except block
         try:
-            info.update(dict(ra_lbl="\u03bb", ra_txt=wav_s, dec_lbl='', dec_txt=''))
+            info.update(dict(ra_lbl="\u03bb", ra_txt=wav_s, dec_lbl=rms_lbl, dec_txt=rms_s))
         except Exception as e:
             self.logger.error('Error including wavelength value: {0}'.format(e), exc_info=True)
         return info

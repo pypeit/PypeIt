@@ -73,7 +73,8 @@ class Spec2dView(GingaPlugin.GlobalPlugin):
         self.shown = {}
         self.params = dict(file=None, det=None, channels=None, prefix='', showmask=None,
                            removetrace=False, ignore_extract_mask=False, spat_id=None,
-                           maskID=None, try_old=False, show_slits=True, show_traces=True)
+                           maskID=None, try_old=False, show_wave_rms=False, show_slits=True,
+                           show_traces=True)
         fv.add_callback('delete-channel', self.delete_channel_cb)
 
     def build_gui(self, container):
@@ -152,7 +153,8 @@ class Spec2dView(GingaPlugin.GlobalPlugin):
 
     def load_spec2d(self, file, det=None, channels=None, prefix='', showmask=None,
                     removetrace=False, ignore_extract_mask=False, spat_id=None, maskID=None,
-                    try_old=False, show_slits=True, show_traces=True, clear=True, data=None):
+                    try_old=False, show_wave_rms=False, show_slits=True, show_traces=True,
+                    clear=True, data=None):
         """
         Show a spec2d file.
 
@@ -179,8 +181,8 @@ class Spec2dView(GingaPlugin.GlobalPlugin):
         self.params = dict(file=str(Path(file).absolute()), det=det, channels=channels,
                            prefix=prefix, showmask=showmask, removetrace=removetrace,
                            ignore_extract_mask=ignore_extract_mask, spat_id=spat_id,
-                           maskID=maskID, try_old=try_old, show_slits=show_slits,
-                           show_traces=show_traces)
+                           maskID=maskID, try_old=try_old, show_wave_rms=show_wave_rms,
+                           show_slits=show_slits, show_traces=show_traces)
         self.shown = {}
         self.reload_file(clear=clear, data=data)
 
@@ -251,7 +253,7 @@ class Spec2dView(GingaPlugin.GlobalPlugin):
         # Only redraw the channel once everything has been added
         with ch.fitsimage.suppress_redraw:
             display.show_image(chan.image, chname=chan.name, waveimg=self.data.waveimg,
-                               cuts=chan.cuts, viewer=viewer)
+                               rms_img=self.data.rms_img, cuts=chan.cuts, viewer=viewer)
             for which in OVERLAY_TAGS.keys():
                 if self.params[f'show_{which}']:
                     self._add_overlay(viewer, ch, chan, which)
