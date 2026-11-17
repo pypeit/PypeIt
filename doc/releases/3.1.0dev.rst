@@ -86,6 +86,9 @@ Script Changes
   so problems are reported immediately, in the terminal.
 - The Setup GUI now shows raw files with ``pypeit_view_fits``, in a single
   separate window.
+- The ``Spec1dView`` panel of ``pypeit_show_1dspec`` has new "Previous" and
+  "Next" arrows to step through the spectra in the file; pressing 'p' and 'n'
+  with the cursor on the plot does the same.
 - ``pypeit_qlview`` no longer uses a remote-control connection to ``ginga``.
   If a PypeIt viewer window is already open (e.g., opened by a previous
   ``pypeit_qlview`` or by ``pypeit_show_2dspec``), the quicklook viewer is

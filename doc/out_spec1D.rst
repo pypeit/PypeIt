@@ -138,6 +138,11 @@ Showing a file that is already shown (e.g., to look at a different object with
     file is typically written to the ``VERSPYP`` header keyword) or re-reduce
     the data with the new PypeIt version.
 
+To step through the spectra (extensions) in the file, use the "Previous" and
+"Next" arrows below the "File" section of the ``Spec1dView`` panel, or press 'p'
+and 'n' with the cursor on the plot.  You can also select a spectrum by name
+from the "Extension" list.
+
 .. _pypeit_show_1dspec_interact:
 
 Interacting with the display
@@ -218,6 +223,11 @@ Smoothing
 * s : smooth more
 * a : smooth less
 * A (shift + a) : no smoothing
+
+Spectra
++++++++
+* n : show the next spectrum (extension) in the file
+* p : show the previous spectrum (extension) in the file
 
 Help
 ++++

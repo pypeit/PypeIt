@@ -330,7 +330,9 @@ def test_spec1d_key_bindings_documented():
                                      ('kp_no_smooth', 'A', '* A (shift + a) :'),
                                      ('kp_cut_x_range', 'singlequote', '* singlequote :'),
                                      ('kp_fitting', 'f', '* f :'),
-                                     ('kp_clear_marks', 'c', '* c :')]:
+                                     ('kp_clear_marks', 'c', '* c :'),
+                                     ('kp_next_spec', 'n', '* n :'),
+                                     ('kp_prev_spec', 'p', '* p :')]:
         assert f'spec1d+{key}' in actions[action], action
         assert description in text, description
 

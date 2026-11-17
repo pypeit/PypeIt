@@ -85,6 +85,11 @@ class Spec1DMode(Plot2DMode):
     * a : smooth less
     * A (shift + a) : no smoothing
 
+    Spectra
+    -------
+    * n : show the next spectrum (extension) in the file
+    * p : show the previous spectrum (extension) in the file
+
     Help
     ----
     * h : show this list of key bindings
@@ -150,6 +155,8 @@ class Spec1DMode(Plot2DMode):
 
             kp_cut_x_range=['spec1d+singlequote'],
             kp_help=['spec1d+h'],
+            kp_next_spec=['spec1d+n'],
+            kp_prev_spec=['spec1d+p'],
 
             kp_mark_left=['spec1d+['],
             kp_mark_right=['spec1d+]'],
@@ -211,6 +218,18 @@ class Spec1DMode(Plot2DMode):
         event.accept()
         plugin = self.get_plugin()
         plugin.cut_x_range('mark')
+
+    def kp_next_spec(self, viewer, event, data_x, data_y):
+        event.accept()
+
+        plugin = self.get_plugin()
+        plugin.step_exten(1)
+
+    def kp_prev_spec(self, viewer, event, data_x, data_y):
+        event.accept()
+
+        plugin = self.get_plugin()
+        plugin.step_exten(-1)
 
     def kp_help(self, viewer, event, data_x, data_y):
         event.accept()

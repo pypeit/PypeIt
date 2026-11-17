@@ -212,6 +212,25 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         fr.set_widget(w)
         vbox.add_widget(fr, stretch=0)
 
+        # Arrows to step through the spectra (extensions) in the file
+        hbox = Widgets.HBox()
+        hbox.set_spacing(3)
+        btn = Widgets.Button("\u25c0 Previous")
+        btn.set_tooltip("Show the previous spectrum in the file (or press 'p' with the "
+                        "cursor on the plot)")
+        btn.add_callback('activated', lambda w: self.step_exten(-1))
+        btn.set_enabled(False)
+        hbox.add_widget(btn, stretch=1)
+        self.w.prev_exten = btn
+        btn = Widgets.Button("Next \u25b6")
+        btn.set_tooltip("Show the next spectrum in the file (or press 'n' with the cursor "
+                        "on the plot)")
+        btn.add_callback('activated', lambda w: self.step_exten(1))
+        btn.set_enabled(False)
+        hbox.add_widget(btn, stretch=1)
+        self.w.next_exten = btn
+        vbox.add_widget(hbox, stretch=0)
+
         fr = Widgets.Frame("Lines")
 
         captions = (("Z:", 'label', 'redshift', 'entryset'),
@@ -651,6 +670,7 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         self.w.exten.set_enabled(self.num_exten > 1)
         self.exten = min(self.start_ext, self.num_exten - 1)
         self.w.exten.set_index(self.exten)
+        self._update_exten_arrows()
 
         # create a new plotable to contain the plot
         self.plot = Plotable(logger=self.logger)
@@ -835,9 +855,33 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         Try to process the new extension.
         """
         self.exten = val
+        self._update_exten_arrows()
         self.recalc()
 
         self.autozoom_plot()
+
+    def step_exten(self, step):
+        """
+        Show a different spectrum (extension) in the file.
+
+        Args:
+            step (:obj:`int`):
+                Number of extensions to move by: 1 for the next spectrum, -1
+                for the previous one.  Nothing is done if the new extension
+                would be outside the file.
+        """
+        if not self.gui_up:
+            return
+        new = self.exten + step
+        if new < 0 or new >= self.num_exten:
+            return
+        self.w.exten.set_index(new)
+        self.set_exten_cb(self.w.exten, new)
+
+    def _update_exten_arrows(self):
+        """Enable the previous/next arrows only if there is a spectrum to move to."""
+        self.w.prev_exten.set_enabled(self.exten > 0)
+        self.w.next_exten.set_enabled(self.exten < self.num_exten - 1)
 
     def plot_error_cb(self, w, val):
         """Callback for toggling the "Plot Error" checkbox in the UI.
