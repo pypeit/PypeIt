@@ -550,6 +550,15 @@ class PypeItViewer(GingaShellViewer):
                 self.settings.set(http_server=False)
                 return super().setup()
 
+            def process_args(self, args):
+                # Never show ginga's splash (banner) dialog, which the user
+                # must close before using the viewer.
+                # NOTE: ginga (at least up to 7.6.0) sets showBanner to the
+                # value of its --nosplash option, i.e., --nosplash *shows*
+                # the banner.  Set it here, after the options are applied.
+                self.settings.set(showBanner=False)
+                return super().process_args(args)
+
             def run(self):
                 # Do not enter ginga's own (blocking) event loop or call
                 # sys.exit when it ends; PypeIt drives the loop in show().
@@ -572,7 +581,7 @@ class PypeItViewer(GingaShellViewer):
         parser = argparse.ArgumentParser()
         self.rv.add_default_options(parser)
         with _reuse_qapplication():
-            self.rv.main(parser.parse_args(['--nosplash', f'--basedir={basedir}']), [])
+            self.rv.main(parser.parse_args([f'--basedir={basedir}']), [])
 
         super().__init__(self.rv.ginga_shell)
         self._set_title()
