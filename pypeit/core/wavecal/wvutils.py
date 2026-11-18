@@ -5,16 +5,16 @@
 .. include:: ../include/links.rst
 
 """
-import numpy as np
 import os
-
-from matplotlib import pyplot as plt
-
-import scipy
 
 from astropy.table import Table
 from astropy import convolution
 from astropy import constants
+from matplotlib import pyplot as plt
+import numpy as np
+from scipy import interpolate
+from scipy import optimize
+from scipy import signal
 
 from pypeit import log
 from pypeit.pkg import cache
@@ -23,6 +23,7 @@ from pypeit.core import arc
 from pypeit import PypeItError
 
 from IPython import embed
+
 
 def parse_param(par, key, slit):
     # Find good lines for the tilts
@@ -317,38 +318,117 @@ def get_wave_grid(waves=None, gpms=None, wave_method='linear', iref=0, wave_grid
     return wave_grid, wave_grid_mid, dsamp
 
 
-def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,
-                        fit_frac_fwhm = 1.25, cont_frac_fwhm=1.0,max_frac_fwhm=2.0,
-                        cont_samp=30, niter_cont=3,nonlinear_counts=1e10, debug=False):
+def arc_lines_from_spec(
+    spec, sigdetect=10.0, fwhm=4.0, fit_frac_fwhm=1.25, cont_frac_fwhm=1.0, max_frac_fwhm=2.0,
+    cont_samp=30, niter_cont=3, nonlinear_counts=1e10, good_frac=None, fwhm_incr=None,
+    max_good_iter=None, debug=False
+):
     """
-    Simple wrapper to arc.detect_lines.
-    See that code for docs
+    Detect emission lines in an arc spectrum.
 
-    Args:
-        spec:
-        sigdetect:
-        fwhm:
-        fit_frac_fwhm:
-        cont_frac_fwhm:
-        max_frac_fwhm:
-        cont_samp:
-        niter_cont:
-        nonlinear_counts (float, optional):
-            Counts where the arc is presumed to go non-linear
-        debug:
+    This is primarily a wrapper for :func:`~pypeit.core.arc.detect_lines`.
 
-    Returns:
-        tuple: all_tcent, all_ecent, cut_tcent, icut, arc_cont_sub.
-        See arc.detect_lines for details
+    Parameters
+    ----------
+    spec : :class:`numpy.ndarray`
+        1D arc-lamp spectrum
+    sigdetect : float, optional
+        Sigma threshold above fluctuations for arc-line detection.  Arcs are
+        continuum subtracted and the fluctuations are computed after continuum
+        subtraction.
+    fwhm : float, optional
+        Number of pixels per FWHM of the resolution element.
+    fit_frac_fwhm : float, optional
+        Number of pixels that are used in the fits for Gaussian arc line
+        centroiding expressed as a fraction of the fwhm parameter
+    cont_frac_fwhm : float, optional
+        Width used for masking peaks in the spectrum when the continuum is being
+        defined. Expressed as a fraction of the FWHM parameter.
+    max_frac_fwhm:  float, optional
+        Maximum width allowed for usable arc lines expressed relative to the
+        fwhm.
+    cont_samp: float, optional
+        The number of samples across the spectrum used for continuum
+        subtraction. Continuum subtraction is done via median filtering, with a
+        width of ngood/cont_samp, where ngood is the number of good pixels for
+        estimating the continuum (i.e. that don't have peaks).
+    niter_cont: int, optional
+        Number of iterations of peak finding, masking, and continuum fitting
+        used to define the continuum.
+    nonlinear_counts : float, optional
+        Value above which to mask saturated arc lines.
+    good_frac : float, optional
+        :func:`~pypeit.core.arc.detect_lines` returns all peaks detected and a
+        list of those considered to be good detections.  This argument allows
+        you to request the fraction of good detections be above a threshold.  If
+        the initial detection does not meet this threshold, the function will
+        iteratively increase the FWHM (by ``fwhm_incr``) until either this
+        threshold is met or the function hits a maximum number of iterations
+        (``max_good_iter``).  To perform these iterations, you *must* provide
+        ``good_frac``, ``fwhm_incr``, and ``max_good_iter``.
+    fwhm_incr : float, optional
+        Multiplicative factor applied to ``fwhm`` during iterations meant to
+        improve the fraction of good line detections.  Should be greater than 1,
+        but is not limited to be so.  See description of ``good_frac``.
+    max_good_iter : int, optional
+        Maximum number of iterations meant to improve the fraction of good line
+        detections.  See description of ``good_frac``.
+    debug: bool, optional
+       Make plots showing results of peak finding and final arc lines that are
+       used.
 
+    Returns
+    -------
+    all_tcent : :class:`numpy.ndarray`
+        Pixel centriods of detected lines.
+    all_ecent : :class:`numpy.ndarray`
+        Errors in pixel centroids
+    cut_tcent : :class:`numpy.ndarray`
+        Centroids with detection thresholds above ``sigdetect``
+    icut : :class:`numpy.ndarray`
+        Vector of indices used to select ``cut_tcent`` from ``all_tcent``.
+    arc_cont_sub : :class:`numpy.ndarray`
+        Continuum-subtracted arc-lamp spectrum.
     """
+    iter_args = [arg is not None for arg in [good_frac, fwhm_incr, max_good_iter]]
+    if any(iter_args) and not all(iter_args):
+        log.warning(
+            'To perform FWHM adjustment iterations when detecting arc lines, the good_frac, '
+            'fwhm_incr, and max_good_iter arguments must *all* be defined.'
+        )
+    if good_frac is not None and not 0. < good_frac < 1.:
+        raise PypeItError('good_frac must be between 0 and 1')
 
     # Find peaks
     tampl, tampl_cont, tcent, twid, centerr, w, arc_cont_sub, nsig = arc.detect_lines(
-        spec, sigdetect = sigdetect, fwhm=fwhm, fit_frac_fwhm=fit_frac_fwhm,
-        cont_frac_fwhm=cont_frac_fwhm, max_frac_fwhm=max_frac_fwhm,
-        cont_samp=cont_samp,niter_cont = niter_cont, nonlinear_counts = nonlinear_counts,
-        debug=debug)
+        spec, sigdetect=sigdetect, fwhm=fwhm, fit_frac_fwhm=fit_frac_fwhm,
+        cont_frac_fwhm=cont_frac_fwhm, max_frac_fwhm=max_frac_fwhm, cont_samp=cont_samp,
+        niter_cont=niter_cont, nonlinear_counts=nonlinear_counts, debug=debug
+    )
+
+    if all(iter_args) and len(w)/len(tampl) < good_frac:
+        # Iteratively increase the FWHM in an attempt to improve the line detection
+        # NOTE: In the limited testing done so far, it seems the algorithm tends
+        # to miss lines if the FWHM is too small, but not if it is too big.
+        # That means there is not much to be gained by iteratively making the
+        # FWHM smaller.  However, I (KBW) think it was worth imposing that
+        # `fwhm_incr` must be greater than 1, particularly given that it is
+        # effectively a developer-only parameter in the current workflow.
+        for i in range(max_good_iter):
+            _fwhm = fwhm*fwhm_incr**(i+1)
+            tampl, tampl_cont, tcent, twid, centerr, w, arc_cont_sub, nsig = arc.detect_lines(
+                spec, sigdetect=sigdetect, fwhm=_fwhm, fit_frac_fwhm=fit_frac_fwhm,
+                cont_frac_fwhm=cont_frac_fwhm, max_frac_fwhm=max_frac_fwhm, cont_samp=cont_samp,
+                niter_cont=niter_cont, nonlinear_counts=nonlinear_counts, debug=debug
+            )
+            if len(w)/len(tampl) > good_frac:
+                log.info(
+                    f'To acheive a {good_frac} fraction of good lines, increased FWHM to '
+                    f'{_fwhm:.1f} pixels.'
+                )
+                break
+
+    # NOTE: "w" is a list of line indices, NOT a boolean array!
     all_tcent = tcent[w]
     all_ecent = centerr[w]
     all_nsig = nsig[w]
@@ -364,148 +444,136 @@ def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,
 
 
 def shift_and_stretch(spec, shift, stretch, stretch2, stretch_func='quadratic'):
-
     """
-    Utility function to shift and stretch a spectrum. This operation is
-    being implemented in many steps and could be significantly
-    optimized. But it works for now. Note that the stretch is applied
-    *first* and then the shift is applied in stretch coordinates.
+    Shift and stretch a spectrum.
 
     Parameters
     ----------
-    spec : ndarray
-        spectrum to be shited and stretch
-    shift: float
-        shift to be applied
-    stretch: float
-        stretch to be applied
-    stretch2: (:obj:`float`, optional):
-        second order stretch to be applied. Default = 0.0
-    stretch_func : str, optional, default = 'quadratic'
-        Use quadratic ('quadratic') or linear ('linear') stretch.
-
-    
+    spec : :class:`numpy.ndarray`
+        Spectrum to be shited and stretch
+    shift : float
+        Shift to be applied
+    stretch : float
+        Linear stretch to be applied
+    stretch2 : float
+        Second order stretch to be applied.  Ignored if ``stretch_func`` is quadratic.
+    stretch_func : str, optional
+        Use quadratic (``'quadratic'``) or linear (``'linear'``) stretch.
 
     Returns
     -------
-    spec_out: ndarray
-        shifted and stretch spectrum. Regions where there is no information are set to zero.
-
+    :class:`numpy.ndarray`
+        Shifted and stretched spectrum. Regions where there is no information
+        are set to zero.
     """
-    # TODO: DP: This is the old code that was used to shift and stretch.
-    #  Comparing to the new one, I have seen some differences in spec_out.
-    #  I leave this old code here for now, so that we can investigate this a little more in the future.
-    # nspec = spec.shape[0]
-    # # pad the spectrum on both sizes
-    # x1 = np.arange(nspec)/float(nspec-1)
-    # nspec_stretch = int(nspec*stretch)
-    # x2 = np.arange(nspec_stretch)/float(nspec_stretch-1)
-    # spec_str = (scipy.interpolate.interp1d(x1, spec, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(x2)
-    # # Now create a shifted version
-    # ind_shift = np.arange(nspec_stretch) - shift
-    # spec_str_shf = (scipy.interpolate.interp1d(np.arange(nspec_stretch), spec_str, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(ind_shift)
-    # # Now interpolate onto the original grid
-    # spec_out = (scipy.interpolate.interp1d(np.arange(nspec_stretch), spec_str_shf, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(np.arange(nspec))
-    #
-    # return spec_out
-    # ###################################
-
     # Positive value of shift means features shift to larger pixel values
-
     nspec = spec.shape[0]
-    
-    # Can do the stretch and shift in one operation
-    if stretch_func == 'linear': stretch2 = 0.0
+    new_x = np.arange(nspec)
+    x = shift + stretch * new_x
+    if stretch_func == 'quadratic':
+        x += stretch2 * new_x**2
+    return interpolate.interp1d(
+        x, spec, kind=stretch_func, bounds_error=False, fill_value=0.0
+    )(new_x)
 
-    return scipy.interpolate.interp1d(np.arange(nspec)**2*stretch2 + np.arange(nspec)*stretch + shift, 
-                                           spec, kind=stretch_func, bounds_error=False, fill_value=0.0)(np.arange(nspec))
 
-
-def zerolag_shift_stretch(theta, y1, y2, stretch_func = 'quadratic'):
-
+def zerolag_shift_stretch(theta, y1, y2, stretch_func='quadratic'):
     """
-    Utility function which is run by the differential evolution
-    optimizer in scipy. This is the fucntion we optimize.  It is the
-    zero lag cross-correlation coefficient of spectrum with a shift and
-    stretch applied.
+    Optimization function for fitting the shift and stretch applied to a
+    spectrum (``y2``) to improve the zero-lag correlation with a second spectrum
+    (``y1``).
+
+    This is a utility function for use with differential evolution.
 
     Parameters
     ----------
-    theta : float `numpy.ndarray`_
-        Function parameters to optmize over. theta[0] = shift, theta[1] = stretch, theta[2] = stretch2
-    y1 : float `numpy.ndarray`_, shape = (nspec,)
+    theta : :class:`numpy.ndarray`
+        Function parameters: theta[0] = shift, theta[1] = stretch, theta[2] =
+        stretch2
+    y1 : :class:`numpy.ndarray`
         First spectrum which acts as the refrence
-    y2 : float `numpy.ndarray`_, shape = (nspec,)
-        Second spectrum which will be transformed by a shift and stretch to match y1
-    stretch_func : str, optional, default = 'quadratic'
-        Use quadratic ('quadratic') or linear ('linear') stretch.
+    y2 : :class:`numpy.ndarray`
+        Second spectrum which will be transformed by a shift and stretch to
+        match ``y1``.  Shape must match ``y1``.
+    stretch_func : str, optional
+        Use a quadratic (``'quadratic'``) or linear (``'linear'``) stretch
+        parametrization.  When ``'linear'``, the 3rd value in ``theta`` is
+        ignored.  See :func:`shift_and_stretch`.
 
     Returns
     -------
     corr_norm : float
-        Negative of the zero lag cross-correlation coefficient (since we
-        are miniziming with scipy.optimize). scipy.optimize will thus
-        determine the shift,stretch that maximize the cross-correlation.
-
+        Negative of the zero lag cross-correlation coefficient.  By minimizing
+        this value (see :func:`xcorr_shift_stretch`), we determine the best
+        fitting shift and stretch parameters.
     """
-
     shift, stretch, stretch2 = theta
-    y2_corr = shift_and_stretch(y2, shift, stretch, stretch2, stretch_func= stretch_func)
-    # Zero lag correlation
-    corr_zero = np.sum(y1*y2_corr)
+    y2_corr = shift_and_stretch(y2, shift, stretch, stretch2, stretch_func=stretch_func)
     corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2_corr*y2_corr))
     if corr_denom == 0.0:
-        log.warning('The shifted and stretched spectrum is zero everywhere. Cross-correlation cannot be performed. There is likely a bug somewhere')
-        raise PypeItError()
-    corr_norm = corr_zero / corr_denom
-    return -corr_norm
+        raise PypeItError(
+            'The shifted and stretched spectrum is zero everywhere. Cross-correlation cannot be '
+            'performed.'
+        )
+    # Zero lag correlation
+    metric = -np.sum(y1*y2_corr) / corr_denom
+#    print(f'shift={shift:.3f}; stretch={stretch:.3f}; stretch2={stretch2:.3f}; corr={-metric:.3f}')
+    return metric
 
 
-def get_xcorr_arc(inspec1, sigdetect=5.0, input_thresh=None, 
-                  sig_ceil=10.0, percent_ceil=50.0, use_raw_arc=False,
-                  fwhm=4.0, cont_sub=True, debug=False):
+def get_xcorr_arc(
+    inspec1, sigdetect=5.0, input_thresh=None, sig_ceil=10.0, percent_ceil=50.0, use_raw_arc=False,
+    fwhm=4.0, cont_sub=True, debug=False
+):
     """
-    Utility routine to create a synthetic arc spectrum for cross-correlation
-    using the location of the peaks in the input spectrum.
+    Create a synthetic arc spectrum for cross-correlation using the location of
+    the peaks in the input spectrum.
 
-    Args:
-        inspec1 (`numpy.ndarray`_):
-            Input spectrum, shape = (nspec,)
-        sigdetect (float, optional, default=3.0):
-            Sigma threshold above fluctuations for finding peaks that will be used to create the synthetic xcorr_arc
-        input_thresh (float, optional):
-            Input threshold  for finding peaks that will be used to create the synthetic xcorr_arc. If set, sigdetect
-            will be ignored.
-        sig_ceil (float, optional, default = 10.0):
-            Significance threshold for peaks that will be used to determine the line amplitude clipping threshold.
-            For peaks with significance > sig_ceil, the code will find the amplitude corresponding to
-            percent_ceil, and this will be the clipping threshold.
-        percent_ceil (float, optional, default=50.0):
-            Upper percentile threshold for thresholding positive and negative values. If set to None, no thresholding
-            will be performed.
-        use_raw_arc (bool, optional):
-            If True, use amplitudes from the raw arc, i.e. do not continuum subtract. Default = False
-        fwhm (float, optional):
-            Fwhm of arc lines. Used for peak finding and to assign a fwhm in the xcorr_arc.
-        cont_sub (bool, optional):
-            Perform a simple continuum subtraction when detecting the peaks. Default is True.
-        debug (bool, optional):
-             Show plots for line detection debugging. Default = False
+    Parameters
+    ----------
+    inspec1 : :class:`numpy.ndarray`
+        Input spectrum, shape = (nspec,)
+    sigdetect : float, optional
+        Sigma threshold above fluctuations for finding peaks that will be used
+        to create the synthetic cross-correlation.
+    input_thresh : float, optional
+        Input threshold for finding peaks. If set, ``sigdetect`` is ignored.
+    sig_ceil : float, optional
+        Significance threshold for peaks that will be used to determine the line
+        amplitude clipping threshold.  For peaks with significance larger than
+        this value, the code will find the amplitude corresponding to
+        ``percent_ceil``, which will be set as the clipping threshold.
+    percent_ceil : float, optional
+        Upper percentile threshold for thresholding positive and negative
+        values. If set to None, no thresholding will be performed.
+    use_raw_arc : bool, optional
+        If True, use amplitudes from the raw arc, i.e. do not continuum
+        subtract.
+    fwhm : float, optional
+        Fwhm of arc lines, which is used for peak finding and to assign a fwhm
+        in the synthetic arc spectrum.
+    cont_sub : bool, optional
+        Perform a simple continuum subtraction when detecting the peaks.
+    debug : bool, optional
+        Show plots for line detection debugging.
 
-    Returns:
-        `numpy.ndarray`_: Synthetic arc spectrum to be used for
-        cross-correlations, shape = (nspec,)
-
+    Returns
+    -------
+    :class:`numpy.ndarray`
+        Synthetic arc spectrum to be used for cross-correlations; shape is
+        identical to ``inspec1``.
     """
 
     # Run line detection to get the locations and amplitudes of the lines
     tampl1, tampl1_cont, tcent1, twid1, centerr1, w1, arc1, nsig1 = arc.detect_lines(
-        inspec1, sigdetect=sigdetect, input_thresh=input_thresh, 
-        fwhm=fwhm, cont_subtract=cont_sub, debug=debug)
+        inspec1, sigdetect=sigdetect, input_thresh=input_thresh, fwhm=fwhm, cont_subtract=cont_sub,
+        debug=debug
+    )
+    # NOTE: "w1" is a list of line indices, NOT a boolean array!
 
     ampl = tampl1 if use_raw_arc else tampl1_cont
 
-    if percent_ceil is not None and (ampl.size > 0):
+    if percent_ceil is not None and ampl.size > 0:
         # If this is set, set a ceiling on the greater > 10sigma peaks
         ampl_pos = (ampl >= 0.0) & (nsig1 > sig_ceil)
         ceil_upper = np.percentile(ampl[ampl_pos], percent_ceil) if np.any(ampl_pos) else np.inf
@@ -514,10 +582,14 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, input_thresh=None,
 
     ampl_clip = np.clip(ampl, None, ceil_upper)
     if ampl_clip.size == 0:
-        log.warning('No lines were detected in the arc spectrum. Cannot create a synthetic arc spectrum for cross-correlation.')
+        log.warning(
+            'No lines were detected in the arc spectrum. Cannot create a synthetic arc spectrum '
+            'for cross-correlation.'
+        )
         return np.zeros_like(inspec1)
 
-    # Make a fake arc by plopping down Gaussians at the location of every centroided line we found
+    # Make a fake arc by plopping down Gaussians at the location of every
+    # centroided line we found
     xcorr_arc = np.zeros_like(inspec1)
     spec_vec = np.arange(inspec1.size)
     for ind in range(ampl_clip.size):
@@ -531,88 +603,101 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, input_thresh=None,
     return xcorr_arc
 
 
-# ToDO can we speed this code up? I've heard numpy.correlate is faster. Someone should investigate optimization. Also we don't need to compute
-# all these lags.
-def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetect=5.0, sig_ceil=10.0, fwhm=4.0,
-                do_xcorr_arc=True, cont_subtract=True, lag_range=None, max_lag_frac=1.0,  debug=False):
-
+# TODO: Can we speed this code up? I've heard numpy.correlate is faster. Someone
+# should investigate optimization. Also we don't need to compute all these lags.
+def xcorr_shift(
+    inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetect=5.0, sig_ceil=10.0, fwhm=4.0,
+    do_xcorr_arc=True, cont_subtract=True, lag_range=None, max_lag_frac=1.0, debug=False
+):
     """
-    Determine the shift inspec2 relative to inspec1.  This routine computes the
-    shift by finding the maximum of the cross-correlation coefficient. The
-    convention for the shift is that positive shift means inspec2 is shifted to
-    the right (higher pixel values) relative to inspec1.
+    Determine the shift of two functions using cross-correlation.
+
+    The shift is determined by finding the maximum of the cross-correlation
+    coefficient. The convention for the shift is that positive shift means
+    ``inspec2`` is shifted to the right (higher pixel values) relative to
+    ``inspec1``.
 
     Parameters
     ----------
-    inspec1 : numpy.ndarray_
+    inspec1 : :class:`numpy.ndarray`
         Reference spectrum
-    inspec2 : numpy.ndarray_
-        Spectrum for which the shift and stretch are computed such
-        that it will match inspec1
-    sigdetect :  float, optional, default=3.0
-        Peak finding threshold for lines that will be used to create the
-        synthetic xcorr_arc
-    sig_ceil : float, optional, default = 10.0
-        Significance threshold for peaks that will be used to determine the line
-        amplitude clipping threshold.  For peaks with significance > sig_ceil,
-        the code will find the amplitude corresponding to perecent_ceil, and
-        this will be the clipping threshold.
-    percent_ceil : float, default=90.0
-        Apply a ceiling to the input spectra at the percent_ceil
-        percentile level of the distribution of peak amplitudes.
-        This prevents extremely strong lines from completely
-        dominating the cross-correlation, which can causes the
-        cross-correlation to have spurious noise spikes that are not
+    inspec2 : :class:`numpy.ndarray`
+        Spectrum for which the shift and stretch are computed such that it will
+        match inspec1
+    percent_ceil : float, optional
+        Apply a ceiling to the input spectra at the percent_ceil percentile
+        level of the distribution of peak amplitudes.  This prevents extremely
+        strong lines from completely dominating the cross-correlation, which can
+        causes the cross-correlation to have spurious noise spikes that are not
         the real maximum.
-    use_raw_arc : bool, default = False
+    use_raw_arc : bool, optional
         If this parameter is True the raw arc will be used rather than the
         continuum subtracted arc
-    do_xcorr_arc : bool, default = True
+    sigdetect : float, optional
+        Peak finding threshold for lines that will be used to create the
+        synthetic spectrum.
+    sig_ceil : float, optional
+        Significance threshold for peaks that will be used to determine the line
+        amplitude clipping threshold.  For peaks with significance larger than
+        this value, the code will find the amplitude corresponding to
+        ``percent_ceil``, which will be set as the clipping threshold.
+    fwhm : float, optional
+        Fwhm of arc lines, which is used for peak finding and to assign a fwhm
+        in the synthetic arc spectrum.
+    do_xcorr_arc : bool, optional
         If this parameter is True, peak finding will be performed and a
         synthetic arc will be created to be used for the cross-correlations.  If
         a synthetic arc has already been created by get_xcorr_arc, then set this
         to False
-    cont_subtract : bool, default = True
+    cont_subtract : bool, optional
         If True, continuum subtract the cross-correlation function before
         finding its peak (passed to
         :func:`~pypeit.core.arc.detect_lines`).  Set to False to skip the
         (iterative, and for very long input spectra slow) continuum fit;
         the CCF is normalized, so the peak is usually well determined
         without it.
-    lag_range : tuple, default = None
+    lag_range : tuple, optional
         A tuple of the form (lag_min, lag_max) which sets the range of lags to
-        search over. If None, max_lag_frac will be used to set the range of lags.
-    max_lag_frac : float, default = 1.0
-        Fraction of the total spectral pixels used to determine the range of lags
-        to search over.  The range of lags will be [-nspec*max_lag_frac +1, nspec*max_lag_frac].
-    debug: boolean, default = False
+        search over. If None, max_lag_frac will be used to set the range of
+        lags.
+    max_lag_frac : float, optional
+        Fraction of the total spectral pixels used to determine the range of
+        lags to search over.  The range of lags will be [-nspec*max_lag_frac +1,
+        nspec*max_lag_frac].
+    debug: bool, optional
         Produce debugging plot
 
     Returns
     -------
     shift : float
-        the shift which was determined
+        The shift which was determined
     cross_corr: float
-        the maximum of the cross-correlation coefficient at this shift
+        The maximum of the cross-correlation coefficient at this shift
     """
 
     if do_xcorr_arc:
-        y1 = get_xcorr_arc(inspec1, percent_ceil=percent_ceil, use_raw_arc=use_raw_arc, sigdetect=sigdetect, sig_ceil=sig_ceil, fwhm=fwhm)
-        y2 = get_xcorr_arc(inspec2, percent_ceil=percent_ceil, use_raw_arc=use_raw_arc, sigdetect=sigdetect, sig_ceil=sig_ceil, fwhm=fwhm)
+        y1 = get_xcorr_arc(
+            inspec1, percent_ceil=percent_ceil, use_raw_arc=use_raw_arc, sigdetect=sigdetect,
+            sig_ceil=sig_ceil, fwhm=fwhm
+        )
+        y2 = get_xcorr_arc(
+            inspec2, percent_ceil=percent_ceil, use_raw_arc=use_raw_arc, sigdetect=sigdetect,
+            sig_ceil=sig_ceil, fwhm=fwhm
+        )
     else:
-        y1, y2 = inspec1, inspec2
+        y1 = inspec1
+        y2 = inspec2
 
     if np.all(y1 == 0) or np.all(y2 == 0):
         log.warning('One of the input spectra is all zeros. Returning shift = 0.0')
         return 0.0, 0.0
 
     nspec = y1.shape[0]
-    if lag_range is not None:  
-        lagmin = lag_range[0]  
-        lagmax = lag_range[1]  
-    else:  
+    if lag_range is None:  
         lagmin = int((-nspec + 1) * max_lag_frac)
         lagmax = int((nspec - 1) * max_lag_frac)
+    else:  
+        lagmin, lagmax = lag_range
 
 
     # FITS spectra can be big-endian; SciPy's signal routines require native
@@ -621,16 +706,16 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
     y2 = np.asarray(y2, dtype=y2.dtype.newbyteorder('='))
 
     lags = np.linspace(lagmin, lagmax, 2*nspec-1)
-    corr = scipy.signal.correlate(y1, y2, mode='full')
+    corr = signal.correlate(y1, y2, mode='full')
 
     corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2*y2))
     corr_norm = corr/corr_denom
 
     # Find the peak
     tampl_true, tampl, pix_max, twid, centerr, ww, arc_cont, nsig = arc.detect_lines(
-        corr_norm, sigdetect=3.0, fit_frac_fwhm=1.5, fwhm=5.0,
-        cont_frac_fwhm=1.0, cont_samp=30, nfind=1,
-        cont_subtract=cont_subtract)
+        corr_norm, sigdetect=3.0, fit_frac_fwhm=1.5, fwhm=5.0, cont_frac_fwhm=1.0, cont_samp=30,
+        nfind=1, cont_subtract=cont_subtract
+    )
 
     corr_max = np.interp(pix_max, np.arange(lags.shape[0]),corr_norm)
     lag_max  = np.interp(pix_max, np.arange(lags.shape[0]),lags)
@@ -639,91 +724,217 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
         plt.figure(figsize=(14, 6))
         plt.plot(lags, corr_norm, color='black', drawstyle = 'steps-mid', lw=3, label = 'x-corr')
         plt.plot(lag_max[0], corr_max[0],'g+', markersize =6.0, label = 'peak')
-        plt.title('Best shift = {:5.3f}'.format(lag_max[0]) + ',  corr_max = {:5.3f}'.format(corr_max[0]))
+        plt.title(f'Best shift = {lag_max[0]:.3f},  corr_max = {corr_max[0]:.3f}')
         plt.legend()
         plt.show()
 
     return lag_max[0], corr_max[0]
 
 
-def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use_raw_arc=False,
-                        shift_mnmx=(-0.2,0.2), stretch_mnmx=(0.95,1.05), sigdetect=5.0, sig_ceil=10.0,
-                        fwhm = 4.0, max_lag_frac=1.0, lag_range=None, debug=False, toler=1e-5, seed=None,
-                        stretch_func='quadratic'):
-
+def _zerolag_free_params(p, y1, y2, stretch_func):
     """
-    Determine the shift and stretch of inspec2 relative to inspec1.  This
-    routine computes an initial guess for the shift via maximimizing the
-    cross-correlation. It then performs a two parameter search for the shift and
-    stretch by optimizing the zero lag cross-correlation between the inspec1 and
-    the transformed inspec2 (shifted and stretched via
-    wvutils.shift_and_stretch()) in a narrow window about the initial estimated
-    shift. The convention for the shift is that positive shift means inspec2 is
-    shifted to the right (higher pixel values) relative to inspec1. The
-    convention for the stretch is that it is float near unity that increases the
-    size of the inspec2 relative to the original size (which is the size of
-    inspec1)
+    Wrapper for :func:`zerolag_shift_stretch` that only takes the free
+    parameters of the shift/stretch model.
+
+    This is the objective function used by the local optimization in
+    :func:`xcorr_shift_stretch`.  For a linear stretch, the second-order
+    stretch term is fixed to 0 and excluded from the optimized parameters.
 
     Parameters
     ----------
-    inspec1 : ndarray
+    p : :class:`numpy.ndarray`
+        Free parameters: (shift, stretch) if ``stretch_func`` is
+        ``'linear'``, or (shift, stretch, stretch2) if ``stretch_func`` is
+        ``'quadratic'``.
+    y1 : :class:`numpy.ndarray`
+        Reference spectrum.
+    y2 : :class:`numpy.ndarray`
+        Spectrum to shift and stretch to match ``y1``.
+    stretch_func : str
+        Stretch parametrization; must be ``'linear'`` or ``'quadratic'``.
+
+    Returns
+    -------
+    float
+        Negative of the zero-lag cross-correlation coefficient.  Returns 0 if
+        the transformed spectrum is zero everywhere.
+    """
+    theta = p if stretch_func == 'quadratic' else np.append(p, 0.0)
+    try:
+        return zerolag_shift_stretch(theta, y1, y2, stretch_func=stretch_func)
+    except PypeItError:
+        # Transformed spectrum is zero everywhere
+        return 0.0
+
+
+def _grid_shift_stretch(y1, y2, lag_range, stretch_mnmx, fwhm, max_nstretch=1001):
+    """
+    Find the shift and linear stretch that maximize the zero-lag
+    cross-correlation using an exhaustive grid search.
+
+    For each stretch, :func:`shift_and_stretch` places pixel ``j`` of ``y2`` at
+    pixel ``shift + stretch*j``; i.e., the transformed spectrum is ``out(i) =
+    w(i - shift)``, where ``w(k) = y2(k/stretch)``.  For a fixed stretch, the
+    numerator and the (overlap-dependent) denominator of the normalized
+    zero-lag cross-correlation computed by :func:`zerolag_shift_stretch` can
+    therefore be computed for all integer shifts at once using two FFT
+    correlations.  The stretch grid is spaced such that a single grid step
+    misaligns features at opposite ends of the spectrum by no more than
+    ``fwhm/2`` pixels.
+
+    The search is fully deterministic and is meant to provide a starting point
+    for a local optimization of the exact objective function.
+
+    Parameters
+    ----------
+    y1 : :class:`numpy.ndarray`
+        Reference spectrum (typically a synthetic arc spectrum from
+        :func:`get_xcorr_arc`).
+    y2 : :class:`numpy.ndarray`
+        Spectrum to be shifted and stretched to match ``y1``.  Must have the
+        same length as ``y1``.
+    lag_range : tuple
+        The minimum and maximum shift (in pixels) to consider.
+    stretch_mnmx : tuple
+        The minimum and maximum stretch to consider.
+    fwhm : float
+        FWHM of the arc lines in pixels, used to set the stretch sampling.
+    max_nstretch : int, optional
+        Maximum number of stretch values in the grid.
+
+    Returns
+    -------
+    cc : float
+        Maximum normalized zero-lag cross-correlation found on the grid.  This
+        is ``-numpy.inf`` if no valid grid point was found.
+    shift : float
+        Shift at the grid maximum.  None if no valid grid point was found.
+    stretch : float
+        Stretch at the grid maximum.  None if no valid grid point was found.
+    """
+    # FITS spectra can be big-endian; SciPy's signal routines require native
+    # byte order (see xcorr_shift).
+    y1 = np.asarray(y1, dtype=y1.dtype.newbyteorder('='))
+    y2 = np.asarray(y2, dtype=y2.dtype.newbyteorder('='))
+
+    nspec = y1.size
+    x = np.arange(nspec, dtype=float)
+    sum_y1sq = np.sum(y1**2)
+    ones = np.ones(nspec, dtype=float)
+
+    # Set the stretch grid
+    nstretch = np.ceil((stretch_mnmx[1] - stretch_mnmx[0]) * 2 * nspec / fwhm) + 1
+    nstretch = int(np.clip(nstretch, 3, max_nstretch))
+    stretches = np.linspace(stretch_mnmx[0], stretch_mnmx[1], nstretch)
+
+    best_cc, best_shift, best_stretch = -np.inf, None, None
+    for stretch in stretches:
+        # Stretched (but unshifted) version of y2
+        nk = int(np.floor(stretch * (nspec - 1))) + 1
+        w = np.interp(np.arange(nk) / stretch, x, y2, left=0., right=0.)
+        # signal.correlate(a, b)[u] = sum_n a[n+u] b[n] -> sum_i y1[i] w[i-u]
+        num = signal.correlate(y1, w, mode='full', method='fft')
+        den2 = signal.correlate(ones, w**2, mode='full', method='fft')
+        shifts = signal.correlation_lags(nspec, nk, mode='full').astype(float)
+        # Only consider shifts in the allowed range with non-negligible overlap
+        indx = (shifts >= lag_range[0]) & (shifts <= lag_range[1]) \
+                    & (den2 > 1e-12 * np.max(den2))
+        if not np.any(indx):
+            continue
+        cc = num[indx] / np.sqrt(sum_y1sq * den2[indx])
+        imax = np.argmax(cc)
+        if cc[imax] > best_cc:
+            best_cc, best_shift, best_stretch = cc[imax], shifts[indx][imax], stretch
+
+    return best_cc, best_shift, best_stretch
+
+
+def xcorr_shift_stretch(
+    inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use_raw_arc=False, shift_mnmx=(-0.2,0.2),
+    stretch_mnmx=(0.95,1.05), sigdetect=5.0, sig_ceil=10.0, fwhm=4.0, max_lag_frac=1.0,
+    lag_range=None, toler=1e-5, stretch_func='quadratic', debug=False
+):
+    """
+    Determine the shift and stretch of inspec2 relative to inspec1.
+
+    This routine first computes an initial guess for the shift by maximizing the
+    cross-correlation (see :func:`xcorr_shift`).  It then searches for the shift
+    and stretch that maximize the zero-lag cross-correlation between inspec1 and
+    the transformed inspec2 (shifted and stretched via
+    :func:`shift_and_stretch`) in a window about the initial estimated shift.
+    This search is performed in two deterministic stages: (1) an exhaustive grid
+    search over shift and linear stretch (see :func:`_grid_shift_stretch`),
+    followed by (2) a bounded local (Nelder-Mead) optimization of
+    :func:`zerolag_shift_stretch` starting from the best grid point.  The
+    convention for the shift is that positive shift means inspec2 is shifted to
+    the right (higher pixel values) relative to inspec1. The convention for the
+    stretch is that it is the near-unity floating-point value that increases the
+    size of the inspec2 relative to the original size (to best match the size of
+    inspec1).
+
+    Parameters
+    ----------
+    inspec1 : :class:`numpy.ndarray`
         Reference spectrum
-    inspec2 : ndarray
-        Spectrum for which the shift and stretch are computed such that it will match inspec1
-    cc_thresh: float, default = -1.0
-        A number in the range [-1.0,1.0] which is the threshold on the
-        initial cross-correlation coefficient for the shift/stretch.  If
-        the value of the initial cross-correlation is < cc_thresh the
-        code will just exit and return this value and the best shift.
-        This is desirable behavior since the shif/stretch optimization
-        is slow and this allows one to test how correlated the spectra
-        are before attempting it, since there is little value in that
-        expensive computation for spectra with little overlap. The
-        default cc_thresh =-1.0 means shift/stretch is always attempted
-        since the cross correlation coeficcient cannot be less than
+    inspec2 : :class:`numpy.ndarray`
+        Spectrum for which the shift and stretch are computed such that it will
+        match inspec1.
+    cc_thresh : float, optional
+        A number in the range [-1.0,1.0] which is the threshold on the initial
+        cross-correlation coefficient for the shift/stretch.  If the value of
+        the initial cross-correlation is less than ``cc_thresh``, the code will
+        just exit and return this value and the best shift.  This is desirable
+        behavior since the shift/stretch optimization is slow and this allows one
+        to test how correlated the spectra are before attempting it, since there
+        is little value in that expensive computation for spectra with little
+        overlap. The default ``cc_thresh=-1.0`` means shift/stretch is always
+        attempted since the cross-correlation coefficient cannot be less than
         -1.0.
-    sigdetect : float, optional, default=3.0
-        Peak finding threshold for lines that will be used to create the synthetic xcorr_arc
-    sig_ceil : float, optional, default = 10.0
-        Significance threshold for peaks that will be used to determine the line amplitude clipping threshold.
-        For peaks with significance > sig_ceil, the code will find the amplitude corresponding to
-        perecent_ceil, and this will be the clipping threshold.
-    percent_ceil: float, default=80.0
-        Apply a ceiling to the input spectra at the percent_ceil
-        percentile level of the distribution of peak amplitudes.  This
-        prevents extremely strong lines from completely dominating the
-        cross-correlation, which can causes the cross-correlation to
-        have spurious noise spikes that are not the real maximum.
-    use_raw_arc: bool, default = False
-        If this parameter is True the raw arc will be used rather than the continuum subtracted arc
-    lag_range: tuple of floats, default = None
-        Range to search for the shift in the cross correlation.  The code will search the window
-        [lag_range[0],lag_range[1]].  If None, the code will search the window
-        [shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]]
-        where nspec is the spectral dimension and shift_cc is the initial cross-correlation shift.
-    shift_mnmx: tuple of floats, default = (-0.05,0.05)
-        Range to search for the shift in the optimization about the
-        initial cross-correlation based estimate of the shift.  The
-        optimization will search the window (shift_cc +
-        nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]) where nspec
-        is the number of pixels in the spectrum
-    stretch_mnmx: tuple of floats, default = (0.97,1.03)
+    percent_ceil : float, optional
+        Apply a ceiling to the input spectra at the percent_ceil percentile
+        level of the distribution of peak amplitudes.  This prevents extremely
+        strong lines from completely dominating the cross-correlation, which can
+        causes the cross-correlation to have spurious noise spikes that are not
+        the real maximum.
+    use_raw_arc : bool, optional
+        If this parameter is True the raw arc will be used rather than the
+        continuum subtracted arc
+    shift_mnmx: tuple, optional
+        Range to search for the shift in the optimization about the initial
+        cross-correlation based estimate of the shift.  The optimization will
+        search the window (shift_cc + nspec*shift_mnmx[0], shift_cc +
+        nspec*shift_mnmx[1]) where nspec is the number of pixels in the spectrum
+    stretch_mnmx: tuple, optional
         Range to search for the stretch in the optimization. The code
         may not work well if this range is significantly expanded
         because the linear approximation used to transform the arc
         starts to break down.
-    max_lag_frac: float, default = 1.0
+    sigdetect : float, optional
+        Peak finding threshold for lines that will be used to create the
+        synthetic spectrum.
+    sig_ceil : float, optional
+        Significance threshold for peaks that will be used to determine the line
+        amplitude clipping threshold.  For peaks with significance larger than
+        this value, the code will find the amplitude corresponding to
+        ``percent_ceil``, which will be set as the clipping threshold.
+    fwhm : float, optional
+        Fwhm of arc lines, which is used for peak finding and to assign a fwhm
+        in the synthetic arc spectrum.
+    max_lag_frac : float, optional
         Maximum range of lags over which to compute the cross correlation, 
-        expressed as a fraction of the length of the vectors being cross-correlated.
-    seed: int or np.random.RandomState, optional, default = None
-        Seed for scipy.optimize.differential_evolution optimizer. If not
-        specified, the calculation will not be repeatable
-    toler : float
-        Tolerance for differential evolution optimizaiton.
-    debug = False
+        expressed as a fraction of the length of the vectors being
+        cross-correlated.
+    lag_range : tuple, optional
+        A tuple of the form (lag_min, lag_max) which sets the range of lags to
+        search over. If None, max_lag_frac will be used to set the range of
+        lags.
+    toler : float, optional
+        Tolerance in the cross-correlation coefficient used to stop the local
+        optimization (passed as ``fatol`` to :func:`scipy.optimize.minimize`).
+    stretch_func : str, optional
+        Use quadratic (``'quadratic'``) or linear (``'linear'``) stretch.
+    debug : bool, optional
         Show plots to the screen useful for debugging.
-    stretch_func : str, optional, default = 'quadratic'
-        Use quadratic ('quadratic') or linear ('linear') stretch.
 
     Returns
     -------
@@ -753,7 +964,6 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         the value of the cross-correlation coefficient at the optimal
         shift and stretch. This is a number between zero and unity,
         which unity indicating a perfect match between the two spectra.
-
     shift_init: float
         The initial shift determined by maximizing the cross-correlation
         coefficient without allowing for a stretch.  If cc_thresh is
@@ -769,18 +979,24 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
 
 
     nspec = inspec1.size
-    y1 = get_xcorr_arc(inspec1, percent_ceil=percent_ceil, use_raw_arc=use_raw_arc, sigdetect=sigdetect,
-                       sig_ceil=sig_ceil, fwhm=fwhm)
-    y2 = get_xcorr_arc(inspec2, percent_ceil=percent_ceil, use_raw_arc=use_raw_arc, sigdetect=sigdetect,
-                       sig_ceil=sig_ceil, fwhm=fwhm)
+    y1 = get_xcorr_arc(
+        inspec1, percent_ceil=percent_ceil, use_raw_arc=use_raw_arc, sigdetect=sigdetect,
+        sig_ceil=sig_ceil, fwhm=fwhm
+    )
+    y2 = get_xcorr_arc(
+        inspec2, percent_ceil=percent_ceil, use_raw_arc=use_raw_arc, sigdetect=sigdetect,
+        sig_ceil=sig_ceil, fwhm=fwhm
+    )
 
     if np.all(y1 == 0) or np.all(y2 == 0):
         log.warning('No lines detected punting on shift/stretch')
         return 0, None, None, None, None, None, None
 
     # Do the cross-correlation first and determine the initial shift
-    shift_cc, corr_cc = xcorr_shift(y1, y2, percent_ceil=None, do_xcorr_arc=False, lag_range=lag_range,
-                                    sigdetect=sigdetect, fwhm=fwhm, max_lag_frac=max_lag_frac, debug=debug)
+    shift_cc, corr_cc = xcorr_shift(
+        y1, y2, percent_ceil=None, do_xcorr_arc=False, lag_range=lag_range, sigdetect=sigdetect,
+        fwhm=fwhm, max_lag_frac=max_lag_frac, debug=debug
+    )
 
     # TODO JFH Is this a good idea? Stretch fitting seems to recover better values
     #if corr_cc < -np.inf: # < cc_thresh:
@@ -788,62 +1004,88 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
 
     if lag_range is None:
         lag_range = (shift_cc + nspec * shift_mnmx[0], shift_cc + nspec * shift_mnmx[1])
-    # TODO Can we make the differential evolution run faster?
-    try:
-        if stretch_func == 'quadratic':
-            bounds = [lag_range, stretch_mnmx, (-1.0e-6, 1.0e-6)]
-            x0_guess = np.array([shift_cc, 1.0, 0.0])
-        elif stretch_func == 'linear':
-            bounds = [lag_range, stretch_mnmx, (0.0,0.0)]
-            x0_guess = np.array([shift_cc, 1.0, 0.0])        
-        else:
-            raise PypeItError('Unrecognized stretch_func')
-        result = scipy.optimize.differential_evolution(
-                zerolag_shift_stretch, args=(y1,y2), x0=x0_guess, tol=toler, 
-                bounds=bounds, disp=False, polish=True, seed=seed)
-    except PypeItError:
-        log.warning("Differential evolution failed.")
+
+    if stretch_func not in ['quadratic', 'linear']:
+        raise PypeItError('Unrecognized stretch_func in xcorr_shift_stretch')
+    quadratic = stretch_func == 'quadratic'
+
+    # Stage 1: Deterministic grid search for the global maximum over shift and
+    # linear stretch
+    corr_grid, shift_grid, stretch_grid = _grid_shift_stretch(
+        y1, y2, lag_range, stretch_mnmx, fwhm
+    )
+    if shift_grid is None:
+        log.warning('Shift/stretch grid search failed.')
         return 0, None, None, None, None, None, None
-    corr_de = -result.fun
-    shift_de = result.x[0]
-    stretch_de = result.x[1]
-    stretch2_de = result.x[2]
 
+    # Stage 2: Local, bounded optimization of the exact objective function,
+    # starting from the best grid point.  Only the free parameters are
+    # optimized; stretch2 is fixed to 0 for the linear stretch function.
+    x0 = np.array([shift_grid, stretch_grid])
+    bounds = [tuple(lag_range), tuple(stretch_mnmx)]
+    # Initial simplex steps: ~1 pixel in shift and ~1 pixel across the full
+    # spectrum in stretch (and stretch2)
+    steps = [1.0, 1.0/nspec]
+    if quadratic:
+        x0 = np.append(x0, 0.0)
+        bounds += [(-1.0e-6, 1.0e-6)]
+        steps += [1.0/nspec**2]
+    simplex = np.tile(x0, (x0.size+1, 1))
+    simplex[1:] += np.diag(steps)
+    result = optimize.minimize(
+        _zerolag_free_params, x0, args=(y1, y2, stretch_func), method='Nelder-Mead',
+        bounds=bounds, options=dict(initial_simplex=simplex, xatol=1e-4, fatol=toler)
+    )
+    if -result.fun >= corr_grid:
+        corr_opt = -result.fun
+        shift_opt = result.x[0]
+        stretch_opt = result.x[1]
+        stretch2_opt = result.x[2] if quadratic else 0.0
+    else:
+        corr_opt = corr_grid
+        shift_opt = shift_grid
+        stretch_opt = stretch_grid
+        stretch2_opt = 0.0
 
-    if not result.success:
-        log.warning('Fit for shift and stretch did not converge!')
-
-    if(corr_de < corr_cc):
-        # Occasionally the differential evolution crapps out and returns a value worse that the CC value. In these cases just use the cc value
+    if corr_opt < corr_cc:
+        # Guard against the (unlikely) case that the shift/stretch search is
+        # worse than the simple cross-correlation.
         log.warning(
             'Shift/Stretch optimizer performed worse than simple x-correlation.  '
             'Returning simple x-correlation shift and no stretch:\n'
-            f' Optimizer: corr={corr_de:5.3f}, shift={shift_de:5.3f}, stretch={stretch_de:7.5f}\n'
+            f' Optimizer: corr={corr_opt:5.3f}, shift={shift_opt:5.3f}, '
+            f'stretch={stretch_opt:7.5f}\n'
             f'   X-corr : corr={corr_cc:5.3f}, shift={shift_cc:5.3f}'
         )
         corr_out = corr_cc
         shift_out = shift_cc
         stretch_out = 1.0
         stretch2_out = 0.0
-        result_out = 1
     else:
-        corr_out = corr_de
-        shift_out = shift_de
-        stretch_out = stretch_de
-        stretch2_out = stretch2_de
-        result_out = int(result.success)
+        corr_out = corr_opt
+        shift_out = shift_opt
+        stretch_out = stretch_opt
+        stretch2_out = stretch2_opt
+    result_out = 1
 
     if debug:
         x1 = np.arange(nspec)
-        y2_trans = shift_and_stretch(y2, shift_out, stretch_out, stretch2_out, stretch_func='quadratic')
+        y2_trans = shift_and_stretch(
+            y2, shift_out, stretch_out, stretch2_out, stretch_func=stretch_func,
+        )
         plt.figure(figsize=(14, 6))
         plt.plot(x1,y1/y1.max(), 'k-', drawstyle='steps', label ='inspec1, input spectrum')
-        plt.plot(x1,y2/y2.max(), color='grey', drawstyle='steps', label='inspec2, reference original')
-        print('REFERENCE MAX', np.max(y2))
-        plt.plot(x1,y2_trans/y2_trans.max(), 'r-', drawstyle='steps', label='inspec2, reference shift & stretch')
-        plt.title('shift= {:5.3f}'.format(shift_out) +
-                  ',  stretch = {:7.5f}'.format(stretch_out) + 
-                                    ',  stretch2 = {:7.5f}'.format(stretch2_out) + ', corr = {:5.3f}'.format(corr_out))
+        plt.plot(
+            x1, y2/y2.max(), color='grey', drawstyle='steps', label='inspec2, reference original'
+        )
+        plt.plot(
+            x1, y2_trans/y2_trans.max(), 'r-', drawstyle='steps',
+            label='inspec2, reference shift & stretch'
+        )
+        plt.title(
+            f'shift= {shift_out:.3f}, stretch = {stretch_out:.5f}, '
+            f'stretch2 = {stretch2_out:.5f}, corr = {corr_out:.3f}'
+        )
         plt.legend()
         plt.show()
 
