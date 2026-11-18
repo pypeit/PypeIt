@@ -42,6 +42,8 @@ short amount of time resulting in weak sky lines relative to the telluric star
 itself. For this reason we cannot determine the tilt and and wavelength solutions from
 the telluric standard (t_exp = 10s), thus, arc and tilt should be removed from the telluric
 star's frame types.
+If you need to inspect or construct an echelle wavelength template manually, see
+:ref:`pypeit_identify-echelle`.
 
 Instead we will set its calibration ``calib`` ID to match that of the 
 nearest (in time) science image, which instructs pypeit to use the tilt and 
@@ -100,4 +102,3 @@ corresponds to the ``calib`` ID of the nearest science ABBA sequence in time.
 
 Try pulling the data from the `PypeIt Development Suite`_ (see
 :ref:`devsuite-raw-data`) and reducing it!
-

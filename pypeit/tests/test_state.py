@@ -27,7 +27,7 @@ from pydantic import ValidationError
 
 from pypeit.state import run_state
 from pypeit.state import science_status
-from pypeit import PypeItError
+from pypeit import PypeItError, PypeItWavelengthCalibrationError
 from pypeit.calibrations import Calibrations, MultiSlitCalibrations
 
 
@@ -610,7 +610,7 @@ class _StepRunner:
     # Borrow the real method under test.
     run_the_steps = Calibrations.run_the_steps
 
-    def __init__(self, state_obj, steps, raising_step):
+    def __init__(self, state_obj, steps, raising_step, raising_error=PypeItError):
         """
 
         Args:
@@ -626,6 +626,7 @@ class _StepRunner:
         self.success = False
         self.failed_step = None
         self._raising_step = raising_step
+        self._raising_error = raising_error
 
     def __getattr__(self, name):
         """
@@ -642,7 +643,7 @@ class _StepRunner:
 
             def _run(force=None, step=step):
                 if step == self._raising_step:
-                    raise PypeItError(f'boom in {step}')
+                    raise self._raising_error(f'boom in {step}')
             return _run
         if name.endswith('_state'):
             return lambda: None
@@ -668,6 +669,31 @@ def test_run_the_steps_marks_fail_on_exception(tmp_path):
     # And the failure was persisted to disk, so a reload sees it too.
     loaded = s.load()
     assert loaded.flats[0].status == 'fail'
+
+
+def test_run_the_steps_skips_insufficient_wavelength_solution(tmp_path):
+    s = make_state(tmp_path)
+    runner = _StepRunner(s, ['bias', 'wv_calib', 'flats'],
+                         raising_step='wv_calib',
+                         raising_error=PypeItWavelengthCalibrationError)
+
+    runner.run_the_steps()
+
+    assert not runner.success
+    assert runner.failed_step == 'get_wv_calib'
+    assert s.wv_calib[0].status == 'fail'
+    assert not s.flats  # No dependent calibration was attempted.
+    assert s.load().wv_calib[0].status == 'fail'
+
+
+def test_run_the_steps_propagates_other_wavelength_errors(tmp_path):
+    s = make_state(tmp_path)
+    runner = _StepRunner(s, ['wv_calib'], raising_step='wv_calib')
+
+    with pytest.raises(PypeItError, match='boom in wv_calib'):
+        runner.run_the_steps()
+
+    assert s.wv_calib[0].status == 'fail'
 
 
 # -----------------------------------------------------------------------

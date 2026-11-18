@@ -858,6 +858,10 @@ class PypeItMetaData:
             self['setup'] = fill
             return
 
+        # If `configs` were not passed in, get spectrograph-defined configurations (may be `None`)
+        if configs is None:
+            configs = self.spectrograph.configuration_list()
+
         _configs = self.unique_configurations() if configs is None else configs
         for k, cfg in _configs.items():
             if len(set(cfg.keys()) - set(self.keys())) > 0:
@@ -867,7 +871,7 @@ class PypeItMetaData:
         ignore_frames, ignore_indx = self.ignore_frames()
         # define the column 'setup' in self.table
         nrows = len(self)
-        col = table.Column(data=['None'] * nrows, name='setup', dtype='U25')
+        col = table.Column(data=['None'] * nrows, name='setup', dtype='U256')
         self.table.add_column(col)
         is_science = self.find_frames('science')    # Science frames can only have one configuration
         for i in range(nrows):
@@ -884,6 +888,15 @@ class PypeItMetaData:
                         self.table['setup'][i] = d
                     elif not is_science[i]:
                         self.table['setup'][i] += f',{d}'
+
+        # Automatically discovered configurations are cached by
+        # unique_configurations().  Keep the selected named configurations
+        # here too, excluding names with no matching frames.  Otherwise a
+        # later call to unique_configurations() mistakes a shared frame's
+        # comma-separated setup memberships for another configuration.
+        if configs is not None:
+            self.configs = {name: cfg for name, cfg in _configs.items()
+                            if np.any(self.find_configuration(name))}
 
         # Check if any of the configurations are not set
         not_setup = self.table['setup'] == 'None'
@@ -904,6 +917,8 @@ class PypeItMetaData:
         # the ignored frame types should be assigned to it:
         for cfg_key in _configs.keys():
             in_cfg = np.array([cfg_key in _setup.split(',') for _setup in self.table['setup']])
+            if not np.any(in_cfg):
+                continue
             for ftype, metakey in ignore_frames.items():
 
                 # TODO: For now, use this assert to check that the
@@ -1352,8 +1367,8 @@ class PypeItMetaData:
             `astropy.table.Table`_: Table with two columns, the frame
             type name and bits.
         """
-        # Making Columns to pad string array
-        ftype_colmA = table.Column(self.type_bitmask.type_names(type_bits), name='frametype')
+        # Making Columns to pad string array (force dtype=str)
+        ftype_colmA = table.Column(self.type_bitmask.type_names(type_bits), name='frametype', dtype=str)
 
         # KLUDGE ME
         #
@@ -1438,7 +1453,7 @@ class PypeItMetaData:
         # Start
         log.info("Typing files")
         type_bits = np.zeros(len(self), dtype=self.type_bitmask.minimum_dtype())
-    
+
         # Use the user-defined frame types from the input dictionary
         if user is not None:
             if len(user.keys()) != len(self):
@@ -1456,14 +1471,14 @@ class PypeItMetaData:
                         f'Improper frame type supplied!l\n{err}\nCheck your PypeIt Reduction File'
                     )
             return self.set_frame_types(type_bits, merge=merge)
-    
+
         # Loop over the frame types
         for i, ftype in enumerate(self.type_bitmask.keys()):
     
             # Include a combination of instrument-specific checks using
             # combinations of the full set of metadata
             exprng = self.par['scienceframe']['exprng'] if ftype == 'science' \
-                else self.par['calibrations']['{0}frame'.format(ftype)]['exprng']
+                else self.par['calibrations'][f'{ftype}frame']['exprng']
             # TODO: Use & or | ?  Using idname above gets overwritten by
             # this if the frames to meet the other checks in this call.
 #            indx &= self.spectrograph.check_frame_type(ftype, self.table, exprng=exprng)
@@ -1472,7 +1487,7 @@ class PypeItMetaData:
             type_bits[indx] = self.type_bitmask.turn_on(type_bits[indx], flag=ftype)
 
         # Vet assigned frame types (this can be spectrograph dependent)
-        self.spectrograph.vet_assigned_ftypes(type_bits, self)
+        type_bits = self.spectrograph.vet_assigned_ftypes(type_bits, self)
 
         # Find the files without any types
         indx = np.logical_not(self.type_bitmask.flagged(type_bits))
@@ -1685,6 +1700,29 @@ class PypeItMetaData:
         ff.write('##end\n')
         ff.close()
 
+    @staticmethod
+    def _format_calib_groups(groups):
+        """Format integer calibration groups using compact PypeIt slices.
+
+        Slice endpoints are exclusive, so groups 8 through 19 become ``8:20``.
+        A slice is used only when it is shorter than listing its members.
+        """
+        values = sorted(set(map(int, groups)))
+        if not values:
+            return 'None'
+
+        parts = []
+        start = end = values[0]
+        for value in values[1:] + [None]:
+            if value is not None and value == end + 1:
+                end = value
+                continue
+            explicit = ','.join(map(str, range(start, end + 1)))
+            compact = f'{start}:{end + 1}'
+            parts.append(compact if len(compact) < len(explicit) else explicit)
+            start = end = value
+        return ','.join(parts)
+
     def write_pypeit(self, output_path=None, cfg_lines=None,
                      write_bkg_pairs=False, write_manual=False,
                      write_shift = False,
@@ -1801,14 +1839,29 @@ class PypeItMetaData:
             self.spectrograph.final_config_frametypes(setup_dict[f'Setup {setup}'], subtbl)
 
             if 'calib' in output_cols:
-                # calib can be a str with a list of values because in some cases (e.g. MOSFIRE) the same
-                # calibration files are used for different setups. Here we update calib to have only the
-                # value relevant for this setup.
-                # find the calib value in this setup that is not a list (which is probably a science/standard)
-                no_list = np.array([',' not in str(cc) for cc in subtbl['calib']])
-                if np.any(no_list):
-                    # assign the calib value in this setup that is not a list to frames that have calib as a list
-                    subtbl['calib'][np.logical_not(no_list)] = subtbl['calib'][no_list][0]
+                science = np.array(['science' in types or 'standard' in types
+                                    for types in subtbl['frametype']])
+                science_groups = {int(group) for group in subtbl['calib'][science]
+                                  if group not in ('None', 'all')}
+                setups = self.table['setup'][in_cfg]
+                for i, types in enumerate(subtbl['frametype']):
+                    if science[i] or subtbl['calib'][i] in ('None', 'all'):
+                        continue
+                    groups = set(parse.str2list(str(subtbl['calib'][i])))
+                    if ',' not in setups[i] or not science_groups:
+                        subtbl['calib'][i] = self._format_calib_groups(groups)
+                        continue
+                    relevant = science_groups
+                    # When a dark belongs to several setups, numeric IDs
+                    # may be reused. Match its exposure time to the science
+                    # in this file to select the right groups.
+                    if 'dark' in types and 'exptime' in subtbl.keys():
+                        matches = science & np.isclose(
+                            subtbl['exptime'], subtbl['exptime'][i],
+                            rtol=0, atol=0.1
+                        )
+                        relevant = {int(group) for group in subtbl['calib'][matches]}
+                    subtbl['calib'][i] = self._format_calib_groups(groups & relevant)
             subtbl.sort(['frametype','filename'])
             #with io.StringIO() as ff:
             #    subtbl.write(ff, format='ascii.fixed_width')

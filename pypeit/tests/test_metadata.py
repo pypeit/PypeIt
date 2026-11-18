@@ -15,6 +15,7 @@ from pypeit.scripts.setup import Setup
 from pypeit.inputfiles import PypeItFile
 from astropy.table import Table
 from pypeit import PypeItError
+from pypeit.core import parse
 
 
 @pytest.mark.remote_data
@@ -162,23 +163,87 @@ def test_setup_iter():
                 'Number of configuration identifiers changed'
 
 
-def test_multiple_setups():
+def test_multiple_named_setups(tmp_path, monkeypatch):
     filelist = tstutils.make_fake_fits_files()
     spectrograph = load_spectrograph("shane_kast_blue")
     # Set the metadata
     fitstbl = PypeItMetaData(spectrograph, spectrograph.default_pypeit_par(), files=filelist, strict=True)
     fitstbl.get_frame_types()
     cfgs = fitstbl.unique_configurations()
-    fitstbl.set_configurations(configs=cfgs)
+    named_cfgs = {'GRISMA': cfgs['A'], 'GRISMB': cfgs['B']}
+    fitstbl.configs = None  # Named configuration lists bypass unique_configurations().
+    monkeypatch.setattr(spectrograph, 'configuration_list', lambda: named_cfgs)
+    fitstbl.set_configurations()
     # Now do some checks
     for ff in range(len(fitstbl)):
         if fitstbl[ff]['frametype'] == 'bias':
             assert(len(fitstbl[ff]['setup'].split(",")) == 2)  # Two configurations for the bias frames
         else:
             assert (len(fitstbl[ff]['setup'].split(",")) == 1)  # One configuration for everything else
+    configs = fitstbl.unique_configurations()
+    assert configs == named_cfgs
+    pypeit_files = fitstbl.write_pypeit(output_path=tmp_path)
+    assert len(pypeit_files) == 2
+    assert not any(',' in path.name for path in tmp_path.iterdir())
+    for path in pypeit_files:
+        pypeit_file = PypeItFile.from_file(path)
+        assert 'bias_1_grismA.fits' in [Path(f).name for f in pypeit_file.filenames]
     # Remove the created files
     for fil in filelist:
         os.remove(fil)
+
+
+def test_rimas_dark_groups_written_per_setup(tmp_path):
+    spectrograph = load_spectrograph('ldt_rimas_grism')
+    data = Table(rows=[
+        *((f'science{group}.fits', '/tmp', 'science', 'HK10', 60.06, str(group), 'HK')
+          for group in range(8, 12)),
+        ('science_yj.fits', '/tmp', 'science', 'YJ10', 30.0, '8', 'YJ'),
+        ('dark60.fits', '/tmp', 'dark', 'HK10,YJ10', 60.06, '8,9,10,11', 'HK'),
+    ], names=('filename', 'directory', 'frametype', 'setup', 'exptime', 'calib', 'arm'))
+    data['calib'] = np.array(data['calib'], dtype=object)
+    data['dispname'] = 'Grism'
+    data['decker'] = "1.0''"
+    fitstbl = PypeItMetaData(spectrograph, spectrograph.default_pypeit_par(), data=data)
+    fitstbl.configs = {
+        'HK10': {'arm': 'HK', 'dispname': 'Grism', 'decker': "1.0''"},
+        'YJ10': {'arm': 'YJ', 'dispname': 'Grism', 'decker': "1.0''"},
+    }
+    files = fitstbl.write_pypeit(output_path=tmp_path)
+    hk, yj = [PypeItFile.from_file(path).data for path in files]
+    assert hk['calib'][hk['filename'] == 'dark60.fits'][0] == '8:12'
+    assert yj['calib'][yj['filename'] == 'dark60.fits'][0] == 'None'
+
+
+def test_shared_calibration_groups_written_for_other_spectrograph(tmp_path):
+    spectrograph = load_spectrograph('shane_kast_blue')
+    data = Table(rows=[
+        ('science0.fits', '/tmp', 'science', 'A', '0'),
+        ('science1.fits', '/tmp', 'science', 'A', '1'),
+        ('science2.fits', '/tmp', 'science', 'B', '2'),
+        ('bias.fits', '/tmp', 'bias', 'A,B', '0,1,2'),
+        ('flat.fits', '/tmp', 'pixelflat', 'A', '0,1,3'),
+    ], names=('filename', 'directory', 'frametype', 'setup', 'calib'))
+    data['calib'] = np.array(data['calib'], dtype=object)
+    data['dichroic'] = 'd55'
+    data['dispname'] = '600/4310'
+    fitstbl = PypeItMetaData(spectrograph, spectrograph.default_pypeit_par(), data=data)
+    config = {'dichroic': 'd55', 'dispname': '600/4310'}
+    fitstbl.configs = {'A': config, 'B': config}
+    files = fitstbl.write_pypeit(output_path=tmp_path)
+    first, second = [PypeItFile.from_file(path).data for path in files]
+    assert first['calib'][first['filename'] == 'bias.fits'][0] == '0,1'
+    assert first['calib'][first['filename'] == 'flat.fits'][0] == '0,1,3'
+    assert str(second['calib'][second['filename'] == 'bias.fits'][0]) == '2'
+
+
+def test_format_calib_groups():
+    groups = list(range(8, 20)) + list(range(23, 31))
+    formatted = PypeItMetaData._format_calib_groups(groups)
+    assert formatted == '8:20,23:31'
+    assert parse.str2list(formatted) == groups
+    assert PypeItMetaData._format_calib_groups([8, 9, 23]) == '8,9,23'
+    assert PypeItMetaData._format_calib_groups([]) == 'None'
 
 
 @pytest.mark.remote_data

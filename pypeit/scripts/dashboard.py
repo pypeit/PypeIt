@@ -8,11 +8,20 @@ subclass, registered as the ``pypeit_dashboard`` console entry point.
 .. include:: ../include/links.rst
 """
 
+import os
 import sys
+from pathlib import Path
 
 from pypeit.scripts import scriptbase
 # Qt-free helper module (safe to import for, e.g., the auto-generated docs).
 from pypeit.dashboard import util
+
+
+def _configure_qt_environment():
+    """Avoid mixing Conda GLib with system GTK modules during Qt startup."""
+    if sys.platform == 'linux' and (Path(sys.prefix) / 'conda-meta').is_dir():
+        os.environ['QT_QPA_PLATFORMTHEME'] = 'generic'
+        os.environ['GTK_MODULES'] = ''
 
 
 class PypeItDashboard(scriptbase.ScriptBase):
@@ -85,6 +94,11 @@ class PypeItDashboard(scriptbase.ScriptBase):
         :obj:`int`
             The Qt application exit code.
         """
+        # A Conda GLib loaded alongside system GTK modules can crash Qt during
+        # QApplication construction. Avoid the GTK platform theme before any
+        # Qt imports; this is equivalent to the working command-line override.
+        _configure_qt_environment()
+
         # Import here so that simply importing the script module (e.g. for
         # the auto-generated docs) does not require Qt.
         from pypeit.dashboard.app import launch
