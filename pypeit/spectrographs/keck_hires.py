@@ -262,6 +262,8 @@ class KECKHIRESBaseSpectrograph(spectrograph.Spectrograph):
             dispname = self.compound_meta(headarr, 'dispname')
             if dispname == 'RED97':
                 match headarr[0].get('IMAGETYP'):
+                    case "bias":
+                        return 'Bias' if headarr[0].get('ELAPTIME') < 0.001 else 'Dark'
                     case "dark":
                         return 'Bias' if headarr[0].get('ELAPTIME') < 0.001 else 'Dark'
                     case "arclamp":
