@@ -1276,7 +1276,6 @@ def compute_stack(wave_grid, waves, fluxes, ivars, gpms, weights, min_weight=1e-
     ivars_flat = np.array(ivars_flat)
     weights_flat = np.array(weights_flat)
     vars_flat = utils.inverse(np.array(ivars_flat))
-
     # Counts how many pixels in each wavelength bin
     nused, wave_edges = np.histogram(waves_flat,bins=wave_grid,density=False)
 
@@ -1998,7 +1997,6 @@ def scale_spec_stack(wave_grid, wave_grid_mid, waves, fluxes, ivars, gpms, sns, 
 
     # Compute an initial stack as the reference, this has its own wave grid based on the weighted averages
     wave_stack, flux_stack, ivar_stack, gpm_stack, nused = compute_stack(wave_grid, waves, fluxes, ivars, gpms, weights)
-
     # Rescale spectra to line up with our preliminary stack so that we can sensibly reject outliers
     fluxes_scale, ivars_scale, scales, scale_method_used = [], [], [], []
     for iexp, (wave, flux, ivar, gpm, sn) in enumerate(zip(waves, fluxes, ivars, gpms, sns)):
@@ -2747,7 +2745,9 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
             wave_grid_diff_ord = np.diff(wave_grid_ord)
             if np.any(wave_grid_diff_ord < 0):
                 log.warning(f'This order ({iord}) has a non-monotonic wavelength solution. Resampling now: ')
-                wave_grid_ord = np.linspace(np.min(wave_grid_ord), np.max(wave_grid_ord), len(wave_grid_ord))
+                wave_grid_ord = np.linspace(np.min(wave_grid_ord[wave_grid_ord > 0]), 
+                                            np.max(wave_grid_ord[wave_grid_ord > 0]), 
+                                            len(wave_grid_ord))
                 wave_grid_diff_ord = np.diff(wave_grid_ord)
 
             wave_grid_diff_ord = np.append(wave_grid_diff_ord, wave_grid_diff_ord[-1])
