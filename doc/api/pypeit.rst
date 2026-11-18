@@ -50,6 +50,7 @@ Submodules
    pypeit.onespec
    pypeit.orderstack
    pypeit.outputfiles
+   pypeit.parallel
    pypeit.pypeit
    pypeit.pypeit_steps
    pypeit.pypeitsetup

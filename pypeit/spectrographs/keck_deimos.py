@@ -28,10 +28,11 @@ from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
+from pypeit.spectrographs.keck_utils import koa_qlview_header_fields
 from pypeit.images.detector_container import DetectorContainer
 from pypeit import dataPaths
 from pypeit.images.mosaic import Mosaic
-from pypeit.core.mosaic import build_image_mosaic_transform
+from pypeit.core.mosaic import build_image_mosaic, build_image_mosaic_transform
 
 from pypeit.par import parset
 from pypeit.spectrographs import slitmask 
@@ -1636,6 +1637,98 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         '''
 
         return np.array(bmt), np.array(rmt)
+
+    # ------------------------------------------------------------------
+    # Quicklook viewer (pypeit_qlview) hooks
+    # ------------------------------------------------------------------
+
+    qlview_supported = True
+    qlview_label = 'DEIMOS'
+
+    def qlview_raw_columns(self):
+        """
+        Instrument-specific raw-file columns for the quicklook viewer; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_raw_columns`.
+        """
+        return [('Frame No', 'FRAMENO'), ('Object', 'OBJECT'), ('Img Type', 'IMTYPE'),
+                ('Mask Name', 'MASKNAME'), ('Grating', 'GRATING'), ('Filter', 'FILTER1'),
+                ('Exp Time', 'EXPTIME')]
+
+    def qlview_raw_info(self, hdr):
+        """
+        Read the quicklook-viewer raw-file column values; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_raw_info`.
+
+        DEIMOS uses ``TARGNAME`` for the object, ``SLMSKNAM`` for the mask,
+        ``GRATENAM`` for the grating, ``DWFILNAM`` for the blocking filter, and
+        ``ELAPTIME`` for the exposure time.
+        """
+        info = koa_qlview_header_fields(hdr)
+        info['OBJECT'] = hdr.get('TARGNAME', hdr.get('OBJECT', 'N/A'))
+        info['MASKNAME'] = hdr.get('SLMSKNAM', 'N/A')
+        info['GRATING'] = hdr.get('GRATENAM', 'N/A')
+        info['FILTER1'] = hdr.get('DWFILNAM', 'N/A')
+        info['EXPTIME'] = hdr.get('ELAPTIME', hdr.get('EXPTIME', 'N/A'))
+        return info
+
+    def qlview_reduced_columns(self):
+        """
+        Instrument-specific reduced-file columns for the quicklook viewer; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_reduced_columns`.
+        """
+        return [('Mask/Slit', 'decker'), ('Grating', 'dispname'),
+                ('Blocking Filter', 'filter1')]
+
+    def qlview_reduced_info(self, hdr):
+        """
+        Read the quicklook-viewer reduced-file column values; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_reduced_info`.
+        """
+        return {
+            'decker': hdr.get('MASKNAME', 'N/A'),
+            'dispname': hdr.get('GRATENAM', hdr.get('FILTER', 'N/A')),
+            # TODO: SLITNAME/SLITWIDTH are not the blocking filter; kept to
+            # match the original viewer behavior.
+            'filter1': hdr.get('SLITNAME', hdr.get('SLITWIDTH', 'N/A')),
+        }
+
+    def qlview_display_image(self, raw_path):
+        """
+        Construct the quicklook-viewer display image for a raw DEIMOS file.
+
+        The 8 chips are overscan-subtracted (per-row median) and assembled into
+        the four mosaics (MSC01-MSC04) using the same transforms as the
+        reduction, so that slit traces are registered correctly.  Shorter
+        mosaics are zero-padded along the spectral axis, and the four are then
+        concatenated along the spatial axis.
+
+        Args:
+            raw_path (:obj:`str`, `Path`_):
+                Path to the raw file.
+
+        Returns:
+            `numpy.ndarray`_: 2D image with shape ``(nspec, 4*nspat)``.
+        """
+        # NOTE: The chip reading and overscan subtraction here overlap with
+        # get_rawimage, which does the full detector processing.
+        mosaic_images = []
+        with io.fits_open(raw_path) as hdu:
+            for mosaic in self.allowed_mosaics:
+                data = []
+                for chip in mosaic:
+                    # Trimmed, re-oriented data in (nspec, nspat) order.
+                    _data, _oscan = deimos_read_1chip(hdu, chip)
+                    _data = _data.astype(float)
+                    _data -= np.median(_oscan.astype(float), axis=1)[:, np.newaxis]
+                    data += [_data]
+                msc = self.get_mosaic_par(mosaic, hdu=hdu)
+                mosaic_images += [build_image_mosaic(data, list(msc.tform))[0]]
+
+        # Each mosaic has a different rotation, so their nspec can differ
+        # slightly.  Pad them to a common nspec before concatenating.
+        max_nspec = max(img.shape[0] for img in mosaic_images)
+        return np.concatenate([np.pad(img, ((0, max_nspec - img.shape[0]), (0, 0)))
+                               for img in mosaic_images], axis=1)
 
 class DEIMOSOpticalModel(OpticalModel):
     """

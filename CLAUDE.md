@@ -69,6 +69,16 @@ astronomical telescopes into calibrated spectra for scientific analysis.
   validation lists in `specobj.py`, `specobjs.py`, `slittrace.py`,
   `show_2dspec.py`, `spectrograph.py`, and `pypeit_steps.py`.
 
+- Quicklook viewer (`pypeit_qlview`, `pypeit/display/qlview`): instrument
+  support is defined by the `qlview_*` hooks on `Spectrograph`
+  (`qlview_supported`, `qlview_label`, `qlview_raw_columns`/`qlview_raw_info`,
+  `qlview_reduced_columns`/`qlview_reduced_info`, `qlview_display_image`).
+  Reduced-column keys are PypeIt configuration keys.  Generic viewer logic
+  lives in `qlview/spectrograph_support.py`; `recommend_calibrations` lives in
+  `qlview/calib_utils.py` because it imports `pypeit.scripts.ql`, which would
+  create a circular import from `spectrograph.py`.  The spectrograph modules
+  must never import `pypeit.display.qlview`.
+
 - Calibrations: The `Fiber` pypeline falls through to `IFUCalibrations` in
   `calibrations.py` (not in `['MultiSlit', 'Echelle']`), sharing the
   calibration flow with `SlicerIFU`.
@@ -104,6 +114,12 @@ object — no peak-detection object finding is needed.
   (`fiber_ref_profile.fits`). Sky fibers are identified by `FIB_NAME`
   starting with `'SKY'` (the `FIB_TYPE` field in the reference file is
   unreliable — all fibers are marked as `SKY`).
+- The side-B (DET02) tables in `fiber_ref_profile.fits` are kept exactly as
+  the IDL pipeline wrote them, in a frame mirrored relative to PypeIt's DET02
+  image.  `load_fiber_ref_profile(2)` and `_load_ref_spatial_profile(2)`
+  mirror them on load (`ref_mirror_pix_b`).  Don't edit the side-B rows
+  of the file to "fix" fiber positions; the true dead fibers are B27, B79,
+  B159 and B199.
 - Header metadata cards: temperature is `TEMP`, humidity is `HUMID`,
   parallactic angle is `PA` (in `headarr[1]`).
 - **Block-slit architecture**: Fibers are grouped into 21 block-slits per

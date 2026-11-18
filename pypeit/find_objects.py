@@ -1423,33 +1423,18 @@ class FiberFindObjects(FindObjects):
 
         Fast path: single :func:`~pypeit.core.moment.moment1d` call per
         boxcar quantity with the per-fiber traces stacked into a
-        ``(nspec, nfib)`` column array, replacing one round trip through
-        :func:`~pypeit.core.extract.extract_boxcar` per fiber.
-        Bit-identical to the legacy per-fiber loop, ~30x faster.
+        ``(nspec, nfib)`` column array and each fiber's own
+        ``BOX_R_PIX`` as its aperture width, replacing one round trip
+        through :func:`~pypeit.core.extract.extract_boxcar` per fiber.
+        Gives the same result as the per-fiber loop and is ~10x faster
+        for a Binospec IFU detector.
 
-        Two preconditions guard the fast path, with a fallback to the
-        per-fiber loop if either fails:
-
-        * Uniform ``BOX_R_PIX`` across fibers, so a single scalar boxcar
-          width can be used.  ``moment1d`` accepts a per-element ``width``
-          array, but it sizes its integration column grid to the *minimum*
-          aperture width across all elements (``moment.py``, the
-          ``np.amin(i2-i1)`` term), so a varying ``width`` would silently
-          truncate the wider apertures rather than reproduce the per-fiber
-          boxcars.  The loop fallback uses correct per-fiber scalar widths.
-        * No aperture crosses into a different block-slit, which would
-          break the fast path's single global-mask assumption (never
-          happens for Binospec's ~70 px inter-block gaps; see
-          :meth:`_fiber_apertures_within_slit`).
+        The fast path falls back to the per-fiber loop if any aperture
+        crosses into a different block-slit, which would break its single
+        global-mask assumption (never happens for Binospec's ~70 px
+        inter-block gaps; see :meth:`_fiber_apertures_within_slit`).
         """
         if len(sobjs) == 0:
-            return
-
-        radii = np.array([float(s.BOX_R_PIX) for s in sobjs])
-        if not np.allclose(radii, radii[0]):
-            log.warning("Non-uniform BOX_R_PIX detected; "
-                        "falling back to per-fiber boxcar pre-extract")
-            self._preextract_fibers_loop(sobjs)
             return
 
         if not self._fiber_apertures_within_slit(sobjs):
@@ -1461,7 +1446,9 @@ class FiberFindObjects(FindObjects):
         gpm = self.sciImg.select_flag(invert=True)
         trace_2d = np.column_stack(
             [s.TRACE_SPAT.astype(float) for s in sobjs])
-        box_width = 2.0 * float(radii[0])
+        # Per-fiber aperture widths, one per column of trace_2d
+        radii = np.array([float(s.BOX_R_PIX) for s in sobjs])
+        box_width = np.broadcast_to(2.0 * radii, trace_2d.shape)
 
         # Pre-mask images so moment1d zeroes masked pixels uniformly.
         # Pseudo-slit edges aren't hard apertures (they sit on the outermost
@@ -1536,9 +1523,9 @@ class FiberFindObjects(FindObjects):
         """
         Per-fiber fallback for :meth:`_preextract_fibers`.
 
-        Preserves the original per-fiber ``gpm & ~other_slit`` mask and
-        handles non-uniform ``BOX_R_PIX``.  Used when the vectorized fast
-        path's preconditions fail.
+        Preserves the original per-fiber ``gpm & ~other_slit`` mask.  Used
+        when a fiber aperture crosses into a different block-slit, which
+        the vectorized fast path cannot handle.
         """
 
         gpm = self.sciImg.select_flag(invert=True)
@@ -2562,6 +2549,41 @@ class FiberFindObjects(FindObjects):
         flatimg, _ = flat.flatfield(flat_raw, flat_images.pixelflat_norm)
         return flatimg
 
+    @staticmethod
+    def _fiber_half_spacings(fiber_centers, single_fiber_radius):
+        """
+        Boxcar half-widths for the fibers of one block-slit.
+
+        Each fiber gets half the distance to its nearest neighbor, so adjacent
+        apertures touch but don't overlap.  The end fibers have only one
+        neighbor, which may sit across a dead fiber's empty slot (twice the
+        normal spacing); such a gap (more than 1.5 times the block's median
+        spacing) is replaced by the median spacing.
+
+        Parameters
+        ----------
+        fiber_centers : `numpy.ndarray`_
+            Sorted fiber center positions (pixels) within the block.
+        single_fiber_radius : :obj:`float`
+            Half-width to use if the block contains a single fiber.
+
+        Returns
+        -------
+        half_spacings : `numpy.ndarray`_
+            Boxcar half-width (pixels) for each fiber.
+        """
+        spacings = np.diff(fiber_centers)
+        half_spacings = np.zeros(len(fiber_centers))
+        if len(spacings) == 0:
+            half_spacings[0] = single_fiber_radius
+            return half_spacings
+        typical = np.median(spacings)
+        end_spacings = np.array([spacings[0], spacings[-1]])
+        end_spacings[end_spacings > 1.5 * typical] = typical
+        half_spacings[0], half_spacings[-1] = end_spacings / 2.0
+        half_spacings[1:-1] = np.minimum(spacings[:-1], spacings[1:]) / 2.0
+        return half_spacings
+
     def find_objects_pypeline(self, image, ivar, std_trace=None,
                               manual_extract_dict=None,
                               show_peaks=False, show_fits=False, show_trace=False,
@@ -2572,7 +2594,8 @@ class FiberFindObjects(FindObjects):
         For each pseudo-slit, uses fiber positions from the spectrograph's
         reference profile to create SpecObjs at known fiber locations.
         FWHM and BOX_R_PIX are set from inter-fiber spacing so adjacent
-        boxcar apertures touch but don't overlap.
+        boxcar apertures touch but don't overlap; an aperture next to a dead
+        fiber's empty slot is not widened into it.
 
         Parameters
         ----------
@@ -2634,15 +2657,8 @@ class FiberFindObjects(FindObjects):
             fiber_meta = self.spectrograph.identify_fibers_in_block(
                 self.det, slit_idx, fiber_centers)
 
-            # Compute inter-fiber spacings for BOX_R_PIX
-            spacings = np.diff(fiber_centers)
-            half_spacings = np.zeros(len(fiber_centers))
-            if len(spacings) > 0:
-                half_spacings[0] = spacings[0] / 2.0
-                half_spacings[-1] = spacings[-1] / 2.0
-                half_spacings[1:-1] = np.minimum(spacings[:-1], spacings[1:]) / 2.0
-            else:
-                half_spacings[0] = np.median(right - left) / 2.0
+            half_spacings = self._fiber_half_spacings(
+                fiber_centers, np.median(right - left) / 2.0)
 
             for j, center_pix in enumerate(fiber_centers):
                 obj_counter += 1

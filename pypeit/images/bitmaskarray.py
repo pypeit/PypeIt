@@ -110,8 +110,20 @@ class BitMaskArray(DataContainer):
             item (object):
                 The attribute being accessed.
         """
+        # NOTE: lower_keys is read from the instance dictionary directly rather
+        # than as self.lower_keys.  The latter re-enters this method whenever
+        # the attribute is not set, and then asks for it again, recursing until
+        # the stack is exhausted.  That is exactly the state an instance is in
+        # while it is being unpickled: pickle builds the object *without*
+        # calling __init__ (so _set_keys has not run) and then probes it for
+        # __setstate__, which lands here.  An instance with no lower_keys has no
+        # bit flags to look up and no data to delegate to, so the attribute
+        # simply does not exist.
+        lower_keys = self.__dict__.get('lower_keys')
+        if lower_keys is None:
+            raise AttributeError(f'{item} is not an attribute of {self.__class__.__name__}!')
         try:
-            i = self.lower_keys.index(item.lower())
+            i = lower_keys.index(item.lower())
         except ValueError:
             return super().__getattr__(item)
         # TODO: This creates a new numpy array every time it is called, which

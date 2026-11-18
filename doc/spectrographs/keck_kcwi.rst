@@ -57,7 +57,7 @@ should add the following to your :ref:`pypeit_file`:
 
     [calibrations]
         [[flatfield]]
-            flatfield_structure = False
+            fit_2d_det_response = False
 
 Trace Flat
 ----------

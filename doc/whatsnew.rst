@@ -5,7 +5,11 @@
 What's New in PypeIt
 ********************
 
-.. include:: releases/2.1.0dev.rst
+.. include:: releases/3.1.0dev.rst
+
+----
+
+.. include:: releases/3.0.0.rst
 
 ----
 

@@ -64,9 +64,10 @@ class RunPypeIt(scriptbase.ScriptBase):
         parser.add_argument('--ncpu', type=int, default=None,
                             help='Number of CPUs to use.  Overrides the [rdx] ncpu '
                                  'parameter.  The default (None) uses the parameter value, '
-                                 'which itself defaults to 1 (fully serial).  Currently, '
-                                 'this only sets the number of threads used to write the '
-                                 'QA figures; the reduction itself is still serial.')
+                                 'which itself defaults to 1 (fully serial).  With ncpu > 1, '
+                                 'detectors (or mosaics) are reduced concurrently, one '
+                                 'worker process per detector, and the QA figures are '
+                                 'written by a pool of threads.')
 
         return parser
 

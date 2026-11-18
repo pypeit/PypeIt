@@ -347,6 +347,9 @@ def conv_telluric(tell_model, dloglam, res):
     #g = (1.0/(np.sqrt(2*np.pi)))*np.exp(-0.5*np.square(x))*sig2pix
     g=np.exp(-0.5*np.square(x))
     g /= g.sum()
+    # FITS models can be big-endian; SciPy's signal routines require native
+    # byte order. Preserve the input precision when converting.
+    tell_model = np.asarray(tell_model, dtype=tell_model.dtype.newbyteorder('='))
     conv_model = scipy.signal.convolve(tell_model,g,mode='same')
     return conv_model
 

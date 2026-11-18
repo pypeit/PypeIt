@@ -773,6 +773,14 @@ class SpecObjs:
 
         First attempts to grab data from the Summary table, then the list
         """
+        # NOTE: specobjs is read from the instance dictionary directly rather
+        # than as self.specobjs.  The latter re-enters this method whenever the
+        # attribute is not set, and then asks for it again, recursing until the
+        # stack is exhausted.  That is exactly the state an instance is in while
+        # it is being unpickled: pickle builds the object *without* calling
+        # __init__ and then probes it for __setstate__, which lands here.
+        if 'specobjs' not in self.__dict__:
+            raise AttributeError(f'{attr} is not an attribute of {self.__class__.__name__}!')
         if len(self.specobjs) == 0:
             raise ValueError('SpecObjs is empty!')
         if attr in self.__dict__:  # any normal attributes are handled normally
