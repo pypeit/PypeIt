@@ -8,7 +8,9 @@ from IPython import embed
 import numpy as np
 
 from astropy.io import fits
+import pytest
 
+from pypeit import PypeItError
 from pypeit.slittrace import SlitTraceSet, SlitTraceBitMask
 from pypeit.par.pypeitpar import EdgeTracePar
 from pypeit.tests.tstutils import data_output_path
@@ -39,6 +41,34 @@ def test_init():
     left, right, _ = slits.select_edges()
     center = (left+right)/2
     assert np.all(center == 5), 'Bad center'
+
+
+@pytest.mark.parametrize('nslits', [1, 2, 3])
+def test_traced_edges(nslits, tmp_path):
+    left = np.tile(2. + 10. * np.arange(nslits), (100, 1))
+    right = left + 6.
+    slits = SlitTraceSet(left, right, 'MultiSlit', nspat=10 * nslits, PYP_SPEC='dummy')
+    assert slits.traced_edges().shape == (nslits, 2), 'Incorrect shape'
+    assert np.all(slits.traced_edges()), 'All edges should be traced by default'
+    left_traced = np.arange(nslits) > 0
+    right_traced = np.arange(nslits) < nslits - 1
+    slits = SlitTraceSet(left, right, 'MultiSlit', nspat=10 * nslits, PYP_SPEC='dummy',
+                         left_traced=left_traced, right_traced=right_traced)
+    assert np.array_equal(slits.traced_edges(), np.column_stack((left_traced, right_traced))), \
+        'Incorrect traced-edge flags'
+    # I/O
+    slits.set_paths(tmp_path, 'A', '1', 'DET01')
+    slits.to_file()
+    _slits = SlitTraceSet.from_file(slits.get_path())
+    assert np.array_equal(_slits.traced_edges(), slits.traced_edges()), \
+        'Bad traced-edge flags read'
+    # Flags for one side only, or for the wrong number of slits
+    with pytest.raises(PypeItError):
+        SlitTraceSet(left, right, 'MultiSlit', nspat=10 * nslits, left_traced=left_traced)
+    with pytest.raises(PypeItError):
+        SlitTraceSet(left, right, 'MultiSlit', nspat=10 * nslits,
+                     left_traced=np.ones(nslits + 1, dtype=bool),
+                     right_traced=np.ones(nslits + 1, dtype=bool))
 
 
 def test_io():
@@ -115,6 +145,39 @@ def test_pad():
     assert np.array_equal(_slits.pad, np.array([8.0, 3.0])), 'pad did not round-trip through file'
 
     ofile.unlink()
+
+
+def test_slit_img_split_overlap():
+    # Three slits: the first two are 3.5 pixels apart, the last two overlap
+    nspec, nspat = 20, 60
+    left = np.tile([5.5, 21.0, 33.5], (nspec, 1))
+    right = np.tile([17.5, 35.5, 50.5], (nspec, 1))
+    slits = SlitTraceSet(left, right, 'MultiSlit', nspat=nspat, PYP_SPEC='dummy')
+    spat_id = slits.spat_id
+    # Without padding, the pixels where the last two slits overlap are
+    # assigned to the last slit, unless the overlap is split at its midpoint
+    # (x = 34.5)
+    nopad = slits.slit_img(pad=0)
+    assert np.all(nopad[:, 18:21] == -1), 'Gap pixels should not be assigned'
+    assert np.all(nopad[:, 34:36] == spat_id[2]), 'Overlap pixels should be overwritten'
+    split = slits.slit_img(pad=0, split_overlap=True)
+    assert np.all(split[:, 33:36] == spat_id[[1, 1, 2]]), 'Overlap not split at its midpoint'
+    # With padding, the padding of the second slit also covers the right edge
+    # of the first slit, unless the overlap is split: then, the pixels on the
+    # first slit stay on it, and the gap between the slits (17.5 to 21.0) is
+    # split at its midpoint (x = 19.25)
+    pad = 5
+    padded = slits.slit_img(pad=pad)
+    assert np.all(padded[:, 17:23] == spat_id[1]), 'Padded pixels should be overwritten'
+    split = slits.slit_img(pad=pad, split_overlap=True)
+    assert np.all(split[:, 15:23] == spat_id[[0, 0, 0, 0, 0, 1, 1, 1]]), \
+        'Padded overlap not split at the midpoint of the gap'
+    assert np.all(split[:, 33:37] == spat_id[[1, 1, 2, 2]]), \
+        'Padded overlap not split at the midpoint of the overlapping slits'
+    # Pixels in only one (padded) slit are not affected
+    nslit = np.sum([slits.slit_img(pad=pad, slitidx=i) != -1 for i in range(slits.nslits)],
+                   axis=0)
+    assert np.array_equal(split[nslit < 2], padded[nslit < 2]), 'Pixels in a single slit changed'
 
 
 def test_io_single():

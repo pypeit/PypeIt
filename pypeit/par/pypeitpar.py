@@ -401,7 +401,11 @@ class ProcessImagesPar(ParSet):
                                        '"leftedge" means that the left slit edge will be used to determine ' \
                                            'the shift, and this value will be assigned to the right edge. ' \
                                        '"rightedge" means that the right slit edge will be used to determine ' \
-                                           'the shift, and this value will be assigned to the left edge.'
+                                           'the shift, and this value will be assigned to the left edge.  ' \
+                                       'For the edge-based methods (edge, leftedge and rightedge), the ' \
+                                       'slit edges should be placed at the steepest flux gradient when ' \
+                                       'they are traced (see the refine_edges parameter of the slit edge ' \
+                                       'tracing).'
 
         defaults['spat_flexure_polyord'] = None
         dtypes['spat_flexure_polyord'] = int
@@ -418,20 +422,22 @@ class ProcessImagesPar(ParSet):
                                           'finding slit edges in the spectral image, '  \
                                           'for which the spatial flexure is computed.'
 
-        defaults['spat_flexure_minfrac'] = 0.1
+        defaults['spat_flexure_minfrac'] = 0.0
         dtypes['spat_flexure_minfrac'] = [int, float]
         descr['spat_flexure_minfrac'] = 'Minimum fraction of the traced slit-edge pixels that ' \
                                         'must coincide (within 2 pixels) with an edge detected ' \
                                         'in the image, after shifting the traced edges by the ' \
                                         'measured detector-level spatial flexure.  If fewer ' \
-                                        'edge pixels are matched (e.g. because the slit edges ' \
-                                        'are not visible in a faint exposure), the slit edges ' \
-                                        'are deemed to be undetected and no spatial flexure is ' \
-                                        'applied.  For frames where the slit edges are only ' \
-                                        'visible in a few spectral rows (e.g. arc frames with ' \
-                                        'few emission lines), a lower value may be required.  ' \
-                                        'Set to 0 to disable this check.  This value must be ' \
-                                        'between 0 and 1.'
+                                        'edge pixels are matched, the slit edges are deemed to ' \
+                                        'be undetected and no spatial flexure is applied.  ' \
+                                        'Note that the slit edges are only visible in the ' \
+                                        'spectral rows where the frame is illuminated (e.g. ' \
+                                        'sky or arc lines), so frames with a genuine flexure ' \
+                                        'can have a small fraction.  The default (0) disables ' \
+                                        'this check.  For the slit, edge, leftedge and ' \
+                                        'rightedge methods, the slit edges are also deemed to ' \
+                                        'be undetected if fewer than 25% of them can be ' \
+                                        'refined.  This value must be between 0 and 1.'
 
         defaults['spat_flexure_vrange'] = None
         dtypes['spat_flexure_vrange'] = tuple
@@ -3310,8 +3316,8 @@ class WavelengthSolutionPar(ParSet):
                  n_first=None, n_final=None, sigrej_first=None, sigrej_final=None, numsearch=None,
                  nfitpix=None, boxcar_radius=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
-                 ech_2dfit=None, ech_separate_2d=None, redo_slits=None, reference_slit=None, qa_log=None,
-                 cc_percent_ceil=None, cc_synth_arc=None, echelle_pad=None, ech_angle_fits_file=None,
+                 ech_2dfit=None, ech_separate_2d=None, redo_slits=None, reference_slit=None,
+                 stack_slits=None, mask_bad_rms=None, qa_log=None, cc_percent_ceil=None, cc_synth_arc=None, echelle_pad=None, ech_angle_fits_file=None,
                  ech_composite_arc_file=None, cc_offset_minmax=None, stretch_func=None):
 
         # Grab the parameter names and values from the function
@@ -3553,8 +3559,9 @@ class WavelengthSolutionPar(ParSet):
                                         'a slit/order solution. If ``fwhm_fromlines`` is True, ' \
                                         'FWHM will be computed from the arc lines in each slits, otherwise ``fwhm`` ' \
                                         'will be used. This parameter is used for the \'holy-grail\', ' \
-                                        '\'reidentify\', and \'echelle\' methods and  when re-analyzing ' \
-                                        'a slit using the ``redo_slits`` parameter. '
+                                        '\'reidentify\', and \'echelle\' methods, when re-analyzing ' \
+                                        'a slit using the ``redo_slits`` parameter, and for the ' \
+                                        '\'full_template\' method if ``mask_bad_rms`` is True. '
 
         defaults['match_toler'] = 2.0
         dtypes['match_toler'] = float
@@ -3585,7 +3592,8 @@ class WavelengthSolutionPar(ParSet):
         dtypes['n_final'] = [int, float, list, np.ndarray]
         descr['n_final'] = 'Order of final fit to the wavelength solution (there are n_final+1 ' \
                            'parameters in the fit). This can be a single number or a ' \
-                           'list/array providing the value for each slit'
+                           'list/array providing the value for each slit.  If n_first is ' \
+                           'larger, the final fit has order n_first.'
 
         defaults['sigrej_final'] = 3.0
         dtypes['sigrej_final'] = float
@@ -3628,7 +3636,34 @@ class WavelengthSolutionPar(ParSet):
                                   '(4) the lowest RMS. ' \
                                   'in that order of priority. ' \
                                   'This parameter is the spatial ID of the slit to use ' \
-                                  'as a reference for this process.'
+                                  'as a reference for this process.  If ``stack_slits`` is True, this slit is ' \
+                                  'used as the reference when aligning the arc spectra of all slits.'
+
+        defaults['stack_slits'] = False
+        dtypes['stack_slits'] = bool
+        descr['stack_slits'] = 'Only used with the ``full_template`` method for multi-slit, IFU, or fiber ' \
+                               'data, where all slits cover a similar wavelength range.  If True, the arc ' \
+                               'spectra of all slits are aligned (with a shift and stretch) to the arc ' \
+                               'spectrum of a reference slit and combined into a single arc spectrum with a ' \
+                               'higher S/N.  The combined spectrum is wavelength calibrated with the template ' \
+                               'given by ``reid_arxiv``.  The arc lines of each slit are then identified using ' \
+                               'the wavelength solution of the combined spectrum and the alignment of the slit ' \
+                               'to the reference slit.  Slits whose cross-correlation with the reference slit ' \
+                               'is below ``cc_thresh`` are not included in the combined spectrum; these are ' \
+                               'calibrated using the combined spectrum as the template.  The reference slit ' \
+                               'is set by ``reference_slit``; if that is not set, the slit with the most ' \
+                               'detected arc lines is used.  This is useful when the arc spectrum of each ' \
+                               'slit has too few lines to be calibrated reliably on its own.  If the ' \
+                               'combined spectrum cannot be calibrated, each slit is calibrated ' \
+                               'independently (i.e. as if ``stack_slits`` were False).'
+
+        defaults['mask_bad_rms'] = False
+        dtypes['mask_bad_rms'] = bool
+        descr['mask_bad_rms'] = 'Only used with the ``full_template`` method, unless a 2D echelle ' \
+                                'solution is fit.  If True, slits whose wavelength solution has an RMS ' \
+                                'above the threshold set by ``rms_thresh_frac_fwhm`` are masked.  ' \
+                                'Note that the default ``rms_thresh_frac_fwhm`` of most spectrographs ' \
+                                'has not been tuned for the ``full_template`` method.'
 
         defaults['qa_log'] = True
         dtypes['qa_log'] = bool
@@ -3702,7 +3737,7 @@ class WavelengthSolutionPar(ParSet):
                    'nlocal_cc', 'rms_thresh_frac_fwhm', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix', 'boxcar_radius',
                    'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 'reference_slit',
-                   'redo_slits', 'qa_log', 'cc_percent_ceil', 'cc_synth_arc', 'echelle_pad', 'ech_angle_fits_file',
+                   'stack_slits', 'mask_bad_rms', 'redo_slits', 'qa_log', 'cc_percent_ceil', 'cc_synth_arc', 'echelle_pad', 'ech_angle_fits_file',
                    'ech_composite_arc_file', 'cc_offset_minmax', 'stretch_func']
 
         badkeys = np.array([pk not in parkeys for pk in k])
@@ -4082,10 +4117,19 @@ class EdgeTracePar(ParSet):
                                 '`center_mode` for these edges and place them at the edge of ' \
                                 'the detector (with the relevant shape).'
 
-        defaults['refine_edges'] = False  # Maybe set this default to True?
+        defaults['refine_edges'] = False
         dtypes['refine_edges'] = bool
-        descr['refine_edges'] = 'If True, a spatial shift will be applied to the fitted edges to ' \
-                                'ensure the edge is located at the position of steepest flux gradient.' \
+        descr['refine_edges'] = 'If True, a spatial shift will be applied to each traced edge to ' \
+                                'ensure the edge is located at the position of steepest flux ' \
+                                'gradient (the traced edges are typically a fraction of a pixel ' \
+                                'to a pixel outside the steepest gradient).  The light of the ' \
+                                'neighbouring slits is accounted for.  If an edge cannot be ' \
+                                'refined, the traced edge is kept.  This should be True if the ' \
+                                'spatial flexure is measured with an edge-based method (edge, ' \
+                                'leftedge or rightedge; see spat_flexure_method), since the ' \
+                                'flexure of each edge is measured relative to the steepest ' \
+                                'flux gradient.  This is True by default for all SlicerIFU ' \
+                                'spectrographs.'
 
         defaults['bound_detector'] = False
         dtypes['bound_detector'] = bool
@@ -5885,6 +5929,35 @@ class PypeItPar(ParSet):
             if isinstance(self[_key], ParSet) and 'process' in self[_key].keys():
                 for key,value in kwargs.items():
                     self[_key]['process'][key] = value
+
+    def edge_flexure_frames(self):
+        """
+        Return the frame types whose spatial flexure is measured with an
+        edge-based method (``edge``, ``leftedge`` or ``rightedge``).
+
+        These methods measure the spatial flexure of each slit edge relative
+        to the traced slit edges, so the traced edges should be at the steepest
+        flux gradient (see the ``refine_edges`` parameter of
+        :class:`EdgeTracePar`).
+
+        Returns:
+            :obj:`list`: The names of the parameter sets of the frame types
+            (e.g. ``'arcframe'``, ``'scienceframe'``).
+        """
+        edge_methods = ['edge', 'leftedge', 'rightedge']
+        frames = []
+        # Calibrations
+        for key in self['calibrations'].keys():
+            if isinstance(self['calibrations'][key], ParSet) \
+                    and 'process' in self['calibrations'][key].keys() \
+                    and self['calibrations'][key]['process']['spat_flexure_method'] in edge_methods:
+                frames.append(key)
+        # Science frame
+        for key in self.keys():
+            if isinstance(self[key], ParSet) and 'process' in self[key].keys() \
+                    and self[key]['process']['spat_flexure_method'] in edge_methods:
+                frames.append(key)
+        return frames
 
     def sync_processing(self, proc_par):
         """

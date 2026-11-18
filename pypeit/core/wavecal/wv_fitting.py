@@ -228,7 +228,7 @@ class WaveFit(datamodel.DataContainer):
 
 def fit_slit(
     spec, patt_dict, tcent, line_lists, vel_tol=1.0, thar=False, match_toler=3.0, func='legendre',
-    n_first=2, sigrej_first=2.0, n_final=4, sigrej_final=3.0, verbose=False
+    n_first=2, sigrej_first=2.0, n_final=4, sigrej_final=3.0, verbose=False, min_dof=2
 ):
 
     """ Perform a fit to the wavelength solution. Wrapper for iterative fitting code.
@@ -259,11 +259,15 @@ def fit_slit(
     sigrej_first: float, default = 2.0
         Number of sigma for rejection for the first guess to the wavelength solution.
     n_final: int, default = 4
-        Order of the final wavelength solution fit
+        Order of the final wavelength solution fit.  If ``n_first`` is larger,
+        the order of the final fit is ``n_first``.
     sigrej_final: float, default = 3.0
         Number of sigma for rejection for the final fit to the wavelength solution.
     verbose : bool
         If True, print out more information.
+    min_dof : int, optional
+        Minimum number of degrees of freedom required for the final fit; see
+        :func:`iterative_fitting`.
     plot_fil:
         Filename for plotting some QA?
 
@@ -295,13 +299,42 @@ def fit_slit(
     return iterative_fitting(
         spec, tcent, ifit, np.array(patt_dict['IDs'])[ifit], line_lists[NIST_lines],
         patt_dict['bdisp'], match_toler=match_toler, func=func, n_first=n_first,
-        sigrej_first=sigrej_first,n_final=n_final, sigrej_final=sigrej_final, verbose=verbose
+        sigrej_first=sigrej_first,n_final=n_final, sigrej_final=sigrej_final, verbose=verbose,
+        min_dof=min_dof
     )
+
+
+def order_for_dof(order, nlines, min_dof=2):
+    """
+    Return the largest polynomial order, up to ``order``, that leaves at least
+    ``min_dof`` degrees of freedom when fitting ``nlines`` arc lines.
+
+    A polynomial of order :math:`n` has :math:`n+1` free parameters, so the
+    number of degrees of freedom is ``nlines - order - 1``.
+
+    Parameters
+    ----------
+    order : int
+        Requested polynomial order.
+    nlines : int
+        Number of arc lines to be fit.
+    min_dof : int, optional
+        Minimum number of degrees of freedom required.
+
+    Returns
+    -------
+    int or None
+        The polynomial order to use.  If even a linear fit does not leave
+        ``min_dof`` degrees of freedom, None is returned.
+    """
+    _order = min(order, nlines - min_dof - 1)
+    return None if _order < 1 else _order
 
 
 def iterative_fitting(
     spec, tcent, ifit, IDs, llist, dispersion, match_toler=2.0, func='legendre', n_first=2,
-    sigrej_first=2.0, n_final=4, sigrej_final=3.0, input_only=False, weights=None, verbose=False
+    sigrej_first=2.0, n_final=4, sigrej_final=3.0, input_only=False, weights=None, verbose=False,
+    min_dof=2
 ):
     """
     Routine for iteratively fitting wavelength solutions.
@@ -331,7 +364,8 @@ def iterative_fitting(
     sigrej_first: float, default = 2.0
         Number of sigma for rejection for the first guess to the wavelength solution.
     n_final: int, default = 4
-        Order of the final wavelength solution fit
+        Order of the final wavelength solution fit.  If ``n_first`` is larger,
+        the order of the final fit is ``n_first``.
     sigrej_final: float, default = 3.0
         Number of sigma for rejection for the final fit to the wavelength
         solution.
@@ -343,11 +377,18 @@ def iterative_fitting(
         Weights to be used?
     verbose : bool
         If True, print out more information.
+    min_dof : int, optional
+        Minimum number of degrees of freedom required for the final fit.  If there
+        are too few lines for the order of the final fit, the order is reduced (see
+        :func:`order_for_dof`); if there are too few lines for a linear fit,
+        the fit fails and None is returned.  This prevents fits that pass
+        exactly through (possibly misidentified) lines from being accepted
+        with an RMS of zero.
 
     Returns
     -------
     final_fit: :class:`~pypeit.core.wavecal.wv_fitting.WaveFit`
-        Fit result
+        Fit result.  None is returned if the fit fails.
     """
 
     #TODO JFH add error checking here to ensure that IDs and ifit have the same size!
@@ -368,7 +409,7 @@ def iterative_fitting(
     flg_continue = True
     flg_penultimate = False
     fmin, fmax = 0.0, 1.0
-    # Note the number of parameters is actually n_order and not n_order+1
+    # Note the number of parameters is n_order+1
     while flg_continue:
         if flg_penultimate:
             flg_continue = False
@@ -379,7 +420,9 @@ def iterative_fitting(
         if xfit.size == 0:
             log.warning("All points rejected !!")
             return None
-        # Fit
+        # Fit.  NOTE: The number of degrees of freedom is not enforced for
+        # these preliminary fits, which are only used to identify additional
+        # lines; it is enforced for the final fit below.
         pypeitFit = fitting.robust_fit(xfit/xnspecmin1, yfit, n_order, function=func, maxiter=maxiter,
                                        lower=sigrej_first, upper=sigrej_first, maxrej=1, sticky=True,
                                        minx=fmin, maxx=fmax, weights=wfit)
@@ -417,11 +460,19 @@ def iterative_fitting(
         else:
             flg_penultimate = True
 
-    # Final fit (originals can now be rejected)
-    if len(ifit) <= n_final:
-        n_order = len(ifit)-1
-        log.warning(f'Not enough lines for n_final! Fit order = {n_order}')
-            
+    # Final fit (originals can now be rejected).  NOTE: The order of the final
+    # fit is the order reached in the loop above, i.e. n_final, or n_first if
+    # this is larger.  Make sure the fit has enough degrees of freedom.
+    _n_order = n_order
+    n_order = order_for_dof(_n_order, len(ifit), min_dof=min_dof)
+    if n_order is None:
+        log.warning(f'Only {len(ifit)} lines available; at least {min_dof+2} are required '
+                    f'for a linear fit with {min_dof} degrees of freedom.')
+        return None
+    if n_order < _n_order:
+        log.warning(f'Not enough lines ({len(ifit)}) for a fit of order {_n_order} with at least '
+                    f'{min_dof} degrees of freedom.  Reducing the fit order to {n_order}.')
+
     xfit, yfit, wfit = tcent[ifit], all_ids[ifit], weights[ifit]
     pypeitFit = fitting.robust_fit(xfit/xnspecmin1, yfit, n_order, function=func,
                                    lower=sigrej_final, upper=sigrej_final, maxrej=1, sticky=True,

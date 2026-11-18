@@ -697,6 +697,9 @@ class EdgeTraceSet(calibframe.CalibFrame):
             - Use :func:`rm_user_traces` and :func:`add_user_traces` to remove
               and then add (in that order) traces as defined by the
               user-provided lists in the :attr:`par`.
+            - If requested (the ``refine_edges`` parameter), shift each edge
+              to the position of the steepest flux gradient using
+              :func:`edge_refine`.
 
         Used parameters from :attr:`par`
         (:class:`~pypeit.par.pypeitpar.EdgeTracePar`) are
@@ -760,9 +763,6 @@ class EdgeTraceSet(calibframe.CalibFrame):
             if debug > 0:
                 self.show(title='Result after re-identifying slit edges from a spectrally '
                                 'collapsed image.')
-
-        if self.par['refine_edges']:
-            self.edge_refine()
 
         # Match the traces found in the image with the ones predicted by
         # the slit-mask design. If not expected traces are found in the image, they
@@ -854,6 +854,14 @@ class EdgeTraceSet(calibframe.CalibFrame):
 
         # TODO: If slits are added/removed, should the code check again if the
         # traces are synced?
+
+        # Shift the edges to the position of the steepest flux gradient.  This
+        # is done once all the edges are found (and synchronized), so that the
+        # facing edges of the neighbouring slits are known.
+        if self.par['refine_edges'] and not self.is_empty:
+            self.edge_refine()
+            if debug > 0:
+                self.show(title='After refining the edges to the steepest flux gradient')
 
         # TODO: Add a parameter and an if statement that will allow for
         # this.
@@ -3647,25 +3655,37 @@ class EdgeTraceSet(calibframe.CalibFrame):
         """
         Refines the edges by identifying the spatial location of each
         edge that exhibits the largest flux gradient.
+
+        Each good edge is shifted by a constant offset to the position of the
+        steepest flux gradient across the edge in the trace image, as measured
+        by :func:`~pypeit.core.trace.refine_edge`, accounting for the light of
+        the neighbouring slit.  If an edge cannot be refined (e.g. if it is
+        not detected), the traced edge is kept and a warning is printed.
         """
         log.info("Refining edges to the point of steepest flux gradient")
         # First select the good edges
         gpm = self.good_traces(include_box=True, good_orders=True)
-        gpm = self.synced_selection(gpm, mode='neither')
-        # Refine left edges
-        gd_left = np.where(gpm & self.is_left)[0]
-        for ll, edg in enumerate(gd_left):
-            this_left = self.edge_fit[:,edg]
-            shift = trace.refine_edge(self.traceimg.image, self.traceimg.select_flag(flag='BPM'), this_left, "l")
-            log.info("Refining left edge {0:d} by {1:+0.2f} pixels".format(ll+1, shift))
-            self.edge_fit[:, edg] += shift
-        # Refine right edges
-        gd_right = np.where(gpm & self.is_right)[0]
-        for rr, edg in enumerate(gd_right):
-            this_right = self.edge_fit[:,edg]
-            shift = trace.refine_edge(self.traceimg.image, self.traceimg.select_flag(flag='BPM'), this_right, "r")
-            log.info("Refining right edge {0:d} by {1:+0.2f} pixels".format(rr+1, shift))
-            self.edge_fit[:, edg] += shift
+        if self.is_synced:
+            gpm = self.synced_selection(gpm, mode='neither')
+        bpm = self.traceimg.select_flag(flag='BPM')
+        # The facing edges of the neighbouring slits (using all edges)
+        left_nbr, right_nbr = trace.facing_edges(self.edge_fit[:, self.is_left],
+                                                 self.edge_fit[:, self.is_right])
+        # Measure all the shifts before applying them
+        shifts = np.zeros(self.ntrace, dtype=float)
+        for side, is_side, nbr in [('left', self.is_left, left_nbr),
+                                   ('right', self.is_right, right_nbr)]:
+            for i, edg in enumerate(np.where(is_side)[0]):
+                if not gpm[edg]:
+                    continue
+                shift, refined = trace.refine_edge(self.traceimg.image, bpm, self.edge_fit[:, edg],
+                                                   side, neighbour=nbr[:, i], return_success=True)
+                if refined:
+                    shifts[edg] = shift
+                    log.info(f'Refining {side} edge {i+1} by {shift:+0.2f} pixels')
+                else:
+                    log.info(f'The {side} edge {i+1} could not be refined; the traced edge is kept')
+        self.edge_fit += shifts[None, :]
         return
 
     # TODO: Make this a core function?
@@ -5696,6 +5716,11 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # Parse the data for the SlitTraceSet
         left = self.edge_fit[:,gpm & self.is_left]
         right = self.edge_fit[:,gpm & self.is_right]
+        # Flag the edges that were traced, as opposed to inserted (e.g. by the
+        # left-right synchronization, or at the detector boundaries)
+        traced = np.logical_not(self.fully_masked_traces(flag=self.bitmask.insert_flags))
+        left_traced = traced[gpm & self.is_left]
+        right_traced = traced[gpm & self.is_right]
         binspec, binspat = parse.parse_binning(self.traceimg.detector.binning)
         ech_order = None if self.orderid is None else self.orderid[gpm][1::2]
         if self.par['trim_spec'] is not None:
@@ -5788,7 +5813,8 @@ class EdgeTraceSet(calibframe.CalibFrame):
                                        PYP_SPEC=self.spectrograph.name, specmin=specmin,
                                        specmax=specmax, binspec=binspec, binspat=binspat,
                                        pad=np.asarray(self.par['pad'], dtype=float),
-                                       mask_init=slit_msk,
+                                       mask_init=slit_msk, left_traced=left_traced,
+                                       right_traced=right_traced,
                                        maskdef_id=_maskdef_id, maskdef_designtab=_merged_designtab,
                                        maskdef_posx_pa=_posx_pa, maskfile=self.maskfile,
                                        ech_order=ech_order)

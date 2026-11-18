@@ -146,6 +146,20 @@ class PypeIt:
                 'rerun.'
             )
 
+        # The edge-based spatial flexure methods measure the flexure of each
+        # slit edge relative to the steepest flux gradient, so the traced slit
+        # edges should be refined to the steepest flux gradient
+        edge_frames = self.par.edge_flexure_frames()
+        if len(edge_frames) > 0 and not self.par['calibrations']['slitedges']['refine_edges']:
+            log.warning(
+                'The spatial flexure of the following frame types is measured with an edge-based '
+                f'method (edge, leftedge or rightedge): {", ".join(edge_frames)}.\nThese methods '
+                'measure the flexure of each slit edge relative to the steepest flux gradient, '
+                'but the traced slit edges are not refined to the steepest flux gradient.\nWe '
+                'recommend that you set refine_edges = True in the [calibrations][[slitedges]] '
+                'parameter block, and recreate the slit edges.'
+            )
+
         # Other Internals
         self.overwrite = overwrite
 

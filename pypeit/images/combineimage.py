@@ -200,7 +200,7 @@ class CombineImage:
         # Check if any or all spatial flexure are None
         comb_spat_flexure = None  # Default is no spatial flexure
         if np.all([a is None for a in all_spat_flexure]):
-            log.warning('No flexure values found for all images being combined!')
+            log.debug('No spatial flexure values found for the images being combined.')
         else:
             if np.any([a is None for a in all_spat_flexure]):
                 # Some images do not have a spatial flexure (e.g., if a manual

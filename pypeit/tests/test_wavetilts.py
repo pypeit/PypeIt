@@ -152,6 +152,43 @@ def test_fit2tilts():
         'Spatial coordinate changed without spatial flexure'
 
 
+def test_fit2tilts_prepareSlit_no_flexure():
+    # Without a relative spatial flexure, the evaluation coordinates must be
+    # *exactly* the pixel coordinates (as used before the spatial flexure was
+    # introduced), even for edges that are not at integer pixel positions
+    nspec, nspat = 50, 30
+    spec = np.arange(nspec)
+    slits_left = 3.37 + 0.011 * spec
+    slits_right = 21.83 + 0.007 * spec
+    spat = np.arange(nspat)[None, :]
+    thismask = (spat > slits_left[:, None]) & (spat < slits_right[:, None])
+    spec_pix, spat_pix = np.where(thismask)
+    for flex in [None, np.zeros(2)]:
+        _spec_eval, _spat_eval = tracewave.fit2tilts_prepareSlit(slits_left, slits_right, thismask,
+                                                                 relative_spat_flexure=flex)
+        assert np.array_equal(_spec_eval, spec_pix / (nspec - 1)), 'Spectral coordinate changed'
+        assert np.array_equal(_spat_eval, spat_pix / (nspat - 1)), 'Spatial coordinate changed'
+
+
+def test_fit2tilts_prepareSlit_zero_width():
+    # Spectral rows where the slit has no width (left edge = right edge) must
+    # not give NaN coordinates (which would set the tilts to their clipping
+    # limit)
+    nspec, nspat = 10, 20
+    left, right = np.full(nspec, 5.), np.full(nspec, 12.)
+    right[:3] = left[:3]
+    thismask = np.zeros((nspec, nspat), dtype=bool)
+    thismask[:, 3:15] = True
+    spec_pix, spat_pix = np.where(thismask)
+    for flex in [None, np.zeros(2), np.array([0.3, 0.3]), np.array([0.3, -0.2])]:
+        _, _spat_eval = tracewave.fit2tilts_prepareSlit(left, right, thismask,
+                                                        relative_spat_flexure=flex)
+        assert np.all(np.isfinite(_spat_eval)), 'NaN spatial coordinates for a zero-width slit'
+        if flex is not None and flex[0] == flex[1]:
+            assert np.allclose(_spat_eval, (spat_pix - flex[0]) / (nspat - 1)), \
+                'A uniform relative flexure should shift all pixels equally'
+
+
 def test_fit2tiltimg_spat_flexure_shift(tmp_path):
     """
     A frame whose spatial flexure is dx pixels larger than that of the tilts frame

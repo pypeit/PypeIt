@@ -287,6 +287,49 @@ one that has:
 (4) the lowest RMS.
 in that order of priority.
 
+.. _wvcalib-stack-slits:
+
+Stacking the arc spectra of all slits
++++++++++++++++++++++++++++++++++++++
+
+If the arc lines are weak or few, the arc spectrum of each slit may not have
+enough detected lines to be matched reliably to the template, even when the
+template itself has a high S/N.  For multislit, IFU and fiber data, where
+the wavelength coverage of all slits/slices/fibers is similar, you can instead
+calibrate a stack of the arc spectra of all slits:
+
+.. code-block:: ini
+
+    [calibrations]
+        [[wavelengths]]
+            stack_slits = True
+
+With this option, PypeIt:
+
+#. selects a reference slit; this is ``reference_slit``, if set, or otherwise
+   the slit with the most detected arc lines;
+
+#. aligns the arc spectrum of every slit to that of the reference slit (using
+   a shift and stretch), and combines them into a single arc spectrum with a
+   higher S/N; slits whose cross-correlation with the reference slit is below
+   ``cc_thresh`` are not included;
+
+#. wavelength calibrates the combined spectrum using the `full template`_
+   method; the QA plot of this solution is written to
+   ``QA/PNGs/Arc_1dfit_*_stack.png``; and
+
+#. identifies the arc lines of each slit, using the wavelength solution of
+   the combined spectrum and the alignment of the slit to the reference slit,
+   and fits the wavelength solution of each slit; slits that were not
+   included in the combined spectrum are calibrated using the combined
+   spectrum as the template.
+
+Unlike ``reference_slit`` alone, this does not require any slit to be
+calibrated successfully on its own.  If the combined spectrum cannot be
+calibrated, or the RMS of its solution is above the threshold (see
+:ref:`wvcalib-rms-threshold`), PypeIt reverts to calibrating each slit
+independently.  This option is the default for Keck/KCWI and Keck/KCRM.
+
 .. _wvcalib-echelle:
 
 Echelle Spectrographs
@@ -300,7 +343,9 @@ In general, the approach is:
 
     #. Identify the arc lines in each order
 
-    #. Fit the arc lines in each order to a polynomial, individually
+    #. Fit the arc lines in each order to a polynomial, individually; the fit
+       of an order fails if it has too few lines to leave at least two
+       degrees of freedom (i.e., fewer than four lines)
 
     #. Fit a 2D solution to the lines using the order number as a basis
 
@@ -308,7 +353,8 @@ In general, the approach is:
        exceeds a certain threshold set by the user (see :ref:`wvcalib-rms-threshold`)
 
     #. Attempt to recover the missing orders using the 2D fit and a higher RMS
-       threshold
+       threshold; because the arc lines of these orders are identified using
+       the 2D fit, orders with as few as two lines can be recovered
 
     #. Refit the 2D solution
 
@@ -331,6 +377,15 @@ That is, each order must satisfy the following:
 .. code-block:: ini
 
     RMS < rms_thresh_frac_fwhm * FWHM     # FWHM in binned pixels
+
+If ``mask_bad_rms = True``, the same threshold is applied to the solution of
+each slit derived with the `full template`_ method (unless a 2D echelle
+solution is fit, in which case the orders are treated as described above).
+Slits whose solution does not satisfy this requirement are masked (flagged as
+``BADWVCALIB``).  The ``Arc_1dfit`` QA plots of these solutions are still
+produced, so you can inspect why they failed.  This is the default for
+Keck/KCWI and Keck/KCRM only, because the default ``rms_thresh_frac_fwhm`` of
+most spectrographs has not been tuned for the `full template`_ method.
 
 
 Mosaics
@@ -606,7 +661,21 @@ The preferred method for multi-slit calibration is now
 called ``full_template`` which
 cross-matches an input spectrum against an archived template.  The
 latter must be constructed by a developer, using
-``pypeitdev/wavecal/templates.py`` in the `PypeIt Development Suite`_.  The following table
+``pypeitdev/wavecal/templates.py`` in the `PypeIt Development Suite`_.
+
+.. important::
+
+    The ``full_template`` method cross-correlates the input arc spectrum with
+    the template in pixel space, so the template must be sampled on the
+    detector pixels of the spectrograph; i.e., it must have the same
+    non-linear relation between pixel and wavelength as the data.  Spectra
+    that have been resampled onto a linear wavelength grid (such as most
+    coadded spectra) should not be used directly to construct a template.
+    Instead, resample them onto the detector pixel grid of the same
+    instrument setup first (see ``linear_to_pixel_grid`` in the
+    ``templates.py`` module of the PypeIt Development Suite).
+
+The following table
 summarizes the existing ones (all of which are in the
 ``data/arc_lines/reid_arxiv`` folder):
 
