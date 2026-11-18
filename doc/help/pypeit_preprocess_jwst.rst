@@ -109,6 +109,10 @@
                             --det1_config and --spec2_config. Note that even without
                             this flag, the parameters used for each run are always
                             saved to the output directory.
-      --overwrite_stage1    Overwrite existing Stage 1 output files
-      --overwrite_stage2    Overwrite existing Stage 2 output files
+      --overwrite_stage1    Overwrite existing Stage 1 output files. Without this
+                            flag, Stage 1 is skipped for the files that already have
+                            a *_rate.fits file in the output directory.
+      --overwrite_stage2    Overwrite existing Stage 2 output files. Without this
+                            flag, Stage 2 is skipped for the files that already have
+                            a *_cal.fits file in the output directory.
     

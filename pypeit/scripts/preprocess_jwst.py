@@ -267,9 +267,13 @@ class PreprocessJWST(scriptbase.ScriptBase):
                                  'that even without this flag, the parameters used for each '
                                  'run are always saved to the output directory.')
         parser.add_argument('--overwrite_stage1', default=False, action='store_true',
-                            help='Overwrite existing Stage 1 output files')
+                            help='Overwrite existing Stage 1 output files.  Without this '
+                                 'flag, Stage 1 is skipped for the files that already have '
+                                 'a *_rate.fits file in the output directory.')
         parser.add_argument('--overwrite_stage2', default=False, action='store_true',
-                            help='Overwrite existing Stage 2 output files')
+                            help='Overwrite existing Stage 2 output files.  Without this '
+                                 'flag, Stage 2 is skipped for the files that already have '
+                                 'a *_cal.fits file in the output directory.')
         return parser
 
     @classmethod
@@ -427,10 +431,11 @@ class PreprocessJWST(scriptbase.ScriptBase):
         log.info(f'Found {len(rate_list)} rate files for Stage 2 processing.')
 
         for rate_file in rate_list:
-            assign_wcs_file = output_dir / rate_file.name.replace('_rate.fits',
-                                                                  '_assign_wcs')
-            if assign_wcs_file.exists() and not args.overwrite_stage2:
-                log.info(f'Stage 2 output {assign_wcs_file} already exists. Skipping stage 2 '
+            # The cal file is the last Stage 2 product used by PypeIt, so stage 2
+            # is skipped only if it completed for this file
+            cal_file = output_dir / rate_file.name.replace('_rate.fits', '_cal.fits')
+            if cal_file.exists() and not args.overwrite_stage2:
+                log.info(f'Stage 2 output {cal_file} already exists. Skipping stage 2 '
                          'processing.')
                 continue
             log.info(f'Running Spec2Pipeline on {rate_file}')

@@ -113,6 +113,8 @@ dev = [
     "pytest-qt",
     "flask>=3.0",
     "requests>=2.28",
+    "jwst>=1.19",
+    "stdatamodels>=4.0",
 ]
 
 [project.urls]
