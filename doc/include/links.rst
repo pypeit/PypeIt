@@ -129,6 +129,7 @@
 .. _pytest: https://docs.pytest.org/en/latest/
 .. _shapely: https://shapely.readthedocs.io/en/stable/manual.html
 .. _scikit-image: https://scikit-image.org/
+.. _photutils: https://photutils.readthedocs.io/en/stable/
 .. _bottleneck: https://bottleneck.readthedocs.io/en/latest/
 .. _specutils: https://specutils.readthedocs.io/en/stable/
 .. _specutils.Spectrum: https://specutils.readthedocs.io/en/stable/api/specutils.Spectrum.html

@@ -72,13 +72,13 @@ Optional Dependencies
 
 PypeIt has a few optional dependencies that improve and/or expand functionality.
 
-    - If you are generating datacubes (and performing an astrometric
-      correction), you will also need the `scikit-image`_ package. It can be
-      installed by including it in the optional dependencies, *e.g.*:
+    - If you are generating datacubes (and spatially aligning them), you will
+      also need the `scikit-image`_ and `photutils`_ packages.  They can be
+      installed by including the ``datacube`` optional dependencies, *e.g.*:
 
       .. code-block:: console
 
-        pip install "pypeit[scikit-image]"
+        pip install "pypeit[datacube]"
 
     - To take advantage of an interface that allows you to ingest PypeIt outputs
       into its ``Spectrum1D`` and ``SpectrumList`` objects (see
