@@ -397,15 +397,24 @@ def match_positions_1D(measured, nominal, tol=None):
     # subset of the separations calculated.
     sep = np.absolute(nominal[:,None] - measured[None,:])
 
+    # If a tolerance is provided, penalize any pair separated by more than the
+    # tolerance *before* performing the match.  Otherwise, the assignment is
+    # forced to pair every element of the smaller set, which can scramble the
+    # result when the measured set is shifted relative to the nominal set (e.g.,
+    # when echelle orders at one end of the detector are not detected but extra
+    # orders at the other end are).  The penalty is larger than the summed cost
+    # of any assignment that only uses pairs within the tolerance, such that the
+    # assignment minimizes the number of out-of-tolerance pairs; those pairs are
+    # then removed below.
+    cost = sep
+    if tol is not None:
+        cost = sep.copy()
+        cost[sep >= tol] = tol * (min(sep.shape) + 1) + 1.
+
     # Perform the match
-    n_m, m_m = optimize.linear_sum_assignment(sep)
+    n_m, m_m = optimize.linear_sum_assignment(cost)
 
     # Remove any matches that don't meet the provided tolerance.
-    # NOTE: It's possible this approach yields a non-optimal match.  I.e., when
-    # multiple matches are near the tolerance, removing the largest separations
-    # *before* performing the match (above) might ultimately yield a more
-    # optimal result for the ones that remain.  But this approach has worked so
-    # far.
     if tol is not None:
         indx = sep[n_m,m_m] < tol
         n_m = n_m[indx]

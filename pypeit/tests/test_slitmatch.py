@@ -63,3 +63,24 @@ def test_match_positions():
     assert match[isrt[0]] == -1, 'Should not match missing element'
 
 
+
+
+def test_match_positions_shifted():
+    # Mimics an echelle where the first two expected orders are not detected
+    # but two extra orders are detected at the other end of the detector.
+    # Without applying the tolerance before the assignment, the forced 1-to-1
+    # match scrambles the order of the matched positions.
+    spacing = 0.015 - 0.0001*np.arange(54)
+    nominal = 0.1 + np.append(0., np.cumsum(spacing))
+    measured = np.append(nominal[2:], nominal[-1] + np.cumsum(spacing[-2:]))
+    assert measured.size == nominal.size
+
+    # No tolerance: forced match of all elements (not necessarily monotonic)
+    match = slitdesign_matching.match_positions_1D(measured, nominal)
+    assert np.all(match > -1), 'Without a tolerance, all elements should be matched'
+
+    # With a tolerance: first two nominal positions are missed, the rest are
+    # matched exactly in order
+    match = slitdesign_matching.match_positions_1D(measured, nominal, tol=0.003)
+    assert np.array_equal(match[:2], [-1, -1]), 'First two should be missed'
+    assert np.array_equal(match[2:], np.arange(nominal.size-2)), 'Remaining should match in order'

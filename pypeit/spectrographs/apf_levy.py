@@ -57,6 +57,13 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['max_shift_adj'] = 0.5
         par['calibrations']['slitedges']['left_right_pca'] = True
         par['calibrations']['slitedges']['smash_range'] = [0.35,0.65]
+        # The order positions are stable to ~1 pixel (tested on data from 2018
+        # and 2026), so require a close match to the archived positions
+        # (0.003 is ~6 unbinned pixels, less than half the smallest order
+        # spacing of ~19 pixels) and insert any orders that were not detected
+        # (e.g., the faint bluest orders) at their archived positions.
+        par['calibrations']['slitedges']['order_match'] = 0.003
+        par['calibrations']['slitedges']['add_missed_orders'] = True
 
         par['calibrations']['tilts']['tracethresh'] = 20
 

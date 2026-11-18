@@ -4956,16 +4956,62 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # Find the indices of the missing orders
         missed_orders_indx = utils.index_of_x_eq_y(self.spectrograph.orders, missed_orders)
 
-        # Get the spatial positions of the new left and right order edges
-        add_right_edges = (self.spectrograph.order_spat_pos[missed_orders_indx]
-                            + self.spectrograph.order_spat_width[missed_orders_indx]/2.
-                            + spat_offset) * self.nspat
+        # Expected center of each missed order in the frame of the measured
+        # traces.  match_order returns the median of (nominal - measured), where
+        # the measured positions include any user-provided order_offset, so
+        # both must be *subtracted* from the nominal positions.
+        order_offset = 0. if self.par['order_offset'] is None else self.par['order_offset']
+        missed_cen = self.spectrograph.order_spat_pos[missed_orders_indx] \
+                        - spat_offset - order_offset
 
-        add_left_edges = (self.spectrograph.order_spat_pos[missed_orders_indx]
-                            - self.spectrograph.order_spat_width[missed_orders_indx]/2.
-                            + spat_offset) * self.nspat
-        
+        # Expected width of each missed order
+        order_width = getattr(self.spectrograph, 'order_spat_width', None)
+        if order_width is not None:
+            missed_width = order_width[missed_orders_indx]
+        else:
+            # The spectrograph does not provide archived order widths (e.g.,
+            # because they depend on the decker).  Instead, fit the widths of
+            # the matched orders as a function of their spatial position and
+            # use the fit to predict the widths of the missed orders.
+            missed_width = self._fixed_format_missed_width(reference_row, missed_cen)
+
+        # Get the spatial positions of the new left and right order edges
+        add_left_edges = (missed_cen - missed_width/2.) * self.nspat
+        add_right_edges = (missed_cen + missed_width/2.) * self.nspat
+
         return add_left_edges, add_right_edges
+
+    def _fixed_format_missed_width(self, reference_row, missed_cen):
+        """
+        Predict the width of missed orders for a fixed-format echelle using
+        the orders that were matched by :func:`match_order`.
+
+        Args:
+            reference_row (:obj:`int`):
+                The spectral row at which to measure the order widths.
+            missed_cen (`numpy.ndarray`_):
+                Spatial centers of the missed orders as a fraction of the
+                detector spatial size.
+
+        Returns:
+            `numpy.ndarray`_: The predicted widths of the missed orders as a
+            fraction of the detector spatial size.
+        """
+        matched = self.orderid[1::2] > 0
+        if not np.any(matched):
+            raise PypeItError('Cannot predict the width of missed orders without any matched '
+                              'orders.')
+        left = self.edge_fit[reference_row,0::2][matched] / self.nspat
+        right = self.edge_fit[reference_row,1::2][matched] / self.nspat
+        cen = (left + right)/2
+        width = right - left
+        if width.size == 1:
+            return np.full(missed_cen.size, width[0], dtype=float)
+        width_fit = fitting.robust_fit(cen, width,
+                                       min(self.par['order_width_poly'], width.size-1),
+                                       function='legendre', lower=self.par['order_fitrej'],
+                                       upper=self.par['order_fitrej'], maxiter=5, sticky=True)
+        return width_fit.eval(missed_cen)
 
     # NOTE: combined_order_tol is effectively hard-coded; i.e., the current code
     # always uses the default when calling this function.
@@ -5572,6 +5618,12 @@ class EdgeTraceSet(calibframe.CalibFrame):
 
         # Boolean array selecting found orders
         fnd = slit_indx > -1
+        if not np.any(fnd):
+            raise PypeItError('No traced slits could be matched to the expected echelle orders '
+                              f'within the order_match tolerance ({self.par["order_match"]}).  '
+                              'If the orders are shifted relative to their archived positions, '
+                              'set calibrations.slitedges.order_offset or increase '
+                              'calibrations.slitedges.order_match.')
         missed_orders = self.spectrograph.orders[np.logical_not(fnd)]
         if not np.all(fnd):
             log.warning(f'Did not find all orders!  Missing orders: {missed_orders}')
