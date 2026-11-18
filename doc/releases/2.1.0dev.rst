@@ -306,6 +306,15 @@ Instrument-specific Updates
   configuration handling for the ``H3000``/``H`` and ``HK``/``HK3`` grism/filter
   combinations, completing coverage of the observatory-recommended
   configurations.  See :ref:`mmt_mmirs`.
+- MMT/MMIRS: the ``J_zJ``, ``HK_zJ`` and ``K3000_Kspec`` ``full_template``
+  arc templates held three identical copies of the same spectrum.  They now
+  hold one.  The copies gave two exactly tied peaks in the global
+  cross-correlation, so which copy was used depended on noise at the
+  1e-5 level; this put one ``J_zJ`` slit off by a full template copy.
+- Gemini/GNIRS echelle (32/mm, SXD): the tilt fit for order 8 now uses
+  ``spec_order = 2`` (the other orders keep 4).  Order 8 has few usable lines
+  at its blue end, and a 4th-order fit could curl there by tens of pixels
+  when the bluest line was lost, making the wavelengths non-monotonic.
 
 Script Changes
 --------------

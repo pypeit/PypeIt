@@ -510,6 +510,10 @@ class GeminiGNIRSEchelleSpectrograph(GeminiGNIRSSpectrograph):
 
             # Tilts
             par['calibrations']['tilts']['tracethresh'] = [5.0, 10, 10, 10, 10, 10]
+            # Order 8 (the first order) has few usable OH lines at its blue
+            # end; a 4th-order spectral fit can curl there by tens of pixels
+            # when the bluest line is lost.  A 2nd-order fit is stable.
+            par['calibrations']['tilts']['spec_order'] = [2, 4, 4, 4, 4, 4]
 
         # 10/mmLBSX_G5532 setup, covering YJHK with the long blue camera and SXD prism
         elif '10/mmLBSX' in self.dispname:
