@@ -448,8 +448,13 @@ def parse_cache_url(url):
         root_tuple = _path.parts[:3] if _path.is_absolute() else ('/', *_path.parts[:2])
         fork = pathlib.PurePosixPath(*root_tuple)
         sub_path = pathlib.PurePosixPath(url_parts.path).relative_to(fork)
-        branch = sub_path.parts[0]
-        f_type = str(sub_path.parent.relative_to(pathlib.PurePosixPath(f'{branch}/pypeit/data')))
+        parts = sub_path.parts
+        data_index = next((i for i in range(1, len(parts) - 2)
+                           if parts[i:i+2] == ('pypeit', 'data')), None)
+        if data_index is None:
+            raise ValueError(f'GitHub cache URL has no pypeit/data path: {url}')
+        branch = '/'.join(parts[:data_index])
+        f_type = str(pathlib.PurePosixPath(*parts[data_index+2:-1]))
         return 'github', str(fork), branch, f_type, sub_path.name
 
     elif 's3.cloud' in url_parts.netloc:

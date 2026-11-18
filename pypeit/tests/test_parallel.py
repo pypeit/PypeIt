@@ -19,19 +19,22 @@ from pypeit import parallel
 # Module-level, so that they can be pickled by reference to a worker.
 def _work(det, scale=1.0):
     """
-    Deterministic float work: a per-detector seed, some linear algebra, a log
-    record, and a scalar return.
+    Deterministic float work: a per-detector seed, some element-wise
+    arithmetic, a log record, and a scalar return.
 
-    NOTE: this particular workload was checked and found *not* to be sensitive
-    to the BLAS thread count at this problem size, i.e., it gives the same bits
-    under ``threadpool_limits(1)`` and ``threadpool_limits(24)``.  The
-    serial/parallel comparison below therefore verifies the plumbing -- result
-    assembly order, payload routing and marshalling -- and not the thread
-    pinning, which ``test_worker_threads_are_pinned`` covers directly.
+    NOTE: this workload deliberately makes no BLAS/LAPACK calls, so its result
+    cannot depend on the BLAS thread count.  An earlier version used an SVD,
+    which gives different last-ulp results at one thread and at many under
+    Apple's Accelerate; :mod:`threadpoolctl` cannot pin Accelerate in the
+    parent, so the serial reference and the (environment-pinned) workers
+    disagreed on macOS.  The serial/parallel comparisons below therefore
+    verify the plumbing -- result assembly order, payload routing and
+    marshalling -- and not the thread pinning, which
+    ``test_worker_threads_are_pinned`` covers directly.
     """
     rng = np.random.default_rng(1000 + (det if isinstance(det, int) else sum(det)))
     a = rng.normal(size=(200, 200))
-    u, s, vt = np.linalg.svd(a @ a.T)
+    s = np.sort(np.sin(a) * np.cumsum(a, axis=1), axis=None)
     log.info(f'worked on {det}')
     return float(scale) * s.sum()
 
@@ -80,9 +83,6 @@ def start_method(request, monkeypatch):
     """Force the pool start method for the duration of a test."""
     monkeypatch.setenv(parallel.START_METHOD_ENV_VAR, request.param)
     return request.param
-
-
-DETS = [1, 2, 3, 4]
 
 
 #: Core counts used to exercise :func:`~pypeit.parallel.nworkers` independently
