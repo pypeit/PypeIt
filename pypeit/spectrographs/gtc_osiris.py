@@ -405,6 +405,10 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
             case 'R1000R':
                 par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R1000R.fits'
+            case "OPEN":  # TODO :: Before merging, remove this hacked option?
+                # This is GRISMLESS, which is a special case. By default we will pretend to use the R1000R calibrations for this.
+                par['calibrations']['wavelengths']['lamps'] = ['XeI', 'HgI', 'NeI']
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R1000R.fits'
             case 'R2000B':
                 par['calibrations']['wavelengths']['fwhm'] = 15.0
                 par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
@@ -622,6 +626,10 @@ class GTCMAATSpectrograph(GTCOSIRISPlusSpectrograph):
         par['calibrations']['tilts']['spec_order'] = 2
         par['calibrations']['wavelengths']['fwhm_spec_order'] = 2
         par['calibrations']['wavelengths']['fwhm_spat_order'] = 2
+        # All slices cover a similar wavelength range, so calibrate a stack of
+        # the arc spectra of all slices, and use it as the template for each
+        # slice.  This is more robust when the arc lines are weak.
+        par['calibrations']['wavelengths']['stack_slits'] = True
 
         # Tweak the slit edges using the gradient method for SlicerIFU
         par['calibrations']['slitedges']['pad'] = 0  # Do not pad the slits - this ensures that the tweak_edges method=gradient guarantees that the edges are defined at the maximum gradient.
