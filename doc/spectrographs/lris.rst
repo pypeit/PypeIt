@@ -212,7 +212,7 @@ Pixel Flat
 
 It is recommend to correct for pixel-to-pixel variations using a slitless
 flat.  If you did not take such calibration frames or cannot process them,
-you may wish to use an archival one available in the PypeIt cache (see ref:`data_installation`).
+you may wish to use an archival one available in the PypeIt cache (see :ref:`data_installation`).
 
 And then set the following in your :ref:`pypeit_file`:
 
@@ -368,6 +368,13 @@ These are the templates available, one per each LRISr grating:
 PypeIt will automatically choose the right template according to the specific dataset.
 Note that the 1200/9000 grating was first released in 2013, so it was not available for
 ``keck_lris_red_orig``.
+
+Quicklook viewer
+----------------
+
+LRIS red data taken with the Mark4 detector (``keck_lris_red_mark4``) can be
+inspected and reduced slit by slit with the quicklook viewer,
+``pypeit_qlview``; see :ref:`quicklook_viewer`.
 
 Known issues
 ============

@@ -6,17 +6,15 @@ from importlib import resources
 
 import numpy
 
-from pypeit.utils import to_string, string_table
+from pypeit.utils import to_string
+from rst_table import format_rst_table
 from pypeit.datamodel import DataContainer
 from pypeit.images import buildimage
-from pypeit.flatfield import FlatImages
-from pypeit.edgetrace import EdgeTraceSet
-from pypeit.slittrace import SlitTraceSet
 
 from IPython import embed
 
 def link_string(p):
-    return '`{0} Keywords`_'.format(type(p).__name__)
+    return f'`{type(p).__name__} Keywords`_'
 
 #-----------------------------------------------------------------------------
 
@@ -79,7 +77,7 @@ def basic_pypeitimage_datamodel(obj):
 
     # Parse
     data_table = data_table[numpy.asarray(keep_rows)]
-    return [string_table(data_table, delimeter='rst')]
+    return [format_rst_table(data_table)]
 
 def single_table_datamodel(obj, output_root, ext, descr):
 
@@ -89,13 +87,13 @@ def single_table_datamodel(obj, output_root, ext, descr):
                        'Empty data HDU.  Contains basic header information.']
     data_table[2,:] = [f'``{ext}``', '`astropy.io.fits.BinTableHDU`_', '...', descr]
 
-    lines = [''] + ['Version {:s}'.format(obj.version)] + [''] \
-                + [string_table(data_table, delimeter='rst')]
+    lines = [''] + [f'Version {obj.version}'] + [''] \
+                + [format_rst_table(data_table)]
 
     ofile = output_root / f'datamodel_{obj.__name__.lower()}.rst'
     with open(ofile, 'w') as f:
         f.write('\n'.join(lines))
-    print('Wrote: {}'.format(ofile))
+    print(f'Wrote: {ofile}')
 
 def edges_datamodel(output_root):
 
@@ -145,13 +143,13 @@ def edges_datamodel(output_root):
                         ':class:`~pypeit.core.fitting.PypeItFit`.']
     data_table[20,:] = [ '...', '...', '...', '...']
 
-    lines = [''] + ['Version {:s}'.format(EdgeTraceSet.version)] + [''] \
-                + [string_table(data_table, delimeter='rst')]
+    lines = [''] + [f'Version {EdgeTraceSet.version}'] + [''] \
+                + [format_rst_table(data_table)]
 
     ofile = output_root / f'datamodel_{EdgeTraceSet.__name__.lower()}.rst'
     with open(ofile, 'w') as f:
         f.write('\n'.join(lines))
-    print('Wrote: {}'.format(ofile))
+    print(f'Wrote: {ofile}')
 
 
 def slits_datamodel(output_root):
@@ -185,15 +183,15 @@ def slits_datamodel(output_root):
                 else combined[key].dtype.type.__name__
         data_table[i+1,:] = [f'``{key}``', t, combined[key].description]
 
-    lines = [''] + ['Version {:s}'.format(SlitTraceSet.version)] + [''] \
-                + [string_table(hdu_table, delimeter='rst')] + [''] \
+    lines = [''] + [f'Version {SlitTraceSet.version}'] + [''] \
+                + [format_rst_table(hdu_table)] + [''] \
                 + ['MASKDEF_DESIGNTAB content'] + [''] \
-                + [string_table(data_table, delimeter='rst')]
+                + [format_rst_table(data_table)]
 
     ofile = output_root / f'datamodel_{SlitTraceSet.__name__.lower()}.rst'
     with open(ofile, 'w') as f:
         f.write('\n'.join(lines))
-    print('Wrote: {}'.format(ofile))
+    print(f'Wrote: {ofile}')
 
 
 def wavecalib_datamodel(output_root):
@@ -221,13 +219,13 @@ def wavecalib_datamodel(output_root):
                        WaveCalib.datamodel['arc_spectra']['descr']]
 
 
-    lines = [''] + ['Version {:s}'.format(WaveCalib.version)] + [''] \
-                + [string_table(data_table, delimeter='rst')]
+    lines = [''] + [f'Version {WaveCalib.version}'] + [''] \
+                + [format_rst_table(data_table)]
 
     ofile = output_root / f'datamodel_{WaveCalib.__name__.lower()}.rst'
     with open(ofile, 'w') as f:
         f.write('\n'.join(lines))
-    print('Wrote: {}'.format(ofile))
+    print(f'Wrote: {ofile}')
 
 
 def flatfield_datamodel(output_root):
@@ -246,7 +244,7 @@ def flatfield_datamodel(output_root):
                        FlatImages.datamodel['pixelflat_model']['descr']]
     data_table[5,:] = ['``PIXELFLAT_SPAT_ID-?-BSPLINE``', '`astropy.io.fits.BinTableHDU`_', '...',
                        'bspline model of the pixelflat for ``spat_id=?``; see '
-                       ':class:`~pypeit.bspline.bspline.bspline`']
+                       ':class:`~pypeit.containers.bspline.BSplineContainer`']
     data_table[6,:] = ['...', '...', '...', '...']
     data_table[7,:] = ['``PIXELFLAT_SPAT_ID-?-FINECORR``', '`astropy.io.fits.BinTableHDU`_', '...',
                        '2D polynomial fits to the fine correction of the spatial illumination '
@@ -263,7 +261,7 @@ def flatfield_datamodel(output_root):
                         FlatImages.datamodel['illumflat_raw']['descr']]
     data_table[13,:] = ['``ILLUMFLAT_SPAT_ID-?-BSPLINE``', '`astropy.io.fits.BinTableHDU`_', '...',
                         'bspline model of the illumflat for ``spat_id=?``; see '
-                        ':class:`~pypeit.bspline.bspline.bspline`']
+                        ':class:`~pypeit.containers.bspline.BSplineContainer`']
     data_table[14,:] = ['...', '...', '...', '...']
     data_table[15,:] = ['``ILLUMFLAT_SPAT_ID-?-FINECORR``', '`astropy.io.fits.BinTableHDU`_', '...',
                         '2D polynomial fits to the fine correction of the spatial illumination '
@@ -275,13 +273,13 @@ def flatfield_datamodel(output_root):
     data_table[18,:] = ['``SPAT_ID``', '`astropy.io.fits.ImageHDU`_', 'int64',
                         FlatImages.datamodel['spat_id']['descr']]
 
-    lines = [''] + ['Version {:s}'.format(FlatImages.version)] + [''] \
-                + [string_table(data_table, delimeter='rst')]
+    lines = [''] + [f'Version {FlatImages.version}'] + [''] \
+                + [format_rst_table(data_table)]
 
     ofile = output_root / f'datamodel_{FlatImages.__name__.lower()}.rst'
     with open(ofile, 'w') as f:
         f.write('\n'.join(lines))
-    print('Wrote: {}'.format(ofile))
+    print(f'Wrote: {ofile}')
 
 
 if __name__ == '__main__':
@@ -293,14 +291,14 @@ if __name__ == '__main__':
                 buildimage.TiltImage]:
 
         # Build the Table
-        lines = [''] + ['Version {:s}'.format(obj.version)] + [''] \
+        lines = [''] + [f'Version {obj.version}'] + [''] \
                     + basic_pypeitimage_datamodel(obj)
 
         ofile = output_root / f'datamodel_{obj.__name__.lower()}.rst'
         with open(ofile, 'w') as f:
             f.write('\n'.join(lines))
 
-        print('Wrote: {}'.format(ofile))
+        print(f'Wrote: {ofile}')
 
 
     # All data written to a single extension for Alignments and Tilts

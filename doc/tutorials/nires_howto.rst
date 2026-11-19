@@ -11,13 +11,12 @@ Overview
 ========
 
 This doc goes through a full run of PypeIt on one of our example Keck/NIRES
-datasets (specifically the ``ABBA_wstandard`` dataset).  If you're having trouble
-reducing your data, we encourage you to try going through this tutorial using
-this example dataset first.  See :ref:`here <dev-suite>` to find the example
-dataset, please join our `PypeIt Users Slack <pypeit-users.slack.com>`__ (using
-`this invitation link
-<https://join.slack.com/t/pypeit-users/shared_invite/zt-1kc4rxhsj-vKU1JnUA~8PZE~tPlu~aTg>`__)
-to ask for help, and/or `Submit an issue`_ to Github if you find a bug!
+datasets (specifically the ``ABBA_wstandard`` dataset).  If you're having
+trouble reducing your data, we encourage you to try going through this tutorial
+using this example dataset first.  See :ref:`here <dev-suite>` to find the
+example dataset, please join our `PypeIt Users Slack
+<https://pypeit-users.slack.com>`__ using `this invitation link <invite_>`_ to
+ask for help, and/or `Submit an issue`_ to Github if you find a bug!
 
 ----
 
@@ -414,21 +413,14 @@ You can plot the spectrum using :ref:`pypeit_show_1dspec`:
 
 .. code-block:: bash
 
-    pypeit_show_1dspec Science/spec1d_s190519_0059-GD153_NIRES_20190519T083811.995.fits --exten 5
+    pypeit_show_1dspec Science/spec1d_s190519_0059-GD153_NIRES_20190519T083811.995.fits --exten 9
 
-The ``--exten 5`` argument specifies to use the fifth extension in the fits file, which selects the reddest (order=3) spectrum.
-This uses the `XSpecGUI`_ from the `linetools`_ package, and the result looks like this:
+The ``--exten 9`` argument specifies to use the fifth extension in the fits file, which selects the reddest (order=3) spectrum.
 
 .. figure:: ../figures/nires_standard_kspec.png
    :width: 50%
 
-   `XSpecGUI`_ produced by calling :ref:`pypeit_show_1dspec` for the order=3
-   spectrum.  The black line is the flux and the red line is the estimated
-   error.
-
-In the window, press ``?`` to open a webpage with the `XSpecGUI keystrokes`_
-that help you navigate through the spectrum.  See :doc:`../out_spec1D` for
-further details.
+See :doc:`../out_spec1D` for further details.
 
 ----
 

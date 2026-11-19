@@ -30,12 +30,15 @@ class ShowWvCalib(scriptbase.ScriptBase):
                             help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
 
-    @staticmethod
-    def main(args, unit_test=False):
+    @classmethod
+    def main(cls, args, unit_test=False):
         """ Shows the spectrum
         """
 
         from matplotlib import pyplot as plt
+
+        # Initialize the log
+        cls.init_log(args)
 
         chk_version = not args.try_old
 

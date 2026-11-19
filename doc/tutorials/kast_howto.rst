@@ -294,13 +294,6 @@ Here is a screen shot from the GUI showing the
 .. figure:: ../figures/kastb_spec1d.png
    :width: 70%
 
-This uses the `XSpecGUI
-<https://linetools.readthedocs.io/en/latest/xspecgui.html>`__ from the
-`linetools`_ package.  With your mouse hovering over the window, type ``?`` to
-open a webpage with the set of available commands used to interact with the
-plot.  The spectrum can also be ingested into a `specutils.Spectrum1D`_ object
-using our :ref:`spec1D-specutils`.
-
 See :doc:`../out_spec1D` for further details.
 
 Fluxing

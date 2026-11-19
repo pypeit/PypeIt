@@ -30,16 +30,23 @@ class ChkTilts(scriptbase.ScriptBase):
                             help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
 
-    @staticmethod
-    def main(args):
+    @classmethod
+    def main(cls, args):
+        from pathlib import Path
         from pypeit import wavetilts
+
+        # Initialize the log
+        cls.init_log(args)
 
         chk_version = not args.try_old
 
+        # tilts file path
+        file = Path(args.file).absolute()
+
         # Load
-        tilts = wavetilts.WaveTilts.from_file(args.file, chk_version=chk_version)
+        tilts = wavetilts.WaveTilts.from_file(file, chk_version=chk_version)
         tilts.show(in_ginga=np.logical_not(args.mpl), show_traces=args.show_traces,
-                   chk_version=chk_version)
+                   calib_dir=file.parent, chk_version=chk_version)
 
 
 

@@ -4,20 +4,23 @@ Module to run tests on simple fitting routines for arrays
 
 import numpy as np
 
-from linetools.spectra.io import readspec
+import pytest
 
 from pypeit.core import flexure
 from pypeit import dataPaths
 from pypeit.core.wavecal import autoid
+from pypeit import onespec
 
 from IPython import embed
 
 
+@pytest.mark.remote_data
 def test_flex_shift():
     # Dummy slf
     # Read spectra
     spec_file = dataPaths.tests.get_file_path('obj_lrisb_600_sky.fits', to_pkg='symlink')
-    obj_spec = readspec(str(spec_file))
+    #obj_spec = readspec(str(spec_file))
+    obj_spec = onespec.OneSpec.from_xspec_file(str(spec_file))
     arx_file = dataPaths.sky_spec.get_file_path('sky_LRISb_600.fits', to_pkg='symlink')
 
     # Call

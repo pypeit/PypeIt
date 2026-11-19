@@ -3,26 +3,26 @@ Module for P200/DBSP specific methods.
 
 .. include:: ../include/links.rst
 """
-from typing import List, Optional
+from pathlib import Path
 
 import numpy as np
 
 from astropy.io import fits
 from astropy.coordinates import Angle
-from astropy import units as u
+import astropy.units as u
+from astropy.table import Table
 from astropy.time import Time
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import io
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
+from pypeit.par import parset
 
-
-def flip_fits_slice(s: str) -> str:
-    return '[' + ','.join(s.strip('[]').split(',')[::-1]) + ']'
 
 
 class P200DBSPSpectrograph(spectrograph.Spectrograph):
@@ -63,7 +63,7 @@ class P200DBSPSpectrograph(spectrograph.Spectrograph):
         # Lamps
         self.meta['lampstat01'] = dict(ext=0, card='LAMPS')
 
-    def compound_meta(self, headarr: List[fits.Header], meta_key: str):
+    def compound_meta(self, headarr: list[fits.Header], meta_key: str):
         """
         Methods to generate metadata requiring interpretation of the header
         data, instead of simply reading the value of a header card.
@@ -83,7 +83,7 @@ class P200DBSPSpectrograph(spectrograph.Spectrograph):
             try:
                 return Angle(headarr[0]['ANGLE'].lower()).deg
             except Exception as e:
-                msgs.warn("Could not read dispangle from header:" + msgs.newline() + str(headarr[0]['ANGLE']))
+                log.warning("Could not read dispangle from header:\n" + str(headarr[0]['ANGLE']))
                 raise e
         else:
             return None
@@ -166,7 +166,7 @@ class P200DBSPSpectrograph(spectrograph.Spectrograph):
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['lampstat01'] != '0000000') & (fitstbl['idname'] == 'cal')
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
     def get_rawimage(self, raw_file, det):
@@ -194,7 +194,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
     supported = True
     comment = 'Blue camera'
     
-    def compound_meta(self, headarr: List[fits.Header], meta_key: str):
+    def compound_meta(self, headarr: list[fits.Header], meta_key: str):
         """
         Methods to generate metadata requiring interpretation of the header
         data, instead of simply reading the value of a header card.
@@ -217,9 +217,9 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
         if meta_key == 'binning':
             binspatial, binspec = headarr[0]['CCDSUM'].split(' ')
             return parse.binning2string(binspec, binspatial)
-        msgs.error("Not ready for this compound meta")
+        raise PypeItError(f"Not ready for this compound meta: {meta_key}")
 
-    def get_detector_par(self, det: int, hdu: Optional[fits.HDUList] = None):
+    def get_detector_par(self, det: int, hdu: fits.HDUList | None = None):
         """
         Return metadata for the selected detector.
 
@@ -248,8 +248,8 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
         else:
             # TODO: Could this be detector dependent??
             binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
-            datasec = np.atleast_1d(flip_fits_slice(hdu[0].header['TSEC1']))
-            oscansec = np.atleast_1d(flip_fits_slice(hdu[0].header['BSEC1']))
+            datasec = np.atleast_1d(parse.flip_fits_slice(hdu[0].header['TSEC1']))
+            oscansec = np.atleast_1d(parse.flip_fits_slice(hdu[0].header['BSEC1']))
 
         # Detector 1
         detector_dict = dict(
@@ -318,15 +318,20 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -335,14 +340,16 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        grating = self.get_meta_value(scifile, 'dispname')
-        dichroic = self.get_meta_value(scifile, 'dichroic')
+        # Adjust parameters based on settings
+        grating = self.get_meta_value(inp, 'dispname')
+        dichroic = self.get_meta_value(inp, 'dichroic')
+        slitwidth = self.get_meta_value(inp, 'slitwid') * u.arcsec
+        dispangle = self.get_meta_value(inp, 'dispangle')
 
-        angle = Angle(self.get_meta_value(scifile, 'dispangle'), unit=u.deg).rad
-        slitwidth = self.get_meta_value(scifile, 'slitwid') * u.arcsec
+        angle = Angle(dispangle, unit=u.deg).rad
         lines_mm = float(grating.split('/')[0]) / u.mm
 
         theta_m = 38.5 * 2*np.pi / 360. - angle
@@ -383,7 +390,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
                 # blue wavelength coverage with a 1200 lines/mm grating is about 1550 A
                 diff = np.abs(best_wv - cen_wv_AA)
                 if diff > 775:
-                    msgs.warn("Closest matching archived wavelength solutions"
+                    log.warning("Closest matching archived wavelength solutions"
                         f"differs in central wavelength by {diff:4.0f} A. The"
                         "wavelength solution may be unreliable. If wavelength"
                         "calibration fails, try using the holy grail method by"
@@ -393,7 +400,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
                         "\t\tmethod = holy-grail")
                 par['calibrations']['wavelengths']['reid_arxiv'] = reids[best_wv]
             except KeyError:
-                msgs.warn("Your grating " + grating + " doesn't have a template spectrum for the blue arm of DBSP.")
+                log.warning("Your grating " + grating + " doesn't have a template spectrum for the blue arm of DBSP.")
         else:
             if grating == '600/4000' and dichroic == 'D55':
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_blue_600_4000_d55.fits'
@@ -402,7 +409,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
             elif grating == '300/3990' and dichroic == 'D55':
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_blue_300_3990_d55.fits'
             else:
-                msgs.warn("Your grating " + grating + " doesn't have a template spectrum for the blue arm of DBSP.")
+                log.warning("Your grating " + grating + " doesn't have a template spectrum for the blue arm of DBSP.")
         
         return par
 
@@ -417,7 +424,7 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
     supported = True
     comment = 'Red camera'
     
-    def compound_meta(self, headarr: List[fits.Header], meta_key: str):
+    def compound_meta(self, headarr: list[fits.Header], meta_key: str):
         """
         Methods to generate metadata requiring interpretation of the header
         data, instead of simply reading the value of a header card.
@@ -441,9 +448,9 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
             binspec, binspatial = headarr[0]['CCDSUM'].split(' ')
             return parse.binning2string(binspec, binspatial)
         else:
-            msgs.error("Not ready for this compound meta")
+            raise PypeItError(f"Not ready for this compound meta: {meta_key}")
 
-    def get_detector_par(self, det: int, hdu: Optional[fits.HDUList] = None):
+    def get_detector_par(self, det: int, hdu: fits.HDUList | None = None):
         """
         Return metadata for the selected detector.
 
@@ -472,8 +479,8 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
         else:
             # TODO: Could this be detector dependent??
             binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
-            datasec = np.atleast_1d(flip_fits_slice(hdu[0].header['TSEC1']))
-            oscansec = np.atleast_1d(flip_fits_slice(hdu[0].header['BSEC1']))
+            datasec = np.atleast_1d(parse.flip_fits_slice(hdu[0].header['TSEC1']))
+            oscansec = np.atleast_1d(parse.flip_fits_slice(hdu[0].header['BSEC1']))
 
         # Detector 1
         detector_dict = dict(
@@ -542,15 +549,20 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
         par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -559,14 +571,16 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
 
-        grating = self.get_meta_value(scifile, 'dispname')
-        dichroic = self.get_meta_value(scifile, 'dichroic')
+        # Adjust parameters based on settings
+        grating = self.get_meta_value(inp, 'dispname')
+        dichroic = self.get_meta_value(inp, 'dichroic')
+        slitwidth = self.get_meta_value(inp, 'slitwid') * u.arcsec
+        dispangle = self.get_meta_value(inp, 'dispangle')
 
-        angle = Angle(self.get_meta_value(scifile, 'dispangle'), unit=u.deg).rad
-        slitwidth = self.get_meta_value(scifile, 'slitwid') * u.arcsec
+        angle = Angle(dispangle, unit=u.deg).rad
         lines_mm = float(grating.split('/')[0]) / u.mm
 
         theta_m = 35.0 * 2*np.pi / 360. - angle
@@ -613,7 +627,7 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
                 # red wavelength coverage with a 1200 lines/mm grating is about 1600 A
                 diff = np.abs(best_wv - cen_wv_AA)
                 if diff > 800:
-                    msgs.warn("Closest matching archived wavelength solutions"
+                    log.warning("Closest matching archived wavelength solutions"
                         f"differs in central wavelength by {diff:4.0f} A. The"
                         "wavelength solution may be unreliable. If wavelength"
                         "calibration fails, try using the holy grail method by"
@@ -623,14 +637,14 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
                         "\t\tmethod = holy-grail")
                 par['calibrations']['wavelengths']['reid_arxiv'] = reids[best_wv]
             except KeyError:
-                msgs.warn("Your grating " + grating + " doesn't have a template spectrum for the red arm of DBSP.")
+                log.warning("Your grating " + grating + " doesn't have a template spectrum for the red arm of DBSP.")
         else:
             if grating == '316/7500' and dichroic == 'D55':
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_red_316_7500_d55.fits'
             elif grating == '600/10000' and dichroic == 'D55':
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_red_600_10000_d55.fits'
             else:
-                msgs.warn("Your grating " + grating + " doesn't have a template spectrum for the red arm of DBSP.")
+                log.warning("Your grating " + grating + " doesn't have a template spectrum for the red arm of DBSP.")
 
         return par
 
@@ -650,7 +664,7 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
         bpix : ndarray
           0 = ok; 1 = Mask
         """
-        msgs.info("Custom bad pixel mask for DBSPr")
+        log.info("Custom bad pixel mask for DBSPr")
         bpm_img = self.empty_bpm(filename, det, shape=shape)
 
         # Fill in bad pixels if a processed bias frame is provided

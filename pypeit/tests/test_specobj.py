@@ -14,7 +14,7 @@ from astropy.io import fits
 
 from pypeit import specobj
 from pypeit.tests.tstutils import data_output_path
-from pypeit import msgs
+from pypeit import log
 
 
 def test_init():
@@ -34,6 +34,7 @@ def test_assignment():
         sobj.PYPELINE = 2
     #
     sobj.SPAT_PIXPOS = 523.0
+    sobj.SPAT_PIXPOS_ID = 523
     sobj.PYPELINE = 'MultiSlit'
     sobj.set_name()
     assert sobj.NAME == 'SPAT0523-SLIT0000-DET01'

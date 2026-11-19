@@ -231,7 +231,7 @@ The slitless pixel flat is generated separately for each detector
 (even in the case of a mosaic reduction) and it is stored in a FITS
 file in the reduction directory, with one extension per detector.
 In addition to saving the file in your reduction directory,
-the constructed pixelflat is saved to the PypeIt cache (see ref:`data_installation`).
+the constructed pixelflat is saved to the PypeIt cache (see :ref:`data_installation`).
 This allows you to use the file for both current and future reductions.
 To use this file in future reductions, the user should add the slitless
 pixel flat file name to the :ref:`pypeit_file` as shown in `Feed a PixelFlat`_.

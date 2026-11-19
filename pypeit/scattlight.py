@@ -5,13 +5,13 @@ Implements the objects used to hold slit edge data.
 .. include:: ../include/links.rst
 
 """
-import inspect
 
 from IPython import embed
 
 import numpy as np
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import utils
 from pypeit import datamodel
 from pypeit import calibframe
 from pypeit.display import display
@@ -67,7 +67,7 @@ class ScatteredLight(calibframe.CalibFrame):
                  scattlight_raw=None, scattlight_model=None, scattlight_param=None):
 
         # Instantiate the DataContainer
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         _d = dict([(k,values[k]) for k in args[1:]])
         # The dictionary passed to DataContainer.__init__ does not
         # contain self.
@@ -100,9 +100,9 @@ class ScatteredLight(calibframe.CalibFrame):
         model : `numpy.ndarray`_
             A model of the expected scattered light in the input image. Shape is (nspec, nspat).
         """
-        msgs.info("Generating a scattered light image")
+        log.info("Generating a scattered light image")
         if self.scattlight_param is None:
-            msgs.warn("No scattered light parameters are available")
+            log.warning("No scattered light parameters are available")
             return np.zeros_like(image)
         # Return the model of the scattered light
         return scattlight.scattered_light_model_pad(self.scattlight_param, image)
