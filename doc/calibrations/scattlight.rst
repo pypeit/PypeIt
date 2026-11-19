@@ -77,9 +77,10 @@ light correction). To set this option, you can add the following arguments to yo
     [calibrations]
         [[FRAMETYPE]]
             [[[process]]]
-            scattlight_method = frame
+                [[[[scattlight]]]]
+                    method = frame
 
-You can also set ``scattlight_method = archive``, which will use pre-determined archival values
+You can also set ``method = archive``, which will use pre-determined archival values
 for the spectrograph that you are trying to reduce data for. However, note that not all spectrographs
 have this feature implemented, so this is not a good idea in general.
 

@@ -32,6 +32,9 @@ of :ref:`processimagespar`.
 We have made our own determinations for which instruments to enable this as the
 default. Inspect the :ref:`instr_par` list to see if your instrument is included
 (search for the value of ``spat_flexure_correct``).
+A QA plot is generated for each frame for which the spatial flexure correction
+is applied. We recommend the user to inspect these plots to ensure the flexure
+correction is reasonable. See :ref:`qa-spat-flex` for more information.
 
 Depending on what frame types you choose to correct, the
 code will behave somewhat differently.  Here we describe
@@ -85,6 +88,38 @@ This will:
 
     - Apply an offset to generate tilts and wavelengths for the associated
       science/standard images
+
+.. _flexure-spatial-manual:
+
+Manual correction
+-----------------
+
+If the automated cross-correlation fails for a given frame (or you simply
+know the offset better than the code does), you can supply the spatial
+flexure shift yourself via the ``shift`` column in the data block of your
+:doc:`../pypeit_file`.  Running :ref:`pypeit_setup` with the ``-f``
+(``--flexure``) option includes this column in the generated pypeit file:
+
+.. code-block:: console
+
+    pypeit_setup -r /path/to/raw -s shane_kast_blue -c A -f
+
+The column is blank by default, meaning no manual correction: the
+automatically computed value (if ``spat_flexure_correct = True``) is
+used.  Set the column to any number (in pixels, including ``0.0``) for
+a science or standard frame to override the automatic determination
+for that frame:
+
+.. code-block:: console
+
+    filename |                 frametype | ... | shift
+    b27.fits |                   science | ... |   2.5
+    b28.fits |                   science | ... |
+     b1.fits |                  arc,tilt | ... |
+
+Here, ``b27.fits`` is reduced with a fixed spatial flexure of 2.5 pixels,
+while frames with a blank ``shift`` entry (e.g. ``b28.fits``) use the
+default behavior.
 
 ----
 
@@ -312,7 +347,32 @@ The file has the following two extensions:
 HDU Name               HDU Type                        Data Type  Description                                                                                                  
 =====================  ==============================  =========  ==========================================================================
 ``PRIMARY``            `astropy.io.fits.PrimaryHDU`_   ...        Empty data HDU.  Contains basic header information.                                                          
-``FLEXURE``            `astropy.io.fits.BinTableHDU`_  ...        All data from the :class:`~pypeit.core.flexure.MultiSlitFlexure` datamodel
+``FLEXURE``            `astropy.io.fits.BinTableHDU`_  ...        All data from the :class:`~pypeit.multislit_flexure.MultiSlitFlexure` datamodel
 =====================  ==============================  =========  ==========================================================================
 
+Inspecting
+==========
+
+PypeIt provides the ``pypeit_chk_flexure`` script to inspect both the
+spatial and spectral flexure corrections.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: ../help/pypeit_chk_flexure.rst
+
+The script takes as input one or multiple `spec2d*.fits` or `spec1d*.fits` files
+and print to screen the flexure correction applied to each file.
+
+Here is a typical call to print the spatial flexure correction:
+
+.. code-block:: console
+
+    pypeit_chk_flexure Science/spec2d_r230417_01033-frb22022_LRISr_20230417T082242.672.fits --spat
+
+and to print the spectral flexure correction:
+
+.. code-block:: console
+
+    pypeit_chk_flexure Science/spec1d_r230417_01033-frb22022_LRISr_20230417T082242.672.fits --spec
 

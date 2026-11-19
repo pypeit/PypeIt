@@ -5,7 +5,7 @@ Module for managing the history of PypeIt output files.
 .. include:: ../include/links.rst
 """
 
-import os.path
+from pathlib import Path
 import numpy as np
 from IPython import embed
 
@@ -140,7 +140,7 @@ class History:
                 if spec1d != current_spec1d:
                     current_spec1d = spec1d
 
-                    self.append(f'From "{os.path.basename(spec1d)}"', add_date=False)
+                    self.append(f'From "{Path(spec1d).name}"', add_date=False)
                     header = fits.getheader(spec1d)
                     additional_info = None
                     if 'SEMESTER' in header:
@@ -162,6 +162,29 @@ class History:
                     if 'MASKDEF_OBJNAME' in this_ext_header:
                         obj_info += f" {this_ext_header['MASKDEF_OBJNAME']}"
                 self.append(obj_info, add_date=False)
+
+    def add_coadd2d(self, spec2d_files:list[str], objname:str):
+        """
+        Add history entries for 2D coadding.
+        
+        The history shows what files and objects were used for coadding.
+        For example::
+            
+            HISTORY 2025-10-30T23:21 PypeIt Coadding target JWST in 4 spec2d files
+            HISTORY File 0: "spec2d_20251008.0053-JWST_DeVeny_20251008T045554.290.fits"
+            HISTORY File 1: "spec2d_20251008.0054-JWST_DeVeny_20251008T050103.240.fits"
+            HISTORY File 2: "spec2d_20251008.0055-JWST_DeVeny_20251008T050611.510.fits"
+            HISTORY File 3: "spec2d_20251008.0056-JWST_DeVeny_20251008T051119.790.fits"
+
+        Args:
+            spec2d_files (:obj:`list`): List of the spec2d files used for coadding.
+            objname (:obj:`str`): Name of the object being coadded
+        """
+        # Add history
+        self.append(f'PypeIt Coadded target {objname} in '
+                    f'{len(spec2d_files)} spec2d files')
+        for i, spec2d in enumerate(spec2d_files):
+            self.append(f'File {i}: "{Path(spec2d).name}"', add_date=False)
 
     def append(self, history, add_date=True):
         """Append a new history entry.

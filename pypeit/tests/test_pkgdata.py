@@ -12,16 +12,33 @@ import pytest
 
 import github
 
-from linetools.spectra import xspectrum1d
-
-from pypeit.pypmsgs import PypeItPathError
-from pypeit.pypeitdata import PypeItDataPath
+from pypeit import PypeItPathError
+from pypeit.pkg.pypeitdata import PypeItDataPath
 from pypeit import dataPaths
-from pypeit import io
-from pypeit import cache
+from pypeit.pkg import cache
+from pypeit.core import skyspec
 from pypeit.core.wavecal import waveio
+from pypeit import onespec
 
 
+@pytest.mark.parametrize('branch, subdir', [
+    ('develop', 'tests'),
+    ('fix/cache-urls', 'tests'),
+    ('fix/cache-urls', 'arc_lines/reid_arxiv'),
+])
+def test_parse_github_cache_url(branch, subdir):
+    url = f'https://raw.githubusercontent.com/pypeit/PypeIt/{branch}/pypeit/data/{subdir}/test.fits'
+    assert cache.parse_cache_url(url) == (
+        'github', '/pypeit/PypeIt', branch, subdir, 'test.fits')
+
+
+def test_parse_s3_cache_url():
+    url = 'https://s3.cloud.com/pypeit/telluric/atm_grids/test.fits'
+    assert cache.parse_cache_url(url) == (
+        's3_cloud', None, None, 'telluric/atm_grids', 'test.fits')
+
+
+@pytest.mark.remote_data
 def test_cloud_url():
 
     # The telgrid files live on a cloud server.  Test for file existance (or URL change)
@@ -35,6 +52,7 @@ def test_cloud_url():
            f"Got status {get.status_code} (!= 200) for URL {telgrid_src[0]}"
 
 
+@pytest.mark.remote_data
 def test_fetch_github_files():
 
     # These are commonly used files, do all three in one test; the test just ensures
@@ -50,9 +68,16 @@ def test_fetch_github_files():
                             force_update=True)
     
 
+@pytest.mark.remote_data
 def test_github_contents():
+
+    # In case we're working in a fork
+    path = cache.git_remote_path()
+    assert path is not None, 'Could not define path to remote git repo'
+
     # Access the repo
-    repo = github.Github().get_repo("pypeit/PypeIt")
+    repo = github.Github().get_repo(path)
+    assert repo is not None, 'Could not load repo'
 
     # Get the relevant github branch
     branch = cache.git_branch()
@@ -66,8 +91,9 @@ def test_github_contents():
     contents = cache.github_contents(repo, branch, 'pypeit/data/tests', recursive=False)
     assert any([c.type == 'dir' for c in contents]), \
             'tests/ directory expected to have subdirectories'
+    
 
-
+@pytest.mark.remote_data
 def test_filepath_routines():
 
     filepath, format = dataPaths.reid_arxiv.get_file_path("keck_deimos_600ZD.fits",
@@ -88,8 +114,8 @@ def test_filepath_routines():
 def test_load_sky_spectrum():
 
     # Load in the most common sky spectrum, check that the return is valid
-    skyspec = io.load_sky_spectrum("paranal_sky.fits")
-    assert isinstance(skyspec, xspectrum1d.XSpectrum1D)
+    sky = skyspec.load_sky_spectrum("paranal_sky.fits")
+    assert isinstance(sky, onespec.OneSpec)
 
 
 def test_search_cache():
@@ -134,6 +160,7 @@ def test_pygit2():
 #    assert date is not None, 'Failed to get most recent tag version'
 
 
+@pytest.mark.remote_data
 def test_waveio_load_reid_arxiv():
 
     # Test the extension logic, given the download/cache system
@@ -156,6 +183,7 @@ def test_datapath():
         p = PypeItDataPath('junk')
 
 
+@pytest.mark.remote_data
 def test_truediv():
     p = PypeItDataPath('tests')
 
@@ -177,6 +205,7 @@ def test_truediv():
     assert str(_p.path.relative_to(p.path)) == subdir, 'Wrong subdirectory'
 
 
+@pytest.mark.remote_data
 def test_get_file_path():
     f = 'b1.fits.gz'
     # NOTE: Setting to_pkg symlink only needs to be done once for each unique file
@@ -190,6 +219,7 @@ def test_get_file_path():
                                          to_pkg='symlink')[1] == 'npz', 'Wrong file format'
 
 
+@pytest.mark.remote_data
 def test_cache_to_pkg():
     test_file_name = 'cache_test.txt'
     test_file = dataPaths.tests.path / test_file_name
@@ -199,6 +229,10 @@ def test_cache_to_pkg():
     if len(contents) > 0:
         cache.remove_from_cache(cache_url=list(contents.keys()), allow_multiple=True)
 
+    # NOTE: If this test fails, it may be because the test failed on a previous
+    # attempt after the `cache_test.txt` file was deleted and before it was
+    # restored.  I.e., try running `git restore ../data/tests/cache_test.txt`
+    # and re-running the test.
     assert test_file.is_file(), 'File should exist on disk at the start of the test'
 
     # Remove the file
@@ -212,7 +246,7 @@ def test_cache_to_pkg():
     assert len(contents) == 1, 'Should find 1 relevant file in the cache'
 
     # Parse the url
-    host, branch, subdir, filename = cache.parse_cache_url(list(contents.keys())[0])
+    host, fork, branch, subdir, filename = cache.parse_cache_url(list(contents.keys())[0])
     assert host == 'github', 'Host is wrong'
     assert branch == cache.git_branch(), 'Branch is wrong'
     assert subdir == dataPaths.tests.subdirs, 'Subdirectory is wrong'
@@ -244,6 +278,4 @@ def test_cache_to_pkg():
     # ... and should no longer exist in the cache
     assert len(cache.search_cache(test_file_name)) == 0, \
             'File should have been removed from the cache'
-    
-
 

@@ -10,13 +10,13 @@ import astropy.units as u
 from astropy.io import fits
 from pypeit import specobjs
 from pypeit.spec2dobj import AllSpec2DObj
-from pypeit.core.collate import collate_spectra_by_source, SourceObject
-from pypeit.scripts.collate_1d import find_spec2d_from_spec1d,find_slits_to_exclude, exclude_source_objects
-from pypeit.scripts.collate_1d import flux, coadd, build_coadd_file_name, get_report_metadata, refframe_correction
+from pypeit.collate import collate_spectra_by_source, SourceObject
+from pypeit.collate import find_spec2d_from_spec1d,find_slits_to_exclude, exclude_source_objects
+from pypeit.collate import flux, coadd, build_coadd_file_name, disambiguate_coadd_file_name, get_report_metadata, refframe_correction
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.sensfilearchive import SensFileArchive
 from pypeit.par import pypeitpar
-from pypeit.pypmsgs import PypeItError
+from pypeit import PypeItError
 from pypeit.images.detector_container import DetectorContainer
 from pypeit import fluxcalibrate
 from pypeit import coadd1d
@@ -345,6 +345,108 @@ def test_build_coadd_file_name():
                            spectrograph, 'pixel')
     assert build_coadd_file_name(source2) == 'SPAT1234_DEIMOS_20200130_20200130.fits'
 
+    # outfile_from='maskdef_objname' names the file from MASKDEF_OBJNAME
+    source3 = SourceObject(mock_sobjs.specobjs[0], mock_sobjs.header, 'spec1d_file1',
+                           spectrograph, 'ra/dec', outfile_from='maskdef_objname')
+    assert build_coadd_file_name(source3) == 'object1_DEIMOS_20200130_20200130.fits'
+
+    # SERENDIP objects have no unique mask-design name, so they fall back to
+    # coordinate naming even when outfile_from='maskdef_objname'
+    serendip_sobj = [s for s in mock_sobjs.specobjs if s.MASKDEF_OBJNAME == 'SERENDIP'][0]
+    source4 = SourceObject(serendip_sobj, mock_sobjs.header, 'spec1d_file1',
+                           spectrograph, 'ra/dec', outfile_from='maskdef_objname')
+    assert build_coadd_file_name(source4).startswith('J')
+
+    # The default (outfile_from='coord') preserves the coordinate naming
+    source5 = SourceObject(mock_sobjs.specobjs[0], mock_sobjs.header, 'spec1d_file1',
+                           spectrograph, 'ra/dec')
+    assert build_coadd_file_name(source5) == 'J132436.41+271928.56_DEIMOS_20200130_20200130.fits'
+
+def test_disambiguate_coadd_file_name():
+    # Two distinct sources that happen to build the same output name (e.g. a
+    # shared MASKDEF_OBJNAME and date range) must not overwrite each other.
+    mock_sobjs = mock_specobjs('spec1d_file1')
+    spectrograph = load_spectrograph('keck_deimos')
+    source = SourceObject(mock_sobjs.specobjs[0], mock_sobjs.header, 'spec1d_file1',
+                          spectrograph, 'ra/dec', outfile_from='maskdef_objname')
+    base = build_coadd_file_name(source)          # object1_DEIMOS_...fits
+
+    used = set()
+    # The first source keeps the base name.
+    n1 = disambiguate_coadd_file_name(source, base, used)
+    assert n1 == base
+    used.add(n1)
+    # A second, distinct source with the same base name gets a coordinate token.
+    n2 = disambiguate_coadd_file_name(source, base, used)
+    assert n2 != base and n2 not in used
+    assert n2.startswith('object1_DEIMOS_20200130_20200130_J')
+    used.add(n2)
+    # A third collision still resolves to a fresh, unused name.
+    n3 = disambiguate_coadd_file_name(source, base, used)
+    assert n3 not in used and n3 not in (base, n2)
+
+
+def test_build_coadd_file_name_sanitizes_maskdef_objname():
+    # A catalog MASKDEF_OBJNAME with path separators / invalid characters must
+    # not produce a multi-component or directory-escaping output name.
+    from pypeit.core.parse import safe_name_component
+    spectrograph = load_spectrograph('keck_deimos')
+    header = mock_header('spec1d_file1')
+    sobj = MockSpecObj(MASKDEF_OBJNAME='foo/../bar:baz qux', MASKDEF_ID='1',
+                       DET=1, RA=201.0, DEC=27.0, SPAT_PIXPOS=1234.0,
+                       NAME='SPAT1234-SLIT1-DET01', WAVE_RMS=0.01)
+    source = SourceObject(sobj, header, 'spec1d_file1', spectrograph,
+                          'ra/dec', outfile_from='maskdef_objname')
+    name = build_coadd_file_name(source)
+    # The whole name is a single, safe path component.
+    assert '/' not in name and '\\' not in name, \
+        'the output name must not contain path separators'
+    assert ':' not in name and ' ' not in name, \
+        'the output name must not contain colons or spaces'
+    assert os.path.basename(name) == name, \
+        'the output name must be a single path component that cannot escape outdir'
+    # The helper itself maps disallowed characters to underscores.
+    assert safe_name_component('foo/../bar:baz qux') == 'foo_.._bar_baz_qux', \
+        'disallowed characters must be replaced with underscores'
+    assert safe_name_component('...') == '_', \
+        'a name of only dots must reduce to a single underscore'
+    assert safe_name_component('  spaced name ') == 'spaced_name', \
+        'surrounding whitespace must be stripped and inner spaces sanitized'
+
+
+def test_get_report_metadata_uses_disambiguated_name():
+    # The report must record the file actually written (the disambiguated
+    # basename), not a recomputed base name that could collide.
+    from pypeit.collate import get_report_metadata
+    spectrograph = load_spectrograph('keck_deimos')
+    mock_sobjs = mock_specobjs('spec1d_file1')
+    source = SourceObject(mock_sobjs.specobjs[0], mock_sobjs.header,
+                          'spec1d_file1', spectrograph, 'ra/dec',
+                          outfile_from='maskdef_objname')
+    base = build_coadd_file_name(source)
+
+    # Simulate the coadd loop assigning a disambiguated output basename.
+    disamb = base.replace('.fits', '_JXXXX.fits')
+    source.coaddfile = disamb
+    rows, files = get_report_metadata(['MJD'], ['MASKDEF_OBJNAME'], source)
+    assert files is None, 'get_report_metadata must return no file list for a SourceObject'
+    assert len(rows) >= 1, 'the report must have at least one metadata row'
+    assert all(r[0] == disamb for r in rows), \
+        'every row must record the disambiguated coadd file name (column 0)'
+    assert rows[0][0] != base, \
+        'the report must not fall back to the colliding base name when a name is assigned'
+
+    # With no assigned name (e.g. a dry run), it falls back to the base name.
+    source.coaddfile = None
+    rows2, _ = get_report_metadata(['MJD'], ['MASKDEF_OBJNAME'], source)
+    assert rows2[0][0] == base, \
+        'with no assigned coadd name, the report must fall back to the base name'
+
+    # Non-SourceObject inputs are unaffected.
+    assert get_report_metadata(['MJD'], ['MASKDEF_OBJNAME'], 'not a source') \
+        == (None, None), 'a non-SourceObject input must yield (None, None)'
+
+
 def test_find_slits_to_exclude(monkeypatch):
 
     # Return mock data structure that contains what
@@ -422,7 +524,7 @@ def test_exclude_source_objects(monkeypatch):
     par = pypeitpar.PypeItPar()
     par['collate1d']['exclude_serendip'] = True
     par['collate1d']['wv_rms_thresh'] = 0.1
-    filtered_list, excluded_msgs = exclude_source_objects(uncollated_list, {'3003': 'Test Exclude`'}, par)
+    filtered_list, excluded_log = exclude_source_objects(uncollated_list, {'3003': 'Test Exclude`'}, par)
     assert [so.spec_obj_list[0].NAME for so in filtered_list] == ['SPAT5334_SLIT4934_DET02']
     assert [so.spec1d_file_list[0] for so in filtered_list] == ['spec1d_file1']
 
@@ -430,7 +532,7 @@ def test_exclude_source_objects(monkeypatch):
     par['coadd1d']['ex_value'] = 'BOX'
     par['collate1d']['wv_rms_thresh'] = None
 
-    filtered_list, excluded_msgs = exclude_source_objects(uncollated_list, dict(), par)
+    filtered_list, excluded_log = exclude_source_objects(uncollated_list, dict(), par)
     assert [so.spec_obj_list[0].NAME for so in filtered_list] == ['SPAT1233_SLIT1235_DET07', 'SPAT6256_SLIT6245_DET05', 'SPAT6934_SLIT6245_DET05']
     assert [so.spec1d_file_list[0] for so in filtered_list] == ['spec1d_file1', 'spec1d_file2', 'spec1d_file2' ]
 
@@ -503,6 +605,7 @@ def test_get_report_metadata(monkeypatch):
                                                 ['MASKDEF_OBJNAME', 'NAME'],
                                                 "afilename")
 
+@pytest.mark.remote_data
 def test_flux(monkeypatch):
     
     def mock_get_header(file):
@@ -648,14 +751,14 @@ def test_refframe_correction(monkeypatch):
     spectrograph = load_spectrograph('keck_deimos')
 
     # Test that should fail due to no RA/DEC nor mjd in header
-    spec1d_failure_msgs = []
+    spec1d_failure_log = []
     spec1d_files = ["spec1d_file3"]
-    refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_msgs)
-    assert len(spec1d_failure_msgs) == 1
-    assert spec1d_failure_msgs[0].startswith('Failed to perform heliocentric correction on spec1d_file3')
+    refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_log)
+    assert len(spec1d_failure_log) == 1
+    assert spec1d_failure_log[0].startswith('Failed to perform heliocentric correction on spec1d_file3')
 
     # Test where onf of the SpecObjs already has a VEL_CORR that should not be overwritten
-    spec1d_failure_msgs = []
+    spec1d_failure_log = []
     spec1d_files = ["spec1d_file4"]
 
     # Test where one VEL_CORR is already set, and the SpecObj objects have no RA/DEC so the header RA/DEC must be used instead
@@ -664,9 +767,9 @@ def test_refframe_correction(monkeypatch):
         return sobjs
     monkeypatch.setattr(specobjs.SpecObjs, "from_fitsfile", mock_from_fitsfile)
 
-    refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_msgs)
-    assert len(spec1d_failure_msgs) == 1
-    assert spec1d_failure_msgs[0].startswith('Not performing heliocentric correction for spec1d_file4 object SPAT3234_SLIT3236_DET03 because it has already been corrected')
+    refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_log)
+    assert len(spec1d_failure_log) == 1
+    assert spec1d_failure_log[0].startswith('Not performing heliocentric correction for spec1d_file4 object SPAT3234_SLIT3236_DET03 because it has already been corrected')
     assert sobjs[0].VEL_CORR == 2.0 # Original value, should not have been overwritten
     assert sobjs[1].VEL_CORR == 1.0 # New value, from apply_helio
 

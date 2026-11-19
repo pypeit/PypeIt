@@ -5,31 +5,35 @@ General utility functions.
 .. include:: ../include/links.rst
 
 """
+import ast
 import os
+import json
+import gzip
 import inspect
-import pickle
 import pathlib
 import itertools
 import glob
 import colorsys
 import collections.abc
+from typing import Type
 
+from astropy import convolution
+from astropy import stats
+from astropy import units
+from astropy.coordinates import SkyCoord
+from astropy.io import ascii
 from IPython import embed
-
+import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 from numpy.lib.stride_tricks import as_strided
-
 import scipy.ndimage
 from scipy import signal
 
-import matplotlib
-import matplotlib.pyplot as plt
-
-from astropy import units
-from astropy import stats
-
-from pypeit import msgs
-from pypeit.move_median import move_median
+from pypeit import log
+from pypeit import PypeItError
+from pypeit.core.move_median import move_median
+from pypeit import dataPaths
 
 
 def zero_not_finite(array):
@@ -198,7 +202,7 @@ def concat_to_setup_list(concat, norders, nexps):
         the exposure number.
     """
     if len(norders) != len(nexps):
-        msgs.error('The number of elements in norders and nexps must match')
+        raise PypeItError('The number of elements in norders and nexps must match')
     nsetups = len(norders)
     setup_list = []
     ind_start = 0
@@ -458,7 +462,7 @@ def to_string(data, use_repr=True, verbatim=False):
             Use quotes around the provided string to indicate that
             the string should be represented in a verbatim (fixed
             width) font.
-        
+
     Returns:
         :obj:`str`: A string representation of the provided ``data``.
     """
@@ -471,65 +475,13 @@ def to_string(data, use_repr=True, verbatim=False):
     return data.__repr__() if use_repr else str(data)
 
 
-def string_table(tbl, delimeter='print', has_header=True):
-    """
-    Provided the array of data, format it with equally spaced columns
-    and add a header (first row) and contents delimeter.
-
-    Args:
-        tbl (`numpy.ndarray`_):
-            Array of string representations of the data to print.
-        delimeter (:obj:`str`, optional):
-            If the first row in the table containts the column headers (see
-            ``has_header``), this sets the delimeter between first table row and
-            the column data. Use ``'print'`` for a simple line of hyphens,
-            anything else results in an ``rst`` style table formatting.
-        has_header (:obj:`bool`, optional):
-            The first row in ``tbl`` contains the column headers.
-
-    Returns:
-        :obj:`str`: Single long string with the data table.
-    """
-    nrows, ncols = tbl.shape
-    col_width = [np.amax([len(dij) for dij in dj]) for dj in tbl.T]
-
-    _nrows = nrows
-    start = 1
-    if delimeter != 'print':
-        _nrows += 2
-        start += 1
-    if has_header:
-        _nrows += 1
-        start += 1
-
-    row_string = [''] * _nrows
-
-    for i in range(start, nrows + start - 1):
-        row_string[i] = '  '.join([tbl[1 + i - start, j].ljust(col_width[j]) for j in range(ncols)])
-    if delimeter == 'print':
-        # Heading row
-        row_string[0] = '  '.join([tbl[0, j].ljust(col_width[j]) for j in range(ncols)])
-        # Delimiter
-        if has_header:
-            row_string[1] = '-' * len(row_string[0])
-        return '\n'.join(row_string) + '\n'
-
-    # For an rst table
-    row_string[0] = '  '.join(['=' * col_width[j] for j in range(ncols)])
-    row_string[1] = '  '.join([tbl[0, j].ljust(col_width[j]) for j in range(ncols)])
-    if has_header:
-        row_string[2] = row_string[0]
-    row_string[-1] = row_string[0]
-    return '\n'.join(row_string) + '\n'
-
-
 def spec_atleast_2d(wave, flux, ivar, gpm, log10_blaze_function=None, copy=False):
     """
     Force spectral arrays to be 2D.
 
     Input and output spectra are ordered along columns; i.e., the flux vector
     for the first spectrum is in ``flux[:,0]``.
-    
+
     Args:
         wave (`numpy.ndarray`_):
             Wavelength array. Must be 1D if the other arrays are 1D. If 1D
@@ -562,7 +514,7 @@ def spec_atleast_2d(wave, flux, ivar, gpm, log10_blaze_function=None, copy=False
     # Check the input
     if wave.shape[0] != flux.shape[0] or ivar.shape != flux.shape or gpm.shape != flux.shape \
             or wave.ndim == 2 and wave.shape != flux.shape:
-        msgs.error('Input spectral arrays have mismatching shapes.')
+        raise PypeItError('Input spectral arrays have mismatching shapes.')
 
     if flux.ndim == 1:
         # Input flux is 1D
@@ -761,7 +713,7 @@ def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest', replace='original'):
     if wgt is not None and img.shape != wgt.shape:
         raise ValueError('Input image to smooth and weights must have the same shape.')
     if nave > img.shape[0]:
-        msgs.warn('Smoothing box is larger than the image size!')
+        log.warning('Smoothing box is larger than the image size!')
 
     # Construct the kernel for mean calculation
     _nave = np.fmin(nave, img.shape[0])
@@ -780,7 +732,7 @@ def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest', replace='original'):
     elif replace == 'zero':
         smoothed_img[smoothed_img.mask] = 0.0
     else:
-        msgs.error('Unrecognized value of replace')
+        raise PypeItError('Unrecognized value of replace')
     return smoothed_img.data
 
 
@@ -860,6 +812,61 @@ def convolve_fft(img, kernel, msk):
     return img_conv
 
 
+def convolve_psf(array, fwhm, boundary='fill', fill_value=0.0, normalize_kernel=True):
+    """
+    Convolve an array with a gaussian kernel.
+
+    Given an array of values `a` and a gaussian full width at half
+    maximum `fwhm` in pixel units, returns the convolution of the
+    array with the gaussian kernel.
+
+    Taken from `linetools <https://linetools.readthedocs.io/en/latest/>`__.
+
+    Parameters
+    ----------
+    array : array, shape(N,)
+        Array to convolve
+    fwhm : float
+        Gaussian full width at half maximum in pixels.
+    boundary : str, optional
+        A flag indicating how to handle boundaries:
+            * `None`
+                Set the ``result`` values to zero where the kernel
+                extends beyond the edge of the array (default).
+            * 'fill'
+                Set values outside the array boundary to ``fill_value``.
+            * 'wrap'
+                Periodic boundary that wrap to the other side of ``array``.
+            * 'extend'
+                Set values outside the array to the nearest ``array``
+                value.
+    fill_value : float, optional
+        The value to use outside the array when using boundary='fill'
+    normalize_kernel : bool, optional
+        Whether to normalize the kernel prior to convolving
+
+    Returns
+    -------
+    convolved_array : array, shape (N,)
+
+    Notes
+    -----
+    This function uses astropy.convolution
+    """
+
+    const2   = 2.354820046             # 2*sqrt(2*ln(2))
+    const100 = 3.034854259             # sqrt(2*ln(100))
+    sigma = fwhm / const2
+    # gaussian drops to 1/100 of maximum value at x =
+    # sqrt(2*ln(100))*sigma, so number of pixels to include from
+    # centre of gaussian is:
+    n = np.ceil(const100 * sigma)
+    x_size = int(2*n) + 1 # we want this to be odd integer
+    return convolution.convolve(
+        array, convolution.Gaussian1DKernel(sigma, x_size=x_size), boundary=boundary,
+        fill_value=fill_value, normalize_kernel=normalize_kernel
+    )
+
 # TODO: Could this use bisect?
 def index_of_x_eq_y(x, y, strict=False):
     """
@@ -918,7 +925,7 @@ def rebin_slice(a, newshape):
         rebinning to shape newshape
     """
     if not len(a.shape) == len(newshape):
-        msgs.error('Dimension of a image does not match dimension of new requested image shape')
+        raise PypeItError('Dimension of a image does not match dimension of new requested image shape')
 
     slices = [slice(0, old, float(old) / new) for old, new in zip(a.shape, newshape)]
     coordinates = np.mgrid[slices]
@@ -948,7 +955,7 @@ def rebinND(img, shape):
     rem0, rem1 = img.shape[0] % shape[0], img.shape[1] % shape[1]
     if rem0 != 0 or rem1 != 0:
         # In this case, the shapes are not an integer multiple... need to slice
-        msgs.warn("Input image shape is not an integer multiple of the requested shape. Flux is not conserved.")
+        log.warning("Input image shape is not an integer multiple of the requested shape. Flux is not conserved.")
         return rebin_slice(img, shape)
     # Convert input 2D image into a 4D array to make the rebinning easier
     sh = shape[0], img.shape[0] // shape[0], shape[1], img.shape[1] // shape[1]
@@ -975,6 +982,47 @@ def occurrences(inarr):
     """
     _, idx, cnt = np.unique(inarr, return_inverse=True, return_counts=True)
     return cnt[idx]
+
+
+def occurrences_sorted(inarr):
+    """ Calculate the sub-pixellation weights for a 2D array.
+
+    This function calculates the number of occurrences of each unique value in the 2D input array along one axis.
+
+    Parameters
+    ----------
+    inarr : ndarray
+        Input array. Must be 2D. The first axis is expected to be a large number of indices, N,
+        and the second axis is expected to be of length M, where M is the number of unique values in each row.
+        The function calculates the number of occurrences of each unique value along the first axis for each row.
+
+    Returns
+    -------
+    ndarray
+        Array of sub-pixellation weights.
+    """
+    n_rows, n_cols = inarr.shape
+
+    # Sort each row and find where values change
+    sorted_idx = np.argsort(inarr, axis=1, kind='stable')
+    sorted_vals = np.take_along_axis(inarr, sorted_idx, axis=1)
+
+    # Detect boundaries between different values within each row
+    boundaries = np.ones((n_rows, n_cols), dtype=bool)
+    boundaries[:, 1:] = sorted_vals[:, 1:] != sorted_vals[:, :-1]
+
+    # Use cumsum trick to count occurrences
+    counts = np.diff(np.where(boundaries.ravel())[0],
+                     append=n_rows * n_cols)
+
+    # Build output in sorted order, then unsort
+    result_sorted = np.repeat(counts, counts)  # each element gets its group's count
+
+    # Unsort back to original order
+    unsort_idx = np.argsort(sorted_idx, axis=1)
+    return np.take_along_axis(
+        result_sorted.reshape(n_rows, n_cols), unsort_idx, axis=1
+    ).ravel()
 
 
 def pyplot_rcparams():
@@ -1066,11 +1114,21 @@ def smooth(x, window_len, window='flat'):
         raise ValueError("Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
 
     s = np.r_[x[window_len - 1:0:-1], x, x[-2:-window_len - 1:-1]]
-    # print(len(s))
-    if window == 'flat':  # moving average
-        w = np.ones(window_len, 'd')
-    else:
-        w = eval('np.' + window + '(window_len)')
+
+    match window:
+        case 'flat':
+            # moving average
+            w = np.ones(window_len, 'd')
+        case 'hanning':
+            w = np.hanning(window_len)
+        case 'hamming':
+            w = np.hamming(window_len)
+        case 'bartlett':
+            w = np.bartlett(window_len)
+        case 'blackman':
+            w = np.blackman(window_len)
+        case _:
+            raise PypeItError(f'Unknown window type passed to smooth(): {window}')
 
     y = np.convolve(w / w.sum(), s, mode='same')
 
@@ -1110,9 +1168,9 @@ def fast_running_median(seq, window_size):
     # upon return (very bad). Added by JFH. Should we print out an error here?
 
     if (window_size > (len(seq) - 1)):
-        msgs.warn('window_size > len(seq)-1. Truncating window_size to len(seq)-1, but something is probably wrong....')
+        log.warning('window_size > len(seq)-1. Truncating window_size to len(seq)-1, but something is probably wrong....')
     if (window_size < 0):
-        msgs.warn(
+        log.warning(
             'window_size is negative. This does not make sense something is probably wrong. Setting window size to 1')
 
     window_size = int(np.fmax(np.fmin(int(window_size), len(seq) - 1), 1))
@@ -1164,9 +1222,9 @@ def cross_correlate(x, y, maxlag):
     x = np.asarray(x)
     y = np.asarray(y)
     if x.ndim != 1:
-        msgs.error('x must be one-dimensional.')
+        raise PypeItError('x must be one-dimensional.')
     if y.ndim != 1:
-        msgs.error('y must be one-dimensional.')
+        raise PypeItError('y must be one-dimensional.')
 
     # py = np.pad(y.conj(), 2*maxlag, mode=mode)
     py = np.pad(y, 2 * maxlag, mode='constant')
@@ -1209,7 +1267,7 @@ def clip_ivar(flux, ivar, sn_clip, gpm=None, verbose=False):
         return ivar
 
     if verbose:
-        msgs.info('Inflating errors to keep S/N ratio below S/N_clip = {:5.3f}'.format(sn_clip))
+        log.info('Inflating errors to keep S/N ratio below S/N_clip = {:5.3f}'.format(sn_clip))
 
     _gpm = ivar > 0.
     if gpm is not None:
@@ -1238,23 +1296,6 @@ def inverse(array):
         `numpy.ndarray`_: Result of controlled ``1/array`` calculation.
     """
     return (array > 0.0) / (np.abs(array) + (array == 0.0))
-
-
-def calc_ivar(varframe):
-    """
-
-    Calculate the inverse variance based on the input array
-
-    Wrapper to inverse()
-
-    Args:
-        varframe (`numpy.ndarray`_):  Variance image
-
-    Returns:
-        `numpy.ndarray`_:  Inverse variance image
-    """
-    # THIS WILL BE DEPRECATED!!
-    return inverse(varframe)
 
 
 def robust_meanstd(array):
@@ -1412,6 +1453,30 @@ def linear_interpolate(x1, y1, x2, y2, x):
     return y1 if np.isclose(x1,x2) else y1 + (x-x1)*(y2-y1)/(x2-x1)
 
 
+def linear_interpolate_extrapolate(x, xp, fp):
+    """ Perform a linear interpolation on a set of points, but allow for extrapolation at the boundaries.
+
+    Parameters
+    ----------
+    x : `numpy.ndarray`_
+        Points to evaluate the linear interpolation at
+    xp : `numpy.ndarray`_
+        The x-coordinates of the data points, must be increasing
+    fp : `numpy.ndarray`_
+        The y-coordinates of the data points, must be increasing
+
+    Returns
+    -------
+    `numpy.ndarray`_
+        The interpolated/extrapolated values at the points in x
+    """
+    idx = np.searchsorted(xp, x, side='right').clip(1, len(xp) - 1)
+    x0, x1 = xp[idx - 1], xp[idx]
+    f0, f1 = fp[idx - 1], fp[idx]
+    slope = (f1 - f0) / (x1 - x0)
+    return f0 + slope * (x - x0)  # naturally extrapolates at boundaries
+
+
 def replace_bad(frame, bpm):
     """ Find all bad pixels, and replace the bad pixels with the nearest good pixel
 
@@ -1430,9 +1495,9 @@ def replace_bad(frame, bpm):
     """
     # Do some checks on the inputs
     if frame.shape != bpm.shape:
-        msgs.error("Input frame and BPM have different shapes")
+        raise PypeItError("Input frame and BPM have different shapes")
     # Replace bad pixels with the nearest (good) neighbour
-    msgs.info("Replacing bad pixels")
+    log.info("Replacing bad pixels")
     ind = scipy.ndimage.distance_transform_edt(bpm, return_distances=False, return_indices=True)
     return frame[tuple(ind)]
 
@@ -1442,7 +1507,7 @@ def yamlify(obj, debug=False):
 
     Recursively process an object so it can be serialised for yaml.
 
-    Based on jsonify in `linetools`_.
+    Based on jsonify in `linetools <https://linetools.readthedocs.io/en/latest/>`__.
 
     Also found in desiutils
 
@@ -1475,12 +1540,10 @@ def yamlify(obj, debug=False):
     #    elif isinstance(obj, bytes):
     #        obj = obj.decode('utf-8')
     elif isinstance(obj, (np.str_, str)):
+        # NOTE: Strings with colons do not need to be quoted here; yaml.dump
+        # quotes them as needed.  Adding quotes here causes the quotes to be
+        # included in the value when the yaml is read back in (Issue #2099).
         obj = str(obj)
-        # Worry about colons!
-        if ':' in obj:
-            # Do not add quotes if they've already been added
-            if not obj.startswith('"'):
-                obj = '"' + str(obj) + '"'
     elif isinstance(obj, units.Quantity):
         try:
             obj = obj.value.tolist()
@@ -1517,8 +1580,9 @@ def yamlify(obj, debug=False):
     return obj
 
 def jsonify(obj, debug=False):
-    """ Recursively process an object so it can be serialised in json
-    format. Taken from linetools.
+    """
+    Recursively process an object so it can be serialised in json format. Taken
+    from `linetools <https://linetools.readthedocs.io/en/latest/>`__.
 
     WARNING - the input object may be modified if it's a dictionary or
     list!
@@ -1625,41 +1689,6 @@ def recursive_update(d, u):
     for k, v in u.items():
         d[k] = recursive_update(d.get(k, {}), v) if isinstance(v, collections.abc.Mapping) else v
     return d
-
-
-def save_pickle(fname, obj):
-    """Save an object to a python pickle file
-
-    Parameters
-    ----------
-    fname : :class:`str`
-        Filename
-    obj : :class:`object`
-        An object suitable for pickle serialization.
-    """
-    if fname.split(".")[-1] != 'pkl':
-        fname += '.pkl'
-    with open(fname, 'wb') as f:
-        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
-        msgs.info('File saved: {0:s}'.format(fname))
-
-
-def load_pickle(fname):
-    """Load a python pickle file
-
-    Parameters
-    ----------
-    fname : :class:`str`
-        Filename
-
-    Returns
-    -------
-    :class:`object`
-        An object suitable for pickle serialization.
-    """
-    msgs.info('Loading file: {0:s}'.format(fname))
-    with open(fname, 'rb') as f:
-        return pickle.load(f)
 
 
 ##
@@ -1942,9 +1971,9 @@ def find_single_file(file_pattern, required: bool=False) -> pathlib.Path:
     """
     files = sorted(glob.glob(file_pattern))
     if len(files) > 1:
-        msgs.warn(f'Found multiple files matching {file_pattern}; using {files[0]}')
+        log.warning(f'Found multiple files matching {file_pattern}; using {files[0]}')
     if len(files) == 0 and required:
-        msgs.error(f'No files matching pattern: {file_pattern}')
+        raise PypeItError(f'No files matching pattern: {file_pattern}')
     return None if len(files) == 0 else pathlib.Path(files[0])
 
 
@@ -2042,3 +2071,265 @@ def list_of_spectral_lines():
                          CaII_Kwav, CaII_Hwav, Gbandwav])
 
     return line_names, line_wav
+
+
+def get_line_list(name):
+    """
+    Return one of the built-in line lists.
+
+    Parameters
+    ----------
+    name : str
+        Name of the line list.
+
+    Returns
+    -------
+    tbl : `~astropy.table.Table`
+        An astropy Table containing a line list info (e.g. names and wavelens).
+
+    """
+    line_list_tbl = dataPaths.line_lists.get_file_path(f"{name}.ecsv")
+    tbl = ascii.read(line_list_tbl)
+    return tbl
+
+
+def get_line_list_names():
+    """
+    Return the list of built-in line list names.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    names : list
+        A list of built in line list names
+
+    """
+    # TODO: return descriptions of the names
+    line_list_dir = dataPaths.line_lists.path
+    line_list_files = glob.glob(os.path.join(line_list_dir, '*.ecsv'))
+    names = [os.path.splitext(os.path.basename(fname))[0]
+             for fname in line_list_files]
+    return names
+
+def radec_to_coord(radec, gal=False):
+    """
+    Converts one of many of Celestial Coordinates `radec` formats to an astropy
+    SkyCoord object. Assumes J2000 equinox.
+
+    Taken from `linetools <https://linetools.readthedocs.io/en/latest/>`__.
+
+    Parameters
+    ----------
+    radec : str or tuple or SkyCoord or list
+        Examples:
+        'J124511+144523',
+        '124511+144523',
+        'J12:45:11+14:45:23',
+        ('12:45:11','+14:45:23')
+        ('12 45 11', +14 45 23)
+        ('12:45:11','14:45:23')  -- Assumes positive DEC
+        (123.123, 12.1224) -- Assumed deg
+        [(123.123, 12.1224), (125.123, 32.1224)]
+    gal : bool, optional
+      Input pair of floats are (l,b) in deg
+
+    Returns
+    -------
+    coord : SkyCoord
+      Converts to astropy.coordinate.SkyCoord (as needed)
+      Returns a SkyCoord array if input is a list
+    """
+    if gal:
+        frame = 'galactic'
+    else:
+        frame = 'icrs'
+
+    # RA/DEC
+    if isinstance(radec, (tuple)):
+        if isinstance(radec[0], str):
+            if radec[1][0] not in ['+', '-']:  #
+                DEC = '+'+radec[1]
+                log.warning("Assuming your DEC is +")
+            else:
+                DEC = radec[1]
+            #
+            coord = SkyCoord(radec[0]+DEC, frame=frame,
+                                  unit=(units.hourangle, units.deg))
+        else:
+            if frame == 'galactic':
+                coord = SkyCoord(l=radec[0], b=radec[1], frame=frame, unit='deg')
+            else:
+                coord = SkyCoord(ra=radec[0], dec=radec[1], frame=frame, unit='deg')
+    elif isinstance(radec,SkyCoord):
+        coord = radec
+    elif isinstance(radec,str):
+        # Find first instance of a number (i.e. strip J, SDSS, etc.)
+        for ii in range(len(radec)):
+            if radec[ii].isdigit():
+                break
+        radec = radec[ii:]
+        #
+        if ':' in radec:
+            coord = SkyCoord(radec, frame='icrs', unit=(units.hourangle, units.deg))
+        else:  # Add in :
+            if ('+' in radec) or ('-' in radec):
+                sign = max(radec.find('+'), radec.find('-'))
+            else:
+                raise ValueError("radec must include + or - for DEC")
+            newradec = (radec[0:2]+':'+radec[2:4]+':'+radec[4:sign+3] +':'+radec[sign+3:sign+5]+':'+radec[sign+5:])
+            coord = SkyCoord(newradec, frame='icrs', unit=(units.hourangle, units.deg))
+    elif isinstance(radec,list):
+        clist = []
+        for item in radec:
+            clist.append(radec_to_coord(item,gal=gal))
+        # Convert to SkyCoord array
+        ras = [ii.icrs.ra.value for ii in clist]
+        decs = [ii.icrs.dec.value for ii in clist]
+        return SkyCoord(ra=ras, dec=decs, unit='deg')
+    else:
+        raise IOError("Bad input type for radec")
+    # Return
+    return coord
+
+
+def loadjson(filename):
+    """
+    Load a python object saved with savejson.
+
+    Parameters
+    ----------
+    filename : str, `pathlib.Path`
+        The name of the file to load.
+
+    Returns
+    -------
+    dict
+        The loaded python object.
+    """
+    _file = pathlib.Path(filename).resolve()
+    if _file.suffix == '.gz':
+        with gzip.open(_file, "rb") as f:
+            return json.loads(f.read().decode("ascii"))
+    with open(_file, 'rt') as f:
+        return json.load(f)
+
+
+def ast_literal_eval(inp):
+    """
+    A wrapper for :func:`ast.literal_eval` that returns the input if it raises a
+    ValueError.
+    """
+    try:
+        return ast.literal_eval(inp)
+    except ValueError:
+        return inp
+
+
+def _eval_iter(inp:list[str], left:str, right:str, otype:Type) -> list:
+    """
+    Convenience function used to abstract the core functionality of
+    :func:`eval_tuple` and :func:`eval_list`.
+
+    Parameters
+    ----------
+    inp
+        Input list of strings
+    left
+        Left bracket delimeter
+    right
+        Right bracket delimeter
+    otype
+        Return type for the components of the list
+
+    Returns
+    -------
+        A list of objects with type ``otype`` as converted from the provided
+        strings.
+    """
+    grps = [
+        i for i in list(itertools.chain(*[s.split(right) for s in ','.join(inp).split(left)]))
+        if len(i) > 1
+    ]
+    return list(otype(map(ast_literal_eval, g.split(','))) for g in grps)
+
+
+def eval_tuple(inp:list[str]) -> list[tuple]:
+    """
+    Evaluate the input to one or more tuples.
+
+    This allows conversion of one or more tuples provided to a configuration
+    parameters.
+
+    .. warning::
+
+        - Currently can only handle tuples with integers, floats, or strings!
+
+    Parameters
+    ----------
+    inp 
+        A list of strings that are converted into a list of tuples.  The
+        parentheses must be within the list of elements.
+
+    Returns
+    -------
+        A list of tuples with the converted elements.
+    """
+    return _eval_iter(inp, '(', ')', tuple)
+
+
+def eval_list(inp:list[str]) -> list[list]:
+    """
+    Evaluate the input to one or more lists.
+
+    This allows conversion of one or more lists provided to a configuration
+    parameters.
+
+    .. warning::
+
+        - Currently can only handle lists with integers, floats, or strings!
+
+    Parameters
+    ----------
+    inp 
+        A list of strings that are converted into a list of lists.  The square
+        brackets must be within the list of elements.
+
+    Returns
+    -------
+        A list of lists with the converted elements.
+    """
+    return _eval_iter(inp, '[', ']', list)
+
+
+def init_arg_values():
+    """
+    Return the argument names and values of the calling function.
+
+    This replaces the ``inspect.getargvalues(inspect.currentframe())`` idiom
+    used by many ``__init__`` methods to collect their arguments.  Since Python
+    3.13 (`PEP 667`_), a frame's ``f_locals`` is a proxy that holds a reference
+    back to the frame.  Assigning that proxy to a local variable of the same
+    frame creates a reference cycle (frame -> proxy -> frame), so ``self`` and
+    every argument (often large arrays) survive until the cyclic garbage
+    collector happens to run.  Here, the proxy only lives in *this* function's
+    frame and only a plain :obj:`dict` is returned, so no cycle is formed.
+
+    .. _PEP 667: https://peps.python.org/pep-0667/
+
+    Returns
+    -------
+    args : :obj:`list`
+        The names of the calling function's positional-or-keyword arguments,
+        in order, including ``self`` for a method.
+    values : :obj:`dict`
+        The values of those arguments, keyed by name.
+    """
+    frame = inspect.currentframe().f_back
+    try:
+        args, _, _, values = inspect.getargvalues(frame)
+        return args, {k: values[k] for k in args}
+    finally:
+        del frame
