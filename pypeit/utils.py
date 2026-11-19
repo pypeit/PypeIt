@@ -1477,6 +1477,68 @@ def linear_interpolate_extrapolate(x, xp, fp):
     return f0 + slope * (x - x0)  # naturally extrapolates at boundaries
 
 
+def interp1d_rows(x, y, x_new):
+    """
+    Linearly interpolate (and extrapolate) each row of a 2D array.
+
+    For each row ``i``, the result is identical to
+
+    .. code-block:: python
+
+        interp1d(x[i], y[i], kind='linear', bounds_error=False,
+                 fill_value='extrapolate')(x_new[i])
+
+    including the sorting of ``x`` and the arithmetic used for the
+    interpolation, but all rows are interpolated at once.
+
+    Parameters
+    ----------
+    x : `numpy.ndarray`_
+        The abscissae of each row, shape ``(nrow, n)``, with ``n >= 2``.  The
+        values in each row need not be sorted.
+    y : `numpy.ndarray`_
+        The ordinates of each row, same shape as ``x``.
+    x_new : `numpy.ndarray`_
+        The abscissae at which to interpolate each row, shape ``(nrow, m)``.
+
+    Returns
+    -------
+    `numpy.ndarray`_
+        The interpolated values, shape ``(nrow, m)``.
+
+    Notes
+    -----
+    This function is meant for many rows, each with few abscissae (e.g., the
+    edges or alignment traces of a slit at each spectral pixel).  In this case,
+    it is much faster than interpolating one row at a time, either in a loop or
+    with ``numpy.apply_along_axis``; e.g., for 4000 rows with ``n = 2`` and
+    ``m = 50``, it is about 10 times faster than applying
+    :func:`linear_interpolate_extrapolate` to each row, and about 20 times
+    faster than applying `scipy.interpolate.interp1d`_.  The time needed to find
+    the interval containing each new abscissa grows linearly with ``n``, and
+    the advantage is lost for ``n`` of several hundred.
+    """
+    # interp1d casts the ordinates (but not the abscissae) to floating point
+    if not np.issubdtype(y.dtype, np.inexact):
+        y = y.astype(float)
+    # Sort each row by its abscissae, as interp1d does
+    srt = np.argsort(x, axis=1, kind='mergesort')
+    x = np.take_along_axis(x, srt, axis=1)
+    y = np.take_along_axis(y, srt, axis=1)
+    # Equivalent to np.searchsorted(x[i], x_new[i]) for each row: the number of
+    # abscissae smaller than each new value
+    indx = np.zeros(x_new.shape, dtype=int)
+    for j in range(x.shape[1]):
+        indx += x[:, j:j+1] < x_new
+    indx = np.clip(indx, 1, x.shape[1]-1)
+    x_lo = np.take_along_axis(x, indx-1, axis=1)
+    x_hi = np.take_along_axis(x, indx, axis=1)
+    y_lo = np.take_along_axis(y, indx-1, axis=1)
+    y_hi = np.take_along_axis(y, indx, axis=1)
+    slope = (y_hi - y_lo) / (x_hi - x_lo)
+    return slope * (x_new - x_lo) + y_lo
+
+
 def replace_bad(frame, bpm):
     """ Find all bad pixels, and replace the bad pixels with the nearest good pixel
 

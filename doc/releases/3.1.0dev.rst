@@ -30,6 +30,9 @@ Functionality/Performance Improvements and Additions
 - Vectorised the construction of the alignment splines used by
   ``pypeit_coadd_datacube`` (:class:`~pypeit.alignframe.AlignmentSplines`).
   The results are identical, and the splines are built ~40 times faster.
+- Added :func:`~pypeit.utils.interp1d_rows`, which linearly interpolates (and
+  extrapolates) every row of a 2D array at once, giving the same result as
+  applying ``scipy.interpolate.interp1d`` to each row.
 
 
 Instrument-specific Updates

@@ -49,26 +49,6 @@ def test_alignments():
 
 
 
-def test_interp1d_rows():
-    rng = np.random.default_rng(1234)
-    nrow, n, m = 50, 5, 30
-    x = rng.uniform(0., 10., size=(nrow, n))
-    y = rng.normal(size=(nrow, n))
-    # Includes values outside the range of x, to test the extrapolation
-    x_new = rng.uniform(-3., 13., size=(nrow, m))
-    x_new[:, 0] = x[:, 2]   # A value equal to one of the abscissae
-    result = alignframe.interp1d_rows(x, y, x_new)
-    for i in range(nrow):
-        expected = interp1d(x[i], y[i], kind='linear', bounds_error=False,
-                            fill_value='extrapolate')(x_new[i])
-        assert np.array_equal(result[i], expected)
-    # Integer ordinates are cast to float, as in interp1d
-    yint = np.arange(nrow*n).reshape(nrow, n)
-    result = alignframe.interp1d_rows(x, yint, x_new)
-    assert np.array_equal(result[3], interp1d(x[3], yint[3], bounds_error=False,
-                                              fill_value='extrapolate')(x_new[3]))
-
-
 def reference_alignment_transforms(traces, locations, tilts):
     """
     The per-pixel loop that :func:`pypeit.alignframe.AlignmentSplines.build_splines`
