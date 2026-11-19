@@ -7,6 +7,12 @@ Goal: identify which functions in `pypeit/wavemodel.py` can move into
 - popular external packages (numpy, scipy, astropy, matplotlib),
 - other `pypeit.core` modules.
 
+Two exceptions are allowed:
+
+- `pypeit.log` stays as an import in core modules.
+- `pypeit.utils` is acceptable for now. It will later be split into
+  `pypeit.core.utils` and `pypeit.utils`.
+
 The companion file `wavemodel_dependencies.csv` has the same information with
 one row per function, ready to import into a spreadsheet.
 
@@ -28,7 +34,7 @@ one row per function, ready to import into a spreadsheet.
 | `pypeit.core.plot` | core | debug plots (`pyplot_rcparams*`) |
 | `pypeit.core.wave` | core | `create_linelist` (`airtovac`) |
 | `IPython.embed` | external | **unused** |
-| `pypeit.log` | **non-core** | all 13 functions |
+| `pypeit.log` | non-core, **allowed** | all 13 functions |
 | `pypeit.dataPaths` | **non-core** | `oh_lines`, `transparency`, `h2o_lines` |
 | `pypeit.io` | **non-core** | `thar_lines` (`load_thar_spec`) |
 
@@ -38,25 +44,28 @@ those subpackages. Any move should import them explicitly.
 
 ## Per-function dependencies
 
-Legend: **A** = can move to core after the log fix only;
+Legend: **A** = ready to move to core now;
 **B** = needs a split or refactor (it reads PypeIt data files or calls a function
 that does).
 
-| # | Function | Line | External | `pypeit.core` | Non-core pypeit | Calls in this module | Status |
+Every function also imports `pypeit.log`, which is allowed, so the table leaves
+it out.
+
+| # | Function | Line | External | `pypeit.core` | Disallowed pypeit | Calls in this module | Status |
 |---|---|---|---|---|---|---|---|
-| 1 | `blackbody` | 31 | numpy, astropy.constants, mpl | plot | log | – | **A** |
-| 2 | `addlines2spec` | 85 | numpy, mpl | plot | log | – | **A** |
-| 3 | `oh_lines` | 145 | numpy | – | log, **dataPaths** | – | **B** |
-| 4 | `transparency` | 160 | numpy, scipy.interpolate, mpl | plot | log, **dataPaths** | – | **B** |
-| 5 | `h2o_lines` | 222 | numpy | – | log, **dataPaths** | – | **B** |
-| 6 | `thar_lines` | 240 | numpy | – | log, **io.load_thar_spec** | – | **B** |
-| 7 | `nearIR_modelsky` | 264 | numpy, scipy.interpolate, astropy.io.fits, mpl | plot | log | blackbody, oh_lines, addlines2spec, h2o_lines, conv2res | **B** (indirect dataPaths) |
-| 8 | `optical_modelThAr` | 426 | numpy, scipy.interpolate, astropy.io.fits, mpl | plot | log | thar_lines, conv2res | **B** (indirect io) |
-| 9 | `conv2res` | 545 | numpy, astropy.convolution, mpl | plot | log | – | **A** |
-| 10 | `iraf_datareader` | 612 | re, numpy | – | log | – | **A** |
-| 11 | `create_linelist` | 661 | numpy, scipy.interpolate, astropy.units, astropy.table | arc, wave | log | – | **A** |
-| 12 | `create_OHlinelist` | 728 | numpy | – | log | nearIR_modelsky, create_linelist | **B** (indirect dataPaths) |
-| 13 | `create_ThArlinelist` | 802 | numpy | – | log | optical_modelThAr, create_linelist | **B** (indirect io) |
+| 1 | `blackbody` | 31 | numpy, astropy.constants, mpl | plot | – | – | **A** |
+| 2 | `addlines2spec` | 85 | numpy, mpl | plot | – | – | **A** |
+| 3 | `oh_lines` | 145 | numpy | – | **dataPaths** | – | **B** |
+| 4 | `transparency` | 160 | numpy, scipy.interpolate, mpl | plot | **dataPaths** | – | **B** |
+| 5 | `h2o_lines` | 222 | numpy | – | **dataPaths** | – | **B** |
+| 6 | `thar_lines` | 240 | numpy | – | **io.load_thar_spec** | – | **B** |
+| 7 | `nearIR_modelsky` | 264 | numpy, scipy.interpolate, astropy.io.fits, mpl | plot | – | blackbody, oh_lines, addlines2spec, h2o_lines, conv2res | **B** (indirect dataPaths) |
+| 8 | `optical_modelThAr` | 426 | numpy, scipy.interpolate, astropy.io.fits, mpl | plot | – | thar_lines, conv2res | **B** (indirect io) |
+| 9 | `conv2res` | 545 | numpy, astropy.convolution, mpl | plot | – | – | **A** |
+| 10 | `iraf_datareader` | 612 | re, numpy | – | – | – | **A** |
+| 11 | `create_linelist` | 661 | numpy, scipy.interpolate, astropy.units, astropy.table | arc, wave | – | – | **A** |
+| 12 | `create_OHlinelist` | 728 | numpy | – | – | nearIR_modelsky, create_linelist | **B** (indirect dataPaths) |
+| 13 | `create_ThArlinelist` | 802 | numpy | – | – | optical_modelThAr, create_linelist | **B** (indirect io) |
 
 ### Internal call graph
 
@@ -89,7 +98,7 @@ on a non-core module today. Moving `conv2res` and a core version of
 
 ## First-pass core candidates
 
-**Group A: blocked only by `pypeit.log`** (5 functions):
+**Group A: ready to move now** (5 functions):
 `blackbody`, `addlines2spec`, `conv2res`, `iraf_datareader`, `create_linelist`.
 
 **Group B: need a loader/compute split** (8 functions):
@@ -107,23 +116,15 @@ on a non-core module today. Moving `conv2res` and a core version of
 
 ## Open questions / cross-cutting issues
 
-1. **Policy for `pypeit.log`.** Every function uses it, so this decision
-   unblocks Group A. `pypeit.log` is a stdlib `logging.Logger` built by
-   `pypeit.pkg.logger.get_logger`. A core module could use
-   `logging.getLogger(__name__)` and still pick up PypeIt's handlers if the
-   logger hierarchy is set up for that (this needs checking). Note that 34 of
-   the 39 existing `pypeit/core/*.py` modules already import `pypeit.log`, so
-   this is a repo-wide decision, not one specific to wavemodel.
-2. **Transitive purity of core.** `core.arc`, which `create_linelist` needs,
-   imports `pypeit.log`, `pypeit.PypeItError` and `pypeit.utils`. `core.wave`
-   imports `pypeit.PypeItError`. These are allowed under the "any `pypeit.core`
-   import is fine" rule, but the dependency tree as a whole is not yet pure.
-3. **Debug plotting.** matplotlib is external, so it is allowed. If core
+1. **`pypeit.PypeItError`.** `core.arc` and `core.wave` (both needed by
+   `create_linelist`) import it. It is not yet covered by the allowed
+   exceptions; `core.arc`'s other imports (`pypeit.log`, `pypeit.utils`) are.
+2. **Debug plotting.** matplotlib is external, so it is allowed. If core
    should stay free of plotting, the `debug` branches in 6 functions could
    move to a QA/plot module.
-4. **Latent bugs to fix during the move:**
+3. **Latent bugs to fix during the move:**
    - `iraf_datareader`: `N_lines` is never set if no `features` line is
      found, and the path is built by string concatenation
      (`database_dir+id_file`).
    - The bare `import astropy` / `import scipy` noted above.
-5. **Unused imports:** `os`, `IPython.embed`.
+4. **Unused imports:** `os`, `IPython.embed`.
