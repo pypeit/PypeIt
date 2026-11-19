@@ -21,6 +21,7 @@ def expected_file_extensions():
     return ['sorted']
 
 
+@pytest.mark.remote_data
 def test_read_list_rawfiles():
     """ Read in a file which is a 
     list of raw data files for setting up
@@ -53,6 +54,7 @@ def test_read_list_rawfiles():
         os.remove(tst_file)
 
 
+@pytest.mark.remote_data
 def test_run_setup():
     """ Test the setup script
     """
@@ -63,12 +65,12 @@ def test_run_setup():
     droot = tstutils.data_output_path('b')
     odir = Path(tstutils.data_output_path('')).absolute() / 'shane_kast_blue_A'
     pargs = Setup.parse_args(['-r', droot, '-s', 'shane_kast_blue', '-c', 'all',
-                              '--extension', 'fits.gz', '--output_path', f'{odir.parent}'])
+                              '--output_path', f'{odir.parent}'])
     Setup.main(pargs)
 
     # Fails because name of spectrograph is wrong
     pargs2 = Setup.parse_args(['-r', droot, '-s', 'shane_kast_blu', '-c', 'all',
-                               '--extension', 'fits.gz', '--output_path', f'{odir.parent}'])
+                               '--output_path', f'{odir.parent}'])
     with pytest.raises(ValueError):
         Setup.main(pargs2)
     

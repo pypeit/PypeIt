@@ -5,7 +5,8 @@ Module for Keck/NIRES specific methods.
 """
 import numpy as np
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
@@ -121,7 +122,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         #par['reduce']['findobj']['ech_find_nabove_min_snr'] = 1
         # Require detection in a single order since given only 5 orders and slitlosses for NIRES, often
         # things are only detected in the K-band? Decided not to make this the default.
-
+        par['reduce']['findobj']['maxnumber_std'] = 1  # Assume that there is only one object in each order.
 
         # Flexure
         par['flexure']['spec_method'] = 'skip'
@@ -204,7 +205,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
             else:
                 return None
         else:
-            msgs.error("Not ready for this compound meta")
+            raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -431,9 +432,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        pypeit_keys = super().pypeit_file_keys()
-        pypeit_keys += ['dithpat', 'dithpos', 'dithoff','frameno']
-        return pypeit_keys
+        return super().pypeit_file_keys() + ['dithpat', 'dithpos', 'dithoff', 'frameno']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -501,7 +500,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
             to 1 and an unmasked value set to 0.  All values are set to
             0.
         """
-        msgs.info("Custom bad pixel mask for NIRES")
+        log.info("Custom bad pixel mask for NIRES")
         # Call the base-class method to generate the empty bpm
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 

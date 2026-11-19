@@ -3,17 +3,22 @@ Module for Bok/B&C specific methods.
 
 .. include:: ../include/links.rst
 """
+from pathlib import Path
+
 import numpy as np
 
+from astropy.io import fits
+from astropy.table import Table
 from astropy.time import Time
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
-from pypeit import io
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
+from pypeit.par import parset
 
 
 class BokBCSpectrograph(spectrograph.Spectrograph):
@@ -69,10 +74,14 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
-            binspatial = headarr[0]['CCDBIN1']
-            binspec = headarr[0]['CCDBIN2']
+            if 'CCDBIN1' in headarr[0]:  # Current files
+                binspatial = headarr[0]['CCDBIN1']
+                binspec = headarr[0]['CCDBIN2']
+            elif 'CCDSUM' in headarr[0]:  # For really old files
+                binspatial, binspec = headarr[0]['CCDSUM'].split()
+            else: 
+                raise PypeItError("Could not find a header keyword for the binning")
             return parse.binning2string(binspatial, binspec)
-            #return parse.binning2string(binspec, binspatial)
         elif meta_key == 'mjd':
             """
             Need to combine 'DATE-OBS' and 'UT' headers and then use astropy to make an mjd.
@@ -91,7 +100,7 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
                 return headarr[0]['COMPLAMP']
             else:
                 return 'off'
-        msgs.error("Not ready for this compound meta")
+        raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -301,24 +310,29 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         if det == 1:
-            msgs.info("Using hard-coded BPM for Bok B&C")
+            log.info("Using hard-coded BPM for Bok B&C")
 
             bpm_img[:, -1] = 1
 
         else:
-            msgs.error(f"Invalid detector number, {det}, for Bok B&C (only one detector).")
+            raise PypeItError(f"Invalid detector number, {det}, for Bok B&C (only one detector).")
 
         return bpm_img
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
@@ -327,11 +341,17 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
+
+        # Adjust parameters based on grating used
+        grating = self.get_meta_value(inp, 'dispname')
 
         # Wavelength calibrations
-        if self.get_meta_value(scifile, 'dispname') == '300':
+        # NOTE: The str() is needed because this value can be interpreted as
+        #       an :obj:`int` -- i.e., no "300L" or other such unit identifier
+        #       as is common for most other spectrographs.
+        if str(grating) == '300':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'bok_bc_300.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
 
@@ -382,7 +402,7 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['lampstat01'] != 'off')
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
 

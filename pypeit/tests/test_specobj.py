@@ -14,7 +14,7 @@ from astropy.io import fits
 
 from pypeit import specobj
 from pypeit.tests.tstutils import data_output_path
-from pypeit import msgs
+from pypeit import log
 
 
 def test_init():
@@ -34,6 +34,7 @@ def test_assignment():
         sobj.PYPELINE = 2
     #
     sobj.SPAT_PIXPOS = 523.0
+    sobj.SPAT_PIXPOS_ID = 523
     sobj.PYPELINE = 'MultiSlit'
     sobj.set_name()
     assert sobj.NAME == 'SPAT0523-SLIT0000-DET01'
@@ -101,7 +102,8 @@ def test_from_arrays():
     wave = np.linspace(5000., 6000, 1000)
     flux = np.ones_like(wave)
     ivar = 0.1*np.ones_like(wave)
-    sobj = specobj.SpecObj.from_arrays('MultiSlit', wave, flux, ivar)
+    flat = np.ones_like(wave)
+    sobj = specobj.SpecObj.from_arrays('MultiSlit', wave, flux, ivar, flat)
 
     assert sobj.OPT_WAVE[0] == 5000.
 

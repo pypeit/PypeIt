@@ -41,7 +41,14 @@ coadd3d file
 ------------
 
 The ``pypeit_coadd_datacube`` script requires an
-input file to guide the process.
+input file to guide the process. PypeIt expects this
+file to be located in the same directory as the ``.pypeit``
+file that was used to reduce the data. By default, this script
+will generate a ``Science_cube`` and a ``QA_cube`` directory and
+the datacubes, whitelight images, and QA plots and frames to these
+directories.
+
+The name of the input file must end with the suffix ``.coadd3d``.
 The format of this type of :doc:`input_files`
 includes a :ref:`parameter_block` (required)
 and a :ref:`data_block` (required).
@@ -57,7 +64,7 @@ saved as ``BB1245p4238.coadd3d``:
     [reduce]
         [[cube]]
             combine = True
-            align = True
+            alignment_method = phase
             output_filename = BB1245p4238_datacube.fits
             save_whitelight = True
 
@@ -109,6 +116,65 @@ corrections as part of the spec2d block, including:
     The required input file is the sensitivity function, which is generated with the ``pypeit_sensfunc`` script.
     For further details, see :ref:`coadd3d_fluxing`.
 
+.. _pypeit_setup_datacube:
+
+pypeit_setup_datacube
+---------------------
+
+The ``pypeit_setup_datacube`` script can be used to create the ``.coadd3d`` file used by
+``pypeit_coadd_datacube`` and the ``.extract`` file used by ``pypeit_extract_datacube``.
+The script reads a PypeIt file, finds the reduced ``spec2d`` files that already exist in the
+associated ``Science`` directory for the requested target, and writes the setup files to
+``sources/<target>/`` next to the PypeIt file.  For example:
+
+.. code-block:: console
+
+    pypeit_setup_datacube kcrm_jun10_hizqso.pypeit J0750+6927
+
+By default, no sensitivity function is included in the generated ``.coadd3d`` file, so
+``pypeit_coadd_datacube`` will produce an unfluxed cube in counts/s/Angstrom/arcsec^2.
+To flux calibrate the datacube, provide a sensitivity function using ``--sensfile``:
+
+.. code-block:: console
+
+    pypeit_setup_datacube kcrm_jun10_hizqso.pypeit J0750+6927 \
+        --sensfile /Users/joe/kcrm_observing_2024/dec2024/hiz_qso_dec2024/sens_gd71_000.fits
+
+The white-light wavelength range defaults to ``None,None``.  This means PypeIt will use the
+default cube range, which is the common wavelength overlap of the spaxels used to build the
+cube.  To set the range explicitly, use either ``--whitelight_range`` or ``--wl_range``:
+
+.. code-block:: console
+
+    pypeit_setup_datacube kcrm_jun10_hizqso.pypeit J0750+6927 \
+        --wl_range 9400,10000
+
+To manually set the extraction position, pass the white-light image coordinates to
+``--manual`` in ``x:y`` format:
+
+.. code-block:: console
+
+    pypeit_setup_datacube kcrm_jun10_hizqso.pypeit J0750+6927 \
+        --manual 9.8:13.6 -o
+
+Here ``x=9.8`` and ``y=13.6`` are the coordinates read from Ginga or DS9 when viewing the
+white-light image.  In numpy terms, if the image has shape ``(ny, nx)``, the position
+``(x, y)`` refers to ``image[y, x]``; ``x`` indexes the second array axis and ``y`` indexes
+the first.  The ``-o``/``--overwrite`` option is needed if the ``.extract`` file already exists
+and you want the script to replace it.  The generated ``.extract`` file will include:
+
+.. code-block:: ini
+
+    [reduce]
+        [[cube]]
+         [[[extraction]]]
+           opt_prof_method = user_gauss
+           manual = 9.8:13.6
+
+If you reduce additional exposures later, ``--append`` can be used to append any newly
+available ``spec2d`` files to the existing ``.coadd3d`` file without changing the existing
+``.extract`` file.
+
 run
 ---
 
@@ -146,6 +212,11 @@ There are several recommended steps of the coadd3d process that can be run separ
     counts, but rather the residual level of the sky aperture. This is useful for checking the quality of
     the sky subtraction.
 
+    Manual datacube extraction positions are specified as ``x:y`` image coordinates, matching the values
+    read from Ginga or DS9 when viewing the white-light image. In numpy terms, if the white-light image
+    has shape ``(ny, nx)``, a position ``(x, y)`` refers to ``image[y, x]``; ``x`` indexes the second
+    array axis and ``y`` indexes the first.
+
 #. Step 3 - Generate a sensitivity function from the 1D spectra. This is done by running the following
     command, assuming that the output 1D spectra from the previous step was called
     ``spec1d_StandardStarName.fits``. The ``pypeit_sensfunc`` script will produce an output file called
@@ -155,7 +226,7 @@ There are several recommended steps of the coadd3d process that can be run separ
 
         pypeit_sensfunc spec1d_StandardStarName.fits -o sens_StandardStarName.fits
 
-    For further details, see :doc:`_sensitivity_function`.
+    For further details, see :ref:`sensitivity_function`.
 
 #. Step 4 - Generate a datacube of the science exposures. This is done by running the following command:
 
@@ -164,7 +235,7 @@ There are several recommended steps of the coadd3d process that can be run separ
         pypeit_coadd_datacube ScienceName.coadd3d -o
 
     Note that you will need to specify the sensitivity function file using the ``sensfile`` option in the
-    :doc:`coadd3d_file` file. For further details, see :ref:`coadd3d_fluxing`.
+    :ref:`coadd3d_file` file. For further details, see :ref:`coadd3d_fluxing`.
 
 Combination options
 ===================
@@ -239,7 +310,7 @@ If you would like to flux calibrate your datacube, you need to
 produce your standard star datacube first. Then extract the spectrum
 of the standard star using the ``pypeit_extract_datacube`` script. This
 will produce a ``spec1d`` file that you will need to use to generate a
-sensitivity function in the usual way (see :doc:`_sensitivity_function`).
+sensitivity function in the usual way (see :ref:`sensitivity_function`).
 Then, when generating the datacube of the science frame you must include
 the name of the sensitivity function in your ``coadd3d`` file as follows:
 
@@ -247,7 +318,7 @@ the name of the sensitivity function in your ``coadd3d`` file as follows:
 
     [reduce]
         [[cube]]
-            sensfunc = my_sensfunc.fits
+            sensfile = my_sensfunc.fits
 
 
 Also, an important note for users that wish to combine multiple standard star exposures
@@ -289,7 +360,7 @@ then you can specify the ``skysub_frame`` in the ``spec2d`` block of the
 above. If you have dedicated sky frames, then it is generally
 recommended to reduce these frames as if they are regular science
 frames, but add the following keyword arguments at the top of your
-:doc:`coadd3d_file`:
+:ref:`coadd3d_file`:
 
 .. code-block:: ini
 
@@ -444,7 +515,7 @@ like the following:
         [[cube]]
             combine = True
             output_filename = BB1245p4238_datacube.fits
-            align = True
+            alignment_method = user
 
     # Read in the data
     spec2d read
@@ -485,4 +556,3 @@ plot a wavelength slice of the cube:
     plt.xlabel('RA')
     plt.ylabel('Dec')
     plt.show()
-

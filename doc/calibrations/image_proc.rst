@@ -42,8 +42,9 @@ where:
     - the quantity :math:`C=N_{\rm frames}\ c/s\prime=c/s` is the number of electron counts excited by
       photons hitting the detector,
     - :math:`1/s=N_{\rm frames}/s\prime` is a factor that accounts for the number
-      of frames contributing to the electron counts, and the relative
-      throughput factors (see below) that can be measured from flat-field frames,
+      of frames contributing to the electron counts (`N_{\rm frames}`), and (`s\prime`) the relative
+      throughput factors (see below) that can be measured from flat-field frames plus a scaling factor
+      applied if the counts of each frame are scaled to the mean counts of all frames,
     - :math:`D` is the dark-current, i.e., the rate at which the detector
       generates thermal electrons, in e-/pixel/s,
     - :math:`N_{\rm bin}` is the number of pixels in a binned pixel,
@@ -175,7 +176,7 @@ parameter to false if you do not want to use the overscan in this way or, more
 importantly, your instrument detector does not include an overscan region;
 supported instruments with no overscan regions should have
 ``use_overscan=False`` as the default.  Uncertainty in the overscan subtraction
-is propagated to the image-processing error budget. 
+is propagated to the image-processing error budget.
 
 Trimming & Re-orientation
 -------------------------
@@ -349,6 +350,8 @@ throughout the processing steps.  The two final components are:
        (:math:`c/\sqrt{V}`) of ``1/noise_floor``.  To remove this, set
        ``noise_floor`` to 0.
 
+.. _image_proc-cr:
+
 Cosmic Ray Identification and Masking
 -------------------------------------
 
@@ -362,6 +365,54 @@ most relevant parameters in the algorithm are editable via the
 :ref:`pypeit_file`; see
 :func:`~pypeit.images.pypeitimage.PypeItImage.build_crmask` and
 :func:`~pypeit.core.procimg.lacosmic`.
+
+Residual-CR path for line-rich frames with small tilts
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The standard L.A. Cosmic Ray rejection algorithm works from a 3x3 Laplacian
+of the image, which is most sensitive to point-like or sharp-edged features.
+However, thick, deep-depletion detectors like those found in
+:doc:`MMTO's Binospec </spectrographs/mmt_binospec>` and
+:doc:`Keck's KCRM </spectrographs/keck_kcwi>` are prone to very large or
+extended cosmic ray features, especially when the cosmic ray hits the
+detector at a shallow angle.  These features can be several pixels wide and
+hundreds of pixels long. This makes it difficult for the standard L.A. Cosmic
+algorithm to detect because they appear smooth in their interiors and only
+show up as significant deviations at their endpoints.
+
+To handle this case, ``build_crmask`` supports an optional residual mode
+controlled by the ``cr_median_width`` process parameter.  When ``mask_cr``
+is true and ``cr_median_width`` is set to an odd integer greater than 1,
+the image is filtered with a row-local 1-D median
+(``scipy.ndimage.median_filter`` with ``size=(1, cr_median_width)``), and
+L.A. Cosmic is run on the residual (image minus median) rather than on the
+original image.  The row-local median absorbs the (near-)horizontal arc/tilt
+line signal, leaving long CR trails standing well above the local
+background, where the Laplacian S/N test can reach them.
+
+The residual path only sets the ``CR`` bit in ``fullmask``; image pixel
+values are not modified.  The core routine is
+:func:`~pypeit.core.procimg.lacosmic_spatial_median_residual`.
+
+This method works best for frames with small tilts, where the lines are
+nearly horizontal and the row-local median can effectively capture the line
+signal.  For frames with large tilts, the row-local median will struggle to
+capture the line signal. he residual image will be dominated by line
+residuals rather than CR features, leading to many false positives.  In that
+case, set ``cr_median_width`` to 0 to disable the residual path and fall
+back to the standard L.A. Cosmic approach.
+
+Where this method is applicable, sensible ``cr_median_width`` values are
+typically in the range 21–51 pixels: large enough to span individual
+emission lines (so the row-local median captures the line rather than
+fighting it), but small enough that long, smooth CR features still stand out
+against the row-local background.
+
+The other L.A. Cosmic tunables (``sigclip``, ``sigfrac``, ``objlim``,
+``lamaxiter``, ``grow``, ``rmcompact``) apply unchanged.  Because the
+residual image is much closer to zero-mean than the raw image, the residual
+path tolerates much more aggressive ``sigclip`` settings (e.g. 10) without
+clipping real arc-line cores.
 
 .. _image-proc-combine:
 

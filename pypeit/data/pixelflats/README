@@ -1,0 +1,11 @@
+Directory includes custom pixel flats to be used for Flat Fielding.
+
+The general naming structure is: 
+'pixelflat_{spec_name}{dispname}{dichroic}_{binning}_{date}.fits.gz'
+
+spec_name: spectrograph name (e.g. keck_lris_blue)
+dispname: metadata dispname (if part of the spectrograph configuration keys)
+dichroic: metadata dichroic (if part of the spectrograph configuration keys)
+binning: spectral x spatial binning
+date: date of the observations
+

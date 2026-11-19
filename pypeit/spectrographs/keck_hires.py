@@ -3,26 +3,27 @@ Module for Keck/HIRES
 
 .. include:: ../include/links.rst
 """
-import os
+from pathlib import Path
 
 from IPython import embed
 
-
-
 import numpy as np
-from scipy.io import readsav
 
+from astropy.io import fits
 from astropy.table import Table
-from astropy import time
+from astropy.time import Time
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
+from pypeit.core import standard
 from pypeit.spectrographs import spectrograph
+from pypeit.spectrographs.keck_utils import koa_qlview_header_fields
 from pypeit.images import detector_container
-from pypeit.par import pypeitpar
+from pypeit.par import parset
 from pypeit.images.mosaic import Mosaic
 from pypeit.core.mosaic import build_image_mosaic_transform
 
@@ -44,30 +45,30 @@ class HIRESMosaicLookUp:
     # in the 2D fit wavelength solution between the blue and green detectors
 
 
-class KECKHIRESSpectrograph(spectrograph.Spectrograph):
+class KECKHIRESBaseSpectrograph(spectrograph.Spectrograph):
     """
-    Child to handle KECK/HIRES specific code.
+    Base class to handle KECK/HIRES specific code.
 
-    This spectrograph is not yet supported.
+    This includes both the original and updated detector configurations.  The
+    original detector configuration is used for data taken before the detector
+    upgrade in 2004, and the updated detector configuration is used for data
+    taken after the upgrade.  The two configurations have different detector
+    geometries and different metadata keywords, so they are handled by separate
+    child classes.  The base class contains code that is common to both
+    configurations.
     """
-
-    ndet = 3
-    name = 'keck_hires'
     telescope = telescopes.KeckTelescopePar()
     camera = 'HIRES'
-    url = 'https://www2.keck.hawaii.edu/inst/hires/'
     header_name = 'HIRES'
     url = 'https://www2.keck.hawaii.edu/inst/hires/'
     pypeline = 'Echelle'
     ech_fixed_format = False
     supported = False
     # TODO before support = True
-    # 1. Implement flat fielding
-    # 2. Test on several different setups
-    # 3. Implement PCA extrapolation into the blue 
+    # 1. Implement flat fielding - DONE
+    # 2. Test on several different setups - DONE
+    # 3. Implement PCA extrapolation into the blue
 
-
-    # TODO: Place holder parameter set taken from X-shooter VIS for now.
     @classmethod
     def default_pypeit_par(cls):
         """
@@ -79,8 +80,6 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         """
         par = super().default_pypeit_par()
 
-        par['rdx']['detnum'] = [(1,2,3)]
-
         # Adjustments to parameters for Keck HIRES
         turn_off_on = dict(use_biasimage=False, use_overscan=True, overscan_method='median')
         par.reset_all_processimages_par(**turn_off_on)
@@ -90,14 +89,19 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         # or use the overscan for standards but not for science frames
 
         # Set the default exposure time ranges for the frame typing
+        # HIRES cannot write out files with exp time < .5s, .001 for biases is arbitrary
+        # If this value is changed, change the check in compound_meta for idname too
         par['calibrations']['biasframe']['exprng'] = [None, 0.001]
-        #par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
+        # par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['pixelflatframe']['exprng'] = [None, 60]
         par['calibrations']['traceframe']['exprng'] = [None, 60]
         par['calibrations']['illumflatframe']['exprng'] = [None, 60]
         par['calibrations']['standardframe']['exprng'] = [1, 600]
         par['scienceframe']['exprng'] = [601, None]
+
+        # Set default processing for slitless_pixflat
+        par['calibrations']['slitless_pixflatframe']['process']['scale_to_mean'] = True
 
         # Slit tracing
         par['calibrations']['slitedges']['edge_thresh'] = 8.0
@@ -109,6 +113,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['max_nudge'] = 0.
         par['calibrations']['slitedges']['overlap'] = True
         par['calibrations']['slitedges']['dlength_range'] = 0.25
+        par['calibrations']['slitedges']['mask_off_detector'] = True
 
         par['calibrations']['slitedges']['add_missed_orders'] = True
         par['calibrations']['slitedges']['order_width_poly'] = 2
@@ -129,7 +134,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['match_toler'] = 1.5
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'echelle'
-        par['calibrations']['wavelengths']['cc_shift_range'] = (-80.,80.)
+        par['calibrations']['wavelengths']['cc_shift_range'] = (-80., 80.)
         par['calibrations']['wavelengths']['cc_thresh'] = 0.6
         par['calibrations']['wavelengths']['cc_local_thresh'] = 0.25
         par['calibrations']['wavelengths']['reid_cont_sub'] = False
@@ -139,7 +144,6 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 5
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 3
         par['calibrations']['wavelengths']['ech_sigrej'] = 2.0
-        par['calibrations']['wavelengths']['ech_separate_2d'] = True
         par['calibrations']['wavelengths']['bad_orders_maxfrac'] = 0.5
 
         # Flats
@@ -154,58 +158,32 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['reduce']['extraction']['model_full_slit'] = True
         # Mask 3 edges pixels since the slit is short, insted of default (5,5)
         par['reduce']['findobj']['find_trim_edge'] = [3, 3]
-        # Continnum order for determining thresholds
+        # number of objects
+        par['reduce']['findobj']['maxnumber_sci'] = 2  # Assume that there is max two object in each order.
+        par['reduce']['findobj']['maxnumber_std'] = 1  # Assume that there is only one object in each order.
+        # Extraction parameters
+        par['reduce']['extraction']['min_frac_prof'] = 0.9  # deals well with masked orders in chip gaps
 
         # Sensitivity function parameters
+        par['sensfunc']['trim_std_pixs'] = [4, 40]  # Trim each side of the standard star spectrum
+        par['sensfunc']['mask_hydrogen_lines'] = False
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['polyorder'] = 5 #[9, 11, 11, 9, 9, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7]
+        par['sensfunc']['polyorder'] = 7
+        par['sensfunc']['extrap_blu'] = 0.01
+        par['sensfunc']['extrap_red'] = 0.01
+        par['fluxcalib']['extrap_sens'] = True
         par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_10500_R120000.fits'
-        par['sensfunc']['IR']['pix_shift_bounds'] = (-40.0,40.0)
-        
+        par['sensfunc']['IR']['pix_shift_bounds'] = (-40.0, 40.0)
+
         # Telluric parameters
         # HIRES is usually oversampled, so the helio shift can be large
-        par['telluric']['pix_shift_bounds'] = (-40.0,40.0)
+        par['telluric']['pix_shift_bounds'] = (-40.0, 40.0)
         # Similarly, the resolution guess is higher than it should be
-        par['telluric']['resln_frac_bounds'] = (0.25,1.25)
+        par['telluric']['resln_frac_bounds'] = (0.25, 1.25)
 
         # Coadding
         par['coadd1d']['wave_method'] = 'log10'
 
-        return par
-
-    def config_specific_par(self, scifile, inp_par=None):
-        """
-        Modify the PypeIt parameters to hard-wired values used for
-        specific instrument configurations.
-
-        Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
-            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
-                Parameter set used for the full run of PypeIt.  If None,
-                use :func:`default_pypeit_par`.
-
-        Returns:
-            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
-            adjusted for configuration specific parameter values.
-        """
-        par = super().config_specific_par(scifile, inp_par=inp_par)
-
-        headarr = self.get_headarr(scifile)
-
-        bin_spec, bin_spat = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
-
-        # slit edges
-        # NOTE: With add_missed_orders set to True and order_spat_range set to the
-        # default (None), the code will try to add missing orders over the full
-        # range of the detector mosaic!
-        par['calibrations']['slitedges']['order_spat_range'] = [10., 6200./bin_spat]
-
-        # wavelength
-        par['calibrations']['wavelengths']['fwhm'] = 8.0/bin_spec
-
-        # Return
         return par
 
     def init_meta(self):
@@ -219,22 +197,22 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         # Required (core)
         self.meta['ra'] = dict(ext=0, card='RA', required_ftypes=['science', 'standard'])
         self.meta['dec'] = dict(ext=0, card='DEC', required_ftypes=['science', 'standard'])
-        self.meta['target'] = dict(ext=0, card='OBJECT')
+        self.meta['target'] = dict(ext=0, card='TARGNAME')
         self.meta['decker'] = dict(ext=0, card='DECKNAME')
         self.meta['binning'] = dict(card=None, compound=True)
         self.meta['mjd'] = dict(card=None, compound=True)
         # This may depend on the old/new detector
         self.meta['exptime'] = dict(ext=0, card='ELAPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
-        #self.meta['dispname'] = dict(ext=0, card='ECHNAME')
+
         # Extras for config and frametyping
+        self.meta['dateobs'] = dict(ext=0, card='DATE-OBS')
         self.meta['hatch'] = dict(ext=0, card='HATOPEN')
-        self.meta['dispname'] = dict(ext=0, card='XDISPERS')
+        self.meta['dispname'] = dict(card=None, compound=True)
         self.meta['filter1'] = dict(ext=0, card='FIL1NAME')
         self.meta['echangle'] = dict(ext=0, card='ECHANGL', rtol=1e-3, atol=1e-2)
-        self.meta['xdangle'] = dict(ext=0, card='XDANGL', rtol=1e-2)
-#        self.meta['idname'] = dict(ext=0, card='IMAGETYP')
-        # NOTE: This is the native keyword.  IMAGETYP is from KOA.
+        self.meta['xdangle'] = dict(ext=0, card='XDANGL', rtol=1e-2, atol=1e-1)
+        self.meta['object'] = dict(ext=0, card='OBJECT')
         self.meta['idname'] = dict(card=None, compound=True)
         self.meta['frameno'] = dict(ext=0, card='FRAMENO')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
@@ -255,7 +233,6 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
-            # TODO JFH Is this correct or should it be flipped?
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             binning = parse.binning2string(binspec, binspatial)
             return binning
@@ -263,7 +240,14 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             if headarr[0].get('MJD', None) is not None:
                 return headarr[0]['MJD']
             else:
-                return time.Time('{}T{}'.format(headarr[0]['DATE-OBS'], headarr[0]['UTC'])).mjd
+                return Time('{}T{}'.format(headarr[0]['DATE-OBS'], headarr[0]['UTC'])).mjd
+        elif meta_key == 'dispname':
+            mjd = float(self.compound_meta(headarr, 'mjd'))
+            if mjd < 50814.0:  # This is midnight on December 31 1997
+                # According to MAKEE DRP, this is the cross-disperser for all data on or before December 31 1997
+                return "RED97"
+            else:
+                return headarr[0]['XDISPERS']
         elif meta_key == 'lampstat01':
             if headarr[0].get('LAMPCAT1') or headarr[0].get('LAMPCAT2'):
                 return 'ThAr1' if headarr[0].get('LAMPCAT1') else 'ThAr2'
@@ -273,27 +257,47 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
                 return 'on'
             else:
                 return 'off'
-
         elif meta_key == 'idname':
-            if not headarr[0].get('LAMPCAT1') and not headarr[0].get('LAMPCAT2') and \
-                    not headarr[0].get('LAMPQTZ2') and not (headarr[0].get('LAMPNAME') == 'quartz1'):
-                if headarr[0].get('HATOPEN') and headarr[0].get('AUTOSHUT'):
-                    return 'Object'
-                elif not headarr[0].get('HATOPEN'):
-                    return 'Bias' if not headarr[0].get('AUTOSHUT') else 'Dark'
-            elif headarr[0].get('AUTOSHUT') and (headarr[0].get('LAMPCAT1') or headarr[0].get('LAMPCAT2')):
-                if (headarr[0].get('XDISPERS') == 'RED' and not headarr[0].get('RCCVOPEN')) or \
-                        (headarr[0].get('XDISPERS') == 'UV' and not headarr[0].get('BCCVOPEN')):
-                    return 'slitlessFlat'
-                else:
-                    return 'Line'
-            elif headarr[0].get('AUTOSHUT') and \
-                    (headarr[0].get('LAMPQTZ2') or (headarr[0].get('LAMPNAME') == 'quartz1')) \
-                    and not headarr[0].get('HATOPEN'):
-                return 'IntFlat'
+            xcovopen = headarr[0].get('XCOVOPEN')
+            dispname = self.compound_meta(headarr, 'dispname')
+            if dispname == 'RED97':
+                match headarr[0].get('IMAGETYP'):
+                    case "dark":
+                        return 'Bias' if headarr[0].get('ELAPTIME') < 0.001 else 'Dark'
+                    case "arclamp":
+                        return "Line"
+                    case "flatlamp":
+                        return "IntFlat"
+                    case "object":
+                        return "Object"
+                    case _:
+                        return "None"
+            else:
+                collcoveropen = (dispname == 'RED' and headarr[0].get('RCCVOPEN')) or \
+                            (dispname == 'UV' and headarr[0].get('BCCVOPEN'))
 
+                if xcovopen and collcoveropen and \
+                        not headarr[0].get('LAMPCAT1') and not headarr[0].get('LAMPCAT2') and \
+                        not headarr[0].get('LAMPQTZ2') and not (headarr[0].get('LAMPNAME') == 'quartz1'):
+                    if headarr[0].get('HATOPEN') and headarr[0].get('AUTOSHUT'):
+                        return 'Object'
+                    elif not headarr[0].get('HATOPEN'):
+                        # Note that the check below ignores the bias exprng set in the
+                        # default pypeit par because that information is not available here
+                        return 'Bias' if headarr[0].get('ELAPTIME') < 0.001 else 'Dark'
+                elif xcovopen and collcoveropen and \
+                        headarr[0].get('AUTOSHUT') and (headarr[0].get('LAMPCAT1') or headarr[0].get('LAMPCAT2')):
+                    return 'Line'
+                elif collcoveropen and \
+                        headarr[0].get('AUTOSHUT') and \
+                        (headarr[0].get('LAMPQTZ2') or (headarr[0].get('LAMPNAME') == 'quartz1')) and \
+                        not headarr[0].get('HATOPEN'):
+                    if not xcovopen:
+                        return 'slitlessFlat'
+                    else:
+                        return 'IntFlat'
         else:
-            msgs.error("Not ready for this compound meta")
+            raise PypeItError("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -309,7 +313,27 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['decker', 'dispname', 'filter1', 'echangle', 'xdangle', 'binning']
+        return ['dispname', 'decker', 'filter1', 'echangle', 'xdangle', 'binning']
+
+    def config_independent_frames(self):
+        """
+        Define frame types that are independent of the fully defined
+        instrument configuration.
+
+        Bias, dark and slitless pixel-flat frames are considered independent
+        of a configuration.  Each is assigned to a configuration group by
+        matching only the ``dispname`` and ``binning`` metadata; no date
+        matching is performed.  See
+        :func:`~pypeit.metadata.PypeItMetaData.set_configurations`.
+
+        Returns:
+            :obj:`dict`: Dictionary where the keys are the frame types that
+            are configuration independent and the values are the metadata
+            keywords that can be used to assign the frames to a configuration
+            group.
+        """
+        return {'bias': ['dispname', 'binning'], 'dark': ['dispname', 'binning'],
+                'slitless_pixflat': ['dispname', 'binning']}
 
     def raw_header_cards(self):
         """
@@ -342,9 +366,6 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         """
         return super().pypeit_file_keys() + ['hatch', 'lampstat01', 'frameno']
 
-
-
-
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
@@ -366,15 +387,24 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         # TODO: Allow for 'sky' frame type, for now include sky in
+        # std
+        if ftype == 'standard':
+            std = np.zeros(len(fitstbl), dtype=bool)
+            if 'ra' in fitstbl.keys() and 'dec' in fitstbl.keys():
+                std = np.array([
+                    standard.get_archive_standard(ra, dec, tol=10., check=True)
+                    if ra is not None and dec is not None and not np.isnan(ra) and not np.isnan(dec)
+                    else False for ra, dec in zip(fitstbl['ra'], fitstbl['dec'])])
+            return good_exp & (fitstbl['idname'] == 'Object') & std
         # 'science' category
         if ftype == 'science':
-            return good_exp & (fitstbl['idname'] == 'Object')
-        if ftype == 'standard':
             return good_exp & (fitstbl['idname'] == 'Object')
         if ftype == 'bias':
             return good_exp & (fitstbl['idname'] == 'Bias')
         if ftype == 'dark':
             return good_exp & (fitstbl['idname'] == 'Dark')
+        if ftype == 'slitless_pixflat':
+            return good_exp & (fitstbl['idname'] == 'slitlessFlat')
         if ftype in ['illumflat', 'pixelflat', 'trace']:
             # Flats and trace frames are typed together
             return good_exp & (fitstbl['idname'] == 'IntFlat')
@@ -382,9 +412,231 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             # Arc and tilt frames are typed together
             return good_exp & (fitstbl['idname'] == 'Line')
 
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        log.debug('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
+    def vet_assigned_ftypes(self, type_bits, fitstbl):
+        """
+
+        NOTE: this function should only be called when running pypeit_setup,
+        in order to not overwrite any user-provided frame types.
+
+        This method checks the assigned frame types for consistency.
+        For frames that are assigned both the science and standard types,
+        this method chooses the one that is most likely, by checking if the
+        frames are within 10 arcmin of a listed standard star.
+
+        In addition, for this instrument, if a frame is assigned both a
+        pixelflat and slitless_pixflat type, the pixelflat type is removed.
+        NOTE: if the same frame is assigned to multiple configurations, this
+        method will remove the pixelflat type for all configurations, i.e.,
+        it is not possible to use slitless_pixflat type for one calibration group
+        and pixelflat for another.
+
+        Args:
+            type_bits (`numpy.ndarray`_):
+                Array with the frame types assigned to each frame.
+            fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
+                The class holding the metadata for all the frames.
+
+        Returns:
+            `numpy.ndarray`_: The updated frame types.
+
+        """
+        type_bits = super().vet_assigned_ftypes(type_bits, fitstbl)
+
+        # If both pixelflat and slitless_pixflat are assigned to the same frame, remove pixelflat
+
+        # where slitless_pixflat is assigned
+        slitless_idx = fitstbl.type_bitmask.flagged(type_bits, flag='slitless_pixflat')
+        # where pixelflat is assigned
+        pixelflat_idx = fitstbl.type_bitmask.flagged(type_bits, flag='pixelflat')
+
+        # find configurations where both pixelflat and slitless_pixflat are assigned
+        pixflat_match = np.zeros(len(fitstbl), dtype=bool)
+
+        for f, frame in enumerate(fitstbl):
+            if pixelflat_idx[f]:
+                match_config_values = []
+                for slitless in fitstbl[slitless_idx]:
+                    match_config_values.append(np.all([frame[c] == slitless[c]
+                                                       for c in self.config_independent_frames()['slitless_pixflat']]))
+                pixflat_match[f] = np.any(match_config_values)
+
+        # remove pixelflat from the type_bits
+        type_bits[pixflat_match] = fitstbl.type_bitmask.turn_off(type_bits[pixflat_match], 'pixelflat')
+
+        return type_bits
+
+    def parse_raw_files(self, fitstbl, det=1, ftype=None):
+        """
+        Parse the list of raw files with given frame type and detector.
+        This is spectrograph-specific, and it is not defined for all
+        spectrographs.
+        Since different slitless_pixflat frames are usually taken for
+        each of the three detectors, this method parses the slitless_pixflat
+        frames and returns the correct one for the requested detector.
+
+        Args:
+            fitstbl (`astropy.table.Table`_):
+                Table with metadata of the raw files to parse.
+            det (:obj:`int`, optional):
+                1-indexed detector number to parse.
+            ftype (:obj:`str`, optional):
+                Frame type to parse. If None, no frames are parsed
+                and the indices of all frames are returned.
+
+        Returns:
+            `numpy.ndarray`_: The indices of the raw files in the fitstbl that are parsed.
+
+        """
+
+        if ftype == 'slitless_pixflat':
+            # Check for the required info
+            if len(fitstbl) == 0:
+                log.warning('Fitstbl provided is emtpy. No parsing done.')
+                # return empty array
+                return np.array([], dtype=int)
+            elif det is None:
+                log.warning('Detector number must be provided to parse slitless_pixflat frames.  No parsing done.')
+                # return index array of length of fitstbl
+                return np.arange(len(fitstbl))
+
+            # how many unique xdangle values are there?
+            # If they are 3, then we have a different slitless flat file per detector
+            xdangles = np.unique(np.int32(fitstbl['xdangle'].value))
+            if len(xdangles) == 3:
+                sort_xdagles = np.argsort(xdangles)
+                # xdagles: -5 for red(det=3), -4 for green (det=2), -3 for blue (det=1) dets
+                # select the corresponding files for the requested detector
+                if det == 1:
+                    # blue detector
+                    return np.where(np.int32(fitstbl['xdangle'].value) == -3)[0]
+                elif det == 2:
+                    # green detector
+                    return np.where(np.int32(fitstbl['xdangle'].value) == -4)[0]
+                elif det == 3:
+                    # red detector
+                    return np.where(np.int32(fitstbl['xdangle'].value) == -5)[0]
+            else:
+                log.warning('The provided list of slitless_pixflat frames does not have exactly 3 unique XDANGLE values. '
+                          'Pypeit cannot determine which slitless_pixflat frame corresponds to the requested detector. '
+                          'All frames will be used.')
+                return np.arange(len(fitstbl))
+
+        else:
+            return super().parse_raw_files(fitstbl, det=det, ftype=ftype)
+
+    def order_platescale(self, order_vec, binning=None):
+        """
+        Return the platescale for each echelle order.
+
+        This routine is only defined for echelle spectrographs, and it is
+        undefined in the base class.
+
+        Args:
+            order_vec (`numpy.ndarray`_):
+                The vector providing the order numbers.
+            binning (:obj:`str`, optional):
+                The string defining the spectral and spatial binning.
+
+        Returns:
+            `numpy.ndarray`_: An array with the platescale for each order
+            provided by ``order``.
+        """
+        det = self.get_detector_par(1)
+        binspectral, binspatial = parse.parse_binning(binning)
+
+        # Assume no significant variation (which is likely true)
+        return np.ones_like(order_vec)*det.platescale*binspatial
+
+    def check_spectrograph(self, filename):
+        """
+        Check that the selected spectrograph is the correct one for the input data.
+
+        Args:
+            filename (:obj:`str`): File to use when determining if the input spectrograph is the correct one.
+
+        """
+
+        # check that we are using the right spectrograph
+        _dateobs = Time(self.get_meta_value(filename, 'dateobs'), format='iso')
+
+        date_orig = Time('2004-08-18', format='iso')
+        if _dateobs <= date_orig and self.name in ['keck_hires']:
+            raise PypeItError("This is not the correct spectrograph. Use keck_hires_orig instead.")
+        elif _dateobs > date_orig and self.name in ['keck_hires_orig']:
+            raise PypeItError('This is not the correct spectrograph. Use keck_hires instead.')
+
+
+class KECKHIRESSpectrograph(KECKHIRESBaseSpectrograph):
+    """
+    Child to handle KECK/HIRES specific code (post 2004 detector upgrade).
+    """
+
+    ndet = 3
+    name = 'keck_hires'
+    comment = 'Post detector upgrade (~ August 2004). See :doc:`keck_hires`'
+
+    @classmethod
+    def default_pypeit_par(cls):
+        """
+        Return the default parameters to use for this instrument.
+
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of PypeIt methods.
+        """
+        par = super().default_pypeit_par()
+
+        par['rdx']['detnum'] = [(1,2,3)]
+
+        # Echelle parameters
+        par['calibrations']['wavelengths']['ech_separate_2d'] = True
+
+        return par
+
+    def config_specific_par(
+            self,
+            inp:str|list|Path|fits.Header|Table,
+            inp_par:parset.ParSet|None=None
+        ) -> parset.ParSet:
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        Args:
+            inp (:obj:`str`, :obj:`list`, `Path`_, `astropy.io.fits.Header`_, `astropy.table.Table`_):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list
+                of `astropy.io.fits.Header`_ objects.  Or a row from the
+                metadata table.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
+            adjusted for configuration specific parameter values.
+        """
+        # Start with instrument-wide parameters
+        par = super().config_specific_par(inp, inp_par=inp_par)
+
+        # Adjust parameters based on binning
+        binning = self.get_meta_value(inp, 'binning')
+
+        bin_spec, bin_spat = parse.parse_binning(binning)
+
+        # slit edges
+        # NOTE: With add_missed_orders set to True and order_spat_range set to the
+        # default (None), the code will try to add missing orders over the full
+        # range of the detector mosaic!
+        par['calibrations']['slitedges']['order_spat_range'] = [10., 6200./bin_spat]
+
+        # wavelength
+        par['calibrations']['wavelengths']['fwhm'] = 8.0/bin_spec
+
+        # Return
+        return par
 
     def get_rawimage(self, raw_file, det, spectrim=20):
         """
@@ -424,8 +676,8 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 
 
         # Check for file; allow for extra .gz, etc. suffix
-        if not os.path.isfile(raw_file):
-            msgs.error(f'{raw_file} not found!')
+        if not Path(raw_file).is_file():
+            raise PypeItError(f'{raw_file} not found!')
         hdu = io.fits_open(raw_file)
 
         head0 = hdu[0].header
@@ -444,7 +696,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
 #        # TODO: JFH I think this works fine
 #        if binning != '3,1':
-#            msgs.warn("This binning for HIRES might not work.  But it might..")
+#            log.warning("This binning for HIRES might not work.  But it might..")
 
         # We are flipping this because HIRES stores the binning oppostire of the (binspec, binspat) pypeit convention.
         binspatial, binspec = parse.parse_binning(head0['BINNING'])
@@ -500,7 +752,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         return mosaic, image, hdu, exptime, rawdatasec_img, oscansec_img
 
 
-    def get_mosaic_par(self, mosaic, hdu=None, msc_order=0):
+    def get_mosaic_par(self, mosaic, hdu=None, msc_ord=0):
         """
         Return the hard-coded parameters needed to construct detector mosaics
         from unbinned images.
@@ -521,7 +773,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
                 default.  BEWARE: If ``hdu`` is not provided, the binning is
                 assumed to be `1,1`, which will cause faults if applied to
                 binned images!
-            msc_order (:obj:`int`, optional):
+            msc_ord (:obj:`int`, optional):
                 Order of the interpolation used to construct the mosaic.
 
         Returns:
@@ -540,7 +792,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         detectors = np.array([self.get_detector_par(det, hdu=hdu) for det in mosaic])
         # Binning *must* be consistent for all detectors
         if any(d.binning != detectors[0].binning for d in detectors[1:]):
-            msgs.error('Binning is somehow inconsistent between detectors in the mosaic!')
+            raise PypeItError('Binning is somehow inconsistent between detectors in the mosaic!')
 
         # Collect the offsets and rotations for *all unbinned* detectors in the
         # full instrument, ordered by the number of the detector.  Detector
@@ -572,8 +824,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             msc_tfm[i] = build_image_mosaic_transform(shape, msc_sft[i], msc_rot[i], tuple(reversed(binning)))
 
         return Mosaic(mosaic_id, detectors, shape, np.array(msc_sft), np.array(msc_rot),
-                      np.array(msc_tfm), msc_order)
-
+                      np.array(msc_tfm), msc_ord)
 
     @property
     def allowed_mosaics(self):
@@ -657,7 +908,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             detector_dict2['gain'] = np.atleast_1d([0.86])
             detector_dict3['gain'] = np.atleast_1d([0.84])
         else:
-            msgs.error("Bad CCDGAIN mode for HIRES")
+            raise PypeItError("Bad CCDGAIN mode for HIRES")
             
         # Instantiate
         detector_dicts = [detector_dict1, detector_dict2, detector_dict3]
@@ -674,34 +925,427 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         composite_arc_file = 'keck_hires_composite_arc.fits'
 
         return [angle_fits_file, composite_arc_file]
-        
 
-    def order_platescale(self, order_vec, binning=None):
+    # ------------------------------------------------------------------
+    # Quicklook viewer (pypeit_qlview) hooks
+    #
+    # Untested!  HIRES is not offered in the quicklook viewer.
+    # ------------------------------------------------------------------
+
+    qlview_label = 'HIRES'
+
+    def qlview_raw_columns(self):
         """
-        Return the platescale for each echelle order.
+        Instrument-specific raw-file columns for the quicklook viewer; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_raw_columns`.
+        """
+        return [('Frame No', 'FRAMENO'), ('Object', 'OBJECT'), ('Img Type', 'IMTYPE'),
+                ('Decker', 'DECKNAME'), ('XDisp', 'XDISPERS'), ('Exp Time', 'EXPTIME')]
 
-        This routine is only defined for echelle spectrographs, and it is
-        undefined in the base class.
+    def qlview_raw_info(self, hdr):
+        """
+        Read the quicklook-viewer raw-file column values; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_raw_info`.
+        """
+        info = koa_qlview_header_fields(hdr)
+        info['OBJECT'] = hdr.get('TARGNAME', hdr.get('OBJECT', 'N/A'))
+        info['DECKNAME'] = hdr.get('DECKNAME', 'N/A')
+        info['XDISPERS'] = hdr.get('XDISPERS', 'N/A')
+        info['EXPTIME'] = hdr.get('ELAPTIME', 'N/A')
+        return info
+
+    def qlview_reduced_columns(self):
+        """
+        Instrument-specific reduced-file columns for the quicklook viewer; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_reduced_columns`.
+        """
+        return [('Decker', 'decker'), ('XDisp', 'dispname'), ('Filter', 'filter1')]
+
+    def qlview_reduced_info(self, hdr):
+        """
+        Read the quicklook-viewer reduced-file column values; see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.qlview_reduced_info`.
+        """
+        return {
+            'decker': hdr.get('DECKNAME', 'N/A'),
+            'dispname': hdr.get('XDISPERS', 'N/A'),
+            'filter1': hdr.get('FIL1NAME', 'N/A'),
+        }
+
+    def qlview_display_image(self, raw_path):
+        """
+        Construct the quicklook-viewer display image for a raw HIRES file.
+
+        This is simply the raw data in the first extension; the detectors are
+        not processed or mosaicked.
 
         Args:
-            order_vec (`numpy.ndarray`_):
-                The vector providing the order numbers.
-            binning (:obj:`str`, optional):
-                The string defining the spectral and spatial binning.
+            raw_path (:obj:`str`, `Path`_):
+                Path to the raw file.
 
         Returns:
-            `numpy.ndarray`_: An array with the platescale for each order
-            provided by ``order``.
+            `numpy.ndarray`_: 2D image.
         """
-        det = self.get_detector_par(1)
-        binspectral, binspatial = parse.parse_binning(binning)
+        with fits.open(raw_path) as hdul:
+            data = hdul[1].data
+        return np.zeros((100, 100), dtype=float) if data is None else data.astype(float)
 
-        # Assume no significant variation (which is likely true)
-        return np.ones_like(order_vec)*det.platescale*binspatial
+
+class KeckHIRESOrigSpectrograph(KECKHIRESBaseSpectrograph):
+    """
+    Child to handle the Keck/HIRES before 2004 update specific code
+    """
+
+    name = 'keck_hires_orig'
+    ndet = 1
+    comment = 'Pre detector upgrade (~August 2004). See :doc:`keck_hires` for details. This class supports the original Tektronix CCD.'
+
+    def init_meta(self):
+        """
+        Define how metadata are derived from the spectrograph files.
+
+        That is, this associates the PypeIt-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
+        """
+        super().init_meta()
+        # self.meta['idname'] = dict(ext=0, card='IMAGETYP')
+        # NOTE: This is the native keyword.  IMAGETYP is from KOA.
+        self.meta['target'] = dict(ext=0, card='OBJECT')
+
+    def compound_meta(self, headarr, meta_key):
+        """
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
+
+        This overrides the base-class method for ``binning`` only; every other
+        key is delegated to
+        :func:`KECKHIRESBaseSpectrograph.compound_meta`.
+
+        The original Tektronix CCD is read with ``specaxis = 1``: the raw
+        ``NAXIS1`` (column) axis is the *spectral* direction and the raw
+        ``NAXIS2`` (row) axis is the *spatial* direction (on 1998 data the
+        echelle orders are stacked along the rows and dispersion runs along the
+        columns).  The ``BINNING`` header card is ``'<column>,<row>'``, so its
+        first value is the spectral binning and its second value is the
+        spatial binning.  This is the opposite of the post-2004 mosaic
+        convention implemented in the base class, where the first ``BINNING``
+        value is the spatial binning.
+
+        Args:
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
+
+        Returns:
+            object: Metadata value read from the header(s).
+        """
+        if meta_key == 'binning':
+            # parse_binning simply splits the string; for this detector the
+            # first value is the spectral binning and the second the spatial.
+            binspec, binspat = parse.parse_binning(headarr[0]['BINNING'])
+            return parse.binning2string(binspec, binspat)
+        return super().compound_meta(headarr, meta_key)
+
+    @classmethod
+    def default_pypeit_par(cls):
+        """
+        Return the default parameters to use for this instrument.
+
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of PypeIt methods.
+        """
+        par = super().default_pypeit_par()
+
+        # Only one detector
+        par['rdx']['detnum'] = [(1)]
+
+        # Only one detector, so don't need to separate the 2D wavelength solution by detector
+        par['calibrations']['wavelengths']['ech_separate_2d'] = False
+
+        # The base-class science floor (601 s) is a post-2004 faint-target
+        # assumption.  The original CCD was used for bright targets (e.g., the
+        # planet-search programs) with exposures of a few hundred seconds, so
+        # the floor is lowered to match the standard-star range.  Science and
+        # standard frames are both drawn from idname == 'Object'; a frame that
+        # satisfies both exposure ranges is resolved by
+        # :func:`~pypeit.spectrographs.spectrograph.Spectrograph.vet_assigned_ftypes`,
+        # which keeps the ``standard`` type only when the coordinates match an
+        # archived standard star.  Calibration frames have other idname values
+        # and cannot become science frames whatever the exposure range.
+        par['scienceframe']['exprng'] = [1, None]
+
+        return par
+
+    def get_detector_par(self, det, hdu=None):
+        """
+        Return metadata for the selected detector.
+
+        Args:
+            det (:obj:`int`):
+                1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
+
+        Returns:
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
+        """
+        # Binning
+        binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
+
+        # Detector 1
+        detector_dict = dict(
+            binning=binning,
+            det=1,
+            dataext=0,
+            specaxis=1,
+            specflip=False,
+            spatflip=False,
+            platescale=0.2160,
+            darkcurr=0.0,  # e-/pixel/hour
+            saturation=65535.,
+            nonlinear=0.7,  # Website says 0.6, but we'll push it a bit
+            mincounts=-1e10,
+            numamplifiers=1,
+            ronoise=np.atleast_1d([2.8]),
+        )
+
+        # Set gain
+        # https://www2.keck.hawaii.edu/inst/hires/instrument_specifications.html
+        if hdu is None or hdu[0].header['CCDGAIN'] == False:
+            detector_dict['gain'] = np.atleast_1d([1.9])
+        elif hdu[0].header['CCDGAIN'] == True:
+            detector_dict['gain'] = np.atleast_1d([0.78])
+        else:
+            raise PypeItError("Bad CCDGAIN mode for HIRES")
+
+        return detector_container.DetectorContainer(**detector_dict)
+
+    def get_echelle_angle_files(self):
+        """ Pass back the files required
+        to run the echelle method of wavecalib
+
+        Returns:
+            list: List of files
+        """
+        angle_fits_file = 'keck_hires_orig_angle_fits.fits'
+        composite_arc_file = 'keck_hires_composite_arc.fits'
+
+        return [angle_fits_file, composite_arc_file]
+
+    def get_rawimage(self, raw_file, det, spectrim=0):
+        """
+        Read the raw image and construct the data and overscan section images.
+
+        The raw frame is laid out along ``NAXIS1`` as ``NUMAMPS`` blocks of
+        ``PREPIX`` prescan columns, then ``NUMAMPS`` blocks of data columns
+        (``WINDOW`` width divided by ``NUMAMPS``), then ``NUMAMPS`` blocks of
+        ``POSTPIX`` overscan columns, i.e.
+        ``NAXIS1 = NUMAMPS * (PREPIX + POSTPIX) + <data columns>``.  For a
+        single-amplifier 1998 frame this is ``21 + 2048 + 234 = 2303``, with
+        the data in columns ``21:2069`` (0-indexed, half-open).
+
+        Args:
+            raw_file (:obj:`str`):
+                File to read.
+            det (:obj:`int`):
+                1-indexed detector to read (this detector only has one).
+            spectrim (:obj:`int`, optional):
+                Unused; retained for signature compatibility with the parent
+                class.
+
+        Returns:
+            :obj:`tuple`: See
+            :func:`~pypeit.spectrographs.spectrograph.Spectrograph.get_rawimage`.
+        """
+        # Check for file; allow for extra .gz, etc. suffix
+        if not Path(raw_file).is_file():
+            raise PypeItError(f'{raw_file} not found!')
+        hdu = io.fits_open(raw_file)
+        head0 = hdu[0].header
+
+        # Number of AMPS
+        namp = head0['NUMAMPS']
+
+        # Get post, pre-pix values.  PRELINE/POSTLINE are read for reference
+        # only; they are 0 for the Tektronix CCD and no row trimming is done.
+        prepix = head0['PREPIX']
+        postpix = head0['POSTPIX']
+        preline = head0['PRELINE']
+        postline = head0['POSTLINE']
+
+        # Grab the data
+        full_image = hdu[0].data.astype(float)
+        rawdatasec_img = np.zeros_like(full_image, dtype=int)
+        oscansec_img = np.zeros_like(full_image, dtype=int)
+
+        #
+        # All prescan blocks (one per amplifier) precede the data, and all
+        # overscan blocks follow it.
+        nspat = int(head0['WINDOW'].split(',')[3]) // namp
+        for amp in range(namp):
+            col0 = prepix * namp + nspat * amp
+            # Data
+            rawdatasec_img[:, col0:col0 + nspat] = amp + 1
+            # Overscan
+            o0 = prepix * namp + nspat * namp + postpix * amp
+            oscansec_img[:, o0:o0 + postpix] = amp + 1
+
+        return self.get_detector_par(1, hdu=hdu), \
+            full_image, hdu, head0['ELAPTIME'], rawdatasec_img, oscansec_img
+
+    def bpm(self, filename, det, shape=None, msbias=None):
+        """
+        Bad Pixel Mask for the HIRES Tektronix detector.
+
+        The bad regions are hard-coded and taken directly from the MAKEE
+        reduction package (file ``MaskHIRES_1x1.dat``), which lists the regions
+        of the detector that are bad enough to always be masked.  Each region is
+        defined at 1x1 binning by a starting/ending column and a starting/ending
+        row, where a value of ``-1`` indicates that the region extends to the
+        edge of the detector.  Following MAKEE, these 1x1 regions are rescaled
+        here for the binning of the frame being reduced (see
+        ``mk_select_maskfile`` in the MAKEE source).
+
+        .. note::
+
+            The MAKEE mask coordinates are given in the raw-frame convention,
+            where ``col`` (the FITS ``NAXIS1`` direction, MAKEE ``x``) maps onto
+            the PypeIt *spectral* axis (axis 0) of the trimmed and re-oriented
+            image, and ``row`` (``NAXIS2``, MAKEE ``y``) maps onto the PypeIt
+            *spatial* axis (axis 1).  This is because the HIRES Tektronix
+            detector is read with ``specaxis = 1`` (i.e., the raw image is
+            transposed by :func:`~pypeit.spectrographs.spectrograph.Spectrograph.orient_image`).
+            MAKEE bins ``col`` by the first ``BINNING`` header value (the PypeIt
+            spectral binning; see :func:`compound_meta`) and ``row`` by the
+            second (the PypeIt spatial binning).
+
+            **Column origin.**  The MAKEE column numbers count columns of the
+            *raw* frame, prescan included: on 1998 frames the bad column pair
+            listed by MAKEE as 106--107 falls at 0-indexed raw columns 106 and
+            107, and the 1148 and 2027--2028 columns likewise.  Since
+            :func:`get_rawimage` trims the ``PREPIX`` prescan columns, MAKEE
+            column ``C`` maps onto 0-indexed *trimmed* spectral pixel
+            ``C - PREPIX``.  The ``PREPIX`` value is read from the example
+            file; if no file is provided the mask falls back to ``C - 1``
+            (i.e., no prescan correction) with a warning.  MAKEE row ``R`` maps
+            onto 0-indexed spatial pixel ``R - 1`` (``PRELINE = 0``).
+
+        Args:
+            filename (:obj:`str` or None):
+                An example file to use to get the image shape, binning and
+                prescan width.  Can be None, but then ``shape`` must be
+                provided (and 1x1 binning and no prescan offset are assumed).
+            det (:obj:`int`):
+                1-indexed detector number.
+            shape (:obj:`tuple`, optional):
+                Processed (trimmed, re-oriented) image shape.  Required if
+                ``filename`` is None; ignored otherwise.
+            msbias (:class:`~pypeit.images.pypeitimage.PypeItImage`, optional):
+                Processed bias frame used to identify additional bad pixels.
+
+        Returns:
+            `numpy.ndarray`_: An integer array with a masked value set to 1 and
+            an unmasked value set to 0.
+        """
+        # Generate the empty (all zeros) BPM in the trimmed, re-oriented PypeIt
+        # frame; also folds in any bias-based masking.
+        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
+
+        log.info("Using hard-coded (MAKEE) bad pixel mask for the Keck/HIRES Tektronix detector")
+
+        # Determine the binning of the frame and the width of the prescan
+        # region that get_rawimage trims off.  The PypeIt binning string is in
+        # the standard (binspec, binspat) order.
+        if filename is None:
+            log.warning("Assuming 1x1 binning for the hard-coded bad pixel mask because no example file was provided")
+            log.warning("Assuming no prescan offset for the hard-coded bad pixel mask because no example file "
+                        "was provided; the masked columns may be offset from the true bad columns by PREPIX")
+            binspec, binspat = 1, 1
+            col_origin = 1
+        else:
+            hdu = io.fits_open(filename)
+            binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+            prepix = hdu[0].header.get('PREPIX')
+            hdu.close()
+            binspec, binspat = parse.parse_binning(binning)
+            if prepix is None:
+                log.warning("PREPIX not found in the header; assuming no prescan offset for the hard-coded "
+                            "bad pixel mask")
+                col_origin = 1
+            else:
+                # MAKEE column C is 0-indexed raw column C, and the trimmed
+                # frame starts at raw column PREPIX (in the stored pixel units,
+                # exactly as used by get_rawimage).
+                col_origin = int(prepix)
+
+        # Map the PypeIt binning onto the MAKEE binning convention.  MAKEE bins
+        # the column (x) direction by ``xbin`` and the row (y) direction by
+        # ``ybin``.  For this detector, the column direction is the PypeIt
+        # spectral axis and the row direction is the PypeIt spatial axis (see
+        # compound_meta).
+        xbin, ybin = binspec, binspat
+
+        # Bad regions at 1x1 binning, taken verbatim from the MAKEE
+        # ``MaskHIRES_1x1.dat`` file.  Each entry is
+        # (start_col, end_col, start_row, end_row), 1-indexed, with -1 denoting
+        # the edge of the detector.
+        bad_regions_1x1 = [
+            (106,  107,   -1,   -1),   # bad column pair
+            (975,  1087, 1038, 1130),  # center ink spot
+            (982,  982,   -1, 1080),   # partial bad column
+            (1148, 1149,  -1,  342),   # partial bad column
+            (1147, 1179, 342,  382),   # bleeding hot column region
+            (1148, 1148, 382,   -1),   # bad column
+            (1354, 1354,  -1, 1580),   # partial bad column
+            (2027, 2028,  -1,  802),   # bad column
+            (2027,   -1, 802,  892),   # bleeding bad region
+            (2026,   -1, 892,  936),   # bleeding bad region
+            (2027, 2028, 936,   -1),   # bad column
+            (2059,   -1,  -1,   30),   # hot corner
+        ]
+
+        # The re-oriented BPM has the MAKEE column direction along axis 0 and
+        # the MAKEE row direction along axis 1.
+        ncol, nrow = bpm_img.shape
+
+        for start_col, end_col, start_row, end_row in bad_regions_1x1:
+            # Rescale the 1x1 coordinates for the current binning, exactly as
+            # MAKEE does in ``mk_select_maskfile`` (only rescaling positive,
+            # non-edge values, and only when binning > 1).
+            bsc = start_col // xbin if (start_col > 0 and xbin > 1) else start_col
+            bec = int(end_col / xbin + 1) if (end_col > 0 and xbin > 1) else end_col
+            bsr = start_row // ybin if (start_row > 0 and ybin > 1) else start_row
+            ber = int(end_row / ybin + 1) if (end_row > 0 and ybin > 1) else end_row
+
+            # Convert the inclusive MAKEE ranges into 0-indexed, half-open
+            # numpy slices in the trimmed frame.  Columns: MAKEE column C is
+            # raw column C, so trimmed column C - col_origin (see the note in
+            # the docstring).  Rows: MAKEE row R is trimmed row R - 1.  Edge
+            # markers (-1) become the detector edges.
+            c0 = 0 if bsc == -1 else bsc - col_origin
+            c1 = ncol if bec == -1 else bec - col_origin + 1
+            r0 = 0 if bsr == -1 else bsr - 1
+            r1 = nrow if ber == -1 else ber
+
+            # Clip to the detector, following MAKEE's ``Mask_Bad_Regions``.
+            c0 = min(max(c0, 0), ncol)
+            c1 = min(max(c1, 0), ncol)
+            r0 = min(max(r0, 0), nrow)
+            r1 = min(max(r1, 0), nrow)
+
+            # Flag the region.
+            bpm_img[c0:c1, r0:r1] = 1
+
+        return bpm_img
+
 
 def indexing(itt, postpix, det=None,xbin=1,ybin=1):
     """
-    Some annoying book-keeping for instrument placement.
+    Some annoying bookkeeping for instrument placement.
 
     Parameters
     ----------

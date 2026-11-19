@@ -23,11 +23,10 @@ to find the example dataset.
 
 
 If you're having trouble reducing your data, we encourage you to try going
-through this tutorial using this example dataset first. Please join our
-`PypeIt Users Slack <pypeit-users.slack.com>`__ (using
-`this invitation link
-<https://join.slack.com/t/pypeit-users/shared_invite/zt-1kc4rxhsj-vKU1JnUA~8PZE~tPlu~aTg>`__)
-to ask for help, and/or `Submit an issue`_ to Github if you find a bug!
+through this tutorial using this example dataset first. Please join our `PypeIt
+Users Slack <https://pypeit-users.slack.com>`__ using `this invitation link
+<invite_>`_ to ask for help, and/or `Submit an issue`_ to Github if you find a
+bug!
 
 The following was performed on a Macbook Pro with 16 GB RAM and took approximately 30 minutes.
 
@@ -536,10 +535,6 @@ which lists all the extensions with the associated 1D spectrum PypeIt name and a
 This is a screenshot from the GUI showing the 1D spectrum:
 
 .. image:: ../figures/lris_spec1d.png
-
-This uses the `XSpecGUI`_ from the `linetools`_ package.  The black line is the
-flux and the red line is the estimated error. In the window, the user can press ``?`` to open
-a webpage with the `XSpecGUI keystrokes`_ that help you navigate through the spectrum.
 
 See :ref:`spec-1d-output` for further details.
 

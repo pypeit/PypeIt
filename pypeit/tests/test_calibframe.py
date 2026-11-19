@@ -9,7 +9,7 @@ import numpy as np
 
 import pytest
 
-from pypeit.pypmsgs import PypeItError
+from pypeit import PypeItError
 from pypeit.calibframe import CalibFrame
 from pypeit import io
 from pypeit.tests.tstutils import data_output_path

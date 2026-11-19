@@ -5,7 +5,6 @@ Module for the SpecObj classes
 .. include:: ../include/links.rst
 
 """
-import inspect
 
 from IPython import embed
 
@@ -86,7 +85,7 @@ class OrderStack(datamodel.DataContainer):
     def __init__(self, wave_stack, flux_stack, ivar_stack=None, mask_stack=None, PYP_SPEC=None, sigma_stack=None, 
                  ext_mode=None, fluxed=None, setup_name = None):
 
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         _d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)

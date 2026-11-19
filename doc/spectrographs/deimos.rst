@@ -15,9 +15,9 @@ settings that are related to the Keck/DEIMOS spectrograph.
 .. warning::
 
     PypeIt currently *cannot* reduce images produced by reading
-    the DEIMOS CCDs with the A amplifier or those taken in imaging
+    the DEIMOS CCDs with the A+B amplifier or those taken in imaging
     mode. All image-handling assumes DEIMOS images have been read
-    with the B amplifier in the "Spectral" observing mode. PypeIt
+    with the A or B amplifier in the "Spectral" observing mode. PypeIt
     handles files that do not meet these criteria in two ways:
 
         - When running :ref:`pypeit_setup`, any frames not in
