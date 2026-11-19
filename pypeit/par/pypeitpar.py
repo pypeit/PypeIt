@@ -4804,7 +4804,9 @@ class ReducePar(ParSet):
         return cls(**kwargs)
 
     def validate(self):
-        pass
+        if self['findobj']['skip_objfind'] and not self['extraction']['skip_extraction']:
+            raise PypeItError('Object finding can only be skipped (skip_objfind = True) if '
+                              'extraction is also skipped (skip_extraction = True).')
 
 
 class FindObjPar(ParSet):
@@ -4820,8 +4822,8 @@ class FindObjPar(ParSet):
                  trace_maxdev=None, trace_extrap_npoly=None, maxnumber_sci=None, maxnumber_std=None,
                  find_fwhm=None, ech_find_max_snr=None, ech_find_min_snr=None, find_numiterfit=None,
                  ech_find_nabove_min_snr=None, skip_second_find=None, skip_final_global=None,
-                 skip_skysub=None, find_negative=None, find_min_max=None, trace_min_max=None,
-                 std_spec1d=None, use_std_trace=None, fof_link = None,
+                 skip_skysub=None, skip_objfind=None, find_negative=None, find_min_max=None,
+                 trace_min_max=None, std_spec1d=None, use_std_trace=None, fof_link = None,
                  force_center_obj=None):
         # Grab the parameter names and values from the function
         # arguments
@@ -4944,6 +4946,16 @@ class FindObjPar(ParSet):
                                'Note that for near-IR difference imaging one still wants to remove sky-residuals via ' \
                                'sky-subtraction, and so this is typically set to False'
 
+        defaults['skip_objfind'] = False
+        dtypes['skip_objfind'] = bool
+        descr['skip_objfind'] = 'If True, do not search for objects, and do not compute the ' \
+                                'chi-squared statistics of the sky-subtraction residuals that ' \
+                                'are saved in the spec2d file.  If the sky is subtracted, it is ' \
+                                'fit without masking any objects, as when no objects are found.  ' \
+                                'This saves time when the objects are not needed, e.g. when ' \
+                                'building datacubes from IFU data.  It can only be used if ' \
+                                'extraction is skipped (see ``skip_extraction``), and cannot be ' \
+                                'used with fiber spectrographs.'
 
 
         defaults['find_negative'] = None
@@ -5007,8 +5019,8 @@ class FindObjPar(ParSet):
                    'trace_extrap_npoly', 'maxnumber_sci', 'maxnumber_std', 'trace_maxshift',
                    'trace_maxdev', 'find_numiterfit', 'find_fwhm', 'ech_find_max_snr',
                    'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find',
-                   'skip_final_global', 'skip_skysub', 'find_negative', 'find_min_max',
-                   'trace_min_max', 'std_spec1d', 'use_std_trace', 'fof_link',
+                   'skip_final_global', 'skip_skysub', 'skip_objfind', 'find_negative',
+                   'find_min_max', 'trace_min_max', 'std_spec1d', 'use_std_trace', 'fof_link',
                    'force_center_obj']
 
         badkeys = np.array([pk not in parkeys for pk in k])

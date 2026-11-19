@@ -352,12 +352,18 @@ class FindObjects:
             List of objects found
         """
 
+        # If skip_objfind is set, do not search for objects; the sky is then
+        # fitted exactly as when no objects are found
+        skip_objfind = self.par['reduce']['findobj']['skip_objfind']
+        if skip_objfind:
+            log.info("Skipping object finding as per user request")
+
         # If the skip_skysub is set (i.e. image is already sky-subtracted), simply find objects
         if self.par['reduce']['findobj']['skip_skysub']:
             log.info("Skipping global sky sub as per user request")
-            sobjs_obj, self.nobj = self.find_objects(self.sciImg.image, self.sciImg.ivar,
-                                                     std_trace=std_trace, show=self.findobj_show,
-                                                     show_peaks=show_peaks)
+            sobjs_obj, self.nobj = (specobjs.SpecObjs(), 0) if skip_objfind else \
+                self.find_objects(self.sciImg.image, self.sciImg.ivar, std_trace=std_trace,
+                                  show=self.findobj_show, show_peaks=show_peaks)
             return np.zeros_like(self.sciImg.image), sobjs_obj
 
         # Perform a first pass sky-subtraction.  The mask is either empty or
@@ -368,7 +374,7 @@ class FindObjects:
         initial_sky0 = self.global_skysub(skymask=self.initial_skymask, update_crmask=False,
                                           objs_not_masked=True, show_fit=show_skysub_fit)
         # First pass object finding
-        sobjs_obj, self.nobj = \
+        sobjs_obj, self.nobj = (specobjs.SpecObjs(), 0) if skip_objfind else \
             self.find_objects(self.sciImg.image-initial_sky0, self.sciImg.ivar, std_trace=std_trace,
                               show_peaks=show_peaks, show=self.findobj_show and not self.std_redux)
 
@@ -1370,6 +1376,9 @@ class FiberFindObjects(FindObjects):
         sobjs_obj : :class:`~pypeit.specobjs.SpecObjs`
             List of objects found (one per fiber).
         """
+        if self.par['reduce']['findobj']['skip_objfind']:
+            raise PypeItError('skip_objfind cannot be used with fiber spectrographs, where each '
+                              'fiber is an object.')
         if self.waveimg is None:
             if self.wv_calib is None:
                 raise PypeItError("Wavelength calibration required for "

@@ -1013,8 +1013,9 @@ def extract_det(spectrograph, fitstbl, par,
                                 fitstbl.find_frame_calib_groups(frames[0])[0], det,
                                 must_exist=True, proc_only=True)
 
-    # QA
-    spec2DObj.gen_qa()
+    # QA; the chi-squared statistics are meaningless if objects are not found
+    if not par['reduce']['findobj']['skip_objfind']:
+        spec2DObj.gen_qa()
 
     # Return
     return spec2DObj, sobjs
