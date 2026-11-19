@@ -23,7 +23,13 @@ Dependency Changes
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
 
-- placeholder
+- Added the ``skip_objfind`` parameter (``[reduce][[findobj]]``), which skips
+  object finding, and the chi-squared statistics saved in the spec2d file, for
+  reductions that skip extraction (e.g., IFU data that are combined into
+  datacubes).
+- Vectorised the construction of the alignment splines used by
+  ``pypeit_coadd_datacube`` (:class:`~pypeit.alignframe.AlignmentSplines`).
+  The results are identical, and the splines are built ~40 times faster.
 
 
 Instrument-specific Updates

@@ -8,6 +8,7 @@ from IPython import embed
 import pytest
 from configobj import ConfigObj
 
+from pypeit import PypeItError
 from pypeit.par import pypeitpar
 from pypeit.par import parset
 from pypeit.par import util
@@ -133,6 +134,25 @@ def test_reduce():
 
 def test_findobj():
     pypeitpar.FindObjPar()
+
+def test_skip_objfind():
+    assert not pypeitpar.FindObjPar()['skip_objfind'], 'Objects must be found by default'
+    # Object finding can only be skipped if extraction is skipped
+    par = pypeitpar.ReducePar.from_dict({'findobj': {'skip_objfind': True},
+                                         'extraction': {'skip_extraction': True}})
+    assert par['findobj']['skip_objfind']
+    with pytest.raises(PypeItError):
+        pypeitpar.ReducePar.from_dict({'findobj': {'skip_objfind': True}})
+    # User configuration merged with the spectrograph defaults
+    cfg = ['[reduce]', '    [[findobj]]', '        skip_objfind = True']
+    for name, allowed in [('keck_kcwi', True), ('shane_kast_blue', False)]:
+        spec_cfg = load_spectrograph(name).default_pypeit_par().to_config()
+        if allowed:
+            par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spec_cfg, merge_with=(cfg,))
+            assert par['reduce']['findobj']['skip_objfind']
+        else:
+            with pytest.raises(PypeItError):
+                pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spec_cfg, merge_with=(cfg,))
 
 def test_skysub():
     pypeitpar.SkySubPar()
