@@ -13,7 +13,7 @@ from pypeit.core import fitting
 from pypeit import wavecalib
 from pypeit import slittrace
 from pypeit.tests.tstutils import data_output_path
-from pypeit.core.wavecal import waveio
+from pypeit.core.wavecal import autoid, waveio
 
 
 @pytest.mark.remote_data
@@ -26,6 +26,45 @@ def test_load_template():
     wave, flux = waveio.load_template('gemini_gmos_r831_ham.fits', 1)[:2]
     assert wave[0] > 6200, 'Bad wavelength read'
     assert np.amax(flux) > 1e5, 'Bad flux read'
+
+
+def test_map_fwhm_without_arc_lines_uses_configured_values(monkeypatch):
+    nspec = 20
+    image = np.zeros((nspec, 12))
+    edges_left = np.tile([1., 7.], (nspec, 1))
+    edges_right = edges_left + 4.
+    thresholds = []
+
+    def fake_get_censpec(*args, **kwargs):
+        return np.zeros((nspec, 1)), np.zeros((nspec, 1), dtype=bool), np.array([False])
+
+    def fake_detect_lines(spec, sigdetect, fwhm, bpm):
+        thresholds.append(sigdetect)
+        empty = np.array([])
+        return empty, empty, empty, empty, empty, np.array([], dtype=int), empty, empty
+
+    monkeypatch.setattr(autoid.arc, 'get_censpec', fake_get_censpec)
+    monkeypatch.setattr(autoid.arc, 'detect_lines', fake_detect_lines)
+
+    fwhm_map = autoid.map_fwhm(
+        image, np.ones_like(image, dtype=bool), edges_left, edges_right,
+        np.zeros_like(image, dtype=int), nsample=2, sigdetect=[3., 8.], fwhm=4.)
+
+    assert thresholds == [3., 3., 8., 8.]
+    assert np.allclose([fit.eval(nspec//2, 0.5) for fit in fwhm_map], 4.)
+
+
+def test_map_fwhm_with_blank_arc():
+    image = np.zeros((80, 20))
+    slitmask = np.full(image.shape, -1, dtype=int)
+    slitmask[:, 3:16] = 0
+    left = np.full((80, 1), 3.)
+    right = np.full((80, 1), 16.)
+
+    fwhm_map = autoid.map_fwhm(image, np.ones_like(image, dtype=bool),
+                                left, right, slitmask, nsample=2, fwhm=4.)
+
+    assert np.isclose(fwhm_map[0].eval(40, 0.5), 4.)
 
 
 def test_wavefit_hduprefix():
