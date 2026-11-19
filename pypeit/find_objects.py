@@ -934,8 +934,17 @@ class EchelleFindObjects(FindObjects):
             Number of objects identified
         """
 
+        reduce_gpm = np.logical_not(self.reduce_bpm)
+        if not np.any(reduce_gpm):
+            log.warning('All echelle orders are masked; skipping object finding.')
+            return specobjs.SpecObjs(), 0
+
+        # The slitmask can retain orders rejected during sky fitting. Exclude
+        # their pixels as well as their per-order edge and order arrays below.
+        ech_slitmask = self.slitmask.copy()
+        ech_slitmask[~np.isin(ech_slitmask, self.slits.spat_id[reduce_gpm])] = -1
         plate_scale = self.spectrograph.order_platescale(self.order_vec, binning=self.binning)
-        inmask = self.sciImg.select_flag(invert=True)
+        inmask = self.sciImg.select_flag(invert=True) & (ech_slitmask != -1)
         # Find objects
         # TODO: Not sure how this fairs if self.det is a tuple...
         specobj_dict = {'SLITID': 999, 'DET': self.sciImg.detector.name,
@@ -948,9 +957,8 @@ class EchelleFindObjects(FindObjects):
         # finding cannot work because the smashed spatial profile has no
         # peak.  Instead, force one object per order at the order center.
         if self.par['reduce']['findobj']['force_center_obj']:
-            reduce_gpm = np.logical_not(self.reduce_bpm)
             sobjs_ech = findobj_skymask.ech_slit_center_objs(
-                image, ivar, self.slitmask,
+                image, ivar, ech_slitmask,
                 self.slits_left[:, reduce_gpm],
                 self.slits_right[:, reduce_gpm],
                 self.slits.spat_id[reduce_gpm], self.order_vec[reduce_gpm],
@@ -970,9 +978,8 @@ class EchelleFindObjects(FindObjects):
         nperorder =  self.par['reduce']['findobj']['maxnumber_std'] if self.std_redux \
             else self.par['reduce']['findobj']['maxnumber_sci']
 
-        reduce_gpm = np.logical_not(self.reduce_bpm)
         sobjs_ech = findobj_skymask.ech_objfind(
-            image, ivar, self.slitmask, self.slits_left[:, reduce_gpm], self.slits_right[:, reduce_gpm],
+            image, ivar, ech_slitmask, self.slits_left[:, reduce_gpm], self.slits_right[:, reduce_gpm],
             self.slits.spat_id[reduce_gpm], self.order_vec[reduce_gpm],
             np.vstack((self.slits.specmin, self.slits.specmax))[:, reduce_gpm],
             det=self.det,
