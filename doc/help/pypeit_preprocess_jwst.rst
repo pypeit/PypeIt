@@ -3,9 +3,11 @@
     $ pypeit_preprocess_jwst -h
     usage: pypeit_preprocess_jwst [-h] [-v VERBOSITY] [--log_file LOG_FILE]
                                   [--log_level LOG_LEVEL] [-o OUTPUT_DIR]
-                                  [--crds_path CRDS_PATH] [--pid PID [PID ...]]
-                                  [--obs OBS [OBS ...]] [--vis VIS [VIS ...]]
-                                  [--vg VG [VG ...]] [--s S [S ...]] [--a A [A ...]]
+                                  [--crds_context CRDS_CONTEXT]
+                                  [--crds_path CRDS_PATH] [--crds_offline]
+                                  [--pid PID [PID ...]] [--obs OBS [OBS ...]]
+                                  [--vis VIS [VIS ...]] [--vg VG [VG ...]]
+                                  [--s S [S ...]] [--a A [A ...]]
                                   [--exp EXP [EXP ...]] [-l]
                                   [--source_type {POINT,EXTENDED}]
                                   [--det1_config DET1_CONFIG]
@@ -36,9 +38,29 @@
       -o, --output_dir OUTPUT_DIR
                             Directory for the JWST pipeline output files. Default is
                             jwst_output in the current working directory.
+      --crds_context CRDS_CONTEXT
+                            CRDS context used to select the reference files of the
+                            JWST pipeline. It can be a specific context (e.g.,
+                            jwst_1413.pmap) or a symbolic one (e.g., jwst-latest).
+                            It is set as the CRDS_CONTEXT environment variable only
+                            for the duration of this run. If not provided, CRDS uses
+                            the CRDS_CONTEXT environment variable, if set, or the
+                            context that matches the installed version of the JWST
+                            pipeline.
       --crds_path CRDS_PATH
-                            Path to the CRDS cache directory. If not provided, the
-                            CRDS_PATH environment variable must be set.
+                            Path to the CRDS cache directory, set as the CRDS_PATH
+                            environment variable only for the duration of this run.
+                            If not provided, the CRDS_PATH environment variable must
+                            be set.
+      --crds_offline        Do not contact the CRDS server: use only the reference
+                            files in the local CRDS cache (see --crds_path), which
+                            is not modified. The cache must contain the CRDS
+                            configuration and all the files needed by the CRDS
+                            context used (see --crds_context). Without this option,
+                            the CRDS server is given by the CRDS_SERVER_URL
+                            environment variable or, if not set, it is https://jwst-
+                            crds.stsci.edu, and the missing reference files are
+                            downloaded to the local cache.
       --pid PID [PID ...]   Select only files matching these JWST program ID
                             number(s) (e.g., 01234 01235). Based on the JWST file
                             naming convention: jw<ppppp><ooo><vvv>_... If not

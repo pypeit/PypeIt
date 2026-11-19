@@ -64,8 +64,8 @@ specutils = [
 ]
 
 jwst = [
-    "jwst>=1.19",
-    "stdatamodels>=4.0",
+    "jwst>=3.0.0,<3.1.0",
+    "stdatamodels>=6.0.0,<6.1.0",
 ]
 test = [
     "pygit2",
@@ -113,8 +113,8 @@ dev = [
     "pytest-qt",
     "flask>=3.0",
     "requests>=2.28",
-    "jwst>=1.19",
-    "stdatamodels>=4.0",
+    "jwst>=3.0.0,<3.1.0",
+    "stdatamodels>=6.0.0,<6.1.0",
 ]
 
 [project.urls]

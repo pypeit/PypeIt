@@ -5,7 +5,19 @@ prior to ingestion by PypeIt.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
+import contextlib
+import os
+
 from pypeit.scripts import scriptbase
+
+JWST_CRDS_SERVER = 'https://jwst-crds.stsci.edu'
+"""Default JWST CRDS server."""
+
+CRDS_SERVERLESS = 'https://jwst-serverless-mode.stsci.edu'
+"""
+CRDS server URL that makes CRDS use only the local cache (CRDS does not contact
+servers whose URL includes "serverless").
+"""
 
 
 class PreprocessJWST(scriptbase.ScriptBase):
@@ -185,9 +197,27 @@ class PreprocessJWST(scriptbase.ScriptBase):
         parser.add_argument('-o', '--output_dir', type=str, default='jwst_output',
                             help='Directory for the JWST pipeline output files.  '
                                  'Default is jwst_output in the current working directory.')
+        parser.add_argument('--crds_context', type=str, default=None,
+                            help='CRDS context used to select the reference files of the JWST '
+                                 'pipeline.  It can be a specific context (e.g., '
+                                 'jwst_1413.pmap) or a symbolic one (e.g., jwst-latest).  It '
+                                 'is set as the CRDS_CONTEXT environment variable only for the '
+                                 'duration of this run.  If not provided, CRDS uses the '
+                                 'CRDS_CONTEXT environment variable, if set, or the context '
+                                 'that matches the installed version of the JWST pipeline.')
         parser.add_argument('--crds_path', type=str, default=None,
-                            help='Path to the CRDS cache directory. If not provided, the '
-                                 'CRDS_PATH environment variable must be set.')
+                            help='Path to the CRDS cache directory, set as the CRDS_PATH '
+                                 'environment variable only for the duration of this run.  If '
+                                 'not provided, the CRDS_PATH environment variable must be set.')
+        parser.add_argument('--crds_offline', default=False, action='store_true',
+                            help='Do not contact the CRDS server: use only the reference files '
+                                 'in the local CRDS cache (see --crds_path), which is not '
+                                 'modified.  The cache must contain the CRDS configuration and '
+                                 'all the files needed by the CRDS context used (see '
+                                 '--crds_context).  Without this option, the CRDS server is '
+                                 'given by the CRDS_SERVER_URL environment variable or, if not '
+                                 f'set, it is {JWST_CRDS_SERVER}, and the missing reference '
+                                 'files are downloaded to the local cache.')
         parser.add_argument('--pid', type=str, nargs='+', default=None,
                             help='Select only files matching these JWST program ID number(s) '
                                  '(e.g., 01234 01235).  Based on the JWST file naming convention: '
@@ -276,10 +306,115 @@ class PreprocessJWST(scriptbase.ScriptBase):
                                  'a *_cal.fits file in the output directory.')
         return parser
 
+    @staticmethod
+    def _crds_environment(args):
+        """
+        Return the CRDS environment variables to set for this run.
+
+        Parameters
+        ----------
+        args : `argparse.Namespace`_
+            The parsed command-line arguments.
+
+        Returns
+        -------
+        :obj:`dict`
+            The environment variables to set, and their values.
+        """
+        env = {}
+        if args.crds_path is not None:
+            env['CRDS_PATH'] = args.crds_path
+        if args.crds_context is not None:
+            env['CRDS_CONTEXT'] = args.crds_context
+        if args.crds_offline:
+            env['CRDS_SERVER_URL'] = CRDS_SERVERLESS
+            env['CRDS_READONLY_CACHE'] = '1'
+        elif 'CRDS_SERVER_URL' not in os.environ:
+            # Without CRDS_SERVER_URL, recent versions of CRDS only use the
+            # local cache
+            env['CRDS_SERVER_URL'] = JWST_CRDS_SERVER
+        return env
+
+    @staticmethod
+    @contextlib.contextmanager
+    def _set_environment(variables):
+        """
+        Set environment variables within the context manager, and restore their
+        previous values (or unset them) on exit.
+
+        Parameters
+        ----------
+        variables : :obj:`dict`
+            The environment variables to set, and their values.
+        """
+        previous = {key: os.environ.get(key) for key in variables}
+        os.environ.update(variables)
+        try:
+            yield
+        finally:
+            for key, value in previous.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+
+    @staticmethod
+    def _resolve_crds_context(offline):
+        """
+        Configure CRDS and return the CRDS context it uses, given the current
+        CRDS environment variables.
+
+        Parameters
+        ----------
+        offline : :obj:`bool`
+            If True, CRDS only uses the local cache, and the method checks that
+            the cache contains the context.
+
+        Returns
+        -------
+        :obj:`str`
+            The name of the CRDS context (e.g., ``jwst_1584.pmap``).
+
+        Raises
+        ------
+        RuntimeError
+            Raised if CRDS cannot be configured or, if ``offline`` is True, if
+            the context is not in the local cache.
+        """
+        from crds.core import config, heavy_client
+        try:
+            context = heavy_client.get_processing_mode('jwst')[1]
+        except SystemExit as e:
+            # CRDS logs an error and exits if it cannot load its configuration
+            raise RuntimeError('CRDS could not load its configuration (see the CRDS error '
+                               'above)') from e
+        except Exception as e:
+            raise RuntimeError(f'CRDS could not be configured: {e}') from e
+        if offline and not os.path.isfile(config.locate_mapping(context)):
+            raise RuntimeError(f'CRDS context {context} not found in the local CRDS cache')
+        return context
+
     @classmethod
     def main(cls, args):
+        # The CRDS environment variables are only set for this run
+        crds_env = cls._crds_environment(args)
+        with cls._set_environment(crds_env):
+            cls._preprocess(args, crds_env)
+
+    @classmethod
+    def _preprocess(cls, args, crds_env):
+        """
+        Run the preprocessing; see :func:`main`.
+
+        Parameters
+        ----------
+        args : `argparse.Namespace`_
+            The parsed command-line arguments.
+        crds_env : :obj:`dict`
+            The CRDS environment variables set for this run; see
+            :func:`_crds_environment`.
+        """
         import json
-        import os
         from pathlib import Path
 
         from pypeit import log
@@ -309,14 +444,40 @@ class PreprocessJWST(scriptbase.ScriptBase):
             log.info('Edit these files and pass them back via --det1_config and --spec2_config.')
             return
 
-        # Set up the CRDS path
-        if args.crds_path is not None:
-            os.environ['CRDS_PATH'] = args.crds_path
-        elif 'CRDS_PATH' not in os.environ:
+        # Set up CRDS (the environment variables are set in main)
+        if 'CRDS_PATH' not in os.environ:
             raise PypeItError('CRDS_PATH environment variable is not set and --crds_path was not '
                               'provided. Please set one of them.')
+        log.info(f"CRDS cache: {os.environ['CRDS_PATH']}")
+        if args.crds_offline:
+            log.info('CRDS server: none; only the local CRDS cache is used (read-only)')
+        else:
+            log.info(f"CRDS server: {os.environ['CRDS_SERVER_URL']}"
+                     + (' (default)' if 'CRDS_SERVER_URL' in crds_env
+                        else ' (from the CRDS_SERVER_URL environment variable)'))
+        try:
+            context = cls._resolve_crds_context(args.crds_offline)
+        except RuntimeError as e:
+            if args.crds_offline:
+                raise PypeItError(f'{e}.  With --crds_offline, the local CRDS cache '
+                                  f"({os.environ['CRDS_PATH']}) must contain the CRDS "
+                                  'configuration and the files of the CRDS context used; check '
+                                  '--crds_path and --crds_context, or run without --crds_offline '
+                                  'to download the missing files.') from e
+            raise PypeItError(f"{e}.  Check that the CRDS server ({os.environ['CRDS_SERVER_URL']}) "
+                              'is reachable, or use --crds_offline with a local CRDS cache that '
+                              'contains all the needed files.') from e
+        if args.crds_context is not None:
+            source = '--crds_context'
+        elif 'CRDS_CONTEXT' in os.environ:
+            source = 'the CRDS_CONTEXT environment variable'
+        elif args.crds_offline:
+            source = 'the local CRDS cache'
+        else:
+            source = 'the CRDS default, i.e., the context matching the installed JWST pipeline'
+        log.info(f'CRDS context: {context} (from {source})')
 
-        # Import JWST pipeline modules (after setting CRDS_PATH)
+        # Import JWST pipeline modules (after setting up CRDS)
         from jwst.pipeline import Detector1Pipeline
         from jwst.pipeline import Spec2Pipeline
 

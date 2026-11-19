@@ -139,7 +139,29 @@ option.  For example:
     pypeit_preprocess_jwst raw_data -o jwst_output --crds_path ~/crds_cache
 
 processes all the ``*_uncal.fits`` files in the ``raw_data`` directory and
-writes the results to the ``jwst_output`` directory.  Use ``--list`` to see the
+writes the results to the ``jwst_output`` directory.
+
+The reference files needed are downloaded from the CRDS server to the local
+cache, if not already there.  The server is given by the ``CRDS_SERVER_URL``
+environment variable or, if it is not set, it is
+``https://jwst-crds.stsci.edu``.  With ``--crds_offline``, the server is not
+contacted and only the files already in the local cache are used (the cache is
+not modified); in this case, the cache must contain all the files needed.  The
+CRDS settings provided with the options of ``pypeit_preprocess_jwst`` only
+apply to that run.  Avoid running several instances of ``pypeit_preprocess_jwst``
+that download files to the same cache at the same time.
+
+The reference files are selected by a CRDS context.  By default, CRDS uses the
+context that matches the installed version of the JWST pipeline (unless the
+``CRDS_CONTEXT`` environment variable is set).  A different context, for
+example the one used to process older data, can be selected for a single run
+with ``--crds_context`` (e.g., ``--crds_context jwst_1413.pmap``, or
+``--crds_context jwst-latest`` for the most recent operational context); note
+that a context that does not match the installed JWST pipeline may lack
+reference files needed by some of its steps.  The context used is recorded in
+the ``CRDS_CTX`` keyword of the output files.
+
+Use ``--list`` to see the
 files that would be processed, and the ``--pid``, ``--obs``, ``--vis``, ``--vg``,
 ``--s``, ``--a``, and ``--exp`` options to select a subset of the files based on
 the JWST file naming convention.
