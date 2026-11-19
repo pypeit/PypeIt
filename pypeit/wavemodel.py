@@ -21,10 +21,11 @@ from astropy import units
 
 from pypeit import log
 from pypeit import dataPaths
+from pypeit import ioxs
 from pypeit.core import arc
 from pypeit.core.plot import pyplot_rcparams, pyplot_rcparams_default
 from pypeit.core.wave import airtovac
-from pypeit import io
+
 
 from IPython import embed
 
