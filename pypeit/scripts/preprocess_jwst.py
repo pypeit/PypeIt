@@ -10,14 +10,21 @@ import os
 
 from pypeit.scripts import scriptbase
 
+# Default JWST CRDS server
 JWST_CRDS_SERVER = 'https://jwst-crds.stsci.edu'
-"""Default JWST CRDS server."""
 
+# CRDS server URL that makes CRDS use only the local cache (CRDS does not
+# contact servers whose URL includes "serverless")
 CRDS_SERVERLESS = 'https://jwst-serverless-mode.stsci.edu'
-"""
-CRDS server URL that makes CRDS use only the local cache (CRDS does not contact
-servers whose URL includes "serverless").
-"""
+
+# Spec2Pipeline steps that write the intermediate products needed by PypeIt,
+# with the step parameter that saves each product and its file suffix.  These
+# parameters are always set to True (the _cal.fits and _rate.fits files are
+# saved by the pipelines themselves).
+PYPEIT_SPEC2_PRODUCTS = {
+    'assign_wcs': ('save_results', '_assign_wcs.fits'),
+    'flat_field': ('save_interpolated_flat', '_interpolatedflat.fits'),
+}
 
 
 class PreprocessJWST(scriptbase.ScriptBase):
@@ -61,6 +68,8 @@ class PreprocessJWST(scriptbase.ScriptBase):
             Default parameters for the Spec2Pipeline.
         """
         return {
+            # Saves the _assign_wcs.fits file used by PypeIt (see
+            # PYPEIT_SPEC2_PRODUCTS)
             'assign_wcs': {'save_results': True},
             'extract_2d': {'save_results': True},
             'bkg_subtract': {'skip': True},
@@ -69,12 +78,17 @@ class PreprocessJWST(scriptbase.ScriptBase):
             'srctype': {'source_type': source_type},
             'resample_spec': {'skip': True},
             'extract_1d': {'skip': True},
+            # Saves the _interpolatedflat.fits file used by PypeIt (see
+            # PYPEIT_SPEC2_PRODUCTS)
             'flat_field': {'save_interpolated_flat': True},
             # Forces the barshadow step to always run. Default is to apply
             # barshadow only for extended sources, which means the slit
             # won't be flat.
             'barshadow': {'source_type': 'EXTENDED'},
-            'nsclean': {'skip': True, 'save_results': False},
+            # The 1/f noise is removed by clean_flicker_noise in stage 1, so
+            # the same step must be skipped in stage 2 (it replaced the nsclean
+            # step in jwst 3.0, and the CRDS parameters can turn it on).
+            'clean_flicker_noise': {'skip': True},
         }
 
     @staticmethod
@@ -184,6 +198,40 @@ class PreprocessJWST(scriptbase.ScriptBase):
                 merged[key] = value
         return merged
 
+    @staticmethod
+    def _require_pypeit_products(params):
+        """
+        Make sure that the Spec2Pipeline saves the intermediate products needed
+        by PypeIt.
+
+        The parameters that save these products (see
+        ``PYPEIT_SPEC2_PRODUCTS``) are set to True, also if they are
+        missing or False in ``params`` (e.g., in a user configuration file),
+        with a warning in the latter case.  A warning is also issued if a step
+        that writes one of these products is skipped.
+
+        Parameters
+        ----------
+        params : :obj:`dict`
+            Spec2Pipeline step parameters.  Modified in place.
+
+        Returns
+        -------
+        :obj:`dict`:
+            The modified parameters.
+        """
+        from pypeit import log
+        for step, (flag, suffix) in PYPEIT_SPEC2_PRODUCTS.items():
+            step_params = params.setdefault(step, {})
+            if step_params.get(flag, True) is not True:
+                log.warning(f'The {suffix} files are needed by PypeIt: setting '
+                            f'{step}.{flag} = True (it was {step_params[flag]}).')
+            step_params[flag] = True
+            if step_params.get('skip', False):
+                log.warning(f'The {step} step is skipped, so the {suffix} files needed by '
+                            'PypeIt will not be produced.')
+        return params
+
     @classmethod
     def get_parser(cls, width=None):
         parser = super().get_parser(
@@ -279,7 +327,9 @@ class PreprocessJWST(scriptbase.ScriptBase):
         parser.add_argument('--spec2_config', type=str, default=None,
                             help='R|JSON file with parameters for the JWST Spec2Pipeline '
                                  '(Stage 2).  Parameters provided in this file are merged with '
-                                 'the defaults, overriding any matching keys.  If not provided, '
+                                 'the defaults, overriding any matching keys, except that the '
+                                 '_assign_wcs.fits and _interpolatedflat.fits files needed by '
+                                 'PypeIt are always saved.  If not provided, '
                                  'the built-in defaults are used.  Use --save_config to generate '
                                  'template files with the default parameters.  Example JSON '
                                  'format:\n\n'
@@ -563,6 +613,8 @@ class PreprocessJWST(scriptbase.ScriptBase):
                 user_spec2 = json.load(f)
             param_dict_spec2 = cls._deep_merge(param_dict_spec2, user_spec2)
             log.info(f'Merged user Spec2Pipeline parameters from {spec2_config_file}.')
+        # The products needed by PypeIt are always saved
+        param_dict_spec2 = cls._require_pypeit_products(param_dict_spec2)
         log.info(f'Spec2Pipeline parameters: {param_dict_spec2}')
 
         # Save the parameters used for this run

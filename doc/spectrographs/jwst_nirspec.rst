@@ -182,8 +182,12 @@ path-loss correction) is ``EXTENDED`` by default, and can be changed with
 ``--source_type POINT``.  All other parameters of the JWST pipelines can be
 changed by providing JSON files with ``--det1_config`` and ``--spec2_config``;
 use ``--save_config`` to write the default parameters to JSON files that can be
-edited.  The parameters used in each run are always saved in the output
-directory.
+edited.  The ``_assign_wcs.fits`` and ``_interpolatedflat.fits`` files needed by
+PypeIt are always saved, even if a ``--spec2_config`` file sets the
+corresponding parameters (``assign_wcs.save_results`` and
+``flat_field.save_interpolated_flat``) to false; a warning is issued if the
+``assign_wcs`` or ``flat_field`` step is skipped.  The parameters used in each
+run are always saved in the output directory.
 
 For each exposure and detector, PypeIt uses three of the files in the output
 directory:

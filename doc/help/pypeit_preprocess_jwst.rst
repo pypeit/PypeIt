@@ -114,7 +114,9 @@
       --spec2_config SPEC2_CONFIG
                             JSON file with parameters for the JWST Spec2Pipeline
                             (Stage 2).  Parameters provided in this file are merged
-                            with the defaults, overriding any matching keys.  If not
+                            with the defaults, overriding any matching keys, except
+                            that the _assign_wcs.fits and _interpolatedflat.fits
+                            files needed by PypeIt are always saved.  If not
                             provided, the built-in defaults are used.  Use
                             --save_config to generate template files with the
                             default parameters.  Example JSON format:

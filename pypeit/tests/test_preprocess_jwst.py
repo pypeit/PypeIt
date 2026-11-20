@@ -3,6 +3,7 @@ Test the logic of the pypeit_preprocess_jwst script that decides which files
 to process and how the CRDS environment is set, without running the JWST
 pipeline.
 """
+import json
 import os
 import sys
 import types
@@ -18,10 +19,12 @@ CRDS_VARIABLES = ['CRDS_PATH', 'CRDS_CONTEXT', 'CRDS_SERVER_URL', 'CRDS_READONLY
 
 
 class PipelineRecord:
-    # What the stand-in JWST pipelines were called with: the files processed by
-    # each pipeline, and the CRDS environment variables at each call
+    # What the stand-in JWST pipelines were called with: the files processed and
+    # the step parameters used by each pipeline, and the CRDS environment
+    # variables at each call
     def __init__(self):
         self.files = {'Detector1Pipeline': [], 'Spec2Pipeline': []}
+        self.steps = {'Detector1Pipeline': [], 'Spec2Pipeline': []}
         self.env = []
 
 
@@ -35,6 +38,7 @@ class FakePipeline:
     @classmethod
     def call(cls, input_file, **kwargs):
         cls.record.files[cls.name].append(Path(input_file).name)
+        cls.record.steps[cls.name].append(kwargs.get('steps'))
         cls.record.env.append({k: os.environ.get(k) for k in CRDS_VARIABLES})
 
 
@@ -199,3 +203,49 @@ def test_crds_environment_restored_on_error(pipeline, tmp_path):
             [str(tmp_path / 'missing'), '-o', str(tmp_path / 'out'), '--log_file', 'None',
              '--crds_context', 'jwst_1413.pmap', '--crds_offline']))
     assert {k: os.environ.get(k) for k in CRDS_VARIABLES} == before
+
+
+def _write_config(tmp_path, params):
+    config = tmp_path / 'spec2_user.json'
+    config.write_text(json.dumps(params))
+    return config
+
+
+def test_pypeit_products_added(pipeline, tmp_path):
+    # A user configuration without the parameters that save the products
+    # needed by PypeIt: they are added
+    _make_outputs(tmp_path, 'rate')
+    config = _write_config(tmp_path, {'extract_1d': {'skip': False}})
+    _run(tmp_path, '--spec2_config', str(config))
+    steps = pipeline.steps['Spec2Pipeline'][-1]
+    assert steps['extract_1d'] == {'skip': False}
+    assert steps['assign_wcs']['save_results'] is True
+    assert steps['flat_field']['save_interpolated_flat'] is True
+
+
+def test_pypeit_products_forced(pipeline, tmp_path, caplog):
+    # A user configuration that turns off the products needed by PypeIt: they
+    # are turned back on, with a warning, and the saved configuration reflects
+    # what was run
+    _make_outputs(tmp_path, 'rate')
+    config = _write_config(tmp_path, {'assign_wcs': {'save_results': False},
+                                      'flat_field': {'save_interpolated_flat': False}})
+    with caplog.at_level('WARNING'):
+        _run(tmp_path, '--spec2_config', str(config))
+    steps = pipeline.steps['Spec2Pipeline'][-1]
+    assert steps['assign_wcs']['save_results'] is True
+    assert steps['flat_field']['save_interpolated_flat'] is True
+    assert 'setting assign_wcs.save_results = True' in caplog.text
+    assert 'setting flat_field.save_interpolated_flat = True' in caplog.text
+    saved = json.loads((tmp_path / 'out' / 'spec2_config.json').read_text())
+    assert saved['assign_wcs']['save_results'] is True
+    assert saved['flat_field']['save_interpolated_flat'] is True
+
+
+def test_pypeit_products_step_skipped(pipeline, tmp_path, caplog):
+    # Skipping a step that writes a product needed by PypeIt gives a warning
+    _make_outputs(tmp_path, 'rate')
+    config = _write_config(tmp_path, {'flat_field': {'skip': True}})
+    with caplog.at_level('WARNING'):
+        _run(tmp_path, '--spec2_config', str(config))
+    assert 'The flat_field step is skipped' in caplog.text
