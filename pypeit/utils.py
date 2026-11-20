@@ -1481,15 +1481,19 @@ def interp1d_rows(x, y, x_new):
     """
     Linearly interpolate (and extrapolate) each row of a 2D array.
 
-    For each row ``i``, the result is identical to
+    For each row ``i``, the result is the same as
 
     .. code-block:: python
 
         interp1d(x[i], y[i], kind='linear', bounds_error=False,
                  fill_value='extrapolate')(x_new[i])
 
-    including the sorting of ``x`` and the arithmetic used for the
-    interpolation, but all rows are interpolated at once.
+    but all rows are interpolated at once.  The abscissae are sorted, and the
+    interval used for each new abscissa is chosen, exactly as in ``interp1d``.
+    The interpolation itself uses the arithmetic of ``interp1d`` in SciPy 1.18
+    and later (de Boor's algorithm, which is exact at the abscissae), which
+    therefore give identical results; earlier versions of SciPy used a
+    different arithmetic, and their results differ by rounding errors.
 
     Parameters
     ----------
@@ -1535,8 +1539,9 @@ def interp1d_rows(x, y, x_new):
     x_hi = np.take_along_axis(x, indx, axis=1)
     y_lo = np.take_along_axis(y, indx-1, axis=1)
     y_hi = np.take_along_axis(y, indx, axis=1)
-    slope = (y_hi - y_lo) / (x_hi - x_lo)
-    return slope * (x_new - x_lo) + y_lo
+    # The same arithmetic as interp1d in SciPy 1.18 and later
+    dx = x_hi - x_lo
+    return (x_new - x_lo) / dx * y_hi + (x_hi - x_new) / dx * y_lo
 
 
 def replace_bad(frame, bpm):

@@ -296,12 +296,18 @@ def test_interp1d_rows():
     x_new = rng.uniform(-3., 13., size=(nrow, m))
     x_new[:, 0] = x[:, 2]   # A value equal to one of the abscissae
     result = utils.interp1d_rows(x, y, x_new)
+    # The results are identical for SciPy 1.18 and later; SciPy 1.18 changed the
+    # arithmetic of interp1d, so they only agree to within rounding errors for
+    # earlier versions
     for i in range(nrow):
         expected = interp1d(x[i], y[i], kind='linear', bounds_error=False,
                             fill_value='extrapolate')(x_new[i])
-        assert np.array_equal(result[i], expected)
+        np.testing.assert_allclose(result[i], expected, rtol=1e-12, atol=1e-12)
     # Integer ordinates are cast to float, as in interp1d
     yint = np.arange(nrow*n).reshape(nrow, n)
     result = utils.interp1d_rows(x, yint, x_new)
-    assert np.array_equal(result[3], interp1d(x[3], yint[3], bounds_error=False,
-                                              fill_value='extrapolate')(x_new[3]))
+    np.testing.assert_allclose(result[3], interp1d(x[3], yint[3], bounds_error=False,
+                                                   fill_value='extrapolate')(x_new[3]),
+                               rtol=1e-12, atol=1e-12)
+    # Exact at the abscissae
+    assert np.array_equal(utils.interp1d_rows(x, y, x), y)

@@ -370,8 +370,9 @@ class AlignmentSplines:
         Build the interpolation transforms for each slit
 
         All spectral pixels of a slit are processed at once; the results are
-        identical to evaluating ``interp1d`` and :attr:`spl_fulltilts` one
-        spectral pixel at a time.
+        the same as evaluating ``interp1d`` and :attr:`spl_fulltilts` one
+        spectral pixel at a time, to within rounding errors (see
+        :func:`~pypeit.utils.interp1d_rows`).
         """
         spldict = dict(kind='linear', bounds_error=False, fill_value="extrapolate")
         ycoord = np.arange(self.nspec)
