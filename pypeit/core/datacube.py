@@ -1335,7 +1335,7 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
                                    spec_subpixel=1, spat_subpixel=1, slice_subpixel=1,
                                    skip_subpix_weights=True, correct_dar=correct_dar)
         # Store the flux and ivar spectra of the highest S/N object.
-        # TODO :: This is the flux per spectral pixel, and not per detector pixel.  Is this correct?
+        # TODO :: This is the flux per spectral pixel, and not per detector pixel. Is this correct?
         flux_stack[:, ff] = flxcube[:, 0, 0]
         ivar_stack[:, ff] = utils.inverse(sigcube[:, 0, 0])**2
 
