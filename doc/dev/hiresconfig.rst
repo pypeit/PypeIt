@@ -28,7 +28,7 @@ by the :ref:`pypeit_setup` script, which sorts the frames and writes a
 
 
 HIRES configuration identification
----------------------------------
+----------------------------------
 
 The HIRES instrument configurations are determined by the function
 :func:`pypeit.metadata.PypeItMetaData.unique_configurations`,
@@ -62,7 +62,7 @@ to the relevant unique configuration ("setup"), by assigning a setup identifier
 values of the specific unique configuration.
 
 HIRES calibration groups
------------------------
+------------------------
 
 PypeIt uses the concept of a "calibration group" to define a complete set of
 calibration frames (e.g., arcs, flats) and the science frames to which these calibration

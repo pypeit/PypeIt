@@ -13,7 +13,9 @@ from pypeit.display import display
 from pypeit.core import findobj_skymask
 from pypeit import datamodel
 from pypeit import calibframe
-from pypeit import msgs
+from pypeit import log
+from pypeit import utils
+from pypeit import PypeItError
 
 
 class Alignments(calibframe.CalibFrame):
@@ -27,7 +29,7 @@ class Alignments(calibframe.CalibFrame):
 
     .. include:: ../include/class_datamodel_alignments.rst
     """
-    version = '1.1.0'
+    version = '1.2.0'
 
     # Calibration frame attributes
     calib_type = 'Alignment'
@@ -43,12 +45,20 @@ class Alignments(calibframe.CalibFrame):
                  'nslits': dict(otype=int, descr='The number of slits'),
                  'traces': dict(otype=np.ndarray, atype=np.floating,
                                 descr='Traces of the alignment frame'),
-                 'spat_id': dict(otype=np.ndarray, atype=np.integer, descr='Slit spat_id ')}
+                 'spat_id': dict(otype=np.ndarray, atype=np.integer, descr='Slit spat_id '),
+                 'spat_flexure': dict(otype=np.ndarray, atype=np.floating,
+                                      descr='Spatial flexure shift, in spatial pixels, between '
+                                            'the alignment frame and SlitTrace. Shape is '
+                                            '(nslits, 2), where spat_flexure[i,0] is the spatial '
+                                            'shift of the left edge of slit i and '
+                                            'spat_flexure[i,1] is the spatial shift of the right '
+                                            'edge of slit i.  None if the spatial flexure was not '
+                                            'determined.')}
 
     def __init__(self, alignframe=None, nspec=None, nalign=None, nslits=None,
-                 traces=None, PYP_SPEC=None, spat_id=None):
+                 traces=None, PYP_SPEC=None, spat_id=None, spat_flexure=None):
         # Parse
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
@@ -77,7 +87,7 @@ class Alignments(calibframe.CalibFrame):
 
         """
         if not np.array_equal(self.spat_id, slits.spat_id):
-            msgs.error('Your alignment solutions are out of sync with your slits.  Remove '
+            raise PypeItError('Your alignment solutions are out of sync with your slits.  Remove '
                        'Calibrations and restart from scratch.')
 
     def show(self, slits=None):
@@ -109,6 +119,11 @@ class TraceAlignment:
             The parameters used for the align traces
         det (:obj:`int`, optional):
             Detector number
+        spat_flexure (:obj:`numpy.ndarray`, optional):
+            If provided, this is the shift, in spatial pixels, to
+            the slit edges. Shape is (nslits, 2), where nslits is
+            the number of slits, spat_flexure[:,0] is for the left
+            edges, and spat_flexure[:,1] is for the right edges.
         qa_path (:obj:`str`, optional):
             Directory for QA plots
         msbpm (`numpy.ndarray`_, optional):
@@ -122,14 +137,15 @@ class TraceAlignment:
         slits (:class:`~pypeit.slittrace.SlitTraceSet`):
             Slit edge traces.
     """
-    def __init__(self, rawalignimg, slits, spectrograph, alignpar, det=1, qa_path=None,
-                 msbpm=None):
+    def __init__(self, rawalignimg, slits, spectrograph, alignpar,
+                 det=1, spat_flexure=None, qa_path=None, msbpm=None):
 
         # Defaults
         self.spectrograph = spectrograph
         self.PYP_SPEC = spectrograph.name
         # Alignment parameters
         self.alignpar = alignpar
+        self.spat_flexure = spat_flexure
 
         # Input data
         self.rawalignimg = rawalignimg
@@ -169,35 +185,35 @@ class TraceAlignment:
         Main routine to generate the align profile traces in all slits
 
         Args:
-             show_peaks (bool, optional):
+            show_peaks (bool, optional):
                Generate QA showing peaks identified by alignment profile tracing
-             show_trace (bool, optional):
+            show_trace (bool, optional):
                Generate QA showing traces identified. Requires an open ginga RC modules window.
                Launch with ``ginga --modules=RC,SlitWavelength &``
-             debug (bool, optional):
+            debug (bool, optional):
                Debug the alignment tracing algorithm
 
         Returns:
             dict:  self.align_dict
         """
         # Generate slits
-        slitid_img_init = self.slits.slit_img()
-        left, right, _ = self.slits.select_edges()
+        slitid_img_init = self.slits.slit_img(initial=True, spat_flexure=self.spat_flexure)
+        left, right, _ = self.slits.select_edges(initial=True, spat_flexure=self.spat_flexure)
         align_prof = dict({})
 
         # Go through the slits
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
             if self.slit_bpm[slit_idx]:
-                msgs.info(f'Skipping bad slit/order {self.slits.slitord_id[slit_idx]} ({slit_idx+1}/{self.slits.nslits})')
+                log.info(f'Skipping bad slit/order {self.slits.slitord_id[slit_idx]} ({slit_idx+1}/{self.slits.nslits})')
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADALIGNCALIB')
                 continue
 
             specobj_dict = {'SLITID': slit_idx, 'DET': self.rawalignimg.detector.name,
                             'OBJTYPE': "align_profile", 'PYPELINE': self.spectrograph.pypeline}
-            msgs.info("Fitting alignment traces in slit {0:d}/{1:d}".format(slit_idx+1, self.slits.nslits))
+            log.info("Fitting alignment traces in slit {0:d}/{1:d}".format(slit_idx+1, self.slits.nslits))
             align_traces = findobj_skymask.objs_in_slit(
                 self.rawalignimg.image, self.rawalignimg.ivar, slitid_img_init == slit_spat,
-                left[:, slit_idx], right[:, slit_idx],
+                left[:, slit_idx] - self.alignpar['grow_slit_edge'], right[:, slit_idx]+self.alignpar['grow_slit_edge'],
                 ncoeff=self.alignpar['trace_npoly'],
                 specobj_dict=specobj_dict, snr_thresh=self.alignpar['snr_thresh'],
                 show_peaks=show_peaks, show_fits=False,
@@ -205,7 +221,7 @@ class TraceAlignment:
                 nperslit=len(self.alignpar['locations']))
             if len(align_traces) != len(self.alignpar['locations']):
                 # Align tracing has failed for this slit
-                msgs.error("Alignment tracing has failed on slit {0:d}/{1:d}".format(slit_idx+1,self.slits.nslits))
+                raise PypeItError("Alignment tracing has failed on slit {0:d}/{1:d}".format(slit_idx+1,self.slits.nslits))
             align_prof['{0:d}'.format(slit_idx)] = align_traces.copy()
 
         # Steps
@@ -236,13 +252,13 @@ class TraceAlignment:
         # Go through the slits
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
             if self.slit_bpm[slit_idx]:
-                msgs.info(f'Skipping bad slit/order {self.slits.slitord_id[slit_idx]} ({slit_idx+1}/{self.slits.nslits})')
+                log.info(f'Skipping bad slit/order {self.slits.slitord_id[slit_idx]} ({slit_idx+1}/{self.slits.nslits})')
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADALIGNCALIB')
                 continue
             sls = '{0:d}'.format(slit_idx)
             for bar in range(nbars):
                 if align_prof[sls][bar].SLITID != slit_idx:
-                    msgs.error("Alignment profiling failed to generate traces")
+                    raise PypeItError("Alignment profiling failed to generate traces")
                 align_traces[:, bar, slit_idx] = align_prof[sls][bar].TRACE_SPAT
         return align_traces
 
@@ -271,7 +287,8 @@ class TraceAlignment:
         # Build the alignment calibration frame
         align = Alignments(alignframe=self.rawalignimg.image, nspec=self.nspec,
                            nalign=align_traces.shape[1], nslits=self.nslits, traces=align_traces,
-                           PYP_SPEC=self.PYP_SPEC, spat_id=self.slits.spat_id)
+                           PYP_SPEC=self.PYP_SPEC, spat_id=self.slits.spat_id,
+                           spat_flexure=self.spat_flexure)
         # Copy the internals from the processed alignment image
         align.copy_calib_internals(self.rawalignimg)
         # Return
@@ -330,7 +347,10 @@ class AlignmentSplines:
             3D array containing the alignments (traces) of the slits. This allows different
             slices to be aligned correctly. Ideally, this variable will be assigned the
             value of alignments.traces. However, this can also be assigned the
-            left and right slit edges:
+            left and right slit edges.  In either case, the traces must be in the
+            detector coordinates of the frame being transformed (i.e., including
+            its spatial flexure; see
+            :func:`~pypeit.coadd3d.SlicerIFUCoAdd3D.shift_alignment_traces`):
 
             .. code-block:: python
 
@@ -346,11 +366,10 @@ class AlignmentSplines:
             Spectral tilts.
         """
         # Perform some checks
-        msgs.work("Spatial flexure is not currently implemented for the astrometric alignment")
         if type(locations) is list:
             locations = np.array(locations)
         if locations.size != traces.shape[1]:
-            msgs.error("The size of locations must be the same as traces.shape[1]")
+            raise PypeItError("The size of locations must be the same as traces.shape[1]")
         # Store the relevant input
         self.traces = traces
         self.locations = locations
@@ -371,7 +390,7 @@ class AlignmentSplines:
         spldict = dict(kind='linear', bounds_error=False, fill_value="extrapolate")
         ycoord = np.arange(self.nspec)
         for sl in range(self.nslit):
-            msgs.info("Calculating astrometric transform of slit {0:d}/{1:d}".format(sl+1, self.nslit))
+            log.info("Calculating astrometric transform of slit {0:d}/{1:d}".format(sl+1, self.nslit))
             xlr, tlr = np.zeros((self.nspec, 2)), np.zeros((self.nspec, 2))
             eval_trim = 2  # This evaluates the slit length inside the actual slit edges, due to edge effects.
             for sp in range(self.nspec):
@@ -397,7 +416,7 @@ class AlignmentSplines:
             xcoord = np.arange(np.floor(np.min(xlr)), np.ceil(np.max(xlr))+1, 1.0)
             out_transform = np.zeros((self.nspec, xcoord.size))
             for sp in range(self.nspec):
-                out_transform[sp,:] = (self.spl_loc[sl][sp](xcoord) - 0.5) * self.spl_slen[sl](sp)
+                out_transform[sp,:] = self.spl_loc[sl][sp](xcoord) * self.spl_slen[sl](sp)
             self.spl_transform[sl] = RegularGridInterpolator((ycoord, xcoord), out_transform, method='linear',
                                                              bounds_error=False, fill_value=None) # This will extrapolate
             # TODO :: Remove these notes...

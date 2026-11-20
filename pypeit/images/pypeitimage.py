@@ -3,7 +3,6 @@
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import inspect
 
 from IPython import embed
 
@@ -11,7 +10,8 @@ import numpy as np
 
 from astropy.io import fits
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit.images.imagebitmask import ImageBitMaskArray
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
@@ -94,7 +94,7 @@ class PypeItImage(datamodel.DataContainer):
     # TODO These docs are confusing. The __init__ method needs to be documented just as it is for
     # every other class that we have written in PypeIt, i.e. the arguments all need to be documented. They are not
     # documented here and instead we have the odd Args documentation above. 
-    version = '1.3.0'
+    version = '1.3.2'
     """Datamodel version number"""
 
     datamodel = {'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
@@ -130,11 +130,23 @@ class PypeItImage(datamodel.DataContainer):
                  'shot_noise': dict(otype=bool, descr='Shot-noise included in variance'),
                  'spat_flexure': dict(otype=np.ndarray, atype=np.floating,
                                       descr='Shift, in spatial pixels, between this image '
-                                            'and SlitTrace. Shape is (nslits, 2), where'
+                                            'and SlitTrace. Shape is (nslits, 2), where '
                                             'spat_flexure[i,0] is the spatial shift of the left '
                                             'edge of slit i and spat_flexure[i,1] is the spatial '
                                             'shift of the right edge of slit i.'),
-                 'filename': dict(otype=str, descr='Filename for the image'),}
+                 'spec_flexure': dict(otype=np.ndarray, atype=np.floating,
+                                    descr='Array of global spectral shifts (pixels) of the '
+                                          'wavelength array at the center of each slit to '
+                                          'correct for spectral flexure. This is calculated '
+                                          'using the sky spectrum, therefore, updated during '
+                                          'object finding/extraction.'),
+                 'rel_scaleImg': dict(otype=np.ndarray, atype=np.floating,
+                                  descr='Image used to apply a relative scaling to the science '
+                                        'image to correct its spectral illumination. Currently '
+                                        'only used for IFU reductions. This is calculated and '
+                                        'updated during object finding.'),
+                 'filename': dict(otype=str, descr='Filename for the image'),
+                 }
     """Data model components."""
 
     internals = ['process_steps', 'files', 'rawheadlist']
@@ -174,13 +186,13 @@ class PypeItImage(datamodel.DataContainer):
                  shot_noise=None, bpm=None, crmask=None, usermask=None, clean_mask=False):
 
         if image is None:
-            msgs.error('Must provide an image when instantiating PypeItImage.')
+            raise PypeItError('Must provide an image when instantiating PypeItImage.')
 
         # Instantiate as an empty DataContainer
         super().__init__()
 
         # Get the list of arguments and values provided to the instantiation call.
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         # Loop through them all and assign them directly to attributes of the
         # class if they're part of the datamodel and *not* None.
         for key in args[1:]:
@@ -192,7 +204,7 @@ class PypeItImage(datamodel.DataContainer):
                      'fullmask']:
             _arr = getattr(self, attr)
             if _arr is not None and _arr.shape != self.shape:
-                msgs.error(f'Attribute {attr} does not match image shape.')
+                raise PypeItError(f'Attribute {attr} does not match image shape.')
 
         # Make sure the units are defined
         if self.units is None:
@@ -204,19 +216,19 @@ class PypeItImage(datamodel.DataContainer):
 
         if bpm is not None:
             if not np.issubdtype(bpm.dtype, np.bool_) and not np.issubdtype(bpm.dtype, bool):
-                msgs.error('CODING ERROR: bpm entry in PypeItImage must have boolean type')
+                raise PypeItError('CODING ERROR: bpm entry in PypeItImage must have boolean type')
             if clean_mask:
                 self.update_mask('BPM', action='turn_off')
             self.update_mask('BPM', indx=bpm)
         if crmask is not None:
             if not np.issubdtype(crmask.dtype, np.bool_) and not np.issubdtype(crmask.dtype, bool):
-                msgs.error('CODING ERROR: crmask entry in PypeItImage must have boolean type')
+                raise PypeItError('CODING ERROR: crmask entry in PypeItImage must have boolean type')
             if clean_mask:
                 self.update_mask('CR', action='turn_off')
             self.update_mask('CR', indx=crmask)
         if usermask is not None:
             if not np.issubdtype(usermask.dtype, np.bool_) and not np.issubdtype(usermask.dtype, bool):
-                msgs.error('CODING ERROR: usermask entry in PypeItImage must have boolean type')
+                raise PypeItError('CODING ERROR: usermask entry in PypeItImage must have boolean type')
             if clean_mask:
                 self.update_mask('USER', action='turn_off')
             self.update_mask('USER', indx=crmask)
@@ -329,14 +341,27 @@ class PypeItImage(datamodel.DataContainer):
         """
         Identify and flag cosmic rays in the image.
 
-        This is mainly a wrapper to :func:`pypeit.core.procimg.lacosmic`, with
-        the boolean cosmic-ray mask is saved to :attr:`crmask`. 
+        By default this is a wrapper to :func:`pypeit.core.procimg.lacosmic`.
+        When ``par['cr_median_width'] > 1`` it instead calls
+        :func:`pypeit.core.procimg.lacosmic_spatial_median_residual`,
+        which subtracts a row-local median filter along axis 1 before
+        running L.A.Cosmic on the residual.  This catches the bodies of
+        extended CR trails (and is well-suited to line-rich frames such
+        as arcs and tilts).  Both paths only set the CR bit in
+        :attr:`fullmask`; :attr:`image` is left unmodified, so downstream
+        consumers must respect the CR flag (e.g., via
+        ``select_flag(flag=['BPM', 'CR'])``) to skip the affected pixels.
+
+        The boolean cosmic-ray mask is saved to :attr:`crmask` via
+        :meth:`update_mask_cr`.
 
         Args:
             par (:class:`~pypeit.par.pypeitpar.ProcessImagesPar`):
                 Parameters that dictate the processing of the images.  See
                 :class:`~pypeit.par.pypeitpar.ProcessImagesPar` for the
-                defaults.
+                defaults.  Reads ``sigclip``, ``sigfrac``, ``objlim``,
+                ``rmcompact``, ``lamaxiter``, ``grow``, and
+                ``cr_median_width``.
             subtract_img (`numpy.ndarray`_, optional):
                 An image to subtract from the primary image *before* executing
                 the cosmic-ray detection algorithm.  If provided, it must have
@@ -347,7 +372,7 @@ class PypeItImage(datamodel.DataContainer):
             cosmic rays; True mean a CR was flagged.
         """
         if subtract_img is not None and subtract_img.shape != self.shape:
-            msgs.error('In cosmic-ray detection, image to subtract has incorrect shape.')
+            raise PypeItError('In cosmic-ray detection, image to subtract has incorrect shape.')
 
         # Image to flag
         use_img = self.image if subtract_img is None else self.image - subtract_img
@@ -359,7 +384,7 @@ class PypeItImage(datamodel.DataContainer):
         # to L.A.Cosmic?  For now, I'm doing the simple thing of just using the
         # bad pixel mask, but what other flags from ``fullmask`` should be
         # included?
-        bpm = self.fullmask.bpm
+        bpm = self.fullmask.flagged('BPM')
 
         # TODO: These saturation and non-linear values are typically for the raw
         # pixel value.  E.g., a saturation of 65535 is because the digitization
@@ -369,23 +394,40 @@ class PypeItImage(datamodel.DataContainer):
         saturation = self.map_detector_value('saturation')
         nonlinear = self.map_detector_value('nonlinear')
 
+        median_width = int(par['cr_median_width']) if par['cr_median_width'] is not None else 0
+        use_residual = median_width > 1
+
         if self.is_multidetector:
             # If the object has multiple images, need to flag each image individually
             crmask = np.empty(self.shape, dtype=bool)
             for i in range(self.shape[0]):
-                crmask[i] = procimg.lacosmic(use_img[i], saturation=saturation[i],
-                                             nonlinear=nonlinear[i], bpm=bpm[i], varframe=var[i],
-                                             maxiter=par['lamaxiter'], grow=par['grow'],
-                                             remove_compact_obj=par['rmcompact'],
-                                             sigclip=par['sigclip'], sigfrac=par['sigfrac'],
-                                             objlim=par['objlim'])
+                if use_residual:
+                    crmask[i] = procimg.lacosmic_spatial_median_residual(
+                        use_img[i], median_width, varframe=var[i], bpm=bpm[i],
+                        sigclip=par['sigclip'], sigfrac=par['sigfrac'], objlim=par['objlim'],
+                        remove_compact_obj=par['rmcompact'],
+                        maxiter=par['lamaxiter'], grow=par['grow'])
+                else:
+                    crmask[i] = procimg.lacosmic(
+                        use_img[i], saturation=saturation[i], nonlinear=nonlinear[i],
+                        bpm=bpm[i], varframe=var[i],
+                        maxiter=par['lamaxiter'], grow=par['grow'],
+                        remove_compact_obj=par['rmcompact'],
+                        sigclip=par['sigclip'], sigfrac=par['sigfrac'],
+                        objlim=par['objlim'])
         else:
-            # Otherwise, just run LA Cosmic once
-            crmask = procimg.lacosmic(use_img, saturation=saturation, nonlinear=nonlinear,
-                                      bpm=bpm, varframe=var, maxiter=par['lamaxiter'],
-                                      grow=par['grow'], remove_compact_obj=par['rmcompact'],
-                                      sigclip=par['sigclip'], sigfrac=par['sigfrac'],
-                                      objlim=par['objlim'])
+            if use_residual:
+                crmask = procimg.lacosmic_spatial_median_residual(
+                    use_img, median_width, varframe=var, bpm=bpm,
+                    sigclip=par['sigclip'], sigfrac=par['sigfrac'], objlim=par['objlim'],
+                    remove_compact_obj=par['rmcompact'],
+                    maxiter=par['lamaxiter'], grow=par['grow'])
+            else:
+                crmask = procimg.lacosmic(use_img, saturation=saturation, nonlinear=nonlinear,
+                                          bpm=bpm, varframe=var, maxiter=par['lamaxiter'],
+                                          grow=par['grow'], remove_compact_obj=par['rmcompact'],
+                                          sigclip=par['sigclip'], sigfrac=par['sigfrac'],
+                                          objlim=par['objlim'])
         # Update the mask (this erases any existing CR mask!)
         self.update_mask_cr(crmask)
         # Return the result
@@ -413,7 +455,7 @@ class PypeItImage(datamodel.DataContainer):
 
             # Must be defining the per-amplifier value
             if self.amp_img is None:
-                msgs.error(f'To remap detector {attr}, object must have amp_img defined.')
+                raise PypeItError(f'To remap detector {attr}, object must have amp_img defined.')
             out = np.zeros(self.shape, dtype=type(data[0]))
             for j in range(len(data)):
                 out[self.amp_img == j+1] = data[j]
@@ -430,7 +472,7 @@ class PypeItImage(datamodel.DataContainer):
                 return np.repeat(data, np.prod(self.shape[1:])).reshape(self.shape)
             # Must be defining the per-amplifier value
             if self.amp_img is None:
-                msgs.error(f'To remap detector {attr}, object must have amp_img defined.')
+                raise PypeItError(f'To remap detector {attr}, object must have amp_img defined.')
             out = np.zeros(self.shape, dtype=type(data[0][0]))
             for i in range(self.detector.ndet):
                 for j in range(len(data[i])):
@@ -443,7 +485,7 @@ class PypeItImage(datamodel.DataContainer):
             # Check for amplifier dependent output before entering loop
             if not np.isscalar(data[0]) and self.amp_img is None:
                 # Must be defining the per-amplifier value
-                msgs.error(f'To remap detector {attr}, object must have amp_img defined.')
+                raise PypeItError(f'To remap detector {attr}, object must have amp_img defined.')
             # Get the output type
             otype = type(data[0]) if np.isscalar(data[0]) else type(data[0][0])
             # Fill the array
@@ -459,7 +501,7 @@ class PypeItImage(datamodel.DataContainer):
             return out
 
         # Should not get here
-        msgs.error('CODING ERROR: Bad logic in map_detector_value.')
+        raise PypeItError('CODING ERROR: Bad logic in map_detector_value.')
 
     def build_mask(self, saturation=None, mincounts=None, slitmask=None, from_scratch=True):
         """
@@ -524,15 +566,15 @@ class PypeItImage(datamodel.DataContainer):
         # Check input
         if saturation is not None and isinstance(saturation, np.ndarray) \
                 and saturation.shape != self.shape:
-            msgs.error('Saturation array must have the same shape as the image.')
+            raise PypeItError('Saturation array must have the same shape as the image.')
         if mincounts is not None and isinstance(mincounts, np.ndarray) \
                 and mincounts.shape != self.shape:
-            msgs.error('Minimum counts array must have the same shape as the image.')
+            raise PypeItError('Minimum counts array must have the same shape as the image.')
 
         # Setup the saturation level 
         if isinstance(saturation, str):
             if saturation != 'default':
-                msgs.error(f'Unknown saturation string: {saturation}')
+                raise PypeItError(f'Unknown saturation string: {saturation}')
             _saturation = self.map_detector_value('saturation') \
                             * self.map_detector_value('nonlinear')
             if self.units == 'e-':
@@ -543,7 +585,7 @@ class PypeItImage(datamodel.DataContainer):
         # Setup the minimum counts level 
         if isinstance(mincounts, str):
             if mincounts != 'default':
-                msgs.error(f'Unknown mincounts string: {mincounts}')
+                raise PypeItError(f'Unknown mincounts string: {mincounts}')
             _mincounts = self.map_detector_value('mincounts')
             if self.units == 'ADU':
                 _mincounts /= self.map_detector_value('gain')
@@ -552,8 +594,8 @@ class PypeItImage(datamodel.DataContainer):
 
         if from_scratch:
             # Save the existing BPM and CR masks
-            bpm = self.fullmask.bpm
-            cr = self.fullmask.cr
+            bpm = self.fullmask.flagged('BPM')
+            cr = self.fullmask.flagged('CR')
             # Re-initialize the fullmask (erases all existing masks)
             self.reinit_mask()
             # Recover the BPM and CR masks
@@ -590,7 +632,7 @@ class PypeItImage(datamodel.DataContainer):
 
         """
         if slitmask.shape != self.shape:
-            msgs.error('Slit mask image must have the same shape as data image.')
+            raise PypeItError('Slit mask image must have the same shape as data image.')
         # Pixels excluded from any slit.
         self.update_mask('OFFSLITS', action='turn_off')
         self.update_mask('OFFSLITS', indx=slitmask==-1)
@@ -629,7 +671,7 @@ class PypeItImage(datamodel.DataContainer):
                 The action to perform.  Must be ``'turn_on'`` or ``'turn_off'``.
         """
         if action not in ['turn_on', 'turn_off']:
-            msgs.error(f'{action} is not a known bit action!')
+            raise PypeItError(f'{action} is not a known bit action!')
         if indx is None:
             getattr(self.fullmask, action)(flag)
         getattr(self.fullmask, action)(flag, select=indx)
@@ -703,6 +745,8 @@ class PypeItImage(datamodel.DataContainer):
             - the detector from the first image (``self``) is used for the
               returned image and the detector for the ``other`` image is
               *ignored*
+            - the processing steps and raw headers from the first image are
+              propagated
             - if the spatial flexure is defined for the first image, it is
               propagated regardless of the value for the 2nd image.  If it is
               also defined for the 2nd image and the flexure is different from
@@ -718,7 +762,7 @@ class PypeItImage(datamodel.DataContainer):
             subtracting ``other`` from this image.
         """
         if not isinstance(other, PypeItImage):
-            msgs.error('Image to subtract must be of type PypeItImage.')
+            raise PypeItError('Image to subtract must be of type PypeItImage.')
 
         # Subtract the image
         newimg = self.image - other.image
@@ -785,10 +829,16 @@ class PypeItImage(datamodel.DataContainer):
         # Spatial flexure
         spat_flexure = self.spat_flexure
         if other.spat_flexure is not None and spat_flexure is not None \
-                and np.array_equal(other.spat_flexure, spat_flexure):
-            msgs.warn(f'Spatial flexure different for images being subtracted. Adopting ' \
-                      f'the maximum spatial flexure of each individual edge.')
-            spat_flexure = np.maximum(spat_flexure, other.spat_flexure)
+                and not np.array_equal(other.spat_flexure, spat_flexure):
+            log.warning(f'Spatial flexure different for images being subtracted ({spat_flexure} vs. '
+                        f'{other.spat_flexure}). Adopting the maximum spatial flexure of each individual edge.')
+            # Loop through all slit edges and find the largest flexure
+            for ii in range(spat_flexure.shape[0]):
+                # Assign the largest flexure (irrespective of sign) for each edge
+                if np.abs(other.spat_flexure[ii,0]) > np.abs(spat_flexure[ii,0]):
+                    spat_flexure[ii,0] = other.spat_flexure[ii,0]
+                if np.abs(other.spat_flexure[ii,1]) > np.abs(spat_flexure[ii,1]):
+                    spat_flexure[ii,1] = other.spat_flexure[ii,1]
 
         # Create a copy of the detector, if it is defined, to be used when
         # creating the new pypeit image below
@@ -804,6 +854,10 @@ class PypeItImage(datamodel.DataContainer):
         # Files
         if self.files is not None and other.files is not None:
             new_pypeitImage.files = self.files + other.files
+
+        new_pypeitImage.process_steps = None if self.process_steps is None \
+            else self.process_steps.copy()
+        new_pypeitImage.rawheadlist = self.rawheadlist
 
         # Return the result using the `from_pypeitimage` instantiation method to
         # ensure the type of the output image is identical to the type of self.
@@ -829,6 +883,13 @@ class PypeItImage(datamodel.DataContainer):
         repr += ' images={}'.format(rdict)
         repr = repr + '>'
         return repr
+
+    def _primary_header(self, hdr=None):
+        """Include the image units in primary and downstream headers."""
+        _hdr = super()._primary_header(hdr=hdr)
+        _hdr['BUNIT'] = ('electron' if self.units == 'e-' else self.units,
+                         'Units of the processed image')
+        return _hdr
 
     def _base_header(self, hdr=None):
         """
@@ -929,7 +990,7 @@ class PypeItCalibrationImage(PypeItImage, CalibFrame):
                     hdr_to_parse = h.header
                     break
             if hdr_to_parse is None:
-                msgs.error('Provided HDUList does not have any HDUs constructed by the correct '
+                raise PypeItError('Provided HDUList does not have any HDUs constructed by the correct '
                            f'datamodel class, {cls.__name__}.')
         else:
             hdr_to_parse = hdu.header

@@ -1,3 +1,7 @@
+.. include:: ../include/links.rst
+
+.. _gemini_gmos:
+
 ***********
 Gemini GMOS
 ***********
@@ -33,10 +37,10 @@ Long Slit
 1.
 Somewhat too frequently when using the longslit, the "3" slits are not all
 identified in the bluest detector.  *By default, PypeIt now reduces Gemini/GMOS
-data by mosaicing the detectors*, so this may only now be an issue if you reduce
+data by mosaicing the detectors*, so this may only be an issue if you reduce
 the detectors separately.
 
-To mitigate this, we recommend adding to this to your PypeIt file:
+To mitigate this, we recommend adding this to your PypeIt file:
 
 .. code-block:: ini
 
@@ -46,19 +50,15 @@ To mitigate this, we recommend adding to this to your PypeIt file:
             fit_min_spec_length=0.1
             edge_thresh=3.
 
-One can also do a manual check with (beware using ``--debug`` may show a *lot*
-of plots):
-
-.. code-block:: console
-
-    pypeit_trace_edges -f my_pypeit_file.pypeit --debug --show
-    pypeit_chk_edges Calibrations/Edges_file.fits.gz
+One can also check/troubleshoot the slit tracing by running the
+script :ref:`pypeit_trace_edges` with the ``--debug`` flag,
+which will show different levels of debugging output at each
+step of the tracing process (beware it may show a *lot* of plots).
 
 2.
-
 The code may fault and say there were no valid traces.  This happens for some
-long-slit data where the slit edges are,
-in fact, beyond the edges of the detector. It returns an error:
+long-slit data where the slit edges are, in fact, beyond the edges of the detector.
+It returns an error:
 
 .. code-block:: console
 
@@ -80,16 +80,12 @@ If ``bound_detector`` is True, the code will artificially add left and right edg
     a straight line, likely not following the true object trace.
 
 3.
-In some cases, the slits were detected, but then rejected due to a failure of
-wavelength calibration. The appearance of this issue is very similar to that of
-item 1 above, you will see a lack of slits in skiing, the difference is that, there will be
-such information on slit detection in log files: Not enough useful IDs. 
-
-.. TODO: skiing?  see sentence above
-
-In this case, you should check your wavelength solution, and try to adjust the
-wavelength parameters. This issue may be solved now that by reducing the
-detectors as a mosaic by default.
+In some cases, slits are detected but later rejected due to wavelength calibration failure.
+This issue resembles item 1, where slits appear to be unidentified. However, in this scenario,
+the log files will indicate the problem with a message like: "Not enough useful IDs."
+When encountering this issue, you should check your wavelength solution, and try to adjust the
+wavelength parameters. Since PypeIt now reduces Gemini/GMOS data by mosaicing the detectors
+by default, this may only be an issue if you reduce the detectors separately.
 
 Wavelength Solution
 ===================
@@ -131,21 +127,16 @@ Mask Definition
 
 PypeIt can now take advantage of the mask definition file
 generated when one designs a GMOS mask.  To do so, one needs
-to provide two additional files and specify them 
-with the :ref:`pypeit_file`:
-
-#.  The mask definition file, aka ODF file
-#.  An aligment image (taken with the spectra)
+to provide the name of the mask definition file, aka ODF file,
+in the :ref:`pypeit_file`.
 
 The mask definition file must be the output generated from 
 GMMPRS and in FITS format. We do not support ASCII 
-mask files currently.
+mask files currently. Additionally, it must be either:
 
-For the alignment image,
-ensure that the alignment stars in the image are centered 
-in the mask's square alignment slits. i.e. choose the 
-final image in the sequence of alignment images from 
-the observations.
+    1. located in the path(s) of the raw files provided in the :ref:`data_block`;
+    2. located in the current working directory; and/or
+    3. be named with the full path.
 
 The modifications to the :ref:`pypeit_file` will look like:
 
@@ -153,17 +144,18 @@ The modifications to the :ref:`pypeit_file` will look like:
 
     [calibrations]
         [[slitedges]]
-            maskdesign_filename = GS2022BQ137-05_ODF.fits,S20221128S0038.fits
+            maskdesign_filename = GS2022BQ137-05_ODF.fits
             use_maskdesign = True
     [reduce]
         [[slitmask]]
             extract_missing_objs = True
             assign_obj = True
 
-The two files provided must be located either:
- (1) in the path(s) of the raw files provided in the :ref:`data_block`,
- (2) the current working data, and/or
- (3) be named with the full path.
+The mask definition file can also be used to trim each slit in the spectral direction.
+To do so, one needs to set the :ref:`edgetracepar` parameter ``maskdesign_trim`` to True.
+For cases where the mask design information is not perfectly aligned with the detector,
+a shift can be applied to the mask design information by setting the
+``maskdesign_trim_shift`` parameter to the appropriate value in pixels.
 
 Wavelength calibration
 ----------------------

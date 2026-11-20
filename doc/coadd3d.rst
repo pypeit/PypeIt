@@ -41,7 +41,14 @@ coadd3d file
 ------------
 
 The ``pypeit_coadd_datacube`` script requires an
-input file to guide the process.
+input file to guide the process. PypeIt expects this
+file to be located in the same directory as the ``.pypeit``
+file that was used to reduce the data. By default, this script
+will generate a ``Science_cube`` and a ``QA_cube`` directory and
+the datacubes, whitelight images, and QA plots and frames to these
+directories.
+
+The name of the input file must end with the suffix ``.coadd3d``.
 The format of this type of :doc:`input_files`
 includes a :ref:`parameter_block` (required)
 and a :ref:`data_block` (required).
@@ -57,7 +64,7 @@ saved as ``BB1245p4238.coadd3d``:
     [reduce]
         [[cube]]
             combine = True
-            align = True
+            alignment_method = phase
             output_filename = BB1245p4238_datacube.fits
             save_whitelight = True
 
@@ -109,6 +116,65 @@ corrections as part of the spec2d block, including:
     The required input file is the sensitivity function, which is generated with the ``pypeit_sensfunc`` script.
     For further details, see :ref:`coadd3d_fluxing`.
 
+.. _pypeit_setup_datacube:
+
+pypeit_setup_datacube
+---------------------
+
+The ``pypeit_setup_datacube`` script can be used to create the ``.coadd3d`` file used by
+``pypeit_coadd_datacube`` and the ``.extract`` file used by ``pypeit_extract_datacube``.
+The script reads a PypeIt file, finds the reduced ``spec2d`` files that already exist in the
+associated ``Science`` directory for the requested target, and writes the setup files to
+``sources/<target>/`` next to the PypeIt file.  For example:
+
+.. code-block:: console
+
+    pypeit_setup_datacube kcrm_jun10_hizqso.pypeit J0750+6927
+
+By default, no sensitivity function is included in the generated ``.coadd3d`` file, so
+``pypeit_coadd_datacube`` will produce an unfluxed cube in counts/s/Angstrom/arcsec^2.
+To flux calibrate the datacube, provide a sensitivity function using ``--sensfile``:
+
+.. code-block:: console
+
+    pypeit_setup_datacube kcrm_jun10_hizqso.pypeit J0750+6927 \
+        --sensfile /Users/joe/kcrm_observing_2024/dec2024/hiz_qso_dec2024/sens_gd71_000.fits
+
+The white-light wavelength range defaults to ``None,None``.  This means PypeIt will use the
+default cube range, which is the common wavelength overlap of the spaxels used to build the
+cube.  To set the range explicitly, use either ``--whitelight_range`` or ``--wl_range``:
+
+.. code-block:: console
+
+    pypeit_setup_datacube kcrm_jun10_hizqso.pypeit J0750+6927 \
+        --wl_range 9400,10000
+
+To manually set the extraction position, pass the white-light image coordinates to
+``--manual`` in ``x:y`` format:
+
+.. code-block:: console
+
+    pypeit_setup_datacube kcrm_jun10_hizqso.pypeit J0750+6927 \
+        --manual 9.8:13.6 -o
+
+Here ``x=9.8`` and ``y=13.6`` are the coordinates read from Ginga or DS9 when viewing the
+white-light image.  In numpy terms, if the image has shape ``(ny, nx)``, the position
+``(x, y)`` refers to ``image[y, x]``; ``x`` indexes the second array axis and ``y`` indexes
+the first.  The ``-o``/``--overwrite`` option is needed if the ``.extract`` file already exists
+and you want the script to replace it.  The generated ``.extract`` file will include:
+
+.. code-block:: ini
+
+    [reduce]
+        [[cube]]
+         [[[extraction]]]
+           opt_prof_method = user_gauss
+           manual = 9.8:13.6
+
+If you reduce additional exposures later, ``--append`` can be used to append any newly
+available ``spec2d`` files to the existing ``.coadd3d`` file without changing the existing
+``.extract`` file.
+
 run
 ---
 
@@ -145,6 +211,11 @@ There are several recommended steps of the coadd3d process that can be run separ
     including a ``BOX_COUNTS_SKY`` and ``OPT_COUNTS_SKY`` columns. These columns do not contain the sky
     counts, but rather the residual level of the sky aperture. This is useful for checking the quality of
     the sky subtraction.
+
+    Manual datacube extraction positions are specified as ``x:y`` image coordinates, matching the values
+    read from Ginga or DS9 when viewing the white-light image. In numpy terms, if the white-light image
+    has shape ``(ny, nx)``, a position ``(x, y)`` refers to ``image[y, x]``; ``x`` indexes the second
+    array axis and ``y`` indexes the first.
 
 #. Step 3 - Generate a sensitivity function from the 1D spectra. This is done by running the following
     command, assuming that the output 1D spectra from the previous step was called
@@ -247,7 +318,7 @@ the name of the sensitivity function in your ``coadd3d`` file as follows:
 
     [reduce]
         [[cube]]
-            sensfunc = my_sensfunc.fits
+            sensfile = my_sensfunc.fits
 
 
 Also, an important note for users that wish to combine multiple standard star exposures
@@ -337,7 +408,9 @@ then you do not need to specify the grating correction file. Also, if you
 generate a sensitivity function for each spec2d file, then you do not need
 to specify the grating correction file. The grating correction file is only
 needed if you have one sensitivity function for all spec2d files, even though
-the spec2d files were acquired with different grating angles.
+the spec2d files were acquired with different grating angles.  The
+grating correction accounts for the spatial flexure of the pixel flat (see
+:ref:`coadd3d_spatflex`).
 
 Astrometric correction
 ======================
@@ -358,6 +431,46 @@ file:
 
 If a :doc:`calibrations/align` frame is not available, then the astrometric
 correction will be based on the slit edges.
+
+.. _coadd3d_spatflex:
+
+Spatial flexure
+===============
+
+The spatial flexure of each science frame is determined when the frame is
+reduced with ``run_pypeit`` (see :ref:`flexure-spatial`), and it is stored in
+the frame's ``spec2d`` file.  When constructing a datacube, the spatial flexure
+of each frame is accounted for, and no additional input is required:
+
+    - The slit image, and the RA and Dec of every pixel, are evaluated using
+      the slit edges of each frame shifted by its spatial flexure.
+
+    - The astrometric alignment traces (see `Astrometric correction`_) are
+      shifted by the spatial flexure of each frame *relative* to that of the
+      :doc:`calibrations/align` frame.  The spatial flexure of the alignment
+      frames is not determined by default, in which case it is assumed to be
+      zero.
+
+    - A dedicated sky frame (``skysub_frame``; see :ref:`coadd3d_skysub`) or
+      relative scale-correction frame (``scale_corr``) can have a different
+      spatial flexure from the science frame.  Its sky (or relative scale)
+      image is therefore remapped to the slits of the science frame: each pixel
+      of the science frame is assigned the value at the same fractional position
+      across the slit in the sky (or scale-correction) frame.  This requires
+      the two frames to have the same number of slits; otherwise, the image is
+      applied pixel by pixel, and a warning is printed.
+
+    - The grating correction (see :ref:`coadd3d_gratcorr`) is calculated using
+      the spatial flexure and wavelength image of the pixel flat, so the
+      correction derived from each Flat calibration file does not depend on
+      the science frame.
+
+The spatial flexure of each input frame is recorded in the header of the
+datacube, using the ``SPFLXnnn`` keywords, where ``nnn`` is the (1-based) index
+of the frame in the ``spec2d`` block of the ``coadd3d`` file.  The value is the
+mean spatial flexure (in pixels) of all slit edges, and the comment gives the
+range of the spatial flexure of the slit edges.  A value of zero is recorded if
+the spatial flexure was not determined.
 
 White light image
 =================
@@ -444,7 +557,7 @@ like the following:
         [[cube]]
             combine = True
             output_filename = BB1245p4238_datacube.fits
-            align = True
+            alignment_method = user
 
     # Read in the data
     spec2d read
@@ -485,4 +598,3 @@ plot a wavelength slice of the cube:
     plt.xlabel('RA')
     plt.ylabel('Dec')
     plt.show()
-

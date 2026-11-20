@@ -13,7 +13,9 @@ from IPython import embed
 import numpy as np
 
 from astropy import stats
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
+from pypeit import qa
 from pypeit.core import arc
 from pypeit.core import parse
 from pypeit.core import procimg
@@ -24,7 +26,8 @@ from pypeit.core.mosaic import build_image_mosaic
 from pypeit.images import pypeitimage
 from pypeit import utils
 from pypeit.display import display
-
+from pypeit import outputfiles
+from pathlib import Path
 
 # TODO: I don't understand why we have some of these attributes.  E.g., why do
 # we need both hdu and headarr?
@@ -241,7 +244,7 @@ class RawImage:
         """
         if self.par is None:
             return False
-        return (self.par['spat_flexure_correct'] != "none") or (self.use_flat and self.par['use_illumflat'])
+        return (self.par['spat_flexure_method'] != "skip") or (self.use_flat and self.par['use_illumflat'])
 
     def apply_gain(self, force=False):
         """
@@ -257,7 +260,7 @@ class RawImage:
         step = inspect.stack()[0][3]
         if self.steps[step] and not force:
             # Already applied
-            msgs.warn('Gain was already applied.')
+            log.warning('Gain was already applied.')
             return
 
         # Have the images been trimmed?
@@ -281,6 +284,9 @@ class RawImage:
         # Convert from DN to counts
         self.image *= np.array(gain)
 
+        for header in self.headarr:
+            header['BUNIT'] = ('electron', 'Units of the processed image')
+
         # NOTE: In ``process``, ``apply_gain`` is called first, meaning that all
         # the variance arrays should be None.
         self.steps[step] = True
@@ -296,7 +302,7 @@ class RawImage:
             `numpy.ndarray`_: The inverse variance in the image.
         """
         if self.dark is None and self.par['shot_noise']:
-            msgs.error('Dark image has not been created!  Run build_dark.')
+            raise PypeItError('Dark image has not been created!  Run build_dark.')
         _dark = self.dark if self.par['shot_noise'] else None
         _counts = self.image if self.par['shot_noise'] else None
         # NOTE: self.dark is expected to be in *counts*.  This means that
@@ -318,7 +324,7 @@ class RawImage:
         step = inspect.stack()[0][3]
         if self.steps[step]:
             # Already applied
-            msgs.warn('Non-linear correction was already applied.')
+            log.warning('Non-linear correction was already applied.')
             return
 
         inim = self.image.copy()
@@ -344,7 +350,7 @@ class RawImage:
             This function edits :attr:`ronoise` in place.
         """
         if self.oscansec_img.shape != self.image.shape:
-            msgs.error('Must estimate readnoise before trimming the image.')
+            raise PypeItError('Must estimate readnoise before trimming the image.')
         for i in range(self.nimg):
             for amp in range(len(self.ronoise[i])):
                 if self.ronoise[i,amp] > 0 and not self.par['empirical_rn']:
@@ -352,12 +358,12 @@ class RawImage:
                     # estimate was not explicitly requested.
                     continue
                 if not np.any(self.oscansec_img[i]==amp+1):
-                    msgs.error(f'Cannot estimate readnoise for amplifier {amp+1}.  Raw image '
+                    raise PypeItError(f'Cannot estimate readnoise for amplifier {amp+1}.  Raw image '
                                'has no overscan region!')
                 gain = 1. if self.steps['apply_gain'] else self.detector[i]['gain'][amp]
                 biaspix = self.image[i,self.oscansec_img[i]==amp+1] * gain
                 self.ronoise[i,amp] = stats.sigma_clipped_stats(biaspix, sigma=5)[-1]
-                msgs.info(f'Estimated readnoise of amplifier {amp+1} = '
+                log.info(f'Estimated readnoise of amplifier {amp+1} = '
                           f'{self.ronoise[i,amp]:.3f} e-')
 
     def build_rn2img(self, units='e-', digitization=False):
@@ -379,7 +385,7 @@ class RawImage:
         """
         if not np.all(self.ronoise > 0):
             # TODO: Consider just calling estimate_readnoise here...
-            msgs.error('Some readnoise values <=0; first call estimate_readnoise.')
+            raise PypeItError('Some readnoise values <=0; first call estimate_readnoise.')
 
         # Have the images been trimmed?
         not_trimmed = self.rawimage.shape is not None and self.image.shape == self.rawimage.shape
@@ -401,7 +407,7 @@ class RawImage:
         return np.array(rn2)
 
     def process(self, par, bpm=None, scattlight=None, flatimages=None, bias=None, slits=None, dark=None,
-                mosaic=False, debug=False):
+                mosaic=False, manual_spat_flexure=None, debug=False):
         """
         Process the data.
 
@@ -506,7 +512,7 @@ class RawImage:
                 Bias image for bias subtraction.
             slits (:class:`~pypeit.slittrace.SlitTraceSet`, optional):
                 Used to calculate spatial flexure between the image and the
-                slits, if requested via the ``spat_flexure_correct`` parameter
+                slits, if requested via the ``spat_flexure_method`` parameter
                 in :attr:`par`; see
                 :func:`~pypeit.core.flexure.spat_flexure_shift`.  Also used to
                 construct the slit illumination profile, if requested via the
@@ -519,6 +525,10 @@ class RawImage:
                 mosaic.  If flats or slits are provided (and used), this *must*
                 be true because these objects are always defined in the mosaic
                 frame.
+            manual_spat_flexure (:obj:`float`, optional):
+                The spatial flexure of the image. This is only set if the user wishes to
+                manually correct the slit traces of this image for spatial flexure.
+                None or ``np.ma.masked`` means that no manual value is set.
             debug (:obj:`bool`, optional):
                 Run in debug mode.
 
@@ -541,28 +551,29 @@ class RawImage:
 
         # Check the input
         if self.par['use_biasimage'] and bias is None:
-            msgs.error('No bias available for bias subtraction!')
+            raise PypeItError('No bias available for bias subtraction!')
         if self.par['use_darkimage'] and dark is None:
-            msgs.error('No dark available for dark subtraction!')
-        if self.par['subtract_scattlight'] and scattlight is None:
-            msgs.error('Scattered light subtraction requested, but scattered light model not provided.')
-        if (self.par['spat_flexure_correct'] != "none") and slits is None:
-            msgs.error('Spatial flexure correction requested but no slits provided.')
+            raise PypeItError('No dark available for dark subtraction!')
+        if self.par['subtract_scattlight'] and scattlight is None \
+                and self.par['scattlight']['method'] not in ['frame', 'archive', 'gaps']:
+            raise PypeItError('Scattered light subtraction requested, but scattered light model not provided.')
+        if (self.par['spat_flexure_method'] != "skip") and slits is None:
+            raise PypeItError('Spatial flexure correction requested but no slits provided.')
         if self.use_flat and flatimages is None:
-            msgs.error('Flat-field corrections requested but no flat-field images generated '
+            raise PypeItError('Flat-field corrections requested but no flat-field images generated '
                        'or provided.  Make sure you have flat-field images in your PypeIt file!')
         if self.use_slits and slits is None:
             # TODO: I think this should only happen as a developer error, not a
             # user error, but I'm not sure.
-            msgs.error('Processing steps requested that require slit-edge traces, but they were '
+            raise PypeItError('Processing steps requested that require slit-edge traces, but they were '
                        'not provided!')
         if self.nimg > 1 and not mosaic and (self.use_flat or self.use_slits):
-            msgs.error('Mosaicing must be performed if multiple detectors are processed and '
+            raise PypeItError('Mosaicing must be performed if multiple detectors are processed and '
                        'either flat-fielding or spatial flexure corrections are applied.')
         if self.nimg == 1 and mosaic:
-            msgs.warn('Only processing a single detector; mosaicing is ignored.')
+            log.warning('Only processing a single detector; mosaicing is ignored.')
 
-        msgs.info(f'Performing basic image processing on {os.path.basename(self.filename)}.')
+        log.info(f'Performing basic image processing on {os.path.basename(self.filename)}.')
         # TODO: Checking for bit saturation should be done here.
 
         #   - Convert from ADU to electron counts.
@@ -605,6 +616,9 @@ class RawImage:
         if self.par['orient']:
             self.orient()
 
+        # Artificial spatial flexure for testing - remove before mering
+        # self.image = np.roll(self.image, 4, axis=2)
+
         #   - Check the shape of the bpm
         if self.bpm.shape != self.image.shape:
 
@@ -622,10 +636,10 @@ class RawImage:
             self._bpm = None                            # This erases the current bpm attribute
             if self.bpm.shape != self.image.shape:      # This recreates it
                 # This should only happen because of a coding error, not a user error
-                msgs.error(f'CODING ERROR: From-scratch BPM has incorrect shape!')
+                raise PypeItError(f'CODING ERROR: From-scratch BPM has incorrect shape!')
             # If the above was successful, the code can continue, but first warn
             # the user that the code ignored the provided bpm.
-            msgs.warn(f'Bad-pixel mask has incorrect shape: found {bpm_shape}, expected '
+            log.warning(f'Bad-pixel mask has incorrect shape: found {bpm_shape}, expected '
                       f'{self.image.shape}.  Assuming this is because different binning used for '
                       'various frames.  Recreating BPM specifically for this frame '
                       f'({os.path.basename(self.filename)}) and assuming the difference in the '
@@ -668,15 +682,16 @@ class RawImage:
 
         # Calculate flexure, if slits are provided and the correction is
         # requested.  NOTE: This step must come after trim, orient (just like
-        # bias and dark subtraction) and before field flattening.  Also the
+        # bias and dark subtraction) and before field flattening. Also, the
         # function checks that the slits exist if running the spatial flexure
         # correction, so no need to do it again here.
-        self.spat_flexure_shift = self.spatial_flexure_shift(slits, method=self.par['spat_flexure_correct'],
-                                                                 maxlag=self.par['spat_flexure_maxlag']) \
-            if self.par['spat_flexure_correct'] != "none" else None
-
-        # self.spat_flexure_shift = self.spatial_flexure_shift(slits, maxlag=self.par['spat_flexure_maxlag']) \
-        #                             if self.par['spat_flexure_correct'] else None
+        self.spat_flexure_shift = None
+        # None and masked both mean that no manual spatial flexure is set
+        _manual_spat_flexure = np.ma.masked if manual_spat_flexure is None else manual_spat_flexure
+        if self.par['spat_flexure_method'] != "skip" or not np.ma.is_masked(_manual_spat_flexure):
+            self.spat_flexure_shift = self.spatial_flexure_shift(slits,
+                                                                 manual_spat_flexure=_manual_spat_flexure,
+                                                                 debug=debug)
 
         #   - Subtract scattered light... this needs to be done before flatfielding.
         if self.par['subtract_scattlight']:
@@ -769,28 +784,29 @@ class RawImage:
         return _det, self.image, self.ivar, self.datasec_img, self.det_img, self.rn2img, \
                 self.base_var, self.img_scale, self.bpm
 
-    def spatial_flexure_shift(self, slits, force=False, method="detector", maxlag=20):
+    def spatial_flexure_shift(self, slits, force=False, manual_spat_flexure=np.ma.masked, debug=False):
         """
         Calculate a spatial shift in the edge traces due to flexure.
 
         This is a simple wrapper for
-        :func:`~pypeit.core.flexure.spat_flexure_shift`.
+        :func:`~pypeit.core.flexure.spat_flexure_shift`.  The shift is measured
+        relative to the initial (traced) slit edges.
 
         Args:
-            slits (:class:`~pypeit.slittrace.SlitTraceSet`, optional):
+            slits (:class:`~pypeit.slittrace.SlitTraceSet`):
                 Slit edge traces
             force (:obj:`bool`, optional):
                 Force the image to be field flattened, even if the step log
                 (:attr:`steps`) indicates that it already has been.
-            method (:obj:`str`, optional):
-                Method to use to calculate the spatial flexure shift. Options
-                are 'detector' (default), 'slit', and 'edge'. The 'detector'
-                method calculates the shift for all slits simultaneously, the
-                'slit' method calculates the shift for each slit independently,
-                and the 'edge' method calculates the shift for each slit edge
-                independently.
-            maxlag (:obj:'float', optional):
-                Maximum range of lag values over which to compute the CCF.
+            manual_spat_flexure (:obj:`float`, optional):
+                Manually set the spatial flexure shift. If provided, this
+                value is used instead of calculating the shift. The default
+                value is `np.ma.masked`, which means the shift is calculated
+                from the image data. The only way this value is used is if
+                the user sets the `shift` parameter in their pypeit file to
+                be a float.
+            debug (:obj:`bool`, optional):
+                Run in debug mode.
 
         Return:
             `numpy.ndarray`_: The calculated flexure correction for the edge of each slit shape is (nslits, 2)
@@ -798,16 +814,93 @@ class RawImage:
         """
         step = inspect.stack()[0][3]
         if self.steps[step] and not force:
-            # Already field flattened
-            msgs.warn('Spatial flexure shift already calculated.')
-            return
+            # Spatial flexure already calculated
+            log.warning('Spatial flexure shift already calculated.')
+            return None
         if self.nimg > 1:
-            msgs.error('CODING ERROR: Must use a single image (single detector or detector '
+            raise PypeItError('CODING ERROR: Must use a single image (single detector or detector '
                        'mosaic) to determine spatial flexure.')
-        self.spat_flexure_shift = flexure.spat_flexure_shift(self.image[0], slits, method=method, maxlag=maxlag)
+
+        # Check if the slits are provided
+        if slits is None:
+            if not np.ma.is_masked(manual_spat_flexure):
+                log.warning('Manual spatial flexure provided without slits - assuming no spatial flexure.')
+            else:
+                log.warning('Cannot calculate spatial flexure without slits - assuming no spatial flexure.')
+            return None
+
+        # First check for manual flexure
+        qa_outfile = None
+        if not np.ma.is_masked(manual_spat_flexure):
+            log.info(f'Adopting a manual spatial flexure of {manual_spat_flexure} pixels')
+            spat_flexure = np.full((slits.nslits, 2), np.float64(manual_spat_flexure))
+        else:
+            # get filename for QA
+            root = outputfiles.strip_raw_extension(self.filename, self.spectrograph.allowed_extensions)
+            basename = f'{root}_{self.spectrograph.get_det_name(self.det)}'
+            outdir = str(Path(slits.calib_dir).parent) if slits.calib_dir is not None else None
+            qa_outfile = qa.set_qa_filename(basename, 'spat_flexure_qa_corr', out_dir=outdir)
+            # Now compute the spatial flexure shift.  NOTE: This is relative to
+            # the initial (traced) slit edges, which are the edges of the slits
+            # in the image; the tweaked edges are defined by the slit
+            # illumination profile, and can be inset by a few pixels.
+            spat_flexure, flexure_gpm \
+                    = flexure.spat_flexure_shift(self.image[0], slits, bpm=self._bpm[0],
+                                                 method=self.par['spat_flexure_method'],
+                                                 maxlag=self.par['spat_flexure_maxlag'],
+                                                 sigdetect=self.par['spat_flexure_sigdetect'],
+                                                 minfrac=self.par['spat_flexure_minfrac'],
+                                                 return_gpm=True, debug=debug)
+
+        # Each spectrograph can optionally post-process the (measured) spatial
+        # flexure values in their own way (by default, a polynomial fit as a
+        # function of the slit position, using only the slit edges with a
+        # measured spatial flexure).  A manual value is used as is, and there
+        # is nothing to fit if the spatial flexure was not measured for any
+        # slit edge (e.g. because the slit edges were not detected).
+        if self.par['spat_flexure_polyord'] is None or not np.ma.is_masked(manual_spat_flexure) \
+                or not np.any(flexure_gpm):
+            _spat_flexure = spat_flexure
+        else:
+            left, right, _ = slits.select_edges(initial=True, pad=-slits.get_pad())
+            slit_cen = 0.5 * (left + right)[left.shape[0] // 2, :]
+            _spat_flexure = self.spectrograph.spatial_flexure(spat_flexure,
+                                                              polyord=self.par['spat_flexure_polyord'],
+                                                              slit_cen=slit_cen, gpm=flexure_gpm)
+
+        # Print the flexure values
+        if np.all(_spat_flexure == _spat_flexure[0, 0]):
+            log.info(f'Spatial flexure: {_spat_flexure[0, 0]} pixels')
+        else:
+            # Print the flexure values for each slit separately
+            for slit in range(_spat_flexure.shape[0]):
+                if _spat_flexure[slit, 0] == _spat_flexure[slit, 1]:
+                    log.info(f'Spatial flexure (Slit {slits.spat_id[slit]}): '
+                             f'{_spat_flexure[slit, 0]:.2f} pixels')
+                else:
+                    log.info(
+                        f'Spatial flexure (Slit {slits.spat_id[slit]}): '
+                        f'left={_spat_flexure[slit, 0]:.2f} pixels; '
+                        f'right={_spat_flexure[slit, 1]:.2f} pixels'
+                    )
+
+        # 2D plot
+        if debug:
+            # Display QA as a debug plot
+            qa.spat_flexure_qa(self.image[0], slits, _spat_flexure, gpm=np.logical_not(self._bpm[0]), vrange=self.par['spat_flexure_vrange'])
+
+        # Save QA to file
+        if qa_outfile is not None:
+            # Generate the QA plot
+            qa.spat_flexure_qa(self.image[0], slits, _spat_flexure,
+                               gpm=np.logical_not(self._bpm[0]),
+                               vrange=self.par['spat_flexure_vrange'],
+                               outfile=qa_outfile)
+            log.info(f"Generated QA plot for spatial flexure:\n{qa_outfile}")
+
         self.steps[step] = True
         # Return
-        return self.spat_flexure_shift
+        return _spat_flexure
 
     def flatfield(self, flatimages, slits=None, force=False, debug=False):
         """
@@ -848,19 +941,19 @@ class RawImage:
         step = inspect.stack()[0][3]
         if self.steps[step] and not force:
             # Already field flattened
-            msgs.warn('Image was already flat fielded.')
+            log.warning('Image was already flat fielded.')
             return
 
         # Check input
         if flatimages.pixelflat_norm is None:
             # We cannot do any flat-field correction without a pixel flat (yet)
-            msgs.error("Flat fielding desired but not generated/provided.")
+            raise PypeItError("Flat fielding desired but not generated/provided.")
         if self.par['use_illumflat'] and slits is None:
-            msgs.error('Need to provide slits to create illumination flat.')
+            raise PypeItError('Need to provide slits to create illumination flat.')
         if self.par['use_specillum'] and flatimages.pixelflat_spec_illum is None:
-            msgs.error("Spectral illumination correction desired but not generated/provided.")
+            raise PypeItError("Spectral illumination correction desired but not generated/provided.")
         if self.nimg > 1:
-            msgs.error('CODING ERROR: Can only apply flat field to a single image (single '
+            raise PypeItError('CODING ERROR: Can only apply flat field to a single image (single '
                        'detector or detector mosaic).')
 
         # Generate the illumination flat, as needed
@@ -870,7 +963,7 @@ class RawImage:
             illum_flat = flatimages.fit2illumflat(slits, spat_flexure=self.spat_flexure_shift, finecorr=False)
             illum_flat *= flatimages.fit2illumflat(slits, spat_flexure=self.spat_flexure_shift, finecorr=True)
             if debug:
-                left, right = slits.select_edges(spat_flexure=self.spat_flexure_shift)
+                left, right, _ = slits.select_edges(spat_flexure=self.spat_flexure_shift)
                 viewer, ch = display.show_image(illum_flat, chname='illum_flat')
                 display.show_slits(viewer, ch, left, right)  # , slits.id)
                 #
@@ -878,7 +971,25 @@ class RawImage:
                 display.show_slits(viewer, ch, left, right)  # , slits.id)
 
         # Retrieve the relative spectral illumination profile
-        spec_illum = flatimages.pixelflat_spec_illum if self.par['use_specillum'] else 1.
+        spec_illum = 1.
+        if self.par['use_specillum']:
+            spec_illum = flatimages.pixelflat_spec_illum
+            # The relative spectral illumination is defined on the slits of the
+            # pixel flat (i.e., at the spatial flexure of the pixel flat).
+            # Remap it to the slits of this frame (i.e., at the spatial flexure
+            # of this frame), so that each slit is corrected by its own
+            # spectral illumination, including the pixels near the slit edges.
+            if slits is not None:
+                spec_illum = flexure.spat_flexure_remap(
+                    spec_illum, slits, spat_flexure=self.spat_flexure_shift,
+                    src_spat_flexure=flatimages.pixelflat_spat_flexure, initial=True)
+            elif np.any(np.asarray(0. if self.spat_flexure_shift is None
+                                   else self.spat_flexure_shift)
+                        != np.asarray(0. if flatimages.pixelflat_spat_flexure is None
+                                      else flatimages.pixelflat_spat_flexure)):
+                log.warning('Slits not provided; the relative spectral illumination cannot be '
+                            'corrected for the difference in spatial flexure between this frame '
+                            'and the pixel flat.')
 
         # Apply flat-field correction
         # NOTE: Using flat.flatfield to effectively multiply image*img_scale is
@@ -906,7 +1017,7 @@ class RawImage:
         step = inspect.stack()[0][3]
         # Check if already oriented
         if self.steps[step] and not force:
-            msgs.warn('Image was already oriented.')
+            log.warning('Image was already oriented.')
             return
         # Orient the image to have blue/red run bottom to top
         self.image = np.array([self.spectrograph.orient_image(d, i) 
@@ -939,11 +1050,11 @@ class RawImage:
         step = inspect.stack()[0][3]
         if self.steps[step] and not force:
             # Already bias subtracted
-            msgs.warn('Image was already bias subtracted.')
+            log.warning('Image was already bias subtracted.')
             return
         _bias = bias_image.image if self.nimg > 1 else np.expand_dims(bias_image.image, 0)
         if self.image.shape != _bias.shape:
-            msgs.error('Shape mismatch with bias image!')
+            raise PypeItError('Shape mismatch with bias image!')
         self.image -= _bias
         # TODO: Also incorporate the mask?
         if bias_image.ivar is not None and self.proc_var is not None:
@@ -1011,7 +1122,7 @@ class RawImage:
         _dark = dark_image.image if self.nimg > 1 else np.expand_dims(dark_image.image, 0)
         if self.image.shape != _dark.shape:
             # Shapes must match
-            msgs.error(f'Dark image shape mismatch; expected {self.image.shape}, '
+            raise PypeItError(f'Dark image shape mismatch; expected {self.image.shape}, '
                        f'found {_dark.shape}.')
 
         # Scale the observed dark counts by the ratio of the exposure times.
@@ -1028,7 +1139,7 @@ class RawImage:
                                       separator=',')
             drk_str = np.array2string(0.5*self.dark, formatter={'float_kind':lambda x: "%.2f" % x},
                                       separator=',')
-            msgs.warn(f'Dark-subtracted dark frame has significant signal remaining.  Median '
+            log.warning(f'Dark-subtracted dark frame has significant signal remaining.  Median '
                         f'counts are {med_str}; warning threshold = +/- {drk_str}.')
 
         # Combine the tabulated and observed dark values
@@ -1055,11 +1166,11 @@ class RawImage:
         step = inspect.stack()[0][3]
         if self.steps[step] and not force:
             # Already bias subtracted
-            msgs.warn('Image was already dark subtracted.')
+            log.warning('Image was already dark subtracted.')
             return
 
         if self.dark is None:
-            msgs.error('Dark image has not been created!  Run build_dark.')
+            raise PypeItError('Dark image has not been created!  Run build_dark.')
 
         self.image -= self.dark
         if self.dark_var is not None:
@@ -1081,7 +1192,7 @@ class RawImage:
         step = inspect.stack()[0][3]
         if self.steps[step] and not force:
             # Already overscan subtracted
-            msgs.warn("Image was already overscan subtracted!")
+            log.warning("Image was already overscan subtracted!")
             return
 
         # NOTE: procimg.subtract_overscan checks that the provided images all
@@ -1116,19 +1227,19 @@ class RawImage:
         step = inspect.stack()[0][3]
         if self.steps[step]:
             # Already pattern subtracted
-            msgs.warn("Image was already pattern subtracted!")
+            log.warning("Image was already pattern subtracted!")
             return
 
         # The image cannot have already been trimmed
         if self.oscansec_img.shape != self.image.shape:
-            msgs.error('Must estimate readnoise before trimming the image.')
+            raise PypeItError('Must estimate readnoise before trimming the image.')
 
         # Calculate the slit image
         _ps_img = [None]*self.nimg
         for i in range(self.nimg):
             # The image must have an overscan region for this to work.
             if not np.any(self.oscansec_img[i] > 0):
-                msgs.error('Image has no overscan region.  Pattern noise cannot be subtracted.')
+                raise PypeItError('Image has no overscan region.  Pattern noise cannot be subtracted.')
 
             patt_freqs = self.spectrograph.calc_pattern_freq(self.image[i], self.datasec_img[i],
                                                              self.oscansec_img[i], self.hdu)
@@ -1153,7 +1264,7 @@ class RawImage:
         step = inspect.stack()[0][3]
         if self.steps[step] and not force:
             # Already bias subtracted
-            msgs.warn('Image was already continuum subtracted.')
+            log.warning('Image was already continuum subtracted.')
             return
 
         # Generate the continuum image
@@ -1165,6 +1276,32 @@ class RawImage:
             self.image[ii,:,:] -= cont
         #cont = ndimage.median_filter(self.image, size=(1,101,3), mode='reflect')
         self.steps[step] = True
+
+    @staticmethod
+    def _scattlight_modpar(modpar):
+        """
+        Return a copy of a scattered-light parameter vector with the zero-level
+        removed.
+
+        Element 8 holds the constant flux offset (the "zero-level") of the
+        scattered-light model.  The zero-level is determined separately by the
+        fine-correction step, so it is set to zero here before the model is
+        evaluated.
+
+        Parameters
+        ----------
+        modpar : `numpy.ndarray`_
+            Scattered-light model parameters (e.g. from a calibration frame or
+            the spectrograph archive).
+
+        Returns
+        -------
+        `numpy.ndarray`_
+            A copy of ``modpar`` with element 8 set to 0.
+        """
+        _modpar = modpar.copy()
+        _modpar[8] = 0.0
+        return _modpar
 
     def subtract_scattlight(self, msscattlight, slits, debug=False):
         """
@@ -1185,11 +1322,11 @@ class RawImage:
         step = inspect.stack()[0][3]
         if self.steps[step]:
             # Already pattern subtracted
-            msgs.warn("The scattered light has already been subtracted from the image!")
+            log.warning("The scattered light has already been subtracted from the image!")
             return
 
-        if self.par["scattlight"]["method"] == "model" and msscattlight.scattlight_param is None:
-            msgs.warn("Scattered light parameters are not set. Cannot perform scattered light subtraction.")
+        if self.par["scattlight"]["method"] == "model" and (msscattlight is None or msscattlight.scattlight_param is None):
+            log.warning("Scattered light parameters are not set. Cannot perform scattered light subtraction.")
             return
 
         # Obtain some information that is needed for the scattered light
@@ -1209,14 +1346,12 @@ class RawImage:
             # Replace all bad pixels with the nearest good pixel
             full_bpm = self.bpm[ii, ...] | crmask
             _img = utils.replace_bad(self.image[ii, ...], full_bpm)
-            # Get a copy of the best-fitting model parameters
-            this_modpar = msscattlight.scattlight_param.copy()
-            this_modpar[8] = 0.0  # This is the zero-level of the scattlight frame. The zero-level is determined by the finecorr
             # Apply the requested method for the scattered light
             do_finecorr = self.par["scattlight"]["finecorr_method"] is not None
             if self.par["scattlight"]["method"] == "model":
-                # Use predefined model parameters
-                scatt_img = scattlight.scattered_light_model_pad(this_modpar, _img)
+                # Use the best-fitting model parameters from the calibration frame
+                scatt_img = scattlight.scattered_light_model_pad(
+                    self._scattlight_modpar(msscattlight.scattlight_param), _img)
                 if debug:
                     specbin, spatbin = parse.parse_binning(self.detector[0]['binning'])
                     tmp = msscattlight.scattlight_param.copy()
@@ -1234,7 +1369,7 @@ class RawImage:
                                f"               {tmp[13]}, {tmp[14]}, {tmp[15]}])  # Polynomial terms (coefficients of spec**index)\n"
                     print(strprint)
                     pad = msscattlight.pad // spatbin
-                    offslitmask = slits.slit_img(pad=pad, spat_flexure=None) == -1
+                    offslitmask = slits.slit_img(pad=pad, spat_flexure=self.spat_flexure_shift) == -1
                     from matplotlib import pyplot as plt
                     _frame = self.image[ii, ...]
                     vmin, vmax = 0, np.max(scatt_img)
@@ -1251,43 +1386,52 @@ class RawImage:
             elif self.par["scattlight"]["method"] == "archive":
                 # Use archival model parameters
                 arx_modpar, _ = self.spectrograph.scattered_light_archive(binning, dispname)
-                arx_modpar[8] = 0.0
                 if arx_modpar is None:
-                    msgs.error(f"{self.spectrograph.name} does not have archival scattered light parameters. Please "
-                               f"set 'scattlight_method' to another option.")
-                scatt_img = scattlight.scattered_light_model(arx_modpar, _img)
+                    raise PypeItError(f"{self.spectrograph.name} does not have archival scattered light parameters. "
+                                      f"Please set 'scattlight_method' to another option.")
+                scatt_img = scattlight.scattered_light_model(self._scattlight_modpar(arx_modpar), _img)
             elif self.par["scattlight"]["method"] == "frame":
-                # Calculate a model specific for this frame
-                pad = msscattlight.pad // spatbin
-                offslitmask = slits.slit_img(pad=pad, spat_flexure=None) == -1
+                # Calculate a model specific for this frame.
+                # Use pad from the scattlight calibration if available,
+                # otherwise fall back to finecorr_pad.
+                _pad = msscattlight.pad if msscattlight is not None \
+                    else self.par['scattlight']['finecorr_pad']
+                pad = _pad // spatbin
+                offslitmask = slits.slit_img(pad=pad, spat_flexure=self.spat_flexure_shift) == -1
                 # Get starting parameters for the scattered light model
                 x0, bounds = self.spectrograph.scattered_light_archive(binning, dispname)
                 # Perform a fit to the scattered light
                 scatt_img, _, success = scattlight.scattered_light(self.image[ii, ...], full_bpm, offslitmask,
                                                                    x0, bounds)
-                # If failure, revert back to the Scattered Light calibration frame model parameters
+                # If failure, revert back to predefined model parameters: prefer
+                # the scattered-light calibration frame, else the archive.
                 if not success:
                     if msscattlight is not None:
-                        msgs.warn("Scattered light model failed - using predefined model parameters")
-                        scatt_img = scattlight.scattered_light_model(this_modpar, _img)
+                        log.warning("Scattered light model failed - using predefined model parameters")
+                        fallback_modpar = msscattlight.scattlight_param
                     else:
-                        msgs.warn("Scattered light model failed - using archival model parameters")
-                        # Use archival model parameters
-                        arx_modpar, _ = self.spectrograph.scattered_light_archive(binning, dispname)
-                        arx_modpar[8] = 0.0
-                        scatt_img = scattlight.scattered_light_model(arx_modpar, _img)
+                        log.warning("Scattered light model failed - using archival model parameters")
+                        fallback_modpar, _ = self.spectrograph.scattered_light_archive(binning, dispname)
+                    scatt_img = scattlight.scattered_light_model(
+                        self._scattlight_modpar(fallback_modpar), _img)
+            elif self.par["scattlight"]["method"] == "gaps":
+                # Measure scattered light in inter-slit gaps and interpolate.
+                # Requires spectrograph to implement subtract_scattered_light_gaps().
+                offslitmask = slits.slit_img(spat_flexure=self.spat_flexure_shift) == -1
+                scatt_img = self.spectrograph.subtract_scattered_light_gaps(
+                    self.image[ii, ...], offslitmask)
             else:
-                msgs.warn("Scattered light not performed")
+                log.warning("Scattered light not performed")
                 scatt_img = np.zeros(self.image[ii, ...].shape)
                 do_finecorr = False
             # Check if a fine correction to the scattered light should be applied
             if do_finecorr:
                 pad = self.par['scattlight']['finecorr_pad'] // spatbin
-                offslitmask = slits.slit_img(pad=pad, spat_flexure=None) == -1
+                offslitmask = slits.slit_img(pad=pad, spat_flexure=self.spat_flexure_shift) == -1
                 # Check if the user wishes to mask some inter-slit regions
                 if self.par['scattlight']['finecorr_mask'] is not None:
                     # Get the central trace of each slit
-                    left, right, _ = slits.select_edges(spat_flexure=None)
+                    left, right, _ = slits.select_edges(spat_flexure=self.spat_flexure_shift)
                     centrace = 0.5*(left+right)
                     # Now mask user-defined inter-slit regions
                     offslitmask = scattlight.mask_slit_regions(offslitmask, centrace,
@@ -1317,11 +1461,11 @@ class RawImage:
             # Image *must* have been trimmed already because shape does not
             # match raw image
             self.steps[step] = True
-            msgs.warn('Image shape does not match raw image.  Assuming it was already trimmed.')
+            log.warning('Image shape does not match raw image.  Assuming it was already trimmed.')
             return
         if self.steps[step] and not force:
             # Already trimmed
-            msgs.warn('Image was already trimmed.')
+            log.warning('Image was already trimmed.')
             return
         self.image = np.array([procimg.trim_frame(i, d < 1)
                                for i, d in zip(self.image, self.datasec_img)])
@@ -1356,12 +1500,12 @@ class RawImage:
         if self.nimg == 1:
             # NOTE: This also catches cases where the mosaicing has already been
             # performed.
-            msgs.warn('There is only one image, so there is nothing to mosaic!')
+            log.warning('There is only one image, so there is nothing to mosaic!')
             return
 
         # Check that the mosaicing is allowed
         if not self.steps['trim'] or not self.steps['orient']:
-            msgs.error('Images must be trimmed and PypeIt-oriented before mosaicing.')
+            raise PypeItError('Images must be trimmed and PypeIt-oriented before mosaicing.')
 
         # Create images that will track which detector contributes to each pixel
         # in the mosaic.  These images are created here first *before*

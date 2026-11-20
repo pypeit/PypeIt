@@ -34,6 +34,7 @@ instrument-specific details for running PypeIt.
    :maxdepth: 1
 
    aat_uhrf
+   apf_levy
    gemini_flamingos2
    gemini_gmos
    gemini_gnirs
@@ -48,14 +49,20 @@ instrument-specific details for running PypeIt.
    ldt_deveny
    mage
    magellan_fire
+   magellan_ldss3
    mdm_osmos
    mmt_binospec
+   mmt_binospec_pipeline_comparison
    mmt_bluechannel
    mmt_mmirs
    not_alfosc
    ntt_efosc2
+   p200_ngps
    shane_kast
    soar_goodman
+   soar_triplespec
+   subaru_focas
+   vlt_uves
    xshooter
 
 

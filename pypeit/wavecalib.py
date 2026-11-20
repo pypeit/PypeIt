@@ -14,12 +14,14 @@ from pypeit.utils import jsonify
 from astropy.table import Table
 from astropy.io import fits
 
-from pypeit import msgs
-from pypeit.core import arc, qa
+from pypeit import log
+from pypeit import utils
+from pypeit import PypeItError
+from pypeit import qa
+from pypeit.core import arc
 from pypeit.core import fitting
 from pypeit.core import parse
 from pypeit.core.wavecal import autoid, wv_fitting, wvutils
-from pypeit.core.gui.identify import Identify
 from pypeit import datamodel
 from pypeit import calibframe
 from pypeit.core.wavecal import echelle
@@ -82,7 +84,7 @@ class WaveCalib(calibframe.CalibFrame):
                  PYP_SPEC=None, strpar=None, wv_fit2d=None, arc_spectra=None, lamps=None,
                  det_img=None):
         # Parse
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
@@ -100,7 +102,7 @@ class WaveCalib(calibframe.CalibFrame):
 
         # Spat_ID are always first
         if self.spat_ids is None:
-            msgs.error('Cannot write WaveCalib without spat_ids!')
+            raise PypeItError('Cannot write WaveCalib without spat_ids!')
         _d.append(dict(spat_ids=self.spat_ids))
         # Echelle orders
         if self.ech_orders is not None:
@@ -256,7 +258,7 @@ class WaveCalib(calibframe.CalibFrame):
 
         """
         if not np.array_equal(self.spat_ids, slits.spat_id):
-            msgs.error('Your wavelength solutions are out of sync with your slits.  Remove '
+            raise PypeItError('Your wavelength solutions are out of sync with your slits.  Remove '
                        'Calibrations and restart from scratch.')
 
     def build_fwhmimg(self, tilts, slits, initial=False, spat_flexure=None):
@@ -283,13 +285,18 @@ class WaveCalib(calibframe.CalibFrame):
         """
         # Check spatial flexure type
         if (spat_flexure is not None) and (not isinstance(spat_flexure, np.ndarray)):
-            msgs.error("Spatial flexure must be None or numpy.ndarray.")
+            raise PypeItError("Spatial flexure must be None or numpy.ndarray.")
         # Generate the slit mask and slit edges - pad slitmask by 1 for edge effects
         slitmask = slits.slit_img(pad=1, initial=initial, spat_flexure=spat_flexure)
         slits_left, slits_right, _ = slits.select_edges(initial=initial, spat_flexure=spat_flexure)
+        # need to exclude slits that are masked (are bad)
+        bad_slits = slits.bitmask.flagged(slits.mask, and_not=slits.bitmask.exclude_for_reducing)
+        ok_spat_ids = slits.spat_id[np.logical_not(bad_slits)]
         # Build a map of the spectral FWHM
         fwhmimg = np.zeros(tilts.shape)
         for sl, spat_id in enumerate(slits.spat_id):
+            if spat_id not in ok_spat_ids:
+                continue
             this_mask = slitmask == spat_id
             spec, spat = np.where(this_mask)
             spat_loc = (spat - slits_left[spec, sl]) / (slits_right[spec, sl] - slits_left[spec, sl])
@@ -328,7 +335,7 @@ class WaveCalib(calibframe.CalibFrame):
         """
         # Check spatial flexure type
         if (spat_flexure is not None) and (not isinstance(spat_flexure, np.ndarray)):
-            msgs.error("Spatial flexure must be None or numpy.ndarray")
+            raise PypeItError("Spatial flexure must be None or numpy.ndarray")
         # Check spectral flexure type
         if spec_flexure is None: spec_flex = np.zeros(slits.nslits)
         elif isinstance(spec_flexure, float): spec_flex = spec_flexure*np.ones(slits.nslits)
@@ -338,39 +345,33 @@ class WaveCalib(calibframe.CalibFrame):
         spec_flex /= (slits.nspec - 1)
 
         # Setup
-        #ok_slits = slits.mask == 0
-#        bpm = slits.mask.astype(bool)
-#        bpm &= np.logical_not(slits.bitmask.flagged(slits.mask, flag=slits.bitmask.exclude_for_reducing))
         bpm = slits.bitmask.flagged(slits.mask, and_not=slits.bitmask.exclude_for_reducing)
         ok_slits = np.logical_not(bpm)
         #
         image = np.zeros_like(tilts)
+        # Grab slit_img
         slitmask = slits.slit_img(spat_flexure=spat_flexure, exclude_flag=slits.bitmask.exclude_for_reducing)
 
         # Separate detectors for the 2D solutions?
         if self.par['ech_separate_2d']:
             # Error checking
             if self.det_img is None:
-                msgs.error("This WaveCalib object was not generated with ech_separate_2d=True")
-            # Grab slit_img
-            slit_img = slits.slit_img()
-        
+                raise PypeItError("This WaveCalib object was not generated with ech_separate_2d=True")
+
         # Unpack some 2-d fit parameters if this is echelle
         for islit in np.where(ok_slits)[0]:
             slit_spat = slits.spat_id[islit]
             thismask = (slitmask == slit_spat)
             if not np.any(thismask):
-                msgs.error("Something failed in wavelengths or masking..")
+                raise PypeItError("Something failed in wavelengths or masking..")
             if self.par['echelle'] and self.par['ech_2dfit']:
                 # evaluate solution --
                 if self.par['ech_separate_2d']:
-                    ordr_det = slits.det_of_slit(
-                        slit_spat, self.det_img,
-                        slit_img=slit_img)
+                    ordr_det = slits.det_of_slit(slit_spat, self.det_img, slit_img=slitmask)
                     # There are ways for this to go sour..
-                    #  if the seperate solutions are not aligned with the detectors
+                    #  if the separate solutions are not aligned with the detectors
                     #  or if one reruns with a different number of detectors
-                    #  without regeneating
+                    #  without regenerating
                     #  But that would be bad practice
                     idx_fit2d = ordr_det-1  
                 else:
@@ -465,6 +466,13 @@ class BuildWaveCalib:
         par (:class:`~pypeit.par.pypeitpar.WavelengthSolutionPar`):
             The parameters used for the wavelength solution.
             Uses ``['calibrations']['wavelengths']``.
+        lamps (list):
+            List of lamps used for the wavelength calibration
+        spat_flexure (`numpy.ndarray`_, optional):
+            If provided, this is the shift, in spatial pixels, to
+            the slit edges. Shape is (nslits, 2), where nslits is
+            the number of slits, spat_flexure[:,0] is for the left
+            edges, and spat_flexure[:,1] is for the right edges.
         meta_dict (dict, optional):
             Dictionary containing meta information required for wavelength
             calibration. Specifically for non-fixed format echelles this dict
@@ -507,12 +515,12 @@ class BuildWaveCalib:
     frametype = 'wv_calib'
 
     def __init__(self, msarc, slits, spectrograph, par, lamps,
-                 meta_dict=None, det=1, qa_path=None, msbpm=None):
+                 spat_flexure=None, meta_dict=None, det=1, qa_path=None, msbpm=None):
 
         # TODO: This should be a stop-gap to avoid instantiation of this with
         # any Nones.
         if None in [msarc, slits, spectrograph, par, lamps]:
-            msgs.error('CODING ERROR: Cannot instantiate BuildWaveCalib with Nones.')
+            raise PypeItError('CODING ERROR: Cannot instantiate BuildWaveCalib with Nones.')
 
         # Required parameters
         self.msarc = msarc
@@ -522,11 +530,16 @@ class BuildWaveCalib:
         self.par = par
         self.lamps = lamps
         self.meta_dict = meta_dict
+        self.spat_flexure = spat_flexure
 
         # Optional parameters
-        self.bpm = self.msarc.select_flag(flag='BPM') if msbpm is None else msbpm.astype(bool)
+        # Mask BPM and CR-flagged pixels: when residual CR rejection runs without
+        # filling, CR pixels still carry their original (contaminated) values, so
+        # they must be excluded from line centroiding.
+        self.bpm = self.msarc.select_flag(flag=['BPM', 'CR']) if msbpm is None \
+                    else msbpm.astype(bool)
         if self.bpm.shape != self.msarc.shape:
-            msgs.error('Bad-pixel mask is not the same shape as the arc image.')
+            raise PypeItError('Bad-pixel mask is not the same shape as the arc image.')
         self.qa_path = qa_path
         self.det = det
 
@@ -554,30 +567,29 @@ class BuildWaveCalib:
             # Redo?
             if self.par['redo_slits'] is not None:
                 if self.par['echelle'] and self.slits.ech_order is not None:
-                    idx = np.in1d(self.slits.ech_order, self.par['redo_slits'])
+                    idx = np.isin(self.slits.ech_order, self.par['redo_slits'])
                     # Turn off mask
                     self.slits.mask[idx] = self.slits.bitmask.turn_off(
                             self.slits.mask[idx], 'BADWVCALIB')
                 else:
-                    idx = np.in1d(self.slits.spat_id, self.par['redo_slits'])
+                    idx = np.isin(self.slits.spat_id, self.par['redo_slits'])
                     self.slits.mask[idx] = self.slits.bitmask.turn_off(
                             self.slits.mask[idx], 'BADWVCALIB')
 
             # Load up slits
-            # TODO -- Allow for flexure
-            slits_left, slits_right, mask = self.slits.select_edges(initial=True, spat_flexure=None)  # Grabs all, init slits + flexure
+            slits_left, slits_right, mask = self.slits.select_edges(initial=True, spat_flexure=self.spat_flexure)
             self.orders = self.slits.ech_order  # Can be None
 #            self.spat_coo = self.slits.spatial_coordinates()  # All slits, even masked
             # Internal mask for failed wv_calib analysis
             # TODO -- Allow for an option to re-attempt those previously flagged as BADWVCALIB?
-            self.wvc_bpm = np.invert(mask == 0)
+            self.wvc_bpm = np.logical_not(mask == 0)
             ## We want to keep the 'BOXSLIT', which mask value is 2. But we don't want to keep 'BOXSLIT'
             ## with other bad flag (for which the mask value would be > 2)
             #self.wvc_bpm = mask > 2
             self.wvc_bpm_init = self.wvc_bpm.copy()
             # Slitmask -- Grabs only unmasked, initial slits
             #self.slitmask_science = self.slits.slit_img(initial=True, flexure=None, exclude_flag=['BOXSLIT'])
-            self.slitmask_science = self.slits.slit_img(initial=True, spat_flexure=None)
+            self.slitmask_science = self.slits.slit_img(initial=True, spat_flexure=self.spat_flexure)
             # Resize
             self.shape_science = self.slitmask_science.shape
             self.shape_arc = self.msarc.image.shape
@@ -595,7 +607,6 @@ class BuildWaveCalib:
             #   They will be excised in the detect_lines() method on the extracted arc
             if self.par['method'] != 'full_template':
                 self.gpm &= self.msarc.image < self.nonlinear_counts
-
         else:
             self.orders = None
             self.wvc_bpm = None
@@ -633,11 +644,14 @@ class BuildWaveCalib:
             dict:  self.wv_calib
         """
         # Obtain a list of good slits
-        ok_mask_idx = np.where(np.invert(self.wvc_bpm))[0]
+        ok_mask_idx = np.where(np.logical_not(self.wvc_bpm))[0]
+        # Set to True if the slits are calibrated using a stack of their arc
+        # spectra (see calibrate_with_stack)
+        self.used_stack = False
 
         # print to screen the slit widths if maskdef_designtab is available
         if self.slits.maskdef_designtab is not None:
-            msgs.info("Slit widths (arcsec): {}".format(np.round(self.slits.maskdef_designtab['SLITWID'].data, 2)))
+            log.info("Slit widths (arcsec): {}".format(np.round(self.slits.maskdef_designtab['SLITWID'].data, 2)))
 
         # Generate a map of the instrumental spectral FWHM
         # TODO nsample should be a parameter
@@ -669,14 +683,18 @@ class BuildWaveCalib:
             raise NotImplementedError('method = identify not yet implemented')
             final_fit = {}
             # Manually identify lines
-            msgs.info("Initializing the wavelength calibration tool")
+            log.info("Initializing the wavelength calibration tool")
             #embed(header='line 222 wavecalib.py')
             for slit_idx in ok_mask_idx:
                 arcfitter = Identify.initialise(arccen, self.lamps, self.slits, slit=slit_idx, par=self.par)
                 final_fit[str(slit_idx)] = arcfitter.get_results()
                 arcfitter.store_solution(final_fit[str(slit_idx)], "", self.binspectral,
-                                         specname=self.spectrograph.name,
-                                         gratname="UNKNOWN", dispangl="UNKNOWN")
+                                         # JTS: Commented out as it seems the
+                                         # store solution function does not
+                                         # take these arguments anymore.
+                                         # specname=self.spectrograph.name,
+                                         # gratname="UNKNOWN", dispangl="UNKNOWN"
+                                         )
         elif method == 'reidentify':
             # Now preferred
             # Slit positions
@@ -690,32 +708,79 @@ class BuildWaveCalib:
             patt_dict, final_fit = arcfitter.get_results()
 
             # Grab arxiv for redo later?
-            if self.par['echelle']: 
+            if self.par['echelle']:
                 # Hold for later usage
                 self.wave_soln_arxiv, self.arcspec_arxiv = arcfitter.get_arxiv(self.orders)
                 self.arccen = arccen
         elif method == 'full_template':
             # Now preferred
             if self.binspectral is None:
-                msgs.error("You must specify binspectral for the full_template method!")
-            final_fit, order_vec = autoid.full_template(arccen, self.lamps, self.par, ok_mask_idx, self.det,
-                                             self.binspectral, slit_ids=self.slits.slitord_id,
-                                             measured_fwhms=self.measured_fwhms,
-                                             nonlinear_counts=self.nonlinear_counts,
-                                             nsnippet=self.par['nsnippet'], 
-                                             x_percentile=self.par['cc_percent_ceil'])
+                raise PypeItError("You must specify binspectral for the full_template method!")
+            final_fit = None
+            if self.par['stack_slits']:
+                if self.par['echelle']:
+                    log.warning('stack_slits is not available for echelle data; ignoring.')
+                else:
+                    # Calibrate a stack of the arc spectra of all slits, and use
+                    # it to calibrate each slit
+                    final_fit = self.calibrate_with_stack(arccen, ok_mask_idx, skip_QA=skip_QA)
+                    order_vec = None
+            if final_fit is None:
+                final_fit, order_vec = autoid.full_template(arccen, self.lamps, self.par, ok_mask_idx,
+                                                            self.det, self.binspectral,
+                                                            slit_ids=self.slits.slitord_id,
+                                                            measured_fwhms=self.measured_fwhms,
+                                                            nonlinear_counts=self.nonlinear_counts,
+                                                            nsnippet=self.par['nsnippet'],
+                                                            x_percentile=self.par['cc_percent_ceil'])
 
+            # For SlicerIFU, the wavelength coverage should be roughly the same for all slices, so if just one slit
+            # successfully calibrated, try this as the template.  This is not
+            # needed if the slits have already been calibrated with a stack.
+            refslit = self.par['reference_slit']
+            if (self.spectrograph.pypeline == "SlicerIFU") and refslit is not None \
+                    and not self.used_stack:
+                refslitidx = self.reference_slit_index(refslit)
+                if final_fit[str(refslitidx)] is None or final_fit[str(refslitidx)].pypeitfit is None:
+                    raise PypeItError(f'The wavelength calibration of the reference slit ({refslit}) '
+                                      'failed, so it cannot be used to calibrate the other slits.  Choose '
+                                      'a different reference_slit (see the Arc_1dfit QA plots of a run '
+                                      'without reference_slit), or set stack_slits = True.')
+                log.info(f"Attempting to wavelength calibrate all slits using the solution from slit {refslit}")
+                # Generate a template dict
+                template_dict = {'wave': final_fit[str(refslitidx)].wave_soln,
+                                 'spec': final_fit[str(refslitidx)].spec,
+                                 'bin': self.binspectral,
+                                 'order': self.slits.ech_order if self.slits.ech_order is not None else None,
+                                 'lines_pix': None,
+                                 'lines_wav': None,
+                                 'lines_fit_ord': None}
+                final_fit, order_vec = autoid.full_template(arccen, self.lamps, self.par, ok_mask_idx, self.det,
+                                                            self.binspectral, slit_ids=self.slits.slitord_id,
+                                                            measured_fwhms=self.measured_fwhms,
+                                                            nonlinear_counts=self.nonlinear_counts,
+                                                            nsnippet=self.par['nsnippet'],
+                                                            x_percentile=self.par['cc_percent_ceil'],
+                                                            template_dict=template_dict)
             # Grab arxiv for redo later?
             if self.par['echelle']: 
                 # Hold for later usage
                 self.slits.ech_order = order_vec[:self.slits.nslits]
                 self.arccen = arccen
         elif self.par['method'] == 'echelle':
-            # Echelle calibration files
-            angle_fits_file, composite_arc_file = self.spectrograph.get_echelle_angle_files()
+            # Echelle calibration files: from the (possibly config-specific)
+            # parameters if set, otherwise from the spectrograph class
+            angle_fits_file = self.par['ech_angle_fits_file']
+            composite_arc_file = self.par['ech_composite_arc_file']
+            if (angle_fits_file is None) != (composite_arc_file is None):
+                raise PypeItError('ech_angle_fits_file and ech_composite_arc_file must be '
+                                  'set together (or both left unset).')
+            if angle_fits_file is None:
+                angle_fits_file, composite_arc_file = \
+                        self.spectrograph.get_echelle_angle_files()
 
             # Identify the echelle orders
-            msgs.info("Finding the echelle orders")
+            log.info("Finding the echelle orders")
             order_vec, wave_soln_arxiv, arcspec_arxiv = echelle.identify_ech_orders(
                     arccen, self.meta_dict['echangle'],
                     self.meta_dict['xdangle'],
@@ -723,10 +788,12 @@ class BuildWaveCalib:
                     angle_fits_file,
                     composite_arc_file,
                     pad=self.par['echelle_pad'],
-                    cc_percent_ceil = self.par['cc_percent_ceil'], debug=False)
+                    cc_percent_ceil = self.par['cc_percent_ceil'],
+                    cc_synth_arc=self.par['cc_synth_arc'],
+                    debug=False)
             # Put the order numbers in the slit object
             self.slits.ech_order = order_vec
-            msgs.info(f"The observation covers the following orders: {order_vec}")
+            log.info(f"The observation covers the following orders: {order_vec}")
 
             patt_dict, final_fit = autoid.echelle_wvcalib(
                 arccen, order_vec, arcspec_arxiv, wave_soln_arxiv,
@@ -742,10 +809,10 @@ class BuildWaveCalib:
             self.arccen = arccen
 
         else:
-            msgs.error('Unrecognized wavelength calibration method: {:}'.format(method))
+            raise PypeItError('Unrecognized wavelength calibration method: {:}'.format(method))
 
         # Build the DataContainer
-        if self.par['redo_slits'] is not None:
+        if self.par['redo_slits'] is not None and prev_wvcalib is not None:
             # If we are only redoing slits, we start from the
             #  previous wv_calib and update only the (good) redone slits
             self.wv_calib = prev_wvcalib
@@ -796,9 +863,9 @@ class BuildWaveCalib:
 
         # QA
         if not skip_QA:
-            ok_mask_idx = np.where(np.invert(self.wvc_bpm))[0]
+            ok_mask_idx = np.where(np.logical_not(self.wvc_bpm))[0]
             for slit_idx in ok_mask_idx:
-                msgs.info(f"Preparing wavelength calibration QA for slit {slit_idx+1}/{self.slits.nslits}")
+                log.info(f"Preparing wavelength calibration QA for slit {slit_idx+1}/{self.slits.nslits}")
                 # Obtain the output QA name for the wavelength solution
                 outfile = qa.set_qa_filename(
                     self.wv_calib.calib_key, 'arc_fit_qa', 
@@ -821,6 +888,92 @@ class BuildWaveCalib:
         # Return
         self.steps.append(inspect.stack()[0][3])
         return self.wv_calib
+
+    def reference_slit_index(self, refslit:int) -> int:
+        """
+        Return the index of the slit with the provided slit (or order) ID.
+
+        Args:
+            refslit (int):
+                The slit ID (see ``slitord_id`` of
+                :class:`~pypeit.slittrace.SlitTraceSet`).
+
+        Returns:
+            int: The index of the slit.
+        """
+        refslitidx = np.argmin(np.abs(self.slits.slitord_id-refslit))
+        if refslit != self.slits.slitord_id[refslitidx]:
+            raise PypeItError(f"Reference slit {refslit} not found in the slits. "
+                              f"Check your reference slit or slit IDs.")
+        return refslitidx
+
+    def calibrate_with_stack(self, arccen:np.ndarray, ok_mask_idx:np.ndarray, skip_QA:bool=False):
+        """
+        Wavelength calibrate all slits using a stack of their arc spectra.
+
+        The arc spectra of all good slits are aligned to that of a reference
+        slit and combined into a single arc spectrum with a higher S/N (see
+        :func:`~pypeit.core.wavecal.autoid.stack_arc_spectra`).  The reference
+        slit is set by the ``reference_slit`` parameter or, if that is not set,
+        it is the slit with the most detected arc lines (see
+        :func:`~pypeit.core.wavecal.autoid.select_reference_slit`).  The stack
+        is calibrated using the archived template (``reid_arxiv``), and the
+        calibrated stack is then used to calibrate each slit; see
+        :func:`~pypeit.core.wavecal.autoid.full_template_stack`.
+
+        Args:
+            arccen (`numpy.ndarray`_):
+                Arc spectra of all slits.  Shape is (nspec, nslit).
+            ok_mask_idx (`numpy.ndarray`_):
+                Indices of the good slits.
+            skip_QA (bool, optional):
+                Skip the QA plot of the wavelength solution of the stack.
+
+        Returns:
+            :obj:`dict`: The wavelength solution for each slit (see
+            :func:`~pypeit.core.wavecal.autoid.full_template`), or None if the
+            stack could not be calibrated.
+        """
+        nslit = arccen.shape[1]
+        if len(ok_mask_idx) == 0:
+            return None
+
+        # Select the reference slit
+        refslit = self.par['reference_slit']
+        if refslit is not None:
+            ref_idx = self.reference_slit_index(refslit)
+            if ref_idx not in ok_mask_idx:
+                log.warning(f'Reference slit {refslit} is masked, so the arc stack cannot be built. '
+                            'Calibrating each slit independently.')
+                return None
+        else:
+            sigdetect = np.array([wvutils.parse_param(self.par, 'sigdetect', i) for i in range(nslit)])
+            fwhms = np.array([autoid.set_fwhm(self.par, measured_fwhm=self.measured_fwhms[i])
+                              if i in ok_mask_idx else self.par['fwhm'] for i in range(nslit)])
+            ref_idx = autoid.select_reference_slit(arccen, ok_mask_idx, sigdetect=sigdetect, fwhm=fwhms,
+                                                   nonlinear_counts=self.nonlinear_counts)
+        ref_id = self.slits.slitord_id[ref_idx]
+        log.info(f'Stacking the arc spectra of all slits, using slit {ref_id} as the reference.')
+
+        # Calibrate the stack and then each slit
+        final_fit, stack_fit, used = autoid.full_template_stack(
+            arccen, self.lamps, self.par, ok_mask_idx, self.det, self.binspectral, ref_idx,
+            self.measured_fwhms, slit_ids=self.slits.slitord_id,
+            nonlinear_counts=self.nonlinear_counts)
+
+        # QA of the wavelength solution of the stack
+        calib_key = getattr(self.msarc, 'calib_key', None)
+        if not skip_QA and calib_key is not None and stack_fit is not None:
+            outfile = qa.set_qa_filename(calib_key, 'arc_stack_fit_qa', out_dir=self.qa_path)
+            autoid.arc_fit_qa(stack_fit, outfile=outfile, log=self.par['qa_log'],
+                              title=f'Arc Fit QA for the stack of {np.sum(used)} slits '
+                                    f'(reference slit/order: {ref_id})')
+
+        if final_fit is None:
+            log.warning('Could not calibrate the arc stack.  Calibrating each slit independently.')
+            return None
+        self.used_stack = True
+        return final_fit
 
     def redo_echelle_orders(self, bad_orders:np.ndarray, dets:np.ndarray, order_dets:np.ndarray,
                             bad_orders_maxfrac:float=0.1, frac_rms_thresh:float=1.1):
@@ -846,14 +999,14 @@ class BuildWaveCalib:
         fixed = False
 
         for idet in range(len(dets)):
-            in_det = np.in1d(bad_orders, order_dets[idet])
+            in_det = np.isin(bad_orders, order_dets[idet])
             if not np.any(in_det):
                 continue
-            msgs.info(f"Attempting to refit bad orders in detector={dets[idet]}")
+            log.info(f"Attempting to refit bad orders in detector={dets[idet]}")
             # Are there few enough?
             max_bad = int(len(order_dets[idet])*bad_orders_maxfrac)
             if np.sum(in_det) > max_bad:
-                msgs.warn(f"Too many bad orders in detector={dets[idet]} to attempt a refit.")
+                log.warning(f"Too many bad orders in detector={dets[idet]} to attempt a refit.")
                 continue
             # Loop
             for order in bad_orders[in_det]:
@@ -878,7 +1031,7 @@ class BuildWaveCalib:
                 fwhm=fwhm)
 
                 if not patt_dict_slit['acceptable']:
-                    msgs.warn(f"Order {order} is still not acceptable after attempt to reidentify.")
+                    log.warning(f"Order {order} is still not acceptable after attempt to reidentify.")
                     continue
 
                 # Fit me -- RMS may be too high again
@@ -892,11 +1045,14 @@ class BuildWaveCalib:
                     sigrej_first=self.par['sigrej_first'],
                     n_final=n_final, 
                     sigrej_final=self.par['sigrej_final'])
-                msgs.info(f"New RMS for redo of order={order}: {final_fit['rms']}")
+                if final_fit is None:
+                    log.warning(f"Order {order} could not be fit after attempt to reidentify.")
+                    continue
+                log.info(f"New RMS for redo of order={order}: {final_fit['rms']}")
 
                 # Keep?
                 if final_fit['rms'] < frac_rms_thresh*wave_rms_thresh:
-                    msgs.info('Updating wavelength solution.')
+                    log.info('Updating wavelength solution.')
                     # TODO -- This is repeated from build_wv_calib()
                     #  Would be nice to consolidate
                     # QA
@@ -916,7 +1072,7 @@ class BuildWaveCalib:
                     self.wvc_bpm[iord] = False
                     fixed = True
                 else:
-                    msgs.warn(f'New RMS is too high (>{frac_rms_thresh}xRMS threshold). '
+                    log.warning(f'New RMS is too high (>{frac_rms_thresh}xRMS threshold). '
                               f'Not updating wavelength solution.')
         #
         return fixed
@@ -949,9 +1105,9 @@ class BuildWaveCalib:
             List of integer lists providing list of the orders.
         """
         if self.spectrograph.pypeline != 'Echelle':
-            msgs.error('Cannot execute echelle_2dfit for a non-echelle spectrograph.')
+            raise PypeItError('Cannot execute echelle_2dfit for a non-echelle spectrograph.')
 
-        msgs.info('Fitting 2-d wavelength solution for echelle....')
+        log.info('Fitting 2-d wavelength solution for echelle....')
 
         # Obtain a list of good slits
         ok_mask_idx = np.where(np.logical_not(self.wvc_bpm))[0]
@@ -960,8 +1116,7 @@ class BuildWaveCalib:
 
         # Prep
         if self.par['ech_separate_2d']:
-            slit_img = self.slits.slit_img()
-            # Grab the detectors in the mosaice (1-based indexing)
+            # Grab the detectors in the mosaic (1-based indexing)
             dets = np.unique(self.msarc.det_img)
             dets = dets[dets > 0]
         else:
@@ -973,7 +1128,7 @@ class BuildWaveCalib:
         save_order_dets = []
         for idet in dets:
             order_in_dets = []
-            msgs.info('Fitting detector {:d}'.format(idet))
+            log.info('Fitting detector {:d}'.format(idet))
             # Init
             all_wave = np.array([], dtype=float)
             all_pixel = np.array([],dtype=float)
@@ -989,7 +1144,7 @@ class BuildWaveCalib:
                     # What is the most common detector for this order?
                     ordr_det = self.slits.det_of_slit(
                         spat_id, self.msarc.det_img,
-                        slit_img=slit_img)
+                        slit_img=self.slitmask)
                     # Correct detector?
                     if ordr_det != idet:
                         continue
@@ -1010,7 +1165,7 @@ class BuildWaveCalib:
 
             # Fit
             if len(all_order) < 2:
-                msgs.warn(f"Fewer than 2 orders to fit for detector {idet}.  Skipping")
+                log.warning(f"Fewer than 2 orders to fit for detector {idet}.  Skipping")
                 save_order_dets.append([])
                 # Add a dummy fit
                 fit2ds.append(fitting.PypeItFit())
@@ -1028,7 +1183,7 @@ class BuildWaveCalib:
             # QA
             if not skip_QA:
                 if wv_calib.calib_key is None:
-                    msgs.warn('WaveCalib object provided does not have a defined calibration '
+                    log.warning('WaveCalib object provided does not have a defined calibration '
                               'key.  The QA files will not include this key in the file name, '
                               'meaning that existing QA files may be overwritten.')
                     calib_key = '' 
@@ -1075,11 +1230,15 @@ class BuildWaveCalib:
             boolean array containing a mask indicating which slits are good. True
             = masked (bad).
         """
+        # Allow the spectrograph to adjust extraction centers (e.g. snap
+        # to nearest fiber for fiber-fed IFUs instead of block-slit midpoint)
+        slitcen = self.spectrograph.get_arc_extract_center(
+            self.slitcen, self.slits, self.det)
         # Do it on the slits not masked in self.slitmask
         arccen, arccen_bpm, arc_maskslit = arc.get_censpec(
-            self.slitcen, self.slitmask, self.msarc.image,
+            slitcen, self.slitmask, self.msarc.image,
             gpm=self.gpm, slit_bpm=self.wvc_bpm,
-            slitIDs=slitIDs)
+            slitIDs=slitIDs, box_rad=self.par['boxcar_radius'])
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -1150,7 +1309,7 @@ class BuildWaveCalib:
             bad_rms = rms > wave_rms_thresh
             if np.any(bad_rms):
                 self.wvc_bpm[bad_rms] = True
-                msgs.warn("Masking one or more bad orders (RMS)")
+                log.warning("Masking one or more bad orders (RMS)")
             # Fit
             fit2ds, dets, order_dets = self.echelle_2dfit(
                 self.wv_calib, skip_QA = skip_QA, debug=debug)
@@ -1176,13 +1335,13 @@ class BuildWaveCalib:
 
             # Check that we have at least one good 2D fit
             if not np.any([fit2d.success for fit2d in self.wv_calib.wv_fit2d]):
-                msgs.error("No successful 2D Wavelength fits.  Cannot proceed.")
+                raise PypeItError("No successful 2D Wavelength fits.  Cannot proceed.")
 
         # Deal with mask
         self.update_wvmask()
 
         # Any masked during this analysis?
-        wv_masked = np.where(np.invert(self.wvc_bpm_init) & self.wvc_bpm)[0]
+        wv_masked = np.where(np.logical_not(self.wvc_bpm_init) & self.wvc_bpm)[0]
         if len(wv_masked) > 0:
             self.slits.mask[wv_masked] = self.slits.bitmask.turn_on(
                     self.slits.mask[wv_masked], 'BADWVCALIB')
@@ -1191,6 +1350,11 @@ class BuildWaveCalib:
         sv_par = self.par.data.copy()
         j_par = jsonify(sv_par)
         self.wv_calib['strpar'] = json.dumps(j_par)#, sort_keys=True, indent=4, separators=(',', ': '))
+
+        # Post a warning if you're reducing SlicerIFU data and not all slits are available
+        ngood = np.where(np.logical_not(self.wvc_bpm))[0].size
+        if self.spectrograph.pypeline == 'SlicerIFU' and ngood < self.slits.nslits:
+            log.warning(f'Wavelength calibration is not available for {self.slits.nslits-ngood} slits.')
 
         return self.wv_calib
 

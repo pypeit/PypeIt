@@ -4,9 +4,8 @@ Construct an rst table with the dependencies
 
 from importlib import resources
 
-import numpy
+import astropy.table
 
-from pypeit.utils import string_table
 from pypeit.par.pypeitpar import ProcessImagesPar, PypeItPar
 
 from IPython import embed
@@ -25,7 +24,7 @@ def write_imgproc_def_table(ofile, spec=None):
                 'orient',
                 'use_biasimage',
                 'use_darkimage',
-                'spat_flexure_correct',
+                'spat_flexure_method',
                 'use_pixelflat',
                 'use_illumflat',
                 'use_specillum',
@@ -52,23 +51,21 @@ def write_imgproc_def_table(ofile, spec=None):
     procpar = ProcessImagesPar()
     par = PypeItPar() if spec is None else spec.default_pypeit_par()
 
-    data_table = numpy.empty((len(par_list)+1, len(frame_list)+2), dtype=object)
-    data_table[0,:] = ['Parameter', 'Default'] \
-                        + [f'``{t}``'.replace('frame','') for t in frame_list]
-    # Parameter names and defaults
-    for i,p in enumerate(par_list):
-        data_table[i+1,0] = f'``{p}``'
-        data_table[i+1,1] = f'``{procpar[p]}``'
-    # Frame-dependent parameter defaults
-    for j,t in enumerate(frame_list):
-        _par = par[t]['process'] if t == 'scienceframe' else par['calibrations'][t]['process']
-        for i,p in enumerate(par_list):
-            data_table[i+1,j+2] = '' if _par[p] == procpar[p] else f'``{_par[p]}``'
+    data_table = []
+    for p in par_list:
+        pdict = {'Parameter':f'``{p}``','Default':f'``{procpar[p]}``'}
+        for t in frame_list:
+            _par = par[t]['process'] if t == 'scienceframe' else par['calibrations'][t]['process']
+            pdict.update(
+                {f'``{t}``'.replace('frame',''):'' if _par[p] == procpar[p] else f'``{_par[p]}``'
+                }
+            )
+        data_table.append(pdict)
 
-    lines = string_table(data_table, delimeter='rst')
-    with open(ofile, 'w') as f:
-        f.write(lines)
-    print('Wrote: {}'.format(ofile))
+    tbl = astropy.table.Table(data_table)
+
+    tbl.write(ofile, format="ascii.rst", overwrite=True)
+    print(f'Wrote: {ofile}')
 
 
 def main():
@@ -78,11 +75,6 @@ def main():
 
     ofile = output_root / 'imgproc_defaults_table.rst'
     write_imgproc_def_table(ofile)
-
-#    allspec = spectrograph_classes()
-#    for key, spec_c in allspec.items():
-#        ofile = output_root / f'imgproc_{key}_table.rst'
-#        write_imgproc_def_table(ofile, spec=spec_c())
 
 if __name__ == '__main__':
     main()

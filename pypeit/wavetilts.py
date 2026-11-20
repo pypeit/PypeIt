@@ -5,12 +5,11 @@ Module for guiding Arc/Sky line tracing
 .. include:: ../include/links.rst
 
 """
-import os
-import copy
 import inspect
 
 from IPython import embed
 from pathlib import Path
+import gc
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -19,13 +18,17 @@ from matplotlib.lines import Line2D
 from astropy import stats, visualization
 from astropy import table
 
-from pypeit import msgs, datamodel, utils
+from pypeit import log, datamodel, utils
+from pypeit import PypeItError
 from pypeit import calibframe
 from pypeit import slittrace, wavecalib
 from pypeit.display import display
 from pypeit.core import arc
+from pypeit.core import fitting
 from pypeit.core import tracewave
+from pypeit.core.wavecal import autoid
 from pypeit.images import buildimage
+from pypeit.qa import arc_tilts_2d_qa, arc_tilts_spat_qa, arc_tilts_spec_qa
 
 
 class WaveTilts(calibframe.CalibFrame):
@@ -92,7 +95,7 @@ class WaveTilts(calibframe.CalibFrame):
                  tilt_traces=None):
 
         # Parse
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
@@ -125,10 +128,10 @@ class WaveTilts(calibframe.CalibFrame):
 
         """
         if not np.array_equal(self.spat_id, slits.spat_id):
-            msgs.error('Your tilt solutions are out of sync with your slits.  Remove calibrations '
+            raise PypeItError('Your tilt solutions are out of sync with your slits.  Remove calibrations '
                        'and restart from scratch.')
 
-    def fit2tiltimg(self, slitmask, slits_left, slits_right, spat_flexure=None):
+    def fit2tiltimg(self, slitmask, spat_flexure=None, slits=None, chk_version=True):
         """
         Generate a tilt image from the fit parameters
         Mainly to allow for spatial flexure
@@ -136,31 +139,68 @@ class WaveTilts(calibframe.CalibFrame):
         Args:
             slitmask (`numpy.ndarray`_):
                 An image identifying the slit/order at each pixel.  Pixels
-                without a slit are marked with -1.
-            slits_left (`numpy.ndarray`_):
-                Left slit edges
-            slits_right (`numpy.ndarray`_):
-                Right slit edges
+                without a slit are marked with -1. Note that this should be
+                the slitmask generated with spat_flexure spatial flexure.
             spat_flexure (`numpy.ndarray`_, optional):
-                If provided, this is the shift, in spatial pixels, of the tilt
-                image onto the desired frame (typically a science image). The
-                shifts apply to each slit. This is used to correct for spatial
-                flexure. The shape of the array should be (nslits, 2),
-                where the first column is the shift to apply to the
+                If provided, this is the shift, in spatial pixels, of the frame
+                you wish to calculate the tilts for (typically a science image),
+                relative to the initial slits. The shape of the array should be
+                (nslits, 2), where the first column is the shift to apply to the
                 left edge of each slit and the second column is the
                 shift to apply to the right edge of each slit.
+            slits (:class:`~pypeit.slittrace.SlitTraceSet`, optional):
+                The slits of the tilts (i.e. those in the Slits calibration
+                file; only their initial edges are used).  Provide these to
+                avoid reading the Slits calibration file, e.g. when this method
+                is called for each slit separately.  If None, the slits are
+                read from the Slits calibration file.
+            chk_version (:obj:`bool`, optional):
+                When reading in existing files written by PypeIt, perform strict
+                version checking to ensure a valid file.  If False, the code
+                will try to keep going, but this may lead to faults and quiet
+                failures.  User beware!  Not used if ``slits`` is provided.
 
         Returns:
             `numpy.ndarray`_:  New tilt image
+
+        Raises:
+            PypeItError:
+                Raised if the slits calibration file cannot be found, if the
+                slits are not synced with the tilts, or if ``spat_flexure`` has
+                the wrong shape.
         """
-        msgs.info("Generating a tilts image from the fit parameters")
+        log.info("Generating a tilts image from the fit parameters")
 
-        # Check the optional inputs
-        _spat_flexure = np.zeros((slits_left.shape[1], 2)) if spat_flexure is None else spat_flexure
+        # The spatial flexure of the tilts relative to the initial slits
+        tilts_spat_flexure = np.zeros((self.nslit, 2), dtype=float) \
+            if self.spat_flexure is None else self.spat_flexure
 
-        # Setup the output image
-        final_tilts = np.zeros_like(slitmask).astype(float)
-        gdslit_spat = np.unique(slitmask[slitmask >= 0]).astype(int)
+        # Load the slits
+        if slits is None:
+            if self.calib_dir is None or self.slits_filename is None:
+                raise PypeItError('Cannot generate tilts image: the calibration directory and/or '
+                                  'the name of the Slits calibration file are not defined.')
+            cal_file = Path(self.calib_dir).absolute() / self.slits_filename
+            if not cal_file.exists():
+                raise PypeItError(f'Slits file {str(cal_file)} not found.  Cannot generate tilts '
+                                  'image.')
+            slits = slittrace.SlitTraceSet.from_file(cal_file, chk_version=chk_version)
+        else:
+            self.is_synced(slits)
+        _left, _right, _mask = slits.select_edges(initial=True, spat_flexure=tilts_spat_flexure)
+
+        # Check the spatial flexure input
+        _spat_flexure = np.zeros((self.nslit, 2), dtype=float) if spat_flexure is None else spat_flexure
+        if _spat_flexure.shape != (self.nslit, 2):
+            raise PypeItError(f'Input spat_flexure has shape {_spat_flexure.shape}, but should be '
+                              f'({self.nslit}, 2).  Cannot generate tilts image.')
+
+        # Set up the output image
+        final_tilts = np.zeros_like(slitmask, dtype=float)
+        # NOTE: -1 is the only off-slit sentinel used by SlitTraceSet.slit_img;
+        # valid slit IDs can be negative (e.g. Echelle edge orders whose spat_id
+        # extrapolates below zero), so this must test against -1 and NOT `>= 0`.
+        gdslit_spat = np.unique(slitmask[slitmask != -1]).astype(int)
         # Loop through all good slits
         for slit_spat in gdslit_spat:
             # Get the slit index
@@ -168,13 +208,22 @@ class WaveTilts(calibframe.CalibFrame):
             # Prepare the coefficients
             coeff_out = self.coeffs[:self.spec_order[slit_idx]+1, :self.spat_order[slit_idx]+1, slit_idx]
             # Extract the spectral and spatial coordinates for this slit
-            thismask_science = (slitmask == slit_spat)
-            _spec_eval, _spat_eval = tracewave.fit2tilts_prepareSlit(slitmask.shape,
-                                                                     slits_left[:, slit_idx], slits_right[:, slit_idx],
-                                                                     thismask_science, _spat_flexure[slit_idx, :])
+            thismask_science = slitmask == slit_spat
+            # NOTE : The coeff_out coefficients are evaluated at the self.spat_flexure location, and
+            # self.spat_flexure is the spatial flexure of the tilts relative to the initial slits.
+            # Furthermore, _spat_flexure is the spatial flexure of the current frame relative to the
+            # initial slits. We therefore need to evaluate the tilts at the relative spatial flexure
+            # between the current frame and the tilts. Therefore:
+            rel_spat_flexure = _spat_flexure[slit_idx, :] - tilts_spat_flexure[slit_idx, :]
+            # Prepare the evaluation coordinates
+            _spec_eval, _spat_eval = tracewave.fit2tilts_prepareSlit(_left[:, slit_idx],
+                                                                     _right[:, slit_idx],
+                                                                     thismask_science,
+                                                                     relative_spat_flexure=rel_spat_flexure)
             # Calculate the tilts
-            final_tilts[thismask_science] = tracewave.fit2tilts(final_tilts.shape, coeff_out, self.func2d,
+            final_tilts[thismask_science] = tracewave.fit2tilts(coeff_out, self.func2d,
                                                                 spec_eval=_spec_eval, spat_eval=_spat_eval)
+
         # Return
         return final_tilts
 
@@ -195,7 +244,7 @@ class WaveTilts(calibframe.CalibFrame):
         return np.where(mtch)[0][0]
 
     def show(self, waveimg=None, wcs_match=True, in_ginga=True, show_traces=False,
-             chk_version=True):
+             calib_dir=None, chk_version=True):
         """
         Show in ginga or mpl Tiltimg with the tilts traced and fitted overlaid
 
@@ -209,6 +258,9 @@ class WaveTilts(calibframe.CalibFrame):
                 If True, show the image in ginga. Otherwise, use matplotlib.
             show_traces (bool, optional):
                 If True, show the traces of the tilts on the image.
+            calib_dir (`Path`_):
+                Path to the calibration directory.  If None, the path is taken from the
+                WaveTilts object.
             chk_version (:obj:`bool`, optional):
                 When reading in existing files written by PypeIt, perform strict
                 version checking to ensure a valid file.  If False, the code
@@ -216,19 +268,26 @@ class WaveTilts(calibframe.CalibFrame):
                 failures.  User beware!
         """
         # get tilt_img_dict
-        cal_file = Path(self.calib_dir).absolute() / self.tiltimg_filename
+        _calib_dir = self.calib_dir
+        if calib_dir is not None and calib_dir.exists():
+            _calib_dir = calib_dir
+            log.info(f'Searching for other calibration files in {str(_calib_dir)}')
+        else:
+            log.info(f'Searching for other calibration files in the default directory {str(_calib_dir)}')
+
+        cal_file = Path(_calib_dir).absolute() / self.tiltimg_filename
         if cal_file.exists():
             tilt_img_dict = buildimage.TiltImage.from_file(cal_file, chk_version=chk_version)
         else:
-            msgs.error(f'Tilt image {str(cal_file)} NOT FOUND.')
+            raise PypeItError(f'Tilt image {str(cal_file)} NOT FOUND.')
 
         # get slits
         slitmask = None
-        cal_file = Path(self.calib_dir).absolute() / self.slits_filename
+        cal_file = Path(_calib_dir).absolute() / self.slits_filename
         if cal_file.exists():
             slits = slittrace.SlitTraceSet.from_file(cal_file, chk_version=chk_version)
             _slitmask = slits.slit_img(initial=True, spat_flexure=self.spat_flexure)
-            _left, _right, _mask = slits.select_edges(spat_flexure=self.spat_flexure)
+            _left, _right, _mask = slits.select_edges(initial=True, spat_flexure=self.spat_flexure)
             gpm = _mask == 0
             # resize
             slitmask = arc.resize_mask2arc(tilt_img_dict.image.shape, _slitmask)
@@ -236,22 +295,22 @@ class WaveTilts(calibframe.CalibFrame):
             right = arc.resize_slits2arc(tilt_img_dict.image.shape, _slitmask.shape, _right)
         else:
             slits = None
-            msgs.warn(f'Slits file {str(cal_file)} NOT FOUND.')
+            log.warning(f'Slits file {str(cal_file)} NOT FOUND.')
 
         # get waveimg
         same_size = (slits.nspec, slits.nspat) == tilt_img_dict.image.shape
         if waveimg is None and slits is not None and same_size and in_ginga:
-            wv_calib_name = wavecalib.WaveCalib.construct_file_name(self.calib_key, calib_dir=self.calib_dir)
+            wv_calib_name = wavecalib.WaveCalib.construct_file_name(self.calib_key, calib_dir=_calib_dir)
             if Path(wv_calib_name).absolute().exists():
                 wv_calib = wavecalib.WaveCalib.from_file(wv_calib_name, chk_version=chk_version)
-                tilts = self.fit2tiltimg(slitmask, _left, _right, spat_flexure=self.spat_flexure)
+                tilts = self.fit2tiltimg(slitmask, spat_flexure=self.spat_flexure)
                 waveimg = wv_calib.build_waveimg(tilts, slits, spat_flexure=self.spat_flexure)
             else:
-                msgs.warn('Could not load Wave image to show with tilts image.')
+                log.warning('Could not load Wave image to show with tilts image.')
 
         # Show
         # tilt image
-        tilt_img = tilt_img_dict.image * (slitmask > -1) if slitmask is not None else tilt_img_dict.image
+        tilt_img = tilt_img_dict.image * (slitmask != -1) if slitmask is not None else tilt_img_dict.image
         # set cuts
         zmax = stats.sigma_clip(tilt_img, sigma=10, return_bounds=True)[2]
         zmin = stats.sigma_clip(tilt_img, sigma=5, return_bounds=True)[1] * 2
@@ -289,24 +348,32 @@ class BuildWaveTilts:
         slits (:class:`~pypeit.slittrace.SlitTraceSet`):
             Slit edges
         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
-            Spectrograph object
+            The `Spectrograph` instance that sets the instrument used.  Used to set
+            :attr:`spectrograph`.
         par (:class:`~pypeit.par.pypeitpar.WaveTiltsPar` or None):
-            The parameters used to fuss with the tilts
+            The parameters used for the tilt calibration.
+            Uses ``['calibrations']['tilts']``.
         wavepar (:class:`~pypeit.par.pypeitpar.WavelengthSolutionPar` or None):
-            The parameters used for the wavelength solution
-        det (int): Detector index
+            The parameters used for the wavelength solution.
+            Uses ``['calibrations']['wavelengths']``.
+        det (int):
+            Detector index
         qa_path (:obj:`str`, optional):
             Directory for QA output.
-        spat_flexure (float, optional):
+        spat_flexure (`numpy.ndarray`_, optional):
             If input, the slitmask and slit edges are shifted prior
             to tilt analysis.
+        measured_fwhms (`numpy.ndarray`_, optional):
+            FWHM of the arc lines measured during wavecalib.  If provided, this
+            will be used for arc/sky line detection.
+
 
 
     Attributes:
         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
-            ??
+            The `Spectrograph` instance that sets the instrument used.
         steps (list):
-            ??
+            List of the processing steps performed
         mask (`numpy.ndarray`_):
             boolean array; True = Ignore this slit
         all_trcdict (list):
@@ -325,7 +392,7 @@ class BuildWaveTilts:
 
     # TODO This needs to be modified to take an inmask
     def __init__(self, mstilt, slits, spectrograph, par, wavepar, det=1, qa_path=None,
-                 spat_flexure=None):
+                 spat_flexure=None, measured_fwhms=None):
 
         # TODO: Perform type checking
         self.spectrograph = spectrograph
@@ -337,6 +404,7 @@ class BuildWaveTilts:
         self.det = det
         self.qa_path = qa_path
         self.spat_flexure = spat_flexure if spat_flexure is not None else np.zeros((slits.nslits, 2), dtype=float)
+        self.measured_fwhms = measured_fwhms if measured_fwhms is not None else np.array([None] * slits.nslits)
 
         # Get the non-linear count level
         if self.mstilt.is_mosaic:
@@ -354,7 +422,7 @@ class BuildWaveTilts:
         # Load up all slits
         # TODO -- Discuss further with JFH
         all_left, all_right, mask = self.slits.select_edges(initial=True, spat_flexure=self.spat_flexure)  # Grabs all, initial slits
-        # self.tilt_bpm = np.invert(mask == 0)
+        # self.tilt_bpm = np.logical_not(mask == 0)
         # At this point of the reduction the only bitmask flags that may have been generated are 'USERIGNORE',
         # 'SHORTSLIT', 'BOXSLIT' and 'BADWVCALIB'. Here we use only 'USERIGNORE' and 'SHORTSLIT' to create the bpm mask
         self.tilt_bpm = self.slits.bitmask.flagged(mask, flag=['SHORTSLIT', 'USERIGNORE'])
@@ -363,8 +431,11 @@ class BuildWaveTilts:
         # TODO -- Discuss further with JFH
         self.slitmask_science = self.slits.slit_img(initial=True, spat_flexure=self.spat_flexure, exclude_flag=['BOXSLIT'])  # All unmasked slits
         # Resize
-        # TODO: Should this be the bpm or *any* flag?
-        gpm = self.mstilt.select_flag(flag='BPM', invert=True) if self.mstilt is not None \
+        # Mask BPM and CR-flagged pixels: when residual CR rejection runs without
+        # filling, CR pixels still carry their original (contaminated) values, so
+        # they must be excluded from tilt centroiding.
+        gpm = self.mstilt.select_flag(flag=['BPM', 'CR'], invert=True) \
+                    if self.mstilt is not None \
                     else np.ones_like(self.slitmask_science, dtype=bool)
         self.shape_science = self.slitmask_science.shape
         self.shape_tilt = self.mstilt.image.shape
@@ -406,23 +477,26 @@ class BuildWaveTilts:
 
         return arccen, arccen_bpm
 
-    def find_lines(self, arcspec, slit_cen, slit_idx, bpm=None, debug=False):
+    def find_lines(self, arcspec, slit_cen, slit_idx, fwhm, bpm=None, debug=False):
         """
         Find the lines for tracing
 
         Wrapper to tracewave.tilts_find_lines()
 
         Args:
-            arcspec ():
-                ??
-            slit_cen ():
-                ??
+            arcspec (`numpy.ndarray`_):
+                1D spectrum to be searched for significant detections.
+            slit_cen (`numpy.ndarray`_):
+                Trace down the center of the slit. Must match the shape of arcspec.
             slit_idx (int):
-                Slit index, zero-based
+                Slit index, zero-based.
+            fwhm (float):
+                FWHM of the arc lines.
             bpm (`numpy.ndarray`_, optional):
-                ??
+                Bad-pixel mask for input spectrum. If None, all pixels considered good.
+                If passed, must match the shape of arcspec.
             debug (bool, optional):
-                ??
+                Show a QA plot for the line detection.
 
         Returns:
             tuple:  2 objectcs
@@ -444,7 +518,7 @@ class BuildWaveTilts:
                                              sig_neigh=self.par['sig_neigh'],
                                              nfwhm_neigh=self.par['nfwhm_neigh'],
                                              only_these_lines=only_these_lines,
-                                             fwhm=self.wavepar['fwhm'],
+                                             fwhm=fwhm,
                                              nonlinear_counts=self.nonlinear_counts,
                                              bpm=bpm, debug_peaks=False, debug_lines=debug)
 
@@ -456,7 +530,7 @@ class BuildWaveTilts:
             plt.imshow(self.mstilt.image, origin='lower', interpolation='nearest', aspect='auto',
                        vmin=vmin, vmax=vmax)
             plt.scatter(lines_spat[good], lines_spec[good], marker='x', color='k', lw=2, s=50)
-            plt.scatter(lines_spat[np.invert(good)], lines_spec[np.invert(good)], marker='x', color='C3', lw=2, s=50)
+            plt.scatter(lines_spat[np.logical_not(good)], lines_spec[np.logical_not(good)], marker='x', color='C3', lw=2, s=50)
             plt.show()
 
         self.steps.append(inspect.stack()[0][3])
@@ -469,7 +543,13 @@ class BuildWaveTilts:
         """
         Fit the tilts
 
-        all_fit_dict and all_trace_dict are filled in place
+        all_fit_dict and all_trace_dict are filled in place.
+
+        TODO: Flexure can now be performed on left and right slit edges. It no longer makes
+         sense to fit the tilts relative to the slit centre. This will be a small correction,
+         but we should fit the tilts relative to the left and right edges. We need to fit
+         pixels on a small from 0-1, instead of absolute pixel difference from the slit centre
+         divided by (nspat-1).
 
         Args:
             trc_tilt_dict (dict): Contains information from tilt tracing
@@ -491,16 +571,39 @@ class BuildWaveTilts:
                 = tracewave.fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=spat_order,
                                       spec_order=spec_order,maxdev=self.par['maxdev2d'],
                                       sigrej=self.par['sigrej2d'], func2d=self.par['func2d'],
-                                      doqa=doqa, calib_key=self.mstilt.calib_key,
-                                      slitord_id=self.slits.slitord_id[slit_idx],
-                                      minmax_extrap=self.par['minmax_extrap'],
-                                      show_QA=show_QA, out_dir=self.qa_path)
+                                      minmax_extrap=self.par['minmax_extrap'])
+
+        # Now do some QA
+        if doqa:
+            trc_tilt_dict_out = self.all_trace_dict[slit_idx]
+            calib_key=self.mstilt.calib_key
+            slitord_id=self.slits.slitord_id[slit_idx]
+            tilts_dspat = trc_tilt_dict_out['tilts_dspat']  # spatial offset from the central trace
+            tilts = trc_tilt_dict_out['tilts']  # legendre polynomial fit
+            tilts_2dfit = trc_tilt_dict_out['tilt_2dfit']
+            fwhm = trc_tilt_dict_out['fwhm']
+            tot_mask = trc_tilt_dict_out['tot_mask']
+            tilts_spec = trc_tilt_dict_out['tilts_spec']
+            rms_fit = trc_tilt_dict_out['rms_fit']
+            # Compute a rejection mask that we will use later. These are
+            # locations that were fit but were rejected
+            rej_mask = tot_mask & np.logical_not(trc_tilt_dict_out['fit_mask'])
+
+            # tot mask from the output mask
+            # rej mask and rms_fit not in any output, recompute, or put into output from fit_tilts?
+            arc_tilts_2d_qa(tilts_dspat, tilts, tilts_2dfit, tot_mask, rej_mask, spat_order, spec_order,
+                        rms_fit, fwhm, slitord_id=slitord_id, setup=calib_key, show_QA=show_QA, out_dir=self.qa_path)
+            arc_tilts_spat_qa(tilts_dspat, tilts, tilts_2dfit, tilts_spec, tot_mask, rej_mask, spat_order,
+                        spec_order, rms_fit, fwhm, slitord_id=slitord_id, setup=calib_key, show_QA=show_QA,
+                        out_dir=self.qa_path)
+            arc_tilts_spec_qa(tilts_spec, tilts, tilts_2dfit, tot_mask, rej_mask, rms_fit, fwhm,
+                        slitord_id=slitord_id, setup=calib_key, show_QA=show_QA, out_dir=self.qa_path)
 
         self.steps.append(inspect.stack()[0][3])
         return self.all_fit_dict[slit_idx]['coeff2']
 
-    def trace_tilts(self, arcimg, lines_spec, lines_spat, thismask, slit_cen,
-                    debug_pca=False, show_tracefits=False):
+    def trace_tilts(self, arcimg, lines_spec, lines_spat, thismask, slit_cen, fwhm,
+                    spat_order, debug_pca=False, show_tracefits=False):
         """
         Trace the tilts
 
@@ -511,16 +614,24 @@ class BuildWaveTilts:
                 Array containing the spectral pixel location of each
                 line found for this slit.  Shape is (nlines,).
             lines_spat (`numpy.ndarray`_):
-               Array containing the spatial pixel location of each line,
-               which is the slitcen evaluate at the spectral position
-               position of the line stored in lines_spec. Shape is
-               (nlines,).
+                Array containing the spatial pixel location of each line,
+                which is the slitcen evaluate at the spectral position
+                of the line stored in lines_spec. Shape is
+                (nlines,).
             thismask (`numpy.ndarray`_):
                Image indicating which pixels lie on the slit in
                equation. True = on the slit. False = not on slit.  Shape
                is (nspec, nspat) with dtype=bool.
             slit_cen (:obj:`int`):
                 Integer index indicating the slit in question.
+            fwhm (:obj:`float`):
+                FWHM of the arc lines.
+            spat_order (:obj:`int`):
+                Order of the legendre polynomial that will be fit to the tilts.
+            debug_pca (:obj:`bool`, optional):
+                Show the PCA modeling QA plots.
+            show_tracefits (:obj:`bool`, optional):
+                Show the trace fits.
 
         Returns:
             dict: Dictionary containing information on the traced tilts required
@@ -528,8 +639,8 @@ class BuildWaveTilts:
 
         """
         trace_dict = tracewave.trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen,
-                                           inmask=self.gpm, fwhm=self.wavepar['fwhm'],
-                                           spat_order=self.par['spat_order'],
+                                           inmask=self.gpm, fwhm=fwhm,
+                                           spat_order=spat_order,
                                            maxdev_tracefit=self.par['maxdev_tracefit'],
                                            sigrej_trace=self.par['sigrej_trace'],
                                            debug_pca=debug_pca, show_tracefits=show_tracefits)
@@ -582,11 +693,13 @@ class BuildWaveTilts:
         for i in range(nslits):
             if self.tilt_bpm[i]:
                 continue
+            # get FWHM for this slit
+            fwhm = autoid.set_fwhm(self.wavepar, measured_fwhm=self.measured_fwhms[i])
             # TODO: What to do with the following iter_continuum parameters?:
             #       sigthresh, sigrej, niter_cont, cont_samp, cont_frac_fwhm
             arc_continuum[:,i], arc_fitmask[:,i] \
-                    = arc.iter_continuum(self.arccen[:,i], gpm=np.invert(self.arccen_bpm[:,i]),
-                                         fwhm=self.wavepar['fwhm'])
+                    = arc.iter_continuum(self.arccen[:,i], gpm=np.logical_not(self.arccen_bpm[:,i]),
+                                         fwhm=fwhm)
             # TODO: Original version.  Please leave it for now.
 #            arc_fitmask[:,i], coeff \
 #                    = utils.robust_polyfit_djs(spec, self.arccen[:,i], self.par['cont_order'],
@@ -625,7 +738,7 @@ class BuildWaveTilts:
             # Set a single width for the slit to simplify the
             # calculation
             width = np.sum(indx, axis=1)
-            width = int(np.amax(width[np.invert(self.arccen_bpm[:,i])]))
+            width = int(np.amax(width[np.logical_not(self.arccen_bpm[:,i])]))
 
             # Get the spatial indices for spectral pixels in the
             # spatial dimension that follow the curvature of the slit
@@ -654,7 +767,7 @@ class BuildWaveTilts:
                                                     axis=0)[1]
 
             # Fill the image with the continuum for this slit
-            indx = np.invert(aligned_flux.mask)
+            indx = np.logical_not(aligned_flux.mask)
             cont_image[aligned_spec[indx], _spat[indx]] \
                     = (arc_continuum[:,i,None] * cont_renorm[None,:])[indx]
 
@@ -698,6 +811,7 @@ class BuildWaveTilts:
         # Subtract arc continuum
         _mstilt = self.mstilt.image.copy()
         if self.par['rm_continuum']:
+            log.info('Subtracting the continuum')
             continuum = self.model_arc_continuum(debug=debug)
             _mstilt -= continuum
             if debug:
@@ -733,19 +847,21 @@ class BuildWaveTilts:
         # Loop on all slits
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
             if self.tilt_bpm[slit_idx]:
-                msgs.info(f'Skipping bad slit/order {self.slits.slitord_id[slit_idx]} ({slit_idx+1}/{self.slits.nslits})')
+                log.info(f'Skipping bad slit/order {self.slits.slitord_id[slit_idx]} ({slit_idx+1}/{self.slits.nslits})')
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADTILTCALIB')
                 continue
-            msgs.info(f'Computing tilts for slit/order {self.slits.slitord_id[slit_idx]} ({slit_idx+1}/{self.slits.nslits})')
+            log.info(f'Computing tilts for slit/order {self.slits.slitord_id[slit_idx]} ({slit_idx+1}/{self.slits.nslits})')
+            # Get the arc FWHM for this slit
+            fwhm = autoid.set_fwhm(self.wavepar, measured_fwhm=self.measured_fwhms[slit_idx], verbose=True)
             # Identify lines for tracing tilts
-            msgs.info('Finding lines for tilt analysis')
+            log.info('Finding lines for tilt analysis')
             self.lines_spec, self.lines_spat \
                     = self.find_lines(self.arccen[:,slit_idx], self.slitcen[:,slit_idx],
-                                      slit_idx,
+                                      slit_idx, fwhm,
                                       bpm=self.arccen_bpm[:,slit_idx], debug=debug)
 
             if self.lines_spec is None:
-                msgs.warn('Did not recover any lines for slit/order = {:d}'.format(self.slits.slitord_id[slit_idx]) +
+                log.warning('Did not recover any lines for slit/order = {:d}'.format(self.slits.slitord_id[slit_idx]) +
                           '. This slit/order will not reduced!')
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADTILTCALIB')
                 continue
@@ -755,13 +871,16 @@ class BuildWaveTilts:
             # Performs the initial tracing of the line centroids as a
             # function of spatial position resulting in 1D traces for
             # each line.
-            msgs.info('Trace the tilts')
+            log.info('Trace the tilts')
+            # fill in spat_order and spec_order arrays for this slit first
+            self.spat_order[slit_idx] = self._parse_param(self.par, 'spat_order', slit_idx)
+            self.spec_order[slit_idx] = self._parse_param(self.par, 'spec_order', slit_idx)
             self.trace_dict = self.trace_tilts(_mstilt, self.lines_spec, self.lines_spat,
-                                               thismask, self.slitcen[:, slit_idx])
+                                               thismask, self.slitcen[:, slit_idx], fwhm, self.spat_order[slit_idx])
             # IF there are < 2 usable arc lines for tilt tracing, PCA fit does not work and the reduction crushes
             # TODO investigate why some slits have <2 usable arc lines
             if np.sum(self.trace_dict['use_tilt']) < 2:
-                msgs.warn('Less than 2 usable arc lines for slit/order = {:d}'.format(self.slits.slitord_id[slit_idx]) +
+                log.warning('Less than 2 usable arc lines for slit/order = {:d}'.format(self.slits.slitord_id[slit_idx]) +
                           '. This slit/order will not reduced!')
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADTILTCALIB')
                 continue
@@ -772,42 +891,72 @@ class BuildWaveTilts:
             use_tilt_spec_cov = (self.trace_dict['tilts_spec'][:, self.trace_dict['use_tilt']].max() -
                                  self.trace_dict['tilts_spec'][:, self.trace_dict['use_tilt']].min()) / self.arccen.shape[0]
             if use_tilt_spec_cov < 0.1:
-                msgs.warn(f'The spectral coverage of the usable arc lines is {use_tilt_spec_cov:.3f} (less than 10%).' +
+                log.warning(f'The spectral coverage of the usable arc lines is {use_tilt_spec_cov:.3f} (less than 10%).' +
                           ' This slit/order will not be reduced!')
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADTILTCALIB')
                 continue
 
             # TODO: Show the traces before running the 2D fit
 
-            self.spat_order[slit_idx] = self._parse_param(self.par, 'spat_order', slit_idx)
-            self.spec_order[slit_idx] = self._parse_param(self.par, 'spec_order', slit_idx)
             # 2D model of the tilts, includes construction of QA
             # NOTE: This also fills in self.all_fit_dict and self.all_trace_dict
             coeff_out = self.fit_tilts(self.trace_dict, thismask, self.slitcen[:,slit_idx],
                                        self.spat_order[slit_idx], self.spec_order[slit_idx],
                                        slit_idx,
                                        doqa=doqa, show_QA=show)
+            # Flag slits with high number of rejected pixels (>95%)
+            # TODO: Is 95% the right threshold?
+            _gpm = self.all_fit_dict[slit_idx]['pypeitFit'].bool_gpm
+            if np.sum(np.logical_not(_gpm)) > 0.95 * _gpm.size:
+                log.warning(f'Large number of pixels rejected in the fit. This slit/order will not be reduced!')
+                self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADTILTCALIB')
+                continue
             self.coeffs[:self.spec_order[slit_idx]+1,:self.spat_order[slit_idx]+1,slit_idx] = coeff_out
 
-            # TODO: Need a way to assess the success of fit_tilts and
-            # flag the slit if it fails
+            # TODO: Need a way to assess the success of fit_tilts and flag the slit if it fails
 
             # Tilts are created with the size of the original slitmask,
-            # which corresonds to the same binning as the science
+            # which corresponds to the same binning as the science
             # images, trace images, and pixelflats etc.
             thismask_science = self.slitmask_science == slit_spat
-            _spec_eval, _spat_eval = tracewave.fit2tilts_prepareSlit(self.slitmask_science.shape,
-                                                                     slits_left[:, slit_idx], slits_right[:, slit_idx],
-                                                                     thismask_science, self.spat_flexure[slit_idx, :])
-            self.final_tilts[thismask_science] = tracewave.fit2tilts(self.slitmask_science.shape, coeff_out, self.par['func2d'],
-                                                               spec_eval=_spec_eval, spat_eval=_spat_eval)
+            # Extract the spectral and spatial coordinates for this slit (NOTE: The relative spat flexure is zero
+            # here because the tilts are fit with the spatial flexure taken into account. So, there is no relative
+            # spatial flexure, in this case).
+            _spec_eval, _spat_eval = tracewave.fit2tilts_prepareSlit(slits_left[:, slit_idx],
+                                                                     slits_right[:, slit_idx],
+                                                                     thismask_science,
+                                                                     relative_spat_flexure=None)
+            # Calculate the tilts
+            self.tilts = tracewave.fit2tilts(coeff_out, self.par['func2d'], spec_eval=_spec_eval, spat_eval=_spat_eval)
+            # Check that the tilts image has values that span a reasonable range.
+            # Tilts are normalized by (nspec - 1), so a slit/order that covers
+            # the full spectral direction has an expected within-slit range of 1.
+            # For echelle orders that only cover part of the spectral direction
+            # (specmin/specmax from the spectrograph), the expected range is
+            # smaller, so scale the threshold to 80% of that expected range.
+            nspec = self.slitmask_science.shape[0]
+            xnspecmin1 = float(nspec - 1)
+            spec_lo = np.clip(self.slits.specmin[slit_idx], 0.0, xnspecmin1)
+            spec_hi = np.clip(self.slits.specmax[slit_idx], 0.0, xnspecmin1)
+            expected_range = (spec_hi - spec_lo) / xnspecmin1
+            if np.nanmax(self.tilts) - np.nanmin(self.tilts) < 0.8*expected_range:
+            ############################
+                log.warning('Tilts image fit not good. This slit/order will not be reduced!')
+                self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADTILTCALIB')
+                continue
+            # Save to final image
+            self.final_tilts[thismask_science] = self.tilts
+
+            # This is a workaround for the Python memory usage issues
+            self.tilts = None
+            gc.collect(2)
 
         if show:
-            viewer, ch = display.show_image(self.mstilt.image * (self.slitmask > -1), chname='tilts')
+            viewer, ch = display.show_image(self.mstilt.image * (self.slitmask != -1), chname='tilts')
             display.show_tilts(viewer, ch, self.make_tbl_tilt_traces())
 
         if debug:
-            show_tilts_mpl(self.mstilt.image*(self.slitmask > -1), self.make_tbl_tilt_traces())
+            show_tilts_mpl(self.mstilt.image*(self.slitmask != -1), self.make_tbl_tilt_traces())
 
         # Record the Mask
         bpmtilts = np.zeros_like(self.slits.mask, dtype=self.slits.bitmask.minimum_dtype())
@@ -859,7 +1008,7 @@ class BuildWaveTilts:
         """
 
         if self.all_trace_dict is None:
-            msgs.error('No tilts have been traced and fit yet. Run the run() method first.')
+            raise PypeItError('No tilts have been traced and fit yet. Run the run() method first.')
 
         # slit_ids
         slit_ids = np.array([])
@@ -891,11 +1040,11 @@ class BuildWaveTilts:
                 # good pixels
                 gpix = trc['tot_mask']
                 # bad pixels
-                bpix = np.invert(gpix) & (trc['tilts'] > 0)
+                bpix = np.logical_not(gpix) & (trc['tilts'] > 0)
                 # good 2d fit
                 gfit = gpix & trc['fit_mask']
                 # bad 2d fit
-                bfit = gpix & np.invert(trc['fit_mask'])
+                bfit = gpix & np.logical_not(trc['fit_mask'])
 
                 for l in range(trc['tilts_spat'].shape[1]):
                     # good pixels
@@ -926,7 +1075,7 @@ class BuildWaveTilts:
                 tbl_tilt_traces[tbl_keys[i]] = np.expand_dims(arr, axis=0)
 
         if len(tbl_tilt_traces) == 0:
-            msgs.warn('No traced and fitted tilts have been found.')
+            log.warning('No traced and fitted tilts have been found.')
             return None
 
         return tbl_tilt_traces
@@ -989,7 +1138,7 @@ def show_tilts_mpl(tilt_img, tilt_traces, show_traces=False, left_edges=None,
     """
 
     if tilt_traces is None:
-        return msgs.error('No tilts have been traced or fitted')
+        raise PypeItError('No tilts have been traced or fitted')
 
     if cut is None:
         cut = utils.growth_lim(tilt_img, 0.98, fac=1)
@@ -1043,7 +1192,7 @@ def show_tilts_mpl(tilt_img, tilt_traces, show_traces=False, left_edges=None,
 
     lcolors = ['cyan', 'red', 'yellow', 'blue'] if show_traces else ['red', 'yellow', 'blue']
     legend = plt.legend(handles=handles, labelcolor=lcolors, loc=3, markerscale=2, frameon=False)
-    for h in legend.legendHandles:
+    for h in legend.legend_handles:
         h.set_alpha(1)
     
     plt.ylabel('Spectral pixel index')

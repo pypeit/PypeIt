@@ -6,18 +6,47 @@ import os
 from IPython import embed
 
 import pytest
+from configobj import ConfigObj
 
 from pypeit.par import pypeitpar
 from pypeit.par import parset
 from pypeit.par import util
+from pypeit.core import fitting
 from pypeit.spectrographs.util import load_spectrograph
 
 
-def test_eval_tuple():
-    t = ['(1', '2', '3)']
-    assert util.eval_tuple(t) == [(1,2,3)], 'Bad tuple evaluation'
-    t = ['(1', '2)', '(3', '4)']
-    assert util.eval_tuple(t) == [(1,2),(3,4)], 'Bad tuple evaluation'
+def test_detnum_mixed_tuple():
+    """Test parsing of detnum with mixed int and tuple values."""
+
+    # Mixed int and tuple
+    cfg = ConfigObj(['[rdx]', 'detnum = 1,(2,6)'])
+    result = util.recursive_dict_evaluate(dict(cfg))
+    assert result['rdx']['detnum'] == [1, (2, 6)]
+
+    # Single tuple
+    cfg = ConfigObj(['[rdx]', 'detnum = (2,6)'])
+    result = util.recursive_dict_evaluate(dict(cfg))
+    assert result['rdx']['detnum'] == [(2, 6)]
+
+    # Plain list of ints
+    cfg = ConfigObj(['[rdx]', 'detnum = 1,2,3'])
+    result = util.recursive_dict_evaluate(dict(cfg))
+    assert result['rdx']['detnum'] == [1, 2, 3]
+
+    # Multiple tuples (DEIMOS style)
+    cfg = ConfigObj(['[rdx]', 'detnum = (1,5),(2,6),(3,7),(4,8)'])
+    result = util.recursive_dict_evaluate(dict(cfg))
+    assert result['rdx']['detnum'] == [(1, 5), (2, 6), (3, 7), (4, 8)]
+
+    # Single tuple GMOS style
+    cfg = ConfigObj(['[rdx]', 'detnum = (1,2,3)'])
+    result = util.recursive_dict_evaluate(dict(cfg))
+    assert result['rdx']['detnum'] == [(1, 2, 3)]
+
+    # Int followed by multiple tuples
+    cfg = ConfigObj(['[rdx]', 'detnum = 1,(2,6),(3,7)'])
+    result = util.recursive_dict_evaluate(dict(cfg))
+    assert result['rdx']['detnum'] == [1, (2, 6), (3, 7)]
 
 
 def test_framegroup():
@@ -65,6 +94,30 @@ def test_telluric():
 
 def test_redux():
     pypeitpar.ReduxPar()
+
+def test_ncpu_default_and_override():
+    par = pypeitpar.ReduxPar()
+    assert par['ncpu'] == 1, 'ncpu must default to 1 (fully serial)'
+    par = pypeitpar.ReduxPar.from_dict({'spectrograph': 'shane_kast_blue', 'ncpu': 4})
+    assert par['ncpu'] == 4, 'ncpu must be set by the configuration'
+    par = pypeitpar.ReduxPar(ncpu=0)
+    assert par['ncpu'] == 1, 'ncpu < 1 must be reset to 1'
+
+def test_ncpu_assignment_revalidates():
+    # Item assignment bypasses the validation done at instantiation, so the
+    # run_pypeit --ncpu override re-runs validate(); check it resets a bad value
+    par = pypeitpar.ReduxPar()
+    par['ncpu'] = -2
+    par.validate()
+    assert par['ncpu'] == 1, 'validate() must reset ncpu < 1 to 1'
+
+def test_fit2d_chunk():
+    par = pypeitpar.ReduxPar()
+    assert par['fit2d_chunk'] == fitting.DEFAULT_POLYFIT2D_CHUNK, 'Wrong default 2D fit chunk size'
+    par = pypeitpar.ReduxPar.from_dict({'spectrograph': 'shane_kast_blue', 'fit2d_chunk': 1000})
+    assert par['fit2d_chunk'] == 1000, 'fit2d_chunk must be set by the configuration'
+    with pytest.raises(ValueError):
+        pypeitpar.ReduxPar(fit2d_chunk=0)
 
 def test_wavelengthsolution():
     pypeitpar.WavelengthSolutionPar()
@@ -259,3 +312,68 @@ def test_lists():
     with pytest.raises(TypeError):
         p['calibrations']['alignment']['locations'] = 0.0
         _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config())  # Once as tuple
+
+
+
+
+def test_spat_flexure_frame_types():
+    # The spatial flexure cannot be determined for frames that are processed
+    # without the slit edges
+    for frametype in pypeitpar.FrameGroupPar.no_spatial_flexure_frame_types():
+        with pytest.raises(ValueError):
+            pypeitpar.FrameGroupPar(frametype=frametype,
+                                    process=pypeitpar.ProcessImagesPar(spat_flexure_method='detector'))
+        # The default (skip) is fine
+        pypeitpar.FrameGroupPar(frametype=frametype)
+    # Frames processed with the slit edges are fine
+    for frametype in ['science', 'standard', 'arc', 'tilt', 'pixelflat', 'illumflat', 'align',
+                      'scattlight']:
+        pypeitpar.FrameGroupPar(frametype=frametype,
+                                process=pypeitpar.ProcessImagesPar(spat_flexure_method='edge'))
+
+
+def test_spat_flexure_correct_deprecated():
+    # The old spat_flexure_correct parameter raises a helpful error
+    with pytest.raises(ValueError, match='spat_flexure_method'):
+        pypeitpar.ProcessImagesPar.from_dict({'spat_flexure_correct': True})
+
+
+def test_spat_flexure_polyord():
+    # A negative polynomial order is not allowed, even without overscan subtraction
+    with pytest.raises(ValueError):
+        pypeitpar.ProcessImagesPar(use_overscan=False, spat_flexure_polyord=-1)
+    pypeitpar.ProcessImagesPar(use_overscan=False, spat_flexure_polyord=1)
+
+
+def test_spat_flexure_minfrac():
+    # The minimum fraction of matched slit-edge pixels must be between 0 and 1
+    assert pypeitpar.ProcessImagesPar()['spat_flexure_minfrac'] == 0.
+    for value in [-0.1, 1.5]:
+        with pytest.raises(ValueError):
+            pypeitpar.ProcessImagesPar(use_overscan=False, spat_flexure_minfrac=value)
+    pypeitpar.ProcessImagesPar(use_overscan=False, spat_flexure_minfrac=0)
+
+
+def test_edge_flexure_frames():
+    # The slit edges are refined by default for the SlicerIFU spectrographs
+    # only, and the frames with an edge-based spatial flexure method are found
+    from pypeit.spectrographs.util import load_spectrograph
+    for spec in ['keck_kcwi', 'keck_kcrm']:
+        par = load_spectrograph(spec).default_pypeit_par()
+        assert par['calibrations']['slitedges']['refine_edges']
+        # The calibration frames use the edge method, and the science frames
+        # (whose slit edges are faint) the detector method, which is only
+        # applied if enough of the traced slit-edge pixels are matched
+        assert sorted(par.edge_flexure_frames()) \
+                    == ['arcframe', 'illumflatframe', 'pixelflatframe', 'tiltframe']
+        assert par['scienceframe']['process']['spat_flexure_method'] == 'detector'
+        assert par['scienceframe']['process']['spat_flexure_polyord'] is None
+        assert par['scienceframe']['process']['spat_flexure_minfrac'] == 0.25
+    par = load_spectrograph('keck_deimos').default_pypeit_par()
+    assert not par['calibrations']['slitedges']['refine_edges']
+    assert par.edge_flexure_frames() == []
+    par['scienceframe']['process']['spat_flexure_method'] = 'slit'
+    assert par.edge_flexure_frames() == [], 'The slit method is not edge-based'
+    par['scienceframe']['process']['spat_flexure_method'] = 'leftedge'
+    par['calibrations']['arcframe']['process']['spat_flexure_method'] = 'edge'
+    assert sorted(par.edge_flexure_frames()) == ['arcframe', 'scienceframe']

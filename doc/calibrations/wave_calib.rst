@@ -258,7 +258,77 @@ shift+stretch analysis of `Reidentify`_.
 We recommend implementing this method for multi-slit
 observations, long-slit observations where wavelengths
 vary (*e.g.*, grating tilts).  We are likely to implement
-this for echelle observations (*e.g.*, HIRES).
+this for echelle observations (*e.g.*, HIRES and UVES).
+
+If you are reducing multislit or IFU data, where the wavelength
+coverage of all slits/slices/fibers is quite similar to each other,
+and some (but not all) of the slits are failing with the
+`full template`_ method, then you can try to use one of the good
+solutions to recalibrate all slits. To do this, first run the
+reduction until the wavelength calibration step completes, then
+identify the spatial ID of the good slit, based on the QA plots.
+Finally, remove the calibration files, and add the following to your
+:ref:`pypeit_file`:
+
+.. code-block:: ini
+
+    [calibrations]
+        [[wavelengths]]
+            reference_slit = 306
+
+where the value of ``reference_slit`` is the spatial ID of the good slit.
+Now re-run the reduction. This will first perform a standard wavelength
+calibration, and subsequently use the good solution of ``reference_slit``
+to recalibrate all slits. An excellent choice for a ``reference_slit`` is
+one that has:
+(1) the correct wavelength solution;
+(2) the greatest wavelength overlap with all slits;
+(3) the most lines correctly identified; and
+(4) the lowest RMS.
+in that order of priority.
+
+.. _wvcalib-stack-slits:
+
+Stacking the arc spectra of all slits
++++++++++++++++++++++++++++++++++++++
+
+If the arc lines are weak or few, the arc spectrum of each slit may not have
+enough detected lines to be matched reliably to the template, even when the
+template itself has a high S/N.  For multislit, IFU and fiber data, where
+the wavelength coverage of all slits/slices/fibers is similar, you can instead
+calibrate a stack of the arc spectra of all slits:
+
+.. code-block:: ini
+
+    [calibrations]
+        [[wavelengths]]
+            stack_slits = True
+
+With this option, PypeIt:
+
+#. selects a reference slit; this is ``reference_slit``, if set, or otherwise
+   the slit with the most detected arc lines;
+
+#. aligns the arc spectrum of every slit to that of the reference slit (using
+   a shift and stretch), and combines them into a single arc spectrum with a
+   higher S/N; slits whose cross-correlation with the reference slit is below
+   ``cc_thresh`` are not included;
+
+#. wavelength calibrates the combined spectrum using the `full template`_
+   method; the QA plot of this solution is written to
+   ``QA/PNGs/Arc_1dfit_*_stack.png``; and
+
+#. identifies the arc lines of each slit, using the wavelength solution of
+   the combined spectrum and the alignment of the slit to the reference slit,
+   and fits the wavelength solution of each slit; slits that were not
+   included in the combined spectrum are calibrated using the combined
+   spectrum as the template.
+
+Unlike ``reference_slit`` alone, this does not require any slit to be
+calibrated successfully on its own.  If the combined spectrum cannot be
+calibrated, or the RMS of its solution is above the threshold (see
+:ref:`wvcalib-rms-threshold`), PypeIt reverts to calibrating each slit
+independently.  This option is the default for Keck/KCWI and Keck/KCRM.
 
 .. _wvcalib-echelle:
 
@@ -310,7 +380,7 @@ Mosaics
 -------
 
 For echelle spectrographs with multiple detectors *per* camera
-that are mosaiced (e.g. Keck/HIRES), we fit the 2D solutions on a *per* detector
+that are mosaiced (e.g. Keck/HIRES, VLT/UVES), we fit the 2D solutions on a *per* detector
 basis.  Ths is because we have found the mosaic solutions to be
 too difficult to make sufficiently accurate.
 
@@ -559,7 +629,7 @@ procedure, when possible:
    * For gratings that tilt, one may need to splice together a series
      of arc spectra to cover the full spectral range.
    * Follow the guidance :doc:`here <construct_template>` and see examples in
-     :mod:`~pypeit.core.wavecal.templates` and
+     ``pypeitdev/wavecal/templates.py`` in the `PypeIt Development Suite`_ and
 
 - Augment the line list
    * We are very conservative about adding new lines to the existing line lists.
@@ -572,14 +642,28 @@ procedure, when possible:
 
 .. _full-template-dev:
 
-Full Template
--------------
+Creating the wavelength calibration template
+--------------------------------------------
 
 The preferred method for multi-slit calibration is now
 called ``full_template`` which
 cross-matches an input spectrum against an archived template.  The
 latter must be constructed by a developer, using
-:mod:`~pypeit.core.wavecal.templates`.  The following table
+``pypeitdev/wavecal/templates.py`` in the `PypeIt Development Suite`_.
+
+.. important::
+
+    The ``full_template`` method cross-correlates the input arc spectrum with
+    the template in pixel space, so the template must be sampled on the
+    detector pixels of the spectrograph; i.e., it must have the same
+    non-linear relation between pixel and wavelength as the data.  Spectra
+    that have been resampled onto a linear wavelength grid (such as most
+    coadded spectra) should not be used directly to construct a template.
+    Instead, resample them onto the detector pixel grid of the same
+    instrument setup first (see ``linear_to_pixel_grid`` in the
+    ``templates.py`` module of the PypeIt Development Suite).
+
+The following table
 summarizes the existing ones (all of which are in the
 ``data/arc_lines/reid_arxiv`` folder):
 
@@ -613,7 +697,7 @@ shane_kast_blue  830_3460 grism, all lamps  shane_kast_blue_830.fits
 .. for further details.
 
 Follow the guidance :doc:`here <construct_template>` and see examples in
-:mod:`~pypeit.core.wavecal.templates` and
+``pypeitdev/wavecal/templates.py`` in the `PypeIt Development Suite`_ and
 
 One of the key parameters (and the only one that can be modified) for
 ``full_template`` is the number of snippets to break the input

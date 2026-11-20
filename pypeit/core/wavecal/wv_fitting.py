@@ -5,15 +5,14 @@
 
 """
 import numpy as np
-import inspect
 
 from astropy.io import fits
 
-from pypeit.core.wavecal import autoid
 from pypeit.core.wavecal import defs
 from pypeit.core import fitting
-from pypeit import msgs
-
+from pypeit import log
+from pypeit import utils
+from pypeit import PypeItError
 from pypeit import datamodel
 
 from IPython import embed
@@ -103,7 +102,7 @@ class WaveFit(datamodel.DataContainer):
                  sigrej=None, shift=None, tcent=None, rms=None, xnorm=None,
                  fwhm=None):
         # Parse
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        args, values = utils.init_arg_values()
         d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
@@ -149,7 +148,7 @@ class WaveFit(datamodel.DataContainer):
         """
         if 'force_to_bintbl' in kwargs:
             if not kwargs['force_to_bintbl']:
-                msgs.warn(f'{self.__class__.__name__} objects must always use '
+                log.warning(f'{self.__class__.__name__} objects must always use '
                           'force_to_bintbl = True!')
             kwargs.pop('force_to_bintbl')
         return super().to_hdu(force_to_bintbl=True, **kwargs)
@@ -227,8 +226,10 @@ class WaveFit(datamodel.DataContainer):
         return np.asarray(ionlist)
 
 
-def fit_slit(spec, patt_dict, tcent, line_lists, vel_tol = 1.0, outroot=None, slittxt="Slit", thar=False,match_toler=3.0,
-             func='legendre', n_first=2,sigrej_first=2.0,n_final=4,sigrej_final=3.0,verbose=False):
+def fit_slit(
+    spec, patt_dict, tcent, line_lists, vel_tol=1.0, thar=False, match_toler=3.0, func='legendre',
+    n_first=2, sigrej_first=2.0, n_final=4, sigrej_final=3.0, verbose=False
+):
 
     """ Perform a fit to the wavelength solution. Wrapper for iterative fitting code.
 
@@ -245,10 +246,6 @@ def fit_slit(spec, patt_dict, tcent, line_lists, vel_tol = 1.0, outroot=None, sl
     vel_tol: float, default = 1.0
         Tolerance in km/s for matching lines in the IDs to lines in the NIST
         database. The default is 1.0 km/s
-    outroot: str
-        Path for QA file.
-    slittxt : str
-        Label used for QA
     thar: bool, default = False
         True if this is a ThAr fit
     match_toler: float, default = 3.0
@@ -278,45 +275,64 @@ def fit_slit(spec, patt_dict, tcent, line_lists, vel_tol = 1.0, outroot=None, sl
 
     # Check that patt_dict and tcent refer to each other
     if patt_dict['mask'].shape != tcent.shape:
-        msgs.error('patt_dict and tcent do not refer to each other. Something is very wrong')
+        raise PypeItError('patt_dict and tcent do not refer to each other. Something is very wrong')
 
     # Perform final fit to the line IDs
+    NIST_lines = line_lists['NIST'] > 0
     if thar:
-        NIST_lines = (line_lists['NIST'] > 0) & (np.char.find(line_lists['Source'].data, 'MURPHY') >= 0)
-    else:
-        NIST_lines = line_lists['NIST'] > 0
+        NIST_lines &= np.char.find(line_lists['Source'].data, 'MURPHY') >= 0
     ifit = np.where(patt_dict['mask'])[0]
 
-    if outroot is not None:
-        plot_fil = outroot + slittxt + '_fit.pdf'
-    else:
-        plot_fil = None
-
-    # TODO Profx maybe you can add a comment on what this is doing. Why do we have use_unknowns=True only to purge them later??
-    # Purge UNKNOWNS from ifit
+    # TODO Profx maybe you can add a comment on what this is doing. Why do we
+    # have use_unknowns=True only to purge them later??  Purge UNKNOWNS from
+    # ifit
     imsk = np.ones(len(ifit), dtype=bool)
     for kk, idwv in enumerate(np.array(patt_dict['IDs'])[ifit]):
         if (np.min(np.abs(line_lists['wave'][NIST_lines] - idwv)))/idwv*3.0e5 > vel_tol:
             imsk[kk] = False
     ifit = ifit[imsk]
     # Fit
-    final_fit = iterative_fitting(spec, tcent, ifit, np.array(patt_dict['IDs'])[ifit], line_lists[NIST_lines],
-                                  patt_dict['bdisp'],match_toler=match_toler, func=func, n_first=n_first,
-                                  sigrej_first=sigrej_first,n_final=n_final, sigrej_final=sigrej_final,
-                                  plot_fil=plot_fil, verbose=verbose)
-    if plot_fil is not None and final_fit is not None:
-        print("Wrote: {:s}".format(plot_fil))
-
-    # Return
-    return final_fit
+    return iterative_fitting(
+        spec, tcent, ifit, np.array(patt_dict['IDs'])[ifit], line_lists[NIST_lines],
+        patt_dict['bdisp'], match_toler=match_toler, func=func, n_first=n_first,
+        sigrej_first=sigrej_first,n_final=n_final, sigrej_final=sigrej_final, verbose=verbose
+    )
 
 
-def iterative_fitting(spec, tcent, ifit, IDs, llist, dispersion,
-                      match_toler = 2.0, func = 'legendre', n_first=2, sigrej_first=2.0,
-                      n_final=4, sigrej_final=3.0, input_only=False,
-                      weights=None, plot_fil=None, verbose=False):
+def order_for_dof(order, nlines, min_dof=2):
+    """
+    Return the largest polynomial order, up to ``order``, that leaves at least
+    ``min_dof`` degrees of freedom when fitting ``nlines`` arc lines.
 
-    """ Routine for iteratively fitting wavelength solutions.
+    A polynomial of order :math:`n` has :math:`n+1` free parameters, so the
+    number of degrees of freedom is ``nlines - order - 1``.
+
+    Parameters
+    ----------
+    order : int
+        Requested polynomial order.
+    nlines : int
+        Number of arc lines to be fit.
+    min_dof : int, optional
+        Minimum number of degrees of freedom required.
+
+    Returns
+    -------
+    int or None
+        The polynomial order to use.  If even a linear fit does not leave
+        ``min_dof`` degrees of freedom, None is returned.
+    """
+    _order = min(order, nlines - min_dof - 1)
+    return None if _order < 1 else _order
+
+
+def iterative_fitting(
+    spec, tcent, ifit, IDs, llist, dispersion, match_toler=2.0, func='legendre', n_first=2,
+    sigrej_first=2.0, n_final=4, sigrej_final=3.0, input_only=False, weights=None, verbose=False,
+    min_dof=2
+):
+    """
+    Routine for iteratively fitting wavelength solutions.
 
     Parameters
     ----------
@@ -355,13 +371,18 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, dispersion,
         Weights to be used?
     verbose : bool
         If True, print out more information.
-    plot_fil:
-        Filename for plotting some QA?
+    min_dof : int, optional
+        Minimum number of degrees of freedom required for the final fit.  If there
+        are too few lines for the requested order, the order is reduced (see
+        :func:`order_for_dof`); if there are too few lines for a linear fit,
+        the fit fails and None is returned.  This prevents fits that pass
+        exactly through (possibly misidentified) lines from being accepted
+        with an RMS of zero.
 
     Returns
     -------
     final_fit: :class:`~pypeit.core.wavecal.wv_fitting.WaveFit`
-        Fit result
+        Fit result.  None is returned if the fit fails.
     """
 
     #TODO JFH add error checking here to ensure that IDs and ifit have the same size!
@@ -382,7 +403,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, dispersion,
     flg_continue = True
     flg_penultimate = False
     fmin, fmax = 0.0, 1.0
-    # Note the number of parameters is actually n_order and not n_order+1
+    # Note the number of parameters is n_order+1
     while flg_continue:
         if flg_penultimate:
             flg_continue = False
@@ -391,22 +412,24 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, dispersion,
         maxiter = xfit.size - n_order - 2
         #
         if xfit.size == 0:
-            msgs.warn("All points rejected !!")
+            log.warning("All points rejected !!")
             return None
-        # Fit
+        # Fit.  NOTE: The number of degrees of freedom is not enforced for
+        # these preliminary fits, which are only used to identify additional
+        # lines; it is enforced for the final fit below.
         pypeitFit = fitting.robust_fit(xfit/xnspecmin1, yfit, n_order, function=func, maxiter=maxiter,
                                        lower=sigrej_first, upper=sigrej_first, maxrej=1, sticky=True,
                                        minx=fmin, maxx=fmax, weights=wfit)
         # Junk fit?
         if pypeitFit is None:
-            msgs.warn("Bad fit!!")
+            log.warning("Bad fit!!")
             return None
 
         # RMS is computed from `yfit`, which is the wavelengths of the lines.  Convert to pixels.
         rms_angstrom = pypeitFit.calc_fit_rms(apply_mask=True)
         rms_pixels = rms_angstrom/dispersion
         if verbose:
-            msgs.info(f"n_order = {n_order}: RMS = {rms_pixels:g} pixels")
+            log.info(f"n_order = {n_order}: RMS = {rms_pixels:g} pixels")
 
         # Reject but keep originals (until final fit)
         ifit = list(ifit[pypeitFit.gpm == 1]) + sv_ifit
@@ -431,11 +454,17 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, dispersion,
         else:
             flg_penultimate = True
 
-    # Final fit (originals can now be rejected)
-    if len(ifit) <= n_final:
-        n_order = len(ifit)-1
-        msgs.warn(f'Not enough lines for n_final! Fit order = {n_order}')
-            
+    # Final fit (originals can now be rejected).  Make sure the fit has enough
+    # degrees of freedom.
+    n_order = order_for_dof(n_final, len(ifit), min_dof=min_dof)
+    if n_order is None:
+        log.warning(f'Only {len(ifit)} lines available; at least {min_dof+2} are required '
+                    f'for a linear fit with {min_dof} degrees of freedom.')
+        return None
+    if n_order < n_final:
+        log.warning(f'Not enough lines ({len(ifit)}) for n_final = {n_final} with at least '
+                    f'{min_dof} degrees of freedom.  Reducing the fit order to {n_order}.')
+
     xfit, yfit, wfit = tcent[ifit], all_ids[ifit], weights[ifit]
     pypeitFit = fitting.robust_fit(xfit/xnspecmin1, yfit, n_order, function=func,
                                    lower=sigrej_final, upper=sigrej_final, maxrej=1, sticky=True,
@@ -450,7 +479,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, dispersion,
         if verbose:
             for kk, imask in enumerate(irej):
                 wave = pypeitFit.eval(xrej[kk]/xnspecmin1)#, func, minx=fmin, maxx=fmax)
-                msgs.info('Rejecting arc line {:g}; {:g}'.format(yfit[imask], wave))
+                log.info('Rejecting arc line {:g}; {:g}'.format(yfit[imask], wave))
     else:
         xrej = []
         yrej = []
@@ -459,7 +488,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, dispersion,
     # Final RMS computed from `yfit`, which is the wavelengths of the lines.  Convert to pixels.
     rms_angstrom = pypeitFit.calc_fit_rms(apply_mask=True)
     rms_pixels = rms_angstrom/dispersion
-    msgs.info(f"RMS of the final wavelength fit: {rms_pixels:g} pixels")
+    log.info(f"RMS of the final wavelength fit: {rms_pixels:g} pixels")
 
     # Pack up fit
     spec_vec = np.arange(nspec)
@@ -475,14 +504,8 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, dispersion,
 
     # DataContainer time
     # spat_id is set to an arbitrary -1 here and is updated in wavecalib.py
-    final_fit = WaveFit(-1, pypeitfit=pypeitFit, pixel_fit=xfit, wave_fit=yfit,
-                        ion_bits=ion_bits, xnorm=xnspecmin1,
-                        cen_wave=cen_wave, cen_disp=cen_disp,
-                        spec=spec, wave_soln = wave_soln, sigrej=sigrej_final,
-                        shift=0., tcent=tcent, rms=rms_pixels)
-
-    # QA
-    if plot_fil is not None:
-        autoid.arc_fit_qa(final_fit, plot_fil)
-    # Return
-    return final_fit
+    return WaveFit(
+        -1, pypeitfit=pypeitFit, pixel_fit=xfit, wave_fit=yfit, ion_bits=ion_bits,
+        xnorm=xnspecmin1, cen_wave=cen_wave, cen_disp=cen_disp, spec=spec, wave_soln=wave_soln,
+        sigrej=sigrej_final, shift=0., tcent=tcent, rms=rms_pixels
+    )

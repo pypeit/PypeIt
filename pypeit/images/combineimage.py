@@ -8,7 +8,8 @@ from IPython import embed
 
 import numpy as np
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit.core import combine
 from pypeit.core import procimg
 from pypeit.par import pypeitpar
@@ -37,18 +38,17 @@ class CombineImage:
         rawImages (:obj:`list`):
             A list of one or more :class:`~pypeit.images.rawimage.RawImage` objects 
             to be combined.             
-
     """
     def __init__(self, rawImages, par):
         if not isinstance(par, pypeitpar.ProcessImagesPar):
-            msgs.error('Provided ParSet for must be type ProcessImagesPar.')
+            raise PypeItError('Provided ParSet for must be type ProcessImagesPar.')
         self.rawImages = list(rawImages) if hasattr(rawImages, '__len__') else [rawImages]
         self.par = par  # This musts be named this way as it is frequently a child
 
         # NOTE: nimgs is a property method.  Defining rawImages above must come
         # before this check!
         if self.nimgs == 0:
-            msgs.error('CombineImage requires a list of files to instantiate')
+            raise PypeItError('CombineImage requires a list of files to instantiate')
 
 
     def run(self, ignore_saturation=False, maxiters=5):
@@ -137,13 +137,12 @@ class CombineImage:
             :class:`~pypeit.images.pypeitimage.PypeItImage`: The combination of
             all the processed images.
         """
-        
-        
+
         # Check the input (i.e., bomb out *before* it does any processing)
         if self.nimgs == 0:
-            msgs.error('Object contains no files to process!')
+            raise PypeItError('Object contains no files to process!')
         if self.nimgs > 1 and self.par['combine'] not in ['mean', 'median']:
-            msgs.error(f'Unknown image combination method, {self.par["combine"]}.  Must be '
+            raise PypeItError(f'Unknown image combination method, {self.par["combine"]}.  Must be '
                        '"mean" or "median".')
         file_list = []
         # Loop on the files
@@ -161,9 +160,12 @@ class CombineImage:
                 basev_stack = np.zeros(shape, dtype=float)
                 gpm_stack = np.zeros(shape, dtype=bool)
                 exptime = np.zeros(self.nimgs, dtype=float)
+                all_spat_flexure = [None for ii in range(self.nimgs)]
 
             # Save the exposure time to check if it's consistent for all images.
             exptime[kk] = rawImage.exptime
+            # Save the spatial flexure to check if it's consistent for all images and propagate it to the combined image
+            all_spat_flexure[kk] = rawImage.spat_flexure
             # Processed image
             img_stack[kk] = rawImage.image
             # Get the count scaling
@@ -189,22 +191,54 @@ class CombineImage:
         # TODO: JFH suggests that we move this to calibrations.check_calibrations
         if np.any(np.absolute(np.diff(exptime)) > 0):
             # TODO: This should likely throw an error instead!
-            msgs.warn('Exposure time is not consistent for all images being combined!  '
+            log.warning('Exposure time is not consistent for all images being combined!  '
                       'Using the average.')
             comb_texp = np.mean(exptime)
         else:
             comb_texp = exptime[0]
 
+        # Check if any or all spatial flexure are None
+        comb_spat_flexure = None  # Default is no spatial flexure
+        if np.all([a is None for a in all_spat_flexure]):
+            log.debug('No spatial flexure values found for the images being combined.')
+        else:
+            if np.any([a is None for a in all_spat_flexure]):
+                # Some images do not have a spatial flexure (e.g., if a manual
+                # spatial flexure was only provided for some of the frames).
+                # These are assumed to have no spatial flexure.
+                log.warning('Some images do not have spatial flexure values; these images are '
+                            'assumed to have no spatial flexure.')
+                _ref = next(a for a in all_spat_flexure if a is not None)
+                all_spat_flexure = [np.zeros_like(_ref) if a is None else a for a in all_spat_flexure]
+            all_spat_flexure = np.array(all_spat_flexure)
+            # The spatial flexure of the combined image
+            comb_spat_flexure = np.mean(all_spat_flexure, axis=0)
+
+            # Before combining, perform a quick check to make sure all
+            # spatial flexure values of all input frames are consistent.
+            # If not, print a warning message to the user.
+            # Subtract off the minimum value
+            tst_spat_flexure = all_spat_flexure - np.min(all_spat_flexure, axis=0)[None, :, :]
+            max_diff = np.max(tst_spat_flexure)
+            if max_diff >= 0.2:
+                log.warning(f'Spatial flexure values of input frames are not consistent to within 0.2 pixels. '
+                            f'Largest difference between spatial flexure was {max_diff:.2f} pixels. '
+                            f'This may lead to a poor combination of the images.')
+            elif max_diff != 0.0:
+                log.info(f'Spatial flexure values of input frames are consistent to within 0.2 pixels. '
+                         f'Maximum difference between spatial flexure was {max_diff:.2f} pixels.')
+
         # scale the images to their mean, if requested, before combining
         if self.par['scale_to_mean']:
-            msgs.info("Scaling images to have the same mean before combining")
+            log.info("Scaling images to have the same mean before combining")
             # calculate the mean of the images
-            [mean_img], _, mean_gpm, _ = combine.weighted_combine(np.ones(self.nimgs, dtype=float)/self.nimgs,
-                                                                  [img_stack],
+            [mean_img], _, mean_gpm, _ = combine.weighted_combine([img_stack],
                                                                   [rn2img_stack],
                                                                   # var_list is added because it is
                                                                   # required by the function but not used
-                                                                  gpm_stack, sigma_clip=self.par['clip'],
+                                                                  gpm_stack,
+                                                                  weights=None,
+                                                                  sigma_clip=self.par['clip'],
                                                                   sigma_clip_stack=img_stack,
                                                                   sigrej=self.par['comb_sigrej'], maxiters=maxiters)
 
@@ -224,12 +258,10 @@ class CombineImage:
 
         # Coadd them
         if self.par['combine'] == 'mean':
-            weights = np.ones(self.nimgs, dtype=float)/self.nimgs
             img_list_out, var_list_out, gpm, nframes \
-                    = combine.weighted_combine(weights,
-                                               [img_stack, scl_stack],  # images to stack
+                    = combine.weighted_combine([img_stack, scl_stack],  # images to stack
                                                [rn2img_stack, basev_stack], # variances to stack
-                                               gpm_stack, sigma_clip=self.par['clip'],
+                                               gpm_stack, weights=None, sigma_clip=self.par['clip'],
                                                sigma_clip_stack=img_stack,  # clipping based on img
                                                sigrej=self.par['comb_sigrej'], maxiters=maxiters)
             comb_img, comb_scl = img_list_out
@@ -258,7 +290,7 @@ class CombineImage:
         else:
             # NOTE: Given the check at the beginning of the function, the code
             # should *never* make it here.
-            msgs.error("Bad choice for combine.  Allowed options are 'median', 'mean'.")
+            raise PypeItError("Bad choice for combine.  Allowed options are 'median', 'mean'.")
 
         # Recompute the inverse variance using the combined image
         comb_var = procimg.variance_model(comb_basev,
@@ -275,6 +307,7 @@ class CombineImage:
                                        # NOTE: The detector is needed here so
                                        # that we can get the dark current later.
                                        detector=rawImage.detector,
+                                       spat_flexure=comb_spat_flexure,
                                        PYP_SPEC=rawImage.PYP_SPEC,
                                        units='e-' if self.par['apply_gain'] else 'ADU',
                                        exptime=comb_texp, noise_floor=self.par['noise_floor'],

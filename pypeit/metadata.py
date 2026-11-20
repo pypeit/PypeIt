@@ -9,7 +9,6 @@ from pathlib import Path
 import io
 import string
 from copy import deepcopy
-import datetime
 
 from IPython import embed
 
@@ -17,14 +16,63 @@ import numpy as np
 
 from astropy import table, time
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import inputfiles
+from pypeit import outputfiles
 from pypeit.core import framematch
 from pypeit.core import parse
 from pypeit.core import meta
+from pypeit.core.bitmask import BitMask
 from pypeit.io import dict_to_lines
 from pypeit.par import PypeItPar
-from pypeit.bitmask import BitMask
+
+
+def parse_manual_spat_flexure(value):
+    """
+    Parse a single entry of the pypeit-file ``shift`` column.
+
+    The ``shift`` column holds a user-supplied (manual) spatial flexure, in
+    pixels, for each frame.  A blank entry (or ``None``) means no manual
+    value; any numeric entry -- including ``0.`` -- is a user request to
+    override the automatically computed spatial flexure of that frame.  For
+    backwards compatibility, ``nan`` is also treated as "not set".  See
+    Issue #2180.
+
+    Parameters
+    ----------
+    value : :obj:`str`, :obj:`float`, None
+        The entry in the ``shift`` column.  Masked entries are treated as
+        blank.
+
+    Returns
+    -------
+    :obj:`float` or None
+        The manual spatial flexure shift in pixels, or None if the user did
+        not provide one.
+
+    Raises
+    ------
+    PypeItError
+        Raised if the entry is neither blank nor a finite number.
+    """
+    # Blank (or 'None') is the "not set" sentinel; see
+    # PypeItMetaData.set_user_added_columns()
+    if np.ma.is_masked(value):
+        return None
+    _value = str(value).strip()
+    if _value.lower() in ['', 'none', 'nan']:
+        return None
+    try:
+        shift = float(_value)
+    except ValueError:
+        shift = None
+    if shift is None or not np.isfinite(shift):
+        raise PypeItError(
+            'Invalid value in the pypeit-file shift column: '
+            f'{_value}.  Must be a number or blank.'
+        )
+    return shift
 
 
 # TODO: Turn this into a DataContainer
@@ -86,7 +134,7 @@ class PypeItMetaData:
             A dictionary of the unique configurations identified.
         type_bitmask (:class:`~pypeit.core.framematch.FrameTypeBitMask`):
             The bitmask used to set the frame type of each fits file.
-        calib_bitmask (:class:`~pypeit.bitmask.BitMask`):
+        calib_bitmask (:class:`~pypeit.core.bitmask.BitMask`):
             The bitmask used to keep track of the calibration group bits.
         table (`astropy.table.Table`_):
             The table with the relevant metadata for each fits file to
@@ -97,7 +145,7 @@ class PypeItMetaData:
 
         if data is None and files is None:
             # Warn that table will be empty
-            msgs.warn('Both data and files are None in the instantiation of PypeItMetaData.'
+            log.warning('Both data and files are None in the instantiation of PypeItMetaData.'
                       '  The table will be empty!')
 
         # Initialize internals
@@ -112,16 +160,22 @@ class PypeItMetaData:
         self.type_bitmask = framematch.FrameTypeBitMask()
 
         # Build table
-        self.table = table.Table(data if files is None 
-                                 else self._build(files, strict=strict, 
+        self.skipped_file_indices = []
+        self.table = table.Table(data if files is None
+                                 else self._build(files, strict=strict,
                                                   usrdata=usrdata))
 
-        # Merge with user data, if present
+        # Merge with user data, if present.  Any files skipped by _build are not
+        # in the table, so their rows must be dropped from the user data as well
+        # or the two will be misaligned; see merge().
         if usrdata is not None:
+            if len(self.skipped_file_indices) > 0:
+                usrdata = usrdata[np.setdiff1d(np.arange(len(usrdata)),
+                                               self.skipped_file_indices)]
             self.merge(usrdata)
 
         # Impose types on specific columns
-        self._impose_types(['comb_id', 'bkg_id', 'manual', 'shift'], [int, int, str, float])
+        self._impose_types(['comb_id', 'bkg_id', 'manual', 'shift'], [int, int, str, str])
 
         # Initialize internal attributes
         self.configs = None
@@ -131,6 +185,9 @@ class PypeItMetaData:
         self.set_user_added_columns()
         # Validate instrument name
         self._vet_instrument(self.table)
+        # Allow the spectrograph to cache information from the metadata for
+        # later use when reading/processing raw images
+        self.spectrograph.cache_metadata(self)
 
     def _impose_types(self, columns, types):
         """
@@ -162,7 +219,7 @@ class PypeItMetaData:
         """
         if 'instrument' in meta_tbl.keys():
             if self.spectrograph.header_name is None:
-                msgs.error('CODING ERROR: header_name is not defined for '
+                raise PypeItError('CODING ERROR: header_name is not defined for '
                            f'{self.spectrograph.__class__.__name__}!')
             # Check that there is only one instrument
             #  This could fail if one mixes is much older calibs
@@ -172,13 +229,49 @@ class PypeItMetaData:
             # An empty table is allowed
             if len(instr_names) > 0:
                 if len(instr_names) != 1:
-                    msgs.warn(f'More than one instrument in your dataset! {instr_names} \n'
+                    log.warning(f'More than one instrument in your dataset! {instr_names} \n'
                               'Proceed with great caution...')
                 # Check the name
                 if not instr_names[0].startswith(self.spectrograph.header_name):
-                    msgs.warn('The instrument name in the headers of the raw files does not match the '
+                    log.warning('The instrument name in the headers of the raw files does not match the '
                               f'expected one! Found {instr_names[0]}, expected {self.spectrograph.header_name}.  '
                               'You may have chosen the wrong PypeIt spectrograph name!')
+
+    def _read_meta_row(self, ifile, usr_row, strict):
+        """
+        Read the metadata for a single file into a ``{meta_key: value}`` dict.
+
+        Args:
+            ifile (`Path`_):
+                The file to read.
+            usr_row (`astropy.table.Row`_, optional):
+                User-provided metadata row for this file (e.g. frame type),
+                passed through to
+                :func:`~pypeit.spectrographs.spectrograph.Spectrograph.get_meta_value`.
+            strict (:obj:`bool`):
+                See :func:`_build`.  Passed through to ``get_headarr`` and
+                ``get_meta_value``.
+
+        Returns:
+            :obj:`dict`: The ``{meta_key: value}`` values for this file.
+
+        Raises:
+            IndexError: If the file is missing an expected FITS extension.
+                :func:`_build` catches this to skip unreadable files in
+                non-strict mode.
+        """
+        headarr = self.spectrograph.get_headarr(ifile, strict=strict)
+        row_data = {}
+        for meta_key in self.spectrograph.meta.keys():
+            value = self.spectrograph.get_meta_value(
+                headarr, meta_key, required=strict, usr_row=usr_row,
+                ignore_bad_header=(self.par['rdx']['ignore_bad_headers'] or strict))
+            if isinstance(value, str) and '#' in value:
+                value = value.replace('#', '')
+                log.warning('Removing troublesome # character from {0}.  Returning {1}.'.format(
+                          meta_key, value))
+            row_data[meta_key] = value
+        return row_data
 
     def _build(self, files, strict=True, usrdata=None):
         """
@@ -189,8 +282,9 @@ class PypeItMetaData:
                 One or more files to use to build the table.
             strict (:obj:`bool`, optional):
                 Function will fault if `astropy.io.fits.getheader`_ fails to
-                read any of the headers.  Set to False to report a
-                warning and continue.
+                read any of the headers or if metadata access requires a
+                missing FITS extension.  Set to False to report a warning,
+                skip files missing an expected extension, and continue.
             usrdata (`astropy.table.Table`_, optional):
                 Parsed for frametype for a few instruments (e.g. VLT)
                 where meta data may not be required
@@ -202,11 +296,15 @@ class PypeItMetaData:
         # Allow for single files
         _files = files if hasattr(files, '__len__') else [files]
 
-        msgs.info(f"Building metadata for {len(_files)} files.")
+        log.info(f"Building metadata for {len(_files)} files.")
         # Build lists to fill
         data = {k:[] for k in self.spectrograph.meta.keys()}
-        data['directory'] = ['None']*len(_files)
-        data['filename'] = ['None']*len(_files)
+        data['directory'] = []
+        data['filename'] = []
+
+        # Indices of any files skipped because they could not be read; used to
+        # cull the matching rows from usrdata before merging (see __init__).
+        self.skipped_file_indices = []
 
         # Build the table
         for idx, ifile in enumerate(_files):
@@ -218,33 +316,34 @@ class PypeItMetaData:
                 # TODO: This check should be done elsewhere
                 # Check
                 if _ifile.name != usrdata['filename'][idx].lstrip("# "):
-                    msgs.error('File name list does not match user-provided metadata table.  See '
+                    raise PypeItError('File name list does not match user-provided metadata table.  See '
                                'usrdata argument of instantiation of PypeItMetaData.')
                 usr_row = usrdata[idx]
 
-            # Add the directory and file name to the table
-            data['directory'][idx] = str(_ifile.parent)
-            data['filename'][idx] = _ifile.name
-            if not data['directory'][idx]:
-                data['directory'][idx] = '.'
+            # Read the file's metadata.  A file that is missing an expected
+            # FITS extension -- e.g. a single-HDU acquisition/guider frame that
+            # happens to sit in a raw-data directory of multi-extension science
+            # cubes (MMIRS writes both) -- raises an IndexError while reading
+            # its headers.  In non-strict mode (setup) skip such a file rather
+            # than crash or add a row of Nones; the recorded index lets
+            # __init__ cull the matching usrdata row, and the table columns are
+            # appended only on a successful read (not index-assigned) so a skip
+            # leaves no gap.
+            log.info(f'Adding metadata for {_ifile.name}')
+            try:
+                row_data = self._read_meta_row(_ifile, usr_row, strict)
+            except IndexError:
+                if strict:
+                    raise
+                log.warning(f'Unable to read metadata for {_ifile.name}: The file does not contain '
+                            'an expected FITS extension.  Skipping this file.')
+                self.skipped_file_indices.append(idx)
+                continue
 
-            # Read the fits headers.  NOTE: If the file cannot be opened,
-            # headarr will be None, and the subsequent loop over the meta keys
-            # will fill the data dictionary with None values.
-            msgs.info(f'Adding metadata for {data["filename"][idx]}')
-            headarr = self.spectrograph.get_headarr(_ifile, strict=strict)
-
-            # Grab Meta
-            for meta_key in self.spectrograph.meta.keys():
-                value = self.spectrograph.get_meta_value(headarr, meta_key, 
-                                                         required=strict,
-                                                         usr_row=usr_row, 
-                        ignore_bad_header = (
-                            self.par['rdx']['ignore_bad_headers'] or strict))
-                if isinstance(value, str) and '#' in value:
-                    value = value.replace('#', '')
-                    msgs.warn('Removing troublesome # character from {0}.  Returning {1}.'.format(
-                              meta_key, value))
+            directory = str(_ifile.parent)
+            data['directory'].append(directory if directory else '.')
+            data['filename'].append(_ifile.name)
+            for meta_key, value in row_data.items():
                 data[meta_key].append(value)
 
         # JFH Changed the below to not crash if some files have None in
@@ -263,7 +362,7 @@ class PypeItMetaData:
                   'frames either could not be opened, are empty, or have corrupt headers:\n'
             for file in bad_files:
                 msg += f'    {file}\n'
-            msgs.warn(msg)
+            log.warning(msg)
 
         # Return
         return data
@@ -495,69 +594,11 @@ class PypeItMetaData:
             str: The root name for file output.
         """
         _obstime = self.construct_obstime(row) if obstime is None else obstime
-        tiso = time.Time(_obstime, format='isot')
-        dtime = datetime.datetime.strptime(tiso.value, '%Y-%m-%dT%H:%M:%S.%f')
-        return '{0}-{1}_{2}_{3}{4}'.format(self['filename'][row].split('.fits')[0],
-                                           self['target'][row].replace(" ", ""),
-                                           self.spectrograph.camera,
-                                           datetime.datetime.strftime(dtime, '%Y%m%dT'),
-                                           tiso.value.split("T")[1].replace(':',''))
-
-#    def get_setup(self, row, det=None, config_only=False):
-#        """
-#        Construct the setup dictionary.
-#
-#        .. todo::
-#            - This is for backwards compatibility, but we should
-#              consider reformatting it.  And it may be something to put
-#              in the relevant spectrograph class.
-#
-#        Args:
-#            row (:obj:`int`):
-#                The 0-indexed row used to construct the setup.
-#            det (:obj:`int`, optional):
-#                The 1-indexed detector to include.  If None, all
-#                detectors are included.
-#            config_only (:obj:`bool`, optional):
-#                Just return the dictionary with the configuration, don't
-#                include the top-level designation of the configuration
-#                itself.
-#
-#        Returns:
-#            dict: The pypeit setup dictionary with the default format.
-#
-#        Raises:
-#            PypeItError:
-#                Raised if the 'setup' isn't been defined.
-#        """
-#        if 'setup' not in self.keys():
-#            msgs.error('Cannot provide instrument setup without \'setup\' column; '
-#                       'run set_configurations.')
-#        dispname = 'none' if 'dispname' not in self.keys() else self['dispname'][row]
-#        dispangle = 'none' if 'dispangle' not in self.keys() else self['dispangle'][row]
-#        dichroic = 'none' if 'dichroic' not in self.keys() else self['dichroic'][row]
-#        decker = 'none' if 'decker' not in self.keys() else self['decker'][row]
-#        slitwid = 'none' if 'slitwid' not in self.keys() else self['slitwid'][row]
-#        slitlen = 'none' if 'slitlen' not in self.keys() else self['slitlen'][row]
-#        binning = '1,1' if 'binning' not in self.keys() else self['binning'][row]
-#
-#        skey = 'Setup {}'.format(self['setup'][row])
-#        # Key names *must* match configuration_keys() for spectrographs
-#        setup = {skey:
-#                    {'--':
-#                        {'disperser': {'dispname': dispname, 'dispangle':dispangle},
-#                         'dichroic': dichroic,
-#                         'slit': {'decker': decker, 'slitwid':slitwid, 'slitlen':slitlen},
-#                         'binning': binning,  # PypeIt orientation binning of a science image
-#                         }
-#                     }
-#                 }
-#        #_det = np.arange(self.spectrograph.ndet)+1 if det is None else [det]
-#        #for d in _det:
-#        #    setup[skey][str(d).zfill(2)] \
-#        #            = {'binning': binning, 'det': d,
-#        #               'namp': self.spectrograph.detector[d-1]['numamplifiers']}
-#        return setup[skey] if config_only else setup
+        this_target = "TargetName" if np.ma.is_masked(self['target'][row]) else self['target'][row].replace(" ", "")
+        return outputfiles.construct_basename(
+            self['filename'][row], this_target, self.spectrograph.camera,
+            _obstime.mjd, self.spectrograph.allowed_extensions
+        )
 
     def get_configuration_names(self, ignore=None, return_index=False, configs=None):
         """
@@ -594,7 +635,7 @@ class PypeItMetaData:
                 Raised if the 'setup' isn't been defined.
         """
         if 'setup' not in self.keys():
-            msgs.error('Cannot get setup names; run set_configurations.')
+            raise PypeItError('Cannot get setup names; run set_configurations.')
 
         # Unique configurations
         # NOTE: This annoyingly returns Column types, not np.arrays!  So need to
@@ -619,6 +660,35 @@ class PypeItMetaData:
 
         return (setups, indx) if return_index else setups
 
+    def get_frames_from_combid(self, comb_id):
+        """
+        Return the indices of all frames with the provided combination
+        group ID.
+
+        Args:
+            comb_id (:obj:`int`):
+                The combination group ID to search for.
+
+        Returns:
+            `numpy.ndarray`_: The indices of all frames with the
+            provided combination group ID.
+
+        Raises:
+            PypeItError:
+                Raised if the 'comb_id' column has not been defined.
+        """
+        if 'comb_id' not in self.keys():
+            raise PypeItError('Cannot get frames from comb_id; run set_combination_groups.')
+
+        # Frames
+        frames = np.where(self['comb_id'] == comb_id)[0]
+
+        # Find all frames whose comb_id matches the current frames bkg_id.
+        bg_frames = np.where((self['comb_id'] == self['bkg_id'][frames][0])
+                                & (self['comb_id'] >= 0))[0]
+
+        return frames, bg_frames
+        
     def _get_cfgs(self, copy=False, rm_none=False):
         """
         Convenience method to return :attr:`configs` with possible
@@ -661,13 +731,9 @@ class PypeItMetaData:
     @property
     def n_configs(self):
         if self.configs is None:
-            msgs.error('Configurations not defined by PypeItMetaData object.  Execute '
+            raise PypeItError('Configurations not defined by PypeItMetaData object.  Execute '
                        'unique_configurations first.')
         return len(list(self.configs.keys()))
-
-    @property
-    def MASKED_VALUE(self):
-        return -9999
 
     def unique_configurations(self, force=False, copy=False, rm_none=False):
         """
@@ -723,20 +789,20 @@ class PypeItMetaData:
             return self._get_cfgs(copy=copy, rm_none=rm_none)
 
         if 'setup' in self.keys():
-            msgs.info('Setup column already set.  Finding unique configurations.')
+            log.info('Setup column already set.  Finding unique configurations.')
             uniq, indx = np.unique(self['setup'], return_index=True)
             ignore = uniq == 'None'
             if np.sum(ignore) > 0:
-                msgs.warn(f'Ignoring {np.sum(ignore)} frames with configuration set to None.')
+                log.warning(f'Ignoring {np.sum(ignore)} frames with configuration set to None.')
             self.configs = {}
             for i in range(len(uniq)):
                 if ignore[i]:
                     continue
                 self.configs[uniq[i]] = self.get_configuration(indx[i])
-            msgs.info('Found {0} unique configurations.'.format(len(self.configs)))
+            log.info('Found {0} unique configurations.'.format(len(self.configs)))
             return self._get_cfgs(copy=copy, rm_none=rm_none)
 
-        msgs.info('Using metadata to determine unique configurations.')
+        log.info('Using metadata to determine unique configurations.')
 
         # sort self.table
         mjd = self.table['mjd'].copy()
@@ -753,7 +819,7 @@ class PypeItMetaData:
         indx = indx[np.logical_not(np.isin(indx, ignore_indx))]
 
         if len(indx) == 0:
-            msgs.error('No frames to use to define configurations!')
+            raise PypeItError('No frames to use to define configurations!')
 
         # Instantiate the configuration generator
         cfg_gen = PypeItMetaData.configuration_generator()
@@ -763,7 +829,7 @@ class PypeItMetaData:
         if len(self.spectrograph.configuration_keys()) == 0:
             self.configs = {}
             self.configs[next(cfg_gen)] = {}
-            msgs.info('All files assumed to be from a single configuration.')
+            log.info('All files assumed to be from a single configuration.')
             return self._get_cfgs(copy=copy, rm_none=rm_none)
 
         # Use the first file to set the first unique configuration
@@ -787,13 +853,13 @@ class PypeItMetaData:
                 # Get the next setup identifier
                 setup = next(cfg_gen)
             except StopIteration:
-                msgs.error('Cannot assign more configurations!  Either something went wrong'
+                raise PypeItError('Cannot assign more configurations!  Either something went wrong'
                            'or you are trying to reduce data from more than '
                            f'{PypeItMetaData.maximum_number_of_configurations()} setups!')
             # Add the configuration
             self.configs[setup] = cfg
 
-        msgs.info(f'Found {len(self.configs)} unique configuration(s).')
+        log.info(f'Found {len(self.configs)} unique configuration(s).')
         return self._get_cfgs(copy=copy, rm_none=rm_none)
 
     def set_configurations(self, configs=None, force=False, fill=None):
@@ -843,7 +909,7 @@ class PypeItMetaData:
         _configs = self.unique_configurations() if configs is None else configs
         for k, cfg in _configs.items():
             if len(set(cfg.keys()) - set(self.keys())) > 0:
-                msgs.error('Configuration {0} defined using unavailable keywords!'.format(k))
+                raise PypeItError('Configuration {0} defined using unavailable keywords!'.format(k))
 
         # Some frame types need to be ignored
         ignore_frames, ignore_indx = self.ignore_frames()
@@ -879,7 +945,7 @@ class PypeItMetaData:
 
         # At this point, we need the frame type to continue
         if 'frametype' not in self.keys():
-            msgs.error('To account for ignored frames, types must have been defined; run '
+            raise PypeItError('To account for ignored frames, types must have been defined; run '
                        'get_frame_types.')
 
         # For each configuration, determine if any of the frames with
@@ -930,7 +996,7 @@ class PypeItMetaData:
                     # Warn the user that the matching meta values are not
                     # unique for this configuration.
                     if uniq_meta.size != 1:
-                        msgs.warn('When setting the instrument configuration for {0} '.format(ftype)
+                        log.warning('When setting the instrument configuration for {0} '.format(ftype)
                                   + 'frames, configuration {0} does not have unique '.format(cfg_key)
                                   + '{0} values.' .format(mkey))
                     # Find the frames of this type that match any of the
@@ -955,7 +1021,7 @@ class PypeItMetaData:
             cfg_gen = self.configuration_generator(start=len(np.unique(self.table['setup'][np.logical_not(not_setup)])))
             nw_setup = next(cfg_gen)
             self.configs[nw_setup] = {}
-            msgs.warn('All files that did not match any setup are grouped into a single configuration.')
+            log.warning('All files that did not match any setup are grouped into a single configuration.')
             self.table['setup'][not_setup] = nw_setup
 
     def clean_configurations(self):
@@ -985,7 +1051,7 @@ class PypeItMetaData:
             # Check that the metadata are valid for this column.
             indx = np.isin(self[key], cfg_limits[key])
             if not np.all(indx):
-                msgs.warn('Found frames with invalid {0}.'.format(key))
+                log.warning('Found frames with invalid {0}.'.format(key))
             good &= indx
 
         if np.all(good):
@@ -999,7 +1065,7 @@ class PypeItMetaData:
         indx = np.where(np.logical_not(good))[0]
         for i in indx:
             msg += '    {0}\n'.format(self['filename'][i])
-        msgs.warn(msg)
+        log.warning(msg)
         # And remove 'em
         self.table = self.table[good]
 
@@ -1020,7 +1086,7 @@ class PypeItMetaData:
             setup/configuration.
         """
         if 'setup' not in self.keys():
-            msgs.error('Configurations not set; first execute self.unique_configurations.')
+            raise PypeItError('Configurations not set; first execute self.unique_configurations.')
 
         # NOTE: frames can be associated with multiple setups (namely biases),
         # meaning that we have to split the string by any separating commas.
@@ -1100,7 +1166,7 @@ class PypeItMetaData:
             if not is_science[i]:
                 continue
             if len(self.calib_bitmask.flagged_bits(self['calibbit'][i])) > 1:
-                msgs.error('Science frames can only be assigned to a single calibration group.')
+                raise PypeItError('Science frames can only be assigned to a single calibration group.')
 
     @property
     def n_calib_groups(self):
@@ -1168,7 +1234,7 @@ class PypeItMetaData:
         # The configuration must be present to determine the calibration
         # group
         if 'setup' not in self.keys():
-            msgs.error('CODING ERROR: Must have defined \'setup\' column first; try running '
+            raise PypeItError('CODING ERROR: Must have defined \'setup\' column first; try running '
                        'set_configurations.')
         configs = np.unique(np.concatenate([_setup.split(',') for _setup in self['setup'].data])).tolist()
         if 'None' in configs:
@@ -1197,7 +1263,7 @@ class PypeItMetaData:
         # (like biases and darks)
         if global_frames is not None:
             if 'frametype' not in self.keys():
-                msgs.error('To set global frames, types must have been defined; '
+                raise PypeItError('To set global frames, types must have been defined; '
                            'run get_frame_types.')
 
             calibs = '0' if n_cfg == 1 else ','.join(np.arange(n_cfg).astype(str))
@@ -1228,9 +1294,9 @@ class PypeItMetaData:
         ignmsk = np.zeros(len(self.table), dtype=bool)
         if ignore_frames is not None:
             if 'frametype' not in self.keys():
-                msgs.error('To ignore frames, types must have been defined; run get_frame_types.')
+                raise PypeItError('To ignore frames, types must have been defined; run get_frame_types.')
             list_ignore_frames = list(ignore_frames.keys())
-            msgs.info('Unique configurations ignore frames with type: {0}'.format(list_ignore_frames))
+            log.info('Unique configurations ignore frames with type: {0}'.format(list_ignore_frames))
             for ftype in list_ignore_frames:
                 ignmsk |= self.find_frames(ftype)
         # Isolate the frames to be ignored
@@ -1267,7 +1333,7 @@ class PypeItMetaData:
                 Raised if the `framebit` column is not set in the table.
         """
         if 'framebit' not in self.keys():
-            msgs.error('Frame types are not set.  First run get_frame_types.')
+            raise PypeItError('Frame types are not set.  First run get_frame_types.')
         if ftype == 'None':
             return self['framebit'] == 0
         # Select frames
@@ -1313,9 +1379,45 @@ class PypeItMetaData:
         Returns:
             list: List of the full paths of one or more frames.
         """
-        if isinstance(indx, (int,np.integer)):
+        if isinstance(indx, (int, np.integer)):
             return os.path.join(self['directory'][indx], self['filename'][indx])
         return [os.path.join(d,f) for d,f in zip(self['directory'][indx], self['filename'][indx])]
+
+    def get_shifts(self, indx):
+        """
+        Return the user-supplied (manual) spatial flexure shifts for the
+        provided rows.
+
+        The shifts are read from the ``shift`` column; see
+        :func:`parse_manual_spat_flexure` for the allowed entries.
+
+        Args:
+            indx (:obj:`int`, array-like):
+                One or more 0-indexed rows in the table with the frames
+                to return.  Can be an array of indices or a boolean
+                array of the correct length.
+
+        Returns:
+            `numpy.ma.MaskedArray`_: Floating-point array with the manual
+            shift (in pixels) of each selected frame.  Frames without a
+            manual shift are masked.
+        """
+        # Make indx an array of integer row indices
+        _indx = np.atleast_1d(indx)
+        if _indx.dtype == bool:
+            _indx = np.where(_indx)[0]
+        # Initialize with all shifts masked (i.e., not set)
+        shifts = np.ma.array(np.zeros(_indx.size), mask=np.ones(_indx.size, dtype=bool))
+        # TODO : Maybe change the shifts to spatflex to be clear that this is a spatial flexure?
+        #        "shift" was previously used to indicate spectral flexure.
+        if 'shift' not in self.keys():
+            return shifts
+        # Parse the user-supplied values; assigning a value unmasks it
+        for i, row in enumerate(_indx):
+            shift = parse_manual_spat_flexure(self['shift'][row])
+            if shift is not None:
+                shifts[i] = shift
+        return shifts
 
     def set_frame_types(self, type_bits, merge=True):
         """
@@ -1411,32 +1513,32 @@ class PypeItMetaData:
         """
         # Checks
         if 'frametype' in self.keys() or 'framebit' in self.keys():
-            msgs.warn('Removing existing frametype and framebit columns.')
+            log.warning('Removing existing frametype and framebit columns.')
         if 'frametype' in self.keys():
             del self.table['frametype']
         if 'framebit' in self.keys():
             del self.table['framebit']
 
         # Start
-        msgs.info("Typing files")
+        log.info("Typing files")
         type_bits = np.zeros(len(self), dtype=self.type_bitmask.minimum_dtype())
     
         # Use the user-defined frame types from the input dictionary
         if user is not None:
             if len(user.keys()) != len(self):
                 if len(np.unique(self['filename'].data)) != len(self):
-                    msgs.error('Your pypeit file has duplicate filenames which is not allowed.')
+                    raise PypeItError('Your pypeit file has duplicate filenames which is not allowed.')
                 else:
-                    msgs.error('The user-provided dictionary does not match table length.')
-            msgs.info('Using user-provided frame types.')
+                    raise PypeItError('The user-provided dictionary does not match table length.')
+            log.info('Using user-provided frame types.')
             for ifile,ftypes in user.items():
                 indx = self['filename'] == ifile
                 try:
                     type_bits[indx] = self.type_bitmask.turn_on(type_bits[indx], flag=ftypes.split(','))
                 except ValueError as err:
-                    msgs.error(f'Improper frame type supplied!{msgs.newline()}'
-                               f'{err}{msgs.newline()}'
-                               'Check your PypeIt Reduction File')
+                    raise PypeItError(
+                        f'Improper frame type supplied!l\n{err}\nCheck your PypeIt Reduction File'
+                    )
             return self.set_frame_types(type_bits, merge=merge)
     
         # Loop over the frame types
@@ -1459,19 +1561,19 @@ class PypeItMetaData:
         # Find the files without any types
         indx = np.logical_not(self.type_bitmask.flagged(type_bits))
         if np.any(indx):
-            msgs.info("Couldn't identify the following files:")
+            log.info("Couldn't identify the following files:")
             for f in self['filename'][indx]:
-                msgs.info(f)
+                log.info(f)
             if not flag_unknown:
-                msgs.error("Check these files before continuing")
-            msgs.warn("These files are commented out and will be ignored during the reduction.")
+                raise PypeItError("Check these files before continuing")
+            log.warning("These files are commented out and will be ignored during the reduction.")
             # Comment out the frames that could not be identified
             # first change the dtype of the filename column to be able to add a #
             self['filename'] = self['filename'].value.astype(f"<U{np.char.str_len(self['filename']).max() + 3}")
             self['filename'][indx] = ['# ' + fname for fname in self['filename'][indx]]
     
         # Finish up (note that this is called above if user is not None!)
-        msgs.info("Typing completed!")
+        log.info("Typing completed!")
         return self.set_frame_types(type_bits, merge=merge)
 
     def set_pypeit_cols(self, write_bkg_pairs=False, write_manual=False, write_shift=False):
@@ -1506,7 +1608,7 @@ class PypeItMetaData:
         if write_manual:
             extras += ['manual']
         if write_shift:
-            msgs.info('Adding Shift Column')
+            log.info('Adding Shift Column')
             extras += ['shift']
         for key in extras:
             if key not in columns:
@@ -1544,7 +1646,9 @@ class PypeItMetaData:
         if 'bkg_id' not in self.keys():
             self['bkg_id'] = -1
         if 'shift' not in self.keys():
-            self['shift'] = self.MASKED_VALUE
+            # Blank means no manual spatial flexure; any numeric value
+            # (including 0.) is a user-requested override.
+            self['shift'] = ''
 
         # NOTE: Importantly, this if statement means that, if the user has
         # defined any non-negative combination IDs in their pypeit file, none of
@@ -1580,7 +1684,9 @@ class PypeItMetaData:
         if 'manual' not in self.keys():
             self['manual'] = ''
         if 'shift' not in self.keys():
-            self['shift'] = self.MASKED_VALUE
+            # Blank means no manual spatial flexure; any numeric value
+            # (including 0.) is a user-requested override.
+            self['shift'] = ''
 
     def write_sorted(self, ofile, overwrite=True, ignore=None, 
                      write_bkg_pairs=False, write_manual=False):
@@ -1613,17 +1719,17 @@ class PypeItMetaData:
                 Raised if the 'setup' isn't been defined.
         """
         if 'setup' not in self.keys():
-            msgs.error('Cannot write sorted instrument configuration table without \'setup\' '
+            raise PypeItError('Cannot write sorted instrument configuration table without \'setup\' '
                        'column; run set_configurations.')
 
         _ofile = Path(ofile).absolute()    
         if _ofile.exists() and not overwrite:
-            msgs.error(f'{_ofile} already exists.  Use ovewrite=True to overwrite.')
+            raise PypeItError(f'{_ofile} already exists.  Use ovewrite=True to overwrite.')
 
         # Grab output columns
         output_cols = self.set_pypeit_cols(write_bkg_pairs=write_bkg_pairs,
                                            write_manual=write_manual)
-        msgs.info(f'Columns being used are: {output_cols}')
+        log.info(f'Columns being used are: {output_cols}')
         cfgs = self.unique_configurations(copy=ignore is not None)
         if ignore is not None:
             for key in cfgs.keys():
@@ -1665,7 +1771,7 @@ class PypeItMetaData:
 
     def write_pypeit(self, output_path=None, cfg_lines=None,
                      write_bkg_pairs=False, write_manual=False,
-                     write_shift = False,
+                     write_shift=False,
                      configs=None, config_subdir=True,
                      version_override=None, date_override=None):
         """
@@ -1740,12 +1846,12 @@ class PypeItMetaData:
             cfg_keys = [key for key in cfg.keys() if key in _configs]
 
         if len(cfg_keys) == 0:
-            msgs.error('No setups to write!')
+            raise PypeItError('No setups to write!')
 
         # Grab output columns
         output_cols = self.set_pypeit_cols(write_bkg_pairs=write_bkg_pairs,
                                            write_manual=write_manual,
-                                           write_shift = write_shift)
+                                           write_shift=write_shift)
 
         # Write the pypeit files
         ofiles = [None]*len(cfg_keys)
@@ -1775,6 +1881,9 @@ class PypeItMetaData:
 
             # Get the data lines
             subtbl = self.table[output_cols][in_cfg]
+
+            self.spectrograph.final_config_frametypes(setup_dict[f'Setup {setup}'], subtbl)
+
             if 'calib' in output_cols:
                 # calib can be a str with a list of values because in some cases (e.g. MOSFIRE) the same
                 # calibration files are used for different setups. Here we update calib to have only the
@@ -1790,14 +1899,19 @@ class PypeItMetaData:
             #    data_lines = ff.getvalue().split('\n')[:-1]
             # Config lines
             if cfg_lines is None:
-                cfg_lines = ['[rdx]']
-                cfg_lines += ['    spectrograph = {0}'.format(self.spectrograph.name)]
+                cfg_lines = ['[rdx]', f'    spectrograph = {self.spectrograph.name}']
+
+            # Let the spectrograph add configuration-specific parameters derived
+            # from the raw data (e.g. a mask-design file found next to the
+            # frames).  The setup GUI shares this same merge (see
+            # Spectrograph.merge_setup_cfg_lines).
+            this_cfg_lines = self.spectrograph.merge_setup_cfg_lines(cfg_lines, subtbl, paths)
 
             # Instantiate a PypeItFile
-            pypeItFile = inputfiles.PypeItFile(cfg_lines, paths, subtbl, setup_dict)
+            pypeItFile = inputfiles.PypeItFile(this_cfg_lines, paths, subtbl, setup_dict)
             # Write
             pypeItFile.write(ofiles[j], version_override=version_override,
-                             date_override=date_override) 
+                             date_override=date_override)
 
         # Return
         return ofiles
@@ -1962,7 +2076,7 @@ class PypeItMetaData:
                 Raised if the 'calibbit' column is not defined.
         """
         if 'calibbit' not in self.keys():
-            msgs.error('Calibration groups are not set.  First run set_calibration_groups.')
+            raise PypeItError('Calibration groups are not set.  First run set_calibration_groups.')
         return self.calib_bitmask.flagged(self['calibbit'].data, flag=grp)
 
     def find_frame_calib_groups(self, row):
@@ -1972,3 +2086,26 @@ class PypeItMetaData:
         return self.calib_bitmask.flagged_bits(self['calibbit'][row])
 
 
+    def get_row_for_filename(self, filename:str) -> table.Table:
+        """Return the row of the metadata table for a filename
+
+        Parameters
+        ----------
+        filename : :obj:`str`
+            Filename for which to retrieve the table row
+
+        Returns
+        -------
+        :obj:`~astropy.table.Table`
+            A copy of the one-row table corresponding to the ``filename``
+            provided.
+        
+        Raises
+        ------
+        :class:`PypeItError`
+            If the requested filename is not in the table
+        """
+        idx = self.table['filename'] == Path(filename).name
+        if not any(idx):
+            raise PypeItError(f"Requested file {filename} not in the metadata table.")
+        return self.table[idx].copy()

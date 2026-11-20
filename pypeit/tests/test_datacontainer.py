@@ -449,6 +449,7 @@ def test_mixed():
     with pytest.raises(ValueError):
         hdu = data.to_hdu()
 
+
 def test_init():
 
     x = np.arange(10)

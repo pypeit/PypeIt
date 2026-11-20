@@ -24,7 +24,7 @@ The general procedure used to assign frames a given type is described
 here: :ref:`frame_types`.
 
 HIRES frame typing
------------------
+------------------
 
 The primary typing of HIRES frames is performed by
 :func:`pypeit.spectrographs.keck_hires.KECKHIRESSpectrograph.check_frame_type`.
@@ -51,6 +51,8 @@ If ``LAMPQTZ2 = True`` or ``LAMPNAME = 'quartz1'``, ``lampstat01`` will be equal
 
 The criteria used to select each frame type are as follows:
 
+Prior to version 1.18.1:
+
 ====================   ============   ============   ============   ======================================   ======================================================
 Frame                  ``hatch``      ``AUTOSHUT``   ``XCOVOPEN``   ``lampstat01``                           ``exptime``
 ====================   ============   ============   ============   ======================================   ======================================================
@@ -65,6 +67,23 @@ Frame                  ``hatch``      ``AUTOSHUT``   ``XCOVOPEN``   ``lampstat01
 ``arc``                ``False``      ``True``       ``True``       ``'ThAr1'`` or ``'ThAr2'``               Not used
 ``tilt``               ``False``      ``True``       ``True``       ``'ThAr1'`` or ``'ThAr2'``               Not used
 ====================   ============   ============   ============   ======================================   ======================================================
+
+After version 1.18.1:
+
+====================   ============   ==============   ============   ======================================   ======================================================
+Frame                  ``hatch``      ``AUTOSHUT``     ``XCOVOPEN``   ``lampstat01``                           ``exptime``
+====================   ============   ==============   ============   ======================================   ======================================================
+``science``            ``True``       ``True``         ``True``       ``'off'``                                ``>601s``
+``standard``           ``'open'``     ``True``         ``True``       ``'off'``                                ``>1s`` & ``<600s``
+``bias``               ``False``      ``True/False``   ``True``       ``'off'``                                ``<0.001s``
+``dark``               ``False``      ``True/False``   ``True``       ``'off'``                                Not used
+``slitless_pixflat``   ``False``      ``True``         ``False``      ``'off'``                                ``<60s``
+``pixelflat``          ``False``      ``True``         ``True``       ``'on'``                                 ``<60s``
+``trace``              ``False``      ``True``         ``True``       ``'on'``                                 ``<60s``
+``illumflat``          ``False``      ``True``         ``True``       ``'on'``                                 ``<60s``
+``arc``                ``False``      ``True``         ``True``       ``'ThAr1'`` or ``'ThAr2'``               Not used
+``tilt``               ``False``      ``True``         ``True``       ``'ThAr1'`` or ``'ThAr2'``               Not used
+====================   ============   ==============   ============   ======================================   ======================================================
 
 Note that PypeIt employs commonly used value of ``exptime`` to distinguish frame type;
 however, if needed, the user can specify a different value by

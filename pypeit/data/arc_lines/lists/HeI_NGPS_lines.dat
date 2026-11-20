@@ -1,0 +1,11 @@
+#Creation Date: 2026-Jul-20
+#He I blue-edge anchor for the P200/NGPS u channel, measured in
+#DOMEHE (He dome lamp) exposures.  Vacuum wavelength from NIST air
+#3187.745 A via pypeit.core.wave.airtovac.  Detected in the central
+#image slice only.  This is the only wavelength constraint blueward
+#of the bluest detectable ThAr line (~3490 A); without it the u
+#solution is extrapolated over 3050-3490 A and is ~3.4 A wrong at
+#3188 A.  The line reaches the master arc via the blue-end splice
+#performed by ngps_he_anchor.py (see work/he_dome_anchor/).
+| ion |      wave | NIST | Instr | amplitude |               Source |
+| HeI | 3188.6668 |    1 |     0 |        50 | NGPS DOMEHE 20260617 |

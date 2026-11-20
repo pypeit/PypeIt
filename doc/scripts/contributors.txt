@@ -1,0 +1,55 @@
+login	name	contributions
+profxj    J\. Xavier Prochaska    4853
+jhennawi    Joseph Hennawi    3068
+rcooke-ast    Ryan Cooke    2979
+kbwestfall    Kyle Westfall    2914
+debora-pe    Debora Pelliccia    1370
+feigewang    Feige Wang    561
+tbowers7    Timothy Ellsworth-Bowers    522
+bpholden    Brad Holden    293
+tepickering    Timothy Pickering    200
+EmAstro    Emanuele Paolo Farina    200
+Adolfo1519    Adolfo Carvalho    180
+finagle29    Milan Sharma Mandigo-Stoba    172
+badpandabear    Dusty Reichwein    139
+tiffanyhsyu    Tiffany Hsyu    97
+adwasser    Asher Wasserman    63
+SunilSimha    Sunhil Simha    47
+opkuhn    Olga Kuhn    34
+ntejos    Nicolas Tejos    31
+suksien    Suk Sien Tie    26
+ShaneBechtel    Shane Bechtel    24
+Raindogjones    David Jones    24
+AlexaVillaume    Alexa Villaume    23
+ejeschke    Eric Jeschke    23
+hnmartin    Heather Martin    18
+gregosimo    Gregory Simonian    15
+FrankVerdi    Frank Verdi    13
+marijana777    Marijana Smailagic    13
+Allonck    Chris Montalbán    10
+MNBrod    Max Brodheim    9
+freddavies    Fred Davies    8
+jhod0    Jackson O'Donnell    8
+charliekilpatrick    Charles D. Kilpatrick    7
+thespacedoctor    David Young    6
+afloers    Andreas Flörs    5
+mattcwilde    Matt Wilde    5
+jtschindler    JT Schindler    4
+dmyang42    Daming Yang    2
+CUHKjc    Jichen Zhang    2
+gphil1        2
+kthyng    Kristen Thyng    2
+jwisbell    Jacob Isbell    2
+eteq    Erik Tollerud    2
+jchowk    Chris Howk    1
+dfm    Dan Foreman-Mackey    1
+EdwardBetts    Edward Betts    1
+gdoppmann    Greg Doppmann    1
+woodml    Mackenna Wood    1
+Rik-ad-astra    Riccardo Nanni    1
+SilviaOnorato    Silvia Onorato    1
+zlatanvasovic    Zlatan Vasović    1
+chloe-mt-cheng    Chloe Cheng    1
+isabelmontoyaa    Isabel Montoya Arroyave    1
+NathanSandford    Nathan Sandford    1
+stinyanont    Kaew Samaporn Tinyanont    1

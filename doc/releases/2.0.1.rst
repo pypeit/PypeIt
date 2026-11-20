@@ -1,0 +1,13 @@
+
+Version 2.0.1
+=============
+
+- Add key-binding documentation from ``pypeit/display/pypeit_modes.py`` to the
+  main documentation page, :ref:`pypeit_show_1dspec`.
+
+- Small changes to default parameter values for the APF/Levy spectrograph
+
+- Change an exception raised when a coding-level check failed that was meant to
+  ensure consistency between calibration groups and science frames.  This was
+  causing unintended faults for APF/Levy data.
+

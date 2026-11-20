@@ -6,14 +6,14 @@ import numpy as np
 
 from astropy import stats
 
-from pypeit import msgs
+from pypeit import log
+from pypeit import PypeItError
 from pypeit import utils
 
 from IPython import embed
 
 
-# TODO make weights optional and do uniform weighting without.
-def weighted_combine(weights, sci_list, var_list, inmask_stack,
+def weighted_combine(sci_list, var_list, inmask_stack, weights=None,
                      sigma_clip=False, sigma_clip_stack=None, sigrej=None, maxiters=5):
     r"""
     Combine multiple sets of images, all using the same weights and mask.
@@ -43,7 +43,15 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
     
     Parameters
     ----------
-    weights : `numpy.ndarray`_
+    sci_list : :obj:`list`
+        List of floating-point `numpy.ndarray`_ image groups to stack.  Each
+        image group *must* have the same shape: ``(nimgs, nspec, nspat)``.
+    var_list : :obj:`list`
+        List of floating-point `numpy.ndarray`_ images providing the variance
+        for each image group.  The number of image groups and the shape of each
+        group must match ``sci_list``.  These are used to propagate the error in
+        the combined images.
+    weights : `numpy.ndarray`_, optional
         Weights to use. Options for the shape of weights are:
 
             - ``(nimgs,)``: a single weight per image in the stack
@@ -57,15 +65,7 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
         Note that the weights are distinct from the mask, which is dealt with
         via the ``inmask_stack`` argument, meaning there should not be any
         weights that are set to zero (although in principle this would still
-        work).
-    sci_list : :obj:`list`
-        List of floating-point `numpy.ndarray`_ image groups to stack.  Each
-        image group *must* have the same shape: ``(nimgs, nspec, nspat)``.
-    var_list : :obj:`list`
-        List of floating-point `numpy.ndarray`_ images providing the variance
-        for each image group.  The number of image groups and the shape of each
-        group must match ``sci_list``.  These are used to propagate the error in
-        the combined images.
+        work). If weights are not provided, uniform weights will be assumed.
     inmask_stack : `numpy.ndarray`_, boolean, shape (nimgs, nspec, nspat)
         Good-pixel mask (True=Good, False=Bad) for the input image stacks.  This
         single group of good-pixel masks is applied to *all* input image groups.
@@ -105,10 +105,12 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
     #nspec = shape[1]
     #nspat = shape[2]
 
+    # Check if weights are provided
+    _weights = np.ones(nimgs, dtype=float)/nimgs if weights is None else weights
+
     if nimgs == 1:
         # If only one image is passed in, simply return the input lists of images, but reshaped
         # to be (nspec, nspat)
-        msgs.warn('Cannot combine a single image. Returning input images')
         sci_list_out = []
         for sci_stack in sci_list:
             sci_list_out.append(sci_stack.reshape(img_shape))
@@ -121,8 +123,11 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
 
     if sigma_clip and nimgs >= 3:
         if sigma_clip_stack is None:
-            msgs.error('You must specify sigma_clip_stack; sigma-clipping is based on this array '
+            raise PypeItError('You must specify sigma_clip_stack; sigma-clipping is based on this array '
                        'and propagated to the arrays to be stacked.')
+        elif not isinstance(sigma_clip_stack, np.ndarray):
+            raise PypeItError('sigma_clip_stack must be a numpy array')
+
         if sigrej is None:
             # NOTE: If these are changed, make sure to update the doc-string!
             if nimgs == 3:
@@ -144,12 +149,12 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
         mask_stack = np.logical_not(data_clipped.mask)  # mask_stack = True are good values
     else:
         if sigma_clip and nimgs < 3:
-            msgs.warn('Sigma clipping requested, but you cannot sigma clip with less than 3 '
+            log.warning('Sigma clipping requested, but you cannot sigma clip with less than 3 '
                       'images.  Proceeding without sigma clipping')
         mask_stack = inmask_stack  # mask_stack = True are good values
 
     nused = np.sum(mask_stack, axis=0)
-    weights_stack = broadcast_weights(weights, shape)
+    weights_stack = broadcast_weights(_weights, shape)
     weights_mask_stack = weights_stack*mask_stack.astype(float)
 
     weights_sum = np.sum(weights_mask_stack, axis=0)
@@ -162,7 +167,6 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
         var_list_out.append(np.sum(var_stack * weights_mask_stack**2, axis=0) * inv_w_sum**2)
     # Was it masked everywhere?
     gpm = np.any(mask_stack, axis=0)
-
     return sci_list_out, var_list_out, gpm, nused
 
 
@@ -195,22 +199,22 @@ def img_list_error_check(sci_list, var_list):
     for img in sci_list:
         shape_sci_list.append(img.shape)
         if img.ndim < 2:
-            msgs.error('Dimensionality of an image in sci_list is < 2')
+            raise PypeItError('Dimensionality of an image in sci_list is < 2')
 
     shape_var_list = []
     for img in var_list:
         shape_var_list.append(img.shape)
         if img.ndim < 2:
-            msgs.error('Dimensionality of an image in var_list is < 2')
+            raise PypeItError('Dimensionality of an image in var_list is < 2')
 
     for isci in shape_sci_list:
         if isci != shape_sci_list[0]:
-            msgs.error('An image in sci_list have different dimensions')
+            raise PypeItError('An image in sci_list have different dimensions')
         for ivar in shape_var_list:
             if ivar != shape_var_list[0]:
-                msgs.error('An image in var_list have different dimensions')
+                raise PypeItError('An image in var_list have different dimensions')
             if isci != ivar:
-                msgs.error('An image in sci_list had different dimensions than an image in var_list')
+                raise PypeItError('An image in sci_list had different dimensions than an image in var_list')
 
     shape = shape_sci_list[0]
 
@@ -230,6 +234,8 @@ def broadcast_weights(weights, shape):
                   image
                 - (nimgs, nspec, nspat) -- weights already have the
                   shape of the image stack and are simply returned
+                - (nimgs, nspec, nspat1, nspat2) -- for use with cubes. weights
+                  already have the shape of the cube stack and are simply returned
         shape (tuple):
             Shape of the image stacks for weighted coadding. This is either (nimgs, nspec) for 1d extracted spectra or
             (nimgs, nspec, nspat) for 2d spectrum images
@@ -248,23 +254,25 @@ def broadcast_weights(weights, shape):
             weights_stack = np.einsum('i,ij->ij', weights, np.ones(shape))
         elif len(shape) == 3:
             weights_stack = np.einsum('i,ijk->ijk', weights, np.ones(shape))
+        elif len(shape) == 4:
+            weights_stack = np.einsum('i,ijkl->ijkl', weights, np.ones(shape))
         else:
-            msgs.error('Image shape is not supported')
+            raise PypeItError('Image shape is not supported')
     elif weights.ndim == 2:
         # Wavelength dependent weights per image
         if len(shape) == 2:
             if weights.shape != shape:
-                msgs.error('The shape of weights does not match the shape of the image stack')
+                raise PypeItError('The shape of weights does not match the shape of the image stack')
             weights_stack = weights
         elif len(shape) == 3:
             weights_stack = np.einsum('ij,k->ijk', weights, np.ones(shape[2]))
-    elif weights.ndim == 3:
+    elif weights.ndim in [3, 4]:
         # Full image stack of weights
         if weights.shape != shape:
-            msgs.error('The shape of weights does not match the shape of the image stack')
+            raise PypeItError('The shape of weights does not match the shape of the image stack')
         weights_stack = weights
     else:
-        msgs.error('Unrecognized dimensionality for weights')
+        raise PypeItError('Unrecognized dimensionality for weights')
 
     return weights_stack
 
@@ -315,7 +323,7 @@ def broadcast_lists_of_weights(weights, shapes):
             elif weight.ndim == 2:
                 weights_list.append(weight)
             else:
-                msgs.error('Weights must be a float or a 1D or 2D ndarray')
+                raise PypeItError('Weights must be a float or a 1D or 2D ndarray')
 
     return weights_list
 
