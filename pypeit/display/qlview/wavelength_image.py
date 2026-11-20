@@ -137,7 +137,7 @@ def _build_one_mosaic(
         wavetilts = WaveTilts.from_file(tilt_file)
         slits = SlitTraceSet.from_file(slit_file)
         slitmask = slits.slit_img()
-        tilts = wavetilts.fit2tiltimg(slitmask, flexure=wavetilts.spat_flexure)
+        tilts = wavetilts.fit2tiltimg(slitmask, spat_flexure=wavetilts.spat_flexure, slits=slits)
         waveimg = wvcalib.build_waveimg(tilts, slits).astype(np.float32)
 
     rms_list = []

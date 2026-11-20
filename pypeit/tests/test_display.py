@@ -44,4 +44,5 @@ def test_wave_rms_image():
     assert wave_rms_image(slits, wavesol)[spec, 15] == 0., 'Masked slit should be 0'
 
     # The image follows the slits when they are shifted for flexure
-    assert wave_rms_image(slits, wavesol, flexure=5.)[spec, 43] == 0.2, 'Bad flexure shift'
+    flexure = np.full((slits.nslits, 2), 5.)
+    assert wave_rms_image(slits, wavesol, flexure=flexure)[spec, 43] == 0.2, 'Bad flexure shift'
