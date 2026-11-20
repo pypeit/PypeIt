@@ -336,56 +336,6 @@ def show_alignment(alignframe, align_traces=None, slits=None, clear=False):
                 display.show_trace(viewer, channel, align_traces[:, bar, slt], color=color)
 
 
-def interp1d_rows(x, y, x_new):
-    """
-    Linearly interpolate (and extrapolate) each row of a 2D array.
-
-    For each row ``i``, the result is identical to
-
-    .. code-block:: python
-
-        interp1d(x[i], y[i], kind='linear', bounds_error=False,
-                 fill_value='extrapolate')(x_new[i])
-
-    including the sorting of ``x`` and the arithmetic used for the
-    interpolation, but all rows are interpolated at once.
-
-    Parameters
-    ----------
-    x : `numpy.ndarray`_
-        The abscissae of each row, shape ``(nrow, n)``, with ``n >= 2``.  The
-        values in each row need not be sorted.
-    y : `numpy.ndarray`_
-        The ordinates of each row, same shape as ``x``.
-    x_new : `numpy.ndarray`_
-        The abscissae at which to interpolate each row, shape ``(nrow, m)``.
-
-    Returns
-    -------
-    `numpy.ndarray`_
-        The interpolated values, shape ``(nrow, m)``.
-    """
-    # interp1d casts the ordinates (but not the abscissae) to floating point
-    if not np.issubdtype(y.dtype, np.inexact):
-        y = y.astype(float)
-    # Sort each row by its abscissae, as interp1d does
-    srt = np.argsort(x, axis=1, kind='mergesort')
-    x = np.take_along_axis(x, srt, axis=1)
-    y = np.take_along_axis(y, srt, axis=1)
-    # Equivalent to np.searchsorted(x[i], x_new[i]) for each row: the number of
-    # abscissae smaller than each new value
-    indx = np.zeros(x_new.shape, dtype=int)
-    for j in range(x.shape[1]):
-        indx += x[:, j:j+1] < x_new
-    indx = np.clip(indx, 1, x.shape[1]-1)
-    x_lo = np.take_along_axis(x, indx-1, axis=1)
-    x_hi = np.take_along_axis(x, indx, axis=1)
-    y_lo = np.take_along_axis(y, indx-1, axis=1)
-    y_hi = np.take_along_axis(y, indx, axis=1)
-    slope = (y_hi - y_lo) / (x_hi - x_lo)
-    return slope * (x_new - x_lo) + y_lo
-
-
 class AlignmentSplines:
     def __init__(self, traces, locations, tilts):
         """Convenience class to build and transform between detector pixel coordinates and
@@ -437,8 +387,9 @@ class AlignmentSplines:
         Build the interpolation transforms for each slit
 
         All spectral pixels of a slit are processed at once; the results are
-        identical to evaluating ``interp1d`` and :attr:`spl_fulltilts` one
-        spectral pixel at a time.
+        the same as evaluating ``interp1d`` and :attr:`spl_fulltilts` one
+        spectral pixel at a time, to within rounding errors (see
+        :func:`~pypeit.utils.interp1d_rows`).
         """
         spldict = dict(kind='linear', bounds_error=False, fill_value="extrapolate")
         ycoord = np.arange(self.nspec)
@@ -448,8 +399,8 @@ class AlignmentSplines:
         for sl in range(self.nslit):
             log.info("Calculating astrometric transform of slit {0:d}/{1:d}".format(sl+1, self.nslit))
             # Calculate x coordinate at the slit edges, and the spectral tilts at those locations
-            xlr = interp1d_rows(locations, self.traces[:,:,sl],
-                                np.broadcast_to([0.0, 1.0], (self.nspec, 2))).astype(float)
+            xlr = utils.interp1d_rows(locations, self.traces[:,:,sl],
+                                      np.broadcast_to([0.0, 1.0], (self.nspec, 2))).astype(float)
             tilt_coord = np.empty((self.nspec, 4, 2))
             tilt_coord[:,:,0] = ycoord[:,None]
             tilt_coord[:,0,1] = xlr[:,0] + eval_trim
@@ -472,8 +423,8 @@ class AlignmentSplines:
             xcoord = np.arange(np.floor(np.min(xlr)), np.ceil(np.max(xlr))+1, 1.0)
             # pseudo-2D alignments -> locations, scaled by the slit length
             out_transform = np.zeros((self.nspec, xcoord.size))
-            out_transform[...] = interp1d_rows(self.traces[:,:,sl], locations,
-                                               np.broadcast_to(xcoord, out_transform.shape)) \
+            out_transform[...] = utils.interp1d_rows(self.traces[:,:,sl], locations,
+                                                     np.broadcast_to(xcoord, out_transform.shape)) \
                                     * self.spl_slen[sl](ycoord)[:,None]
             self.spl_transform[sl] = RegularGridInterpolator((ycoord, xcoord), out_transform, method='linear',
                                                              bounds_error=False, fill_value=None) # This will extrapolate

@@ -69,6 +69,7 @@ def test_alignments_spat_flexure(tmp_path):
 
 
 def test_interp1d_rows():
+    # TODO :: This test was removed (and I have now readded) in a recent merge - Why?
     rng = np.random.default_rng(1234)
     nrow, n, m = 50, 5, 30
     x = rng.uniform(0., 10., size=(nrow, n))
@@ -141,10 +142,11 @@ def test_alignment_splines():
     # Slit edges, as used by coadd3d when there are no alignment traces
     edges = np.stack([cen - width/2, cen + width/2], axis=1)
     # Alignment traces that do not reach the slit edges (so the edges are
-    # extrapolated), given in a random order
+    # extrapolated), given in a random order, and that are not linear in their
+    # location (so the results depend on the interval used for the interpolation)
     align_loc = np.array([0.5, 0.1, 0.9, 0.3, 0.7])
     align = cen[:,None,:] + (align_loc[None,:,None] - 0.5) * width[:,None,:] \
-                + 0.3*np.sin(spec/40.)[:,None,None]
+                + 2.*(align_loc[None,:,None] - 0.5)**2 + 0.3*np.sin(spec/40.)[:,None,None]
 
     pixspec, pixspat = np.meshgrid(np.linspace(0, nspec-1, 77), np.linspace(10, nspat-10, 91),
                                    indexing='ij')
@@ -154,8 +156,13 @@ def test_alignment_splines():
                 enumerate(reference_alignment_transforms(traces, locations, tilts)):
             assert np.array_equal(splines.spl_transform[sl].grid[0], ycoord)
             assert np.array_equal(splines.spl_transform[sl].grid[1], xcoord)
-            assert np.array_equal(splines.spl_transform[sl].values, values)
+            # The results are identical for SciPy 1.18 and later; SciPy 1.18
+            # changed the arithmetic of interp1d, so they only agree to within
+            # rounding errors for earlier versions
+            np.testing.assert_allclose(splines.spl_transform[sl].values, values,
+                                       rtol=1e-12, atol=1e-12)
             expected = RegularGridInterpolator((ycoord, xcoord), values, method='linear',
                                                bounds_error=False,
                                                fill_value=None)((pixspec, pixspat))
-            assert np.array_equal(splines.transform(sl, pixspat, pixspec), expected)
+            np.testing.assert_allclose(splines.transform(sl, pixspat, pixspec), expected,
+                                       rtol=1e-12, atol=1e-12)
