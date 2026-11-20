@@ -9,7 +9,7 @@ from pypeit.core.wavecal import wvutils
 def test_xcorr_shift_normalizes_byte_order(monkeypatch):
     pixels = np.arange(128)
     spectrum = np.exp(-0.5 * ((pixels - 64) / 4)**2).astype(np.float32)
-    expected = wvutils.xcorr_shift(spectrum, spectrum, do_xcorr_arc=False,
+    expected = wvutils.xcorr_shift(spectrum, spectrum, cc_synth_arc=False,
                                    cont_subtract=False)
 
     correlate = wvutils.scipy.signal.correlate
@@ -20,7 +20,7 @@ def test_xcorr_shift_normalizes_byte_order(monkeypatch):
 
     monkeypatch.setattr(wvutils.scipy.signal, 'correlate', check_correlate)
     swapped = spectrum.astype(spectrum.dtype.newbyteorder('S'))
-    result = wvutils.xcorr_shift(swapped, swapped, do_xcorr_arc=False,
+    result = wvutils.xcorr_shift(swapped, swapped, cc_synth_arc=False,
                                 cont_subtract=False)
     np.testing.assert_allclose(result, expected)
 

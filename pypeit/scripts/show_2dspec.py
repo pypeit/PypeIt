@@ -91,8 +91,10 @@ def wave_rms_image(slits, wavesol, flexure=None):
     wavesol : `astropy.table.Table`_
         Wavelength-calibration diagnostics table, as constructed by
         :func:`~pypeit.wavecalib.WaveCalib.wave_diagnostics`.  Can be None.
-    flexure : :obj:`float`, optional
-        Spatial flexure shift, in pixels, applied to the slit edges.
+    flexure : `numpy.ndarray`_, optional
+        Spatial flexure shift, in pixels, applied to the slit edges.  The shape
+        must be (nslits, 2), providing the shift of the left and right edge of
+        each slit; see :func:`~pypeit.slittrace.SlitTraceSet.select_edges`.
 
     Returns
     -------
@@ -115,7 +117,7 @@ def wave_rms_image(slits, wavesol, flexure=None):
             slit_rms[i] = wave_rms[indx[0]]
 
     # Pixels outside of all (unmasked) slits have an index of -1
-    slitidx_img = slits.slit_img(flexure=flexure, use_spatial=False)
+    slitidx_img = slits.slit_img(spat_flexure=flexure, use_spatial=False)
     return np.where(slitidx_img >= 0, slit_rms[slitidx_img], 0.)
 
 
