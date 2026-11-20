@@ -14,6 +14,7 @@ from astropy.io import fits
 from pypeit import PypeItError
 from pypeit.images import pypeitimage
 from pypeit.images import imagebitmask
+from pypeit.images import buildimage
 from pypeit.tests.tstutils import data_output_path
 
 
@@ -232,3 +233,19 @@ def test_calib_io():
     # Remove the file
     opath.unlink()
 
+
+
+@pytest.mark.parametrize('frame_class', ['ArcImage', 'AlignImage', 'TiltImage',
+                                         'ScatteredLightImage', 'TraceImage'])
+def test_calib_io_spat_flexure(tmp_path, frame_class):
+    # The spatial flexure of a processed calibration frame must be written to
+    # and read from disk
+    cls = getattr(buildimage, frame_class)
+    spat_flexure = np.array([[0.5, 0.7], [1.2, 1.3], [-0.4, 0.1]])
+    img = cls(np.ones((20, 30), dtype=float), PYP_SPEC='test', spat_flexure=spat_flexure)
+    img.set_paths(tmp_path, 'A', '1', 'DET01')
+    img.to_file(overwrite=True)
+    _img = cls.from_file(img.get_path())
+    assert _img.spat_flexure is not None, f'Spatial flexure not written for {frame_class}'
+    assert np.array_equal(_img.spat_flexure, spat_flexure), \
+        f'Spatial flexure changed on I/O for {frame_class}'

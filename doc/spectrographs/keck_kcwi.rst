@@ -43,6 +43,14 @@ the FeAr spectrum. If you want to use the ThAr spectrum for the
 wavelength calibration, you will need to manually calibrate the
 data using the :ref:`pypeit_identify` task.
 
+By default, the arc spectra of all slices are aligned and combined into a
+single arc spectrum with a higher S/N, which is calibrated against the archived
+template and then used to calibrate each slice (``stack_slits = True``; see
+:ref:`wvcalib-stack-slits`).  This makes the wavelength calibration robust
+for arc frames with weak or few lines (e.g., short exposures at red
+wavelengths).  The QA plot of the wavelength solution of the combined
+spectrum is ``QA/PNGs/Arc_1dfit_*_stack.png``.
+
 Pixel Flat
 ----------
 
@@ -224,9 +232,19 @@ flexure correction, add the following command to your :ref:`pypeit_file`:
 
 Similarly, there is a slice dependent spatial flexure. Given that the spatial illumination
 profile of KCWI is also slice dependent, this spatial flexure could cause a problem with the
-relative illumination across the KCWI field-of-view in the reconstructed datacube. While the
-spatial flexure correction is partially implemented for KCWI (but is not done by default),
-users should use this option with caution.
+relative illumination across the KCWI field-of-view in the reconstructed datacube. By default,
+the spatial flexure of each slice edge is therefore measured separately
+(``spat_flexure_method = edge``) for the arc, tilt, and flat-field frames.  The slice edges
+of the science frames are only illuminated by the sky, and the edges of individual slices
+cannot be measured reliably (sky lines and objects near the edges can shift them by a pixel
+or more), so a single shift is measured for the detector (``spat_flexure_method =
+detector``).  This shift is consistent to a few thousandths of a pixel between consecutive
+exposures.  If fewer than 25% of the traced slice-edge pixels are matched by an edge in the
+science frame (``spat_flexure_minfrac = 0.25``), e.g. in a short exposure of a standard
+star, the slice edges are deemed to be undetected, and no spatial flexure is applied to that
+frame.  The spatial flexure is accounted for when constructing
+datacubes.  See :ref:`flexure-spatial` for more details, and inspect the spatial flexure QA
+plots (:ref:`qa-spat-flex`) to check the correction.
 
 Flux calibration
 ----------------

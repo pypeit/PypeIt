@@ -29,7 +29,7 @@ class Alignments(calibframe.CalibFrame):
 
     .. include:: ../include/class_datamodel_alignments.rst
     """
-    version = '1.1.0'
+    version = '1.2.0'
 
     # Calibration frame attributes
     calib_type = 'Alignment'
@@ -45,10 +45,18 @@ class Alignments(calibframe.CalibFrame):
                  'nslits': dict(otype=int, descr='The number of slits'),
                  'traces': dict(otype=np.ndarray, atype=np.floating,
                                 descr='Traces of the alignment frame'),
-                 'spat_id': dict(otype=np.ndarray, atype=np.integer, descr='Slit spat_id ')}
+                 'spat_id': dict(otype=np.ndarray, atype=np.integer, descr='Slit spat_id '),
+                 'spat_flexure': dict(otype=np.ndarray, atype=np.floating,
+                                      descr='Spatial flexure shift, in spatial pixels, between '
+                                            'the alignment frame and SlitTrace. Shape is '
+                                            '(nslits, 2), where spat_flexure[i,0] is the spatial '
+                                            'shift of the left edge of slit i and '
+                                            'spat_flexure[i,1] is the spatial shift of the right '
+                                            'edge of slit i.  None if the spatial flexure was not '
+                                            'determined.')}
 
     def __init__(self, alignframe=None, nspec=None, nalign=None, nslits=None,
-                 traces=None, PYP_SPEC=None, spat_id=None):
+                 traces=None, PYP_SPEC=None, spat_id=None, spat_flexure=None):
         # Parse
         args, values = utils.init_arg_values()
         d = dict([(k,values[k]) for k in args[1:]])
@@ -111,6 +119,11 @@ class TraceAlignment:
             The parameters used for the align traces
         det (:obj:`int`, optional):
             Detector number
+        spat_flexure (:obj:`numpy.ndarray`, optional):
+            If provided, this is the shift, in spatial pixels, to
+            the slit edges. Shape is (nslits, 2), where nslits is
+            the number of slits, spat_flexure[:,0] is for the left
+            edges, and spat_flexure[:,1] is for the right edges.
         qa_path (:obj:`str`, optional):
             Directory for QA plots
         msbpm (`numpy.ndarray`_, optional):
@@ -124,14 +137,15 @@ class TraceAlignment:
         slits (:class:`~pypeit.slittrace.SlitTraceSet`):
             Slit edge traces.
     """
-    def __init__(self, rawalignimg, slits, spectrograph, alignpar, det=1, qa_path=None,
-                 msbpm=None):
+    def __init__(self, rawalignimg, slits, spectrograph, alignpar,
+                 det=1, spat_flexure=None, qa_path=None, msbpm=None):
 
         # Defaults
         self.spectrograph = spectrograph
         self.PYP_SPEC = spectrograph.name
         # Alignment parameters
         self.alignpar = alignpar
+        self.spat_flexure = spat_flexure
 
         # Input data
         self.rawalignimg = rawalignimg
@@ -171,20 +185,20 @@ class TraceAlignment:
         Main routine to generate the align profile traces in all slits
 
         Args:
-             show_peaks (bool, optional):
+            show_peaks (bool, optional):
                Generate QA showing peaks identified by alignment profile tracing
-             show_trace (bool, optional):
+            show_trace (bool, optional):
                Generate QA showing traces identified. Requires an open ginga RC modules window.
                Launch with ``ginga --modules=RC,SlitWavelength &``
-             debug (bool, optional):
+            debug (bool, optional):
                Debug the alignment tracing algorithm
 
         Returns:
             dict:  self.align_dict
         """
         # Generate slits
-        slitid_img_init = self.slits.slit_img()
-        left, right, _ = self.slits.select_edges()
+        slitid_img_init = self.slits.slit_img(initial=True, spat_flexure=self.spat_flexure)
+        left, right, _ = self.slits.select_edges(initial=True, spat_flexure=self.spat_flexure)
         align_prof = dict({})
 
         # Go through the slits
@@ -273,7 +287,8 @@ class TraceAlignment:
         # Build the alignment calibration frame
         align = Alignments(alignframe=self.rawalignimg.image, nspec=self.nspec,
                            nalign=align_traces.shape[1], nslits=self.nslits, traces=align_traces,
-                           PYP_SPEC=self.PYP_SPEC, spat_id=self.slits.spat_id)
+                           PYP_SPEC=self.PYP_SPEC, spat_id=self.slits.spat_id,
+                           spat_flexure=self.spat_flexure)
         # Copy the internals from the processed alignment image
         align.copy_calib_internals(self.rawalignimg)
         # Return
@@ -332,7 +347,10 @@ class AlignmentSplines:
             3D array containing the alignments (traces) of the slits. This allows different
             slices to be aligned correctly. Ideally, this variable will be assigned the
             value of alignments.traces. However, this can also be assigned the
-            left and right slit edges:
+            left and right slit edges.  In either case, the traces must be in the
+            detector coordinates of the frame being transformed (i.e., including
+            its spatial flexure; see
+            :func:`~pypeit.coadd3d.SlicerIFUCoAdd3D.shift_alignment_traces`):
 
             .. code-block:: python
 
@@ -348,7 +366,6 @@ class AlignmentSplines:
             Spectral tilts.
         """
         # Perform some checks
-        log.debug("Spatial flexure is not currently implemented for the astrometric alignment")
         if type(locations) is list:
             locations = np.array(locations)
         if locations.size != traces.shape[1]:
