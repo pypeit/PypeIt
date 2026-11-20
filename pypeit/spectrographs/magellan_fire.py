@@ -12,7 +12,6 @@ Important Notes:
 import numpy as np
 
 from pypeit import log
-from pypeit import PypeItError
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
@@ -52,8 +51,8 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         self.meta['decker'] = dict(ext=0, card=None, default='default')
         self.meta['dichroic'] = dict(ext=0, card=None, default='default')
         self.meta['binning'] = dict(ext=0, card=None, default='1,1')
-
-        self.meta['mjd'] = dict(ext=0, card='ACQTIME')
+        # the acqtime is the JD, so we convert it to MJD
+        self.meta['mjd'] = dict(ext=0, card='ACQTIME') - 2400000.5
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
