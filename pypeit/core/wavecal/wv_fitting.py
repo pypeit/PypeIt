@@ -228,7 +228,7 @@ class WaveFit(datamodel.DataContainer):
 
 def fit_slit(
     spec, patt_dict, tcent, line_lists, vel_tol=1.0, thar=False, match_toler=3.0, func='legendre',
-    n_first=2, sigrej_first=2.0, n_final=4, sigrej_final=3.0, verbose=False
+    n_first=2, sigrej_first=2.0, n_final=4, sigrej_final=3.0, verbose=False, min_dof=2
 ):
 
     """ Perform a fit to the wavelength solution. Wrapper for iterative fitting code.
@@ -259,11 +259,15 @@ def fit_slit(
     sigrej_first: float, default = 2.0
         Number of sigma for rejection for the first guess to the wavelength solution.
     n_final: int, default = 4
-        Order of the final wavelength solution fit
+        Order of the final wavelength solution fit.  If ``n_first`` is larger,
+        the order of the final fit is ``n_first``.
     sigrej_final: float, default = 3.0
         Number of sigma for rejection for the final fit to the wavelength solution.
     verbose : bool
         If True, print out more information.
+    min_dof : int, optional
+        Minimum number of degrees of freedom required for the final fit; see
+        :func:`iterative_fitting`.
     plot_fil:
         Filename for plotting some QA?
 
@@ -295,7 +299,8 @@ def fit_slit(
     return iterative_fitting(
         spec, tcent, ifit, np.array(patt_dict['IDs'])[ifit], line_lists[NIST_lines],
         patt_dict['bdisp'], match_toler=match_toler, func=func, n_first=n_first,
-        sigrej_first=sigrej_first,n_final=n_final, sigrej_final=sigrej_final, verbose=verbose
+        sigrej_first=sigrej_first,n_final=n_final, sigrej_final=sigrej_final, verbose=verbose,
+        min_dof=min_dof
     )
 
 
@@ -359,7 +364,8 @@ def iterative_fitting(
     sigrej_first: float, default = 2.0
         Number of sigma for rejection for the first guess to the wavelength solution.
     n_final: int, default = 4
-        Order of the final wavelength solution fit
+        Order of the final wavelength solution fit.  If ``n_first`` is larger,
+        the order of the final fit is ``n_first``.
     sigrej_final: float, default = 3.0
         Number of sigma for rejection for the final fit to the wavelength
         solution.
@@ -373,7 +379,7 @@ def iterative_fitting(
         If True, print out more information.
     min_dof : int, optional
         Minimum number of degrees of freedom required for the final fit.  If there
-        are too few lines for the requested order, the order is reduced (see
+        are too few lines for the order of the final fit, the order is reduced (see
         :func:`order_for_dof`); if there are too few lines for a linear fit,
         the fit fails and None is returned.  This prevents fits that pass
         exactly through (possibly misidentified) lines from being accepted
@@ -454,15 +460,17 @@ def iterative_fitting(
         else:
             flg_penultimate = True
 
-    # Final fit (originals can now be rejected).  Make sure the fit has enough
-    # degrees of freedom.
-    n_order = order_for_dof(n_final, len(ifit), min_dof=min_dof)
+    # Final fit (originals can now be rejected).  NOTE: The order of the final
+    # fit is the order reached in the loop above, i.e. n_final, or n_first if
+    # this is larger.  Make sure the fit has enough degrees of freedom.
+    _n_order = n_order
+    n_order = order_for_dof(_n_order, len(ifit), min_dof=min_dof)
     if n_order is None:
         log.warning(f'Only {len(ifit)} lines available; at least {min_dof+2} are required '
                     f'for a linear fit with {min_dof} degrees of freedom.')
         return None
-    if n_order < n_final:
-        log.warning(f'Not enough lines ({len(ifit)}) for n_final = {n_final} with at least '
+    if n_order < _n_order:
+        log.warning(f'Not enough lines ({len(ifit)}) for a fit of order {_n_order} with at least '
                     f'{min_dof} degrees of freedom.  Reducing the fit order to {n_order}.')
 
     xfit, yfit, wfit = tcent[ifit], all_ids[ifit], weights[ifit]

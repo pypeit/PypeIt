@@ -343,7 +343,9 @@ In general, the approach is:
 
     #. Identify the arc lines in each order
 
-    #. Fit the arc lines in each order to a polynomial, individually
+    #. Fit the arc lines in each order to a polynomial, individually; the fit
+       of an order fails if it has too few lines to leave at least two
+       degrees of freedom (i.e., fewer than four lines)
 
     #. Fit a 2D solution to the lines using the order number as a basis
 
@@ -351,7 +353,8 @@ In general, the approach is:
        exceeds a certain threshold set by the user (see :ref:`wvcalib-rms-threshold`)
 
     #. Attempt to recover the missing orders using the 2D fit and a higher RMS
-       threshold
+       threshold; because the arc lines of these orders are identified using
+       the 2D fit, orders with as few as two lines can be recovered
 
     #. Refit the 2D solution
 
@@ -374,6 +377,15 @@ That is, each order must satisfy the following:
 .. code-block:: ini
 
     RMS < rms_thresh_frac_fwhm * FWHM     # FWHM in binned pixels
+
+If ``mask_bad_rms = True``, the same threshold is applied to the solution of
+each slit derived with the `full template`_ method (unless a 2D echelle
+solution is fit, in which case the orders are treated as described above).
+Slits whose solution does not satisfy this requirement are masked (flagged as
+``BADWVCALIB``).  The ``Arc_1dfit`` QA plots of these solutions are still
+produced, so you can inspect why they failed.  This is the default for
+Keck/KCWI and Keck/KCRM only, because the default ``rms_thresh_frac_fwhm`` of
+most spectrographs has not been tuned for the `full template`_ method.
 
 
 Mosaics

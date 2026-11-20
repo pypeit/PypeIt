@@ -319,6 +319,9 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         # the arc spectra of all slices, and use it as the template for each
         # slice.  This is more robust when the arc lines are weak.
         par['calibrations']['wavelengths']['stack_slits'] = True
+        # Mask the slices whose wavelength solution has an RMS above the
+        # threshold (rms_thresh_frac_fwhm)
+        par['calibrations']['wavelengths']['mask_bad_rms'] = True
 
         # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
