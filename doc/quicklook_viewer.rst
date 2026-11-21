@@ -204,11 +204,12 @@ The following describes a typical workflow for using the GUI.
 Launching the Viewer
 ====================
 
-The viewer can be launched with ``pypeit_qlview``. If a Ginga window is already
-open it will attach to that instance and open the plugin there, otherwise it
-will open a new instance. Sometimes the GUI takes too long to render, and times
-out. If this happens, re-run ``pypeit_qlview`` again and it will attach to the
-Ginga window.
+The viewer can be launched with ``pypeit_qlview``.  If a PypeIt viewer window is
+already open (e.g., one opened by a previous ``pypeit_qlview``, or by
+``pypeit_show_2dspec``, ``pypeit_view_fits``, or ``pypeit_show_1dspec``), the
+plugin is opened in that window; otherwise, a new window is opened (see
+:ref:`pypeit_ginga_viewer`).  In either case, the command returns to the prompt
+immediately; the viewer exits when its window is closed.
 
 .. _qlview-config:
 
@@ -337,11 +338,6 @@ future sessions with "Save Default Config" (see :ref:`qlview-config`).
 
 Troubleshooting
 ===============
-
-The GUI times out while starting
-    Sometimes the GUI takes too long to render, and ``pypeit_qlview`` times
-    out.  Run ``pypeit_qlview`` again; it attaches to the Ginga window that is
-    already open.
 
 "Render Slits" and "Show Wavelengths" stay disabled
     These buttons are enabled only when the selection in the "Reduced

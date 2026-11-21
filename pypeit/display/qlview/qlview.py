@@ -88,7 +88,8 @@ Data flow
    ``SlitTraceSet`` objects, and hands them to ``SlitOverlay.build`` to
    draw polygons on the ``slit_canvas`` ``DrawingCanvas`` layer. Similarly,
    wavelength information is pulled from "Wave*.fits" files when requested,
-   and overlaid on the raw frame using the SlitWavelength plugin.
+   and overlaid on the raw frame using a
+   :class:`~pypeit.display.slitwavelength.SlitImage`.
 
 5. **Reduction** — ``reduce_slit_cb`` assembles the ``pypeit_ql``
    argument list and calls ``ReductionBackend.submit`` on a daemon thread.
@@ -2175,9 +2176,9 @@ class QLView(GingaPlugin.LocalPlugin):
         """Build a wavelength image from calibration files and display it in a new channel.
 
         Loads WaveCalib, WaveTilts, and Slits files from the selected calibration
-        directory, builds a 2D wavelength image, and displays it using the
-        SlitWavelength Ginga plugin so that hovering over the image shows the
-        wavelength at each pixel.
+        directory, builds a 2D wavelength image, and displays it using a
+        :class:`~pypeit.display.slitwavelength.SlitImage` so that hovering over
+        the image shows the wavelength at each pixel.
         """
         from .wavelength_image import find_triplets, build_waveimg_mosaic
 

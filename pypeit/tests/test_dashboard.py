@@ -1052,7 +1052,7 @@ def test_inspect_science_commands(tmp_path):
     name = dash_inspect.science_object_name(424.0, 175, 'DET01')
     assert name == 'SPAT0424-SLIT0175-DET01'
     s1d = dash_inspect.spec1d_command('spec1d_b27.fits', obj_name=name)
-    assert s1d[0] == 'pypeit_show_1dspec'
+    assert s1d[0] == 'pypeit_show_1dspec' and '--no_clear' in s1d
     assert s1d[s1d.index('--obj') + 1] == name
     # (Re)Build via reduce_by_step uses the recorded raw frame.
     run = dash_inspect.science_run_command(m, 'b27-J1217p3905_KASTb', 1,

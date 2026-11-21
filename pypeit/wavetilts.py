@@ -258,8 +258,6 @@ class WaveTilts(calibframe.CalibFrame):
         cut = (zmin, zmax)
         # show in ginga
         if in_ginga:
-            # connect to ginga
-            display.connect_to_ginga(raise_err=True, allow_new=True)
             # display image
             viewer, ch = display.show_image(tilt_img, chname='Tilts', cuts=cut,
                                             wcs_match=wcs_match, waveimg=waveimg, clear=True)
@@ -268,6 +266,8 @@ class WaveTilts(calibframe.CalibFrame):
             # show slit edges
             if slits is not None:
                 display.show_slits(viewer, ch, left[:, gpm], right[:, gpm], slit_ids=slits.spat_id[gpm])
+            # Wait for the user
+            display.show()
 
         # show in matplotlib
         else:
@@ -882,6 +882,7 @@ class BuildWaveTilts:
         if show:
             viewer, ch = display.show_image(self.mstilt.image * (self.slitmask != -1), chname='tilts')
             display.show_tilts(viewer, ch, self.make_tbl_tilt_traces())
+            display.show()
 
         if debug:
             show_tilts_mpl(self.mstilt.image*(self.slitmask != -1), self.make_tbl_tilt_traces())

@@ -5,7 +5,7 @@
                             [--log_level LOG_LEVEL] [--list] [--proc]
                             [--bkg_file BKG_FILE] [--inter] [--exten EXTEN]
                             [--det [DET ...]] [--chname CHNAME] [--showmask]
-                            [--embed]
+                            [--no_clear] [--embed]
                             spectrograph file
     
     View FITS files with ginga
@@ -76,5 +76,9 @@
                             mosaic of all detectors. (default: 1)
       --chname CHNAME       Name of Ginga tab (default: Image)
       --showmask            Overplot masked pixels (default: False)
+      --no_clear            If a PypeIt viewer is already open (e.g., from a
+                            previous call to this script), show the image in that
+                            viewer and return immediately. Use --chname to avoid
+                            replacing an existing channel. (default: True)
       --embed               Upon completion embed in ipython shell (default: False)
     
