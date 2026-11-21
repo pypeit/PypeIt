@@ -52,7 +52,7 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         self.meta['dichroic'] = dict(ext=0, card=None, default='default')
         self.meta['binning'] = dict(ext=0, card=None, default='1,1')
         # the acqtime is the JD, so we convert it to MJD
-        self.meta['mjd'] = dict(ext=0, card='ACQTIME') - 2400000.5
+        self.meta['mjd'] = dict(ext=0, card=None, compound=True)
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
@@ -60,6 +60,9 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         self.meta['idname'] = dict(ext=0, card='OBSTYPE')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
+    def compound_meta(self, headarr, meta_key):
+        if meta_key == 'mjd':
+            return headarr[0]['ACQTIME'] - 2400000.5
 
     def pypeit_file_keys(self):
         """
