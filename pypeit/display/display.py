@@ -692,35 +692,6 @@ def show_scattered_light(image_list, slits=None, wcs_match=True):
             clear = False
 
 
-def show_1dspec(filename, ext=0, masked=True, fluxed=False, extraction='OPT'):
-    """
-    Interface to ginga to show a 1dspec and manipulate with Spec1dView plugin.
-
-    Parameters
-    ----------
-    filename : str
-        spec1d FITS file to show in the viewer
-    ext : int
-        extension to show (which spectrum)
-    """
-    viewer = connect_to_ginga(raise_err=True, allow_new=True)
-    sh = viewer.shell()
-    # NOTE: ext may be a numpy integer, which doesn't marshall over the
-    # RPC interface that Ginga currently uses--coerce to a regular Python int
-    ext = int(ext)
-
-    chname, plname = "Spec1d", "Spec1dView"
-    sh.add_channel(chname)
-    ch = viewer.channel(chname)
-    # set up the options as passed
-    kwargs = dict(ext=ext, extraction=extraction, masked=masked, fluxed=fluxed)
-    sh.call_local_plugin_method(chname, plname, 'set_params', [], kwargs)
-    # start the plugin
-    sh.start_local_plugin(chname, plname)
-    # load the file
-    sh.load_file(filename, chname=chname)
-
-
 def launch_qlview():
     """
     Launch the PypeIt quicklook viewer (QLView) in a new or existing Ginga instance.

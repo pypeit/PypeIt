@@ -591,7 +591,7 @@ to have these plugins installed; however, you can check that they're enabled by
 running the following script with the following result::
 
     $ pypeit_chk_plugins
-    [INFO]    :: All required plugins found: SlitWavelength, Spec1dView
+    [INFO]    :: All required plugins found: SlitWavelength, Spec1dView, QLView, PypeItRemote
 
 If the check is unsuccessful, you will see an error message listing
 the missing plugins. If you have a problem, please `submit an issue

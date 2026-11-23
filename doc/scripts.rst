@@ -506,6 +506,32 @@ PypeIt provides numerous scripts for helping you inspect its outputs, mostly by
 loading and displaying the data in a `ginga`_ viewer.  The provided scripts are
 as follows.
 
+.. _ginga_viewer_workflow:
+
+Using one ginga viewer for all inspections
+------------------------------------------
+
+The :ref:`pypeit_show_1dspec` script does not read the data itself.  It sends
+its command-line options to a ``PypeItRemote`` plugin running inside `ginga`_,
+which reads the file and displays it in the viewer.  This means you can start
+ginga once and keep it open while you inspect many files:
+
+.. code-block:: console
+
+    ginga --modules=RC &
+    pypeit_show_1dspec Science/spec1d_file1.fits
+    pypeit_show_1dspec Science/spec1d_file2.fits
+
+If no viewer is running, the script starts one.  Each command clears the
+channels in the viewer before showing the new data.  The script waits for the
+display to finish and reports any warnings or errors in your terminal; use
+``--timeout`` to change how long it waits (120 seconds by default).
+
+ginga must be started from the same environment where PypeIt is installed, so
+that it can load the PypeIt plugins.  If you update PypeIt while ginga is
+running, the script warns that the two versions differ; restart ginga to use
+the new version.
+
 pypeit_view_fits
 ----------------
 

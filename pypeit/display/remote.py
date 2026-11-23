@@ -23,23 +23,6 @@ from pypeit import PypeItError
 from pypeit.display import display
 
 
-def add_timeout_argument(parser):
-    """
-    Add the ``--timeout`` option shared by the scripts that use
-    :func:`send_command`.
-
-    Parameters
-    ----------
-    parser : `argparse.ArgumentParser`_
-        Parser to add the option to.
-    """
-    parser.add_argument(
-        '--timeout', type=float, default=120.,
-        help='Number of seconds to wait for ginga to display the data.  If the display is '
-             'not done by then, the script stops waiting, but ginga finishes the display.'
-    )
-
-
 def args_to_json(args, path_args=None):
     """
     Encode parsed command-line arguments for :func:`send_command`.

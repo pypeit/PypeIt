@@ -8,11 +8,13 @@ from pathlib import Path
 import threading
 import xmlrpc.client
 
+import numpy as np
 import pytest
 
 from pypeit import __version__
 from pypeit import log
 from pypeit import PypeItError
+from pypeit.display import remote_handlers
 from pypeit.display import remote_jobs
 from pypeit.display import remote
 
@@ -234,3 +236,42 @@ def test_send_command_without_plugin():
     viewer = FakeViewer(None, ping_error=xmlrpc.client.Fault(1, 'KeyError'))
     with pytest.raises(PypeItError, match='PypeItRemote'):
         remote.send_command('show', _args_json(), viewer=viewer)
+
+
+class FakeSpecObjs:
+    """
+    Stand-in for SpecObjs with just what spec1d_extension uses.
+    """
+    def __init__(self, names, opt):
+        self.NAME = np.array(names)
+        self._opt = opt
+
+    def __len__(self):
+        return len(self.NAME)
+
+    def __getitem__(self, i):
+        return {'OPT_WAVE': np.arange(3) if self._opt[i] else None}
+
+
+def test_spec1d_extension():
+    sobjs = FakeSpecObjs(['SPAT0100-SLIT0001-DET01', 'SPAT0200-SLIT0002-DET01'], [True, False])
+    assert remote_handlers.spec1d_extension(sobjs) == 0, \
+        'The default extension 1 should select the first spectrum'
+    assert remote_handlers.spec1d_extension(sobjs, obj='SPAT0100-SLIT0001-DET01') == 0, \
+        'A spectrum should be selectable by name'
+    assert remote_handlers.spec1d_extension(sobjs, exten=2, extract='BOX') == 1, \
+        'A spectrum should be selectable by 1-based extension number'
+    with pytest.raises(PypeItError, match='2 spectra'):
+        remote_handlers.spec1d_extension(sobjs, exten=3)
+    with pytest.raises(PypeItError, match='2 spectra'):
+        remote_handlers.spec1d_extension(sobjs, exten=0)
+    with pytest.raises(PypeItError, match='--list'):
+        remote_handlers.spec1d_extension(sobjs, obj='nope')
+    with pytest.raises(PypeItError, match='BOX'):
+        remote_handlers.spec1d_extension(sobjs, exten=2)
+
+
+def test_handlers_are_registered():
+    handlers = remote_handlers.get_handlers()
+    assert 'show_1dspec' in handlers, 'pypeit_show_1dspec should have a handler'
+    assert all(callable(h) for h in handlers.values()), 'Every handler should be callable'

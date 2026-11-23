@@ -1,5 +1,8 @@
 """
-Wrapper for 1D spectrum viewer in ginga.
+Show a 1D spectrum in ginga, using the Spec1dView plugin.
+
+The spectrum is read and displayed inside the ginga viewer by the
+``PypeItRemote`` plugin; see :mod:`pypeit.display.remote`.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
@@ -41,6 +44,7 @@ class Show1DSpec(scriptbase.ScriptBase):
             '-m', '--unmasked', dest='masked', default=True, action='store_false',
             help='Only show the unmasked data.'
         )
+        scriptbase.add_ginga_timeout_argument(parser)
 #        parser.add_argument('--jdaviz', default=False, action='store_true',
 #                            help='Open the spectrum in jdaviz (requires specutils and jdaviz '
 #                                 'to be installed)')
@@ -48,23 +52,18 @@ class Show1DSpec(scriptbase.ScriptBase):
 
     @classmethod
     def main(cls, args):
-        """ Runs the XSpecGui on an input file
         """
-        from pathlib import Path
-
-        import numpy as np
-
-        from pypeit import PypeItError
+        Show the spectrum in ginga, or list the spectra in the file.
+        """
         from pypeit import specobjs
-        from pypeit.display.display import show_1dspec
+        from pypeit.display import remote
 
         # Initialize the log
         cls.init_log(args)
 
-        sobjs = specobjs.SpecObjs.from_fitsfile(args.file, chk_version=False)
-
         # List only?
         if args.list:
+            sobjs = specobjs.SpecObjs.from_fitsfile(args.file, chk_version=False)
             print("Showing object names for input file...")
             for ii in range(len(sobjs)):
                 line = "EXT{:07d} = {}".format(ii + 1, sobjs[ii].NAME)
@@ -119,23 +118,7 @@ class Show1DSpec(scriptbase.ScriptBase):
 #            raise PypeItError(f'Could not parse input file: {args.file}')
 
 
-        if args.obj is not None:
-            exten = np.where(sobjs.NAME == args.obj)[0][0]
-        else:
-            exten = args.exten-1 # 1-index in FITS file
-        if exten < 0:
-            raise PypeItError(f"Bad input extension/object name: {args.obj}")
-
-        # Check Extraction
-        if args.extract == 'OPT':
-            if sobjs[exten]['OPT_WAVE'] is None: #not in sobjs[exten]._data.keys():
-                    raise PypeItError("Spectrum not extracted with OPT.  Try --extract BOX")
-
-        # Pre-pend cwd to filename (in case RC Ginga was launched already)
-        full_file = Path(args.file).absolute()
-
-        # Ginga
-        show_1dspec(
-            str(full_file), ext=exten, masked=args.masked, extraction=args.extract,
-            fluxed=args.flux
+        # Read and show the spectrum in ginga
+        remote.send_command(
+            'show_1dspec', remote.args_to_json(args, path_args=['file']), timeout=args.timeout
         )

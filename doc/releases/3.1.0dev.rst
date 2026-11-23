@@ -35,7 +35,11 @@ Instrument-specific Updates
 Script Changes
 --------------
 
-- placeholder
+- ``pypeit_show_1dspec`` now sends its options to the ``PypeItRemote``
+  plugin, which reads and shows the spectrum inside a long-lived ginga
+  viewer and clears the viewer's channels first.  The script waits for
+  the display and reports errors in the terminal; the new ``--timeout``
+  option sets how long it waits.  See :ref:`ginga_viewer_workflow`.
 
 
 Testing
