@@ -8,7 +8,7 @@ from astropy.table import Table
 
 from pypeit.display import plugins_available
 from pypeit.slittrace import SlitTraceSet
-from pypeit.scripts.show_2dspec import wave_rms_image
+from pypeit.display.spec2d_data import wave_rms_image
 
 def test_plugin():
     success, report = plugins_available(return_report=True)

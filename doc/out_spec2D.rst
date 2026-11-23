@@ -46,9 +46,10 @@ pypeit_show_2dspec
 ------------------
 
 This script displays the sky-subtracted 2D image for a single
-detector in a `ginga`_ RC viewer. It also overlays the slits and any
-objects extracted. It should be called from the reduction directory,
-i.e. above the ``Science/`` folder where the spec2d image is located.
+detector in a `ginga`_ viewer. It also overlays the slits and any
+objects extracted.  The spec1d file with the extracted objects is expected next
+to the spec2d file, i.e., in the same ``Science/`` folder.  The data are read
+inside the ginga viewer; see :ref:`ginga_viewer_workflow`.
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
@@ -62,7 +63,8 @@ Here is a typical call:
     pypeit_show_2dspec Science/spec2d_c17_60L._LRISb_2017Mar20T055336.211.fits
 
 This opens 4 tabs in the `ginga`_ display, one for each of the
-following:
+following.  The tabs are locked together, so panning or zooming one also pans
+or zooms the others.
 
  - Processed image (sciimg-det##)
  - Sky subtracted image (skysub-det##)

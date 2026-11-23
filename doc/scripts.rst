@@ -511,8 +511,9 @@ as follows.
 Using one ginga viewer for all inspections
 ------------------------------------------
 
-The :ref:`pypeit_show_1dspec`, :ref:`pypeit_chk_edges` and
-:ref:`pypeit_chk_flats` scripts do not read the data themselves.  Each sends
+The :ref:`pypeit_show_1dspec`, :ref:`pypeit_show_2dspec`,
+:ref:`pypeit_chk_edges` and :ref:`pypeit_chk_flats` scripts do not read the
+data themselves.  Each sends
 its command-line options to a ``PypeItRemote`` plugin running inside `ginga`_,
 which reads the file and displays it in the viewer.  This means you can start
 ginga once and keep it open while you inspect many files:
@@ -524,7 +525,8 @@ ginga once and keep it open while you inspect many files:
     pypeit_show_1dspec Science/spec1d_file2.fits
 
 If no viewer is running, the script starts one.  Each command clears the
-channels in the viewer before showing the new data.  The script waits for the
+channels in the viewer before showing the new data
+(:ref:`pypeit_show_2dspec` keeps them with ``--no_clear``).  The script waits for the
 display to finish and reports any warnings or errors in your terminal; use
 ``--timeout`` to change how long it waits (120 seconds by default).
 

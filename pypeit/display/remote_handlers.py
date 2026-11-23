@@ -34,6 +34,7 @@ from pypeit import PypeItError
 from pypeit import slittrace
 from pypeit import specobjs
 from pypeit.display import ginga_draw
+from pypeit.display import spec2d_data
 
 
 def get_handlers():
@@ -48,7 +49,10 @@ def get_handlers():
     :obj:`dict`
         Handler functions keyed by command name.
     """
-    return {'chk_edges': chk_edges, 'chk_flats': chk_flats, 'show_1dspec': show_1dspec}
+    return {
+        'chk_edges': chk_edges, 'chk_flats': chk_flats, 'show_1dspec': show_1dspec,
+        'show_2dspec': show_2dspec
+    }
 
 
 def clear_workspace(fv):
@@ -379,3 +383,75 @@ def chk_edges(fv, args, job):
     products = edges.ginga_products(thin=10, slits=slits)
     images = [(img, chname, None) for img, chname in products['images']]
     show_images(fv, job, images, overlay=products['overlay'], link_views=True)
+
+
+def _show_spec2d_channel(fv, chname, image, cuts, overlays):
+    """
+    Show one spec2d image and its overlays.
+
+    Must be called on the ginga GUI thread.
+
+    Parameters
+    ----------
+    fv : ``ginga.rv.Control.GingaShell``
+        The ginga reference viewer shell.
+    chname : :obj:`str`
+        Name of the channel.
+    image : `AstroImage`_
+        Image to show.
+    cuts : :obj:`tuple`
+        Lower and upper cut levels, or None.
+    overlays : :obj:`dict`
+        Overlay canvases to draw, keyed by their tag.
+    """
+    channel = ginga_draw.show_image(fv, chname, image, cuts=cuts)
+    for tag, overlay in overlays.items():
+        ginga_draw.add_overlay(channel, overlay, tag)
+
+
+def show_2dspec(fv, args, job):
+    """
+    Show the images in a spec2d file, with the slit edges and object traces.
+
+    Handler for ``pypeit_show_2dspec``; see
+    :class:`~pypeit.scripts.show_2dspec.Show2DSpec` for the arguments.
+
+    Parameters
+    ----------
+    fv : ``ginga.rv.Control.GingaShell``
+        The ginga reference viewer shell.
+    args : `argparse.Namespace`_
+        Arguments parsed by ``pypeit_show_2dspec``.
+    job : :class:`~pypeit.display.remote_jobs.RemoteJob`
+        The job running the command.
+    """
+    data = spec2d_data.load_spec2d(args)
+    job.check_cancel()
+
+    # Each overlay is built once and shared by the channels that show it
+    slits = None if data['slits'] is None else ginga_draw.slit_overlay(**data['slits'])
+    traces = None if data['traces'] is None else ginga_draw.trace_overlay(**data['traces'])
+
+    chnames = [channel['chname'] for channel in data['channels']]
+    if args.clear:
+        fv.gui_call(clear_workspace, fv)
+    else:
+        # Replace only the channels being shown again
+        fv.gui_call(ginga_draw.clear_channels, fv, chnames)
+
+    for channel in data['channels']:
+        job.check_cancel()
+        image = ginga_draw.make_image(
+            channel['image'], channel['chname'], waveimg=data['waveimg'],
+            rms_img=data['rms_img'], logger=fv.logger
+        )
+        overlays = {}
+        if channel['slits'] and slits is not None:
+            overlays['pypeit_slits'] = slits
+        if channel['traces'] and traces is not None:
+            overlays['pypeit_traces'] = traces
+        fv.gui_call(
+            _show_spec2d_channel, fv, channel['chname'], image, channel['cuts'], overlays
+        )
+    if len(chnames) > 1:
+        fv.gui_call(_link_views, fv, chnames)

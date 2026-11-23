@@ -5,7 +5,18 @@ Version 3.1.0dev
 Breaking Changes
 ----------------
 
-- placeholder
+- The ``--embed`` option of ``pypeit_show_2dspec`` has been removed.  The
+  script no longer reads the data itself (it is read inside the ginga
+  viewer), so there is nothing to inspect in an embedded IPython session.
+- ``pypeit_show_1dspec``, ``pypeit_show_2dspec``, ``pypeit_chk_edges`` and
+  ``pypeit_chk_flats`` require a ginga viewer started from an environment
+  where this version of PypeIt is installed (so that it loads the
+  ``PypeItRemote`` plugin).  The scripts start such a viewer if none is
+  running, and stop with an explanation if the running viewer lacks the
+  plugin.
+- ``pypeit.scripts.show_2dspec.show_trace`` and ``wave_rms_image`` have been
+  removed; ``wave_rms_image`` is now in ``pypeit.display.spec2d_data``.
+  ``pypeit.display.display.show_1dspec`` has been removed.
 
 
 Documentation Updates
@@ -48,6 +59,9 @@ Script Changes
   reported as a warning instead of stopping the display.
   ``pypeit_chk_flats --type`` now rejects values other than ``pixel``,
   ``illum`` or ``all``.
+- ``pypeit_show_2dspec`` (and the display in ``pypeit_ql``) now runs inside
+  the ginga viewer.  Its channels are locked together by pixel, and with
+  ``--no_clear`` only the channels being shown again are replaced.
 
 
 Testing
