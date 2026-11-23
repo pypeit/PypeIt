@@ -1,9 +1,16 @@
 """
-Module to test object finding in pypeit.core.findobj_skymask.
+Module to test object finding in pypeit.core.findobj_skymask and
+pypeit.find_objects.
 """
 import numpy as np
+import pytest
 
+from pypeit import PypeItError
+from pypeit import find_objects
+from pypeit import specobjs
 from pypeit.core import findobj_skymask
+from pypeit.images.pypeitimage import PypeItImage
+from pypeit.par import pypeitpar
 
 
 def synthetic_echelle(nspec=100, nspat=64, norders=3, width=8.0,
@@ -99,3 +106,58 @@ def test_ech_slit_center_objs():
             'Bright slit-filling source should register a positive S/N'
         assert sobj.NAME is not None, \
             'The SpecObj name should be set for downstream IO'
+
+
+def bare_findobj(cls, skip_skysub, skip_objfind):
+    """
+    Return a :class:`~pypeit.find_objects.FindObjects` subclass instance with
+    only the attributes used by its ``run`` method, and with its object finding
+    and global sky subtraction replaced by stubs that record their calls.
+    """
+    objfind = object.__new__(cls)
+    objfind.par = pypeitpar.PypeItPar()
+    objfind.par['reduce']['findobj']['skip_skysub'] = skip_skysub
+    objfind.par['reduce']['findobj']['skip_objfind'] = skip_objfind
+    objfind.par['reduce']['extraction']['skip_extraction'] = True
+    image = np.full((20, 10), 5.0)
+    objfind.sciImg = PypeItImage(image=image, ivar=np.ones_like(image))
+    objfind.initial_skymask = None
+    objfind.std_redux = False
+    objfind.findobj_show = False
+    objfind.calls = []
+
+    def find_objects(image, ivar, **kwargs):
+        objfind.calls.append('find_objects')
+        return specobjs.SpecObjs(), 0
+
+    def global_skysub(**kwargs):
+        objfind.calls.append(('global_skysub', kwargs['skymask'], kwargs['objs_not_masked']))
+        return np.full(image.shape, 2.0)
+
+    objfind.find_objects = find_objects
+    objfind.global_skysub = global_skysub
+    return objfind
+
+
+def test_skip_objfind():
+    for skip_skysub in [True, False]:
+        # Objects are found by default
+        objfind = bare_findobj(find_objects.SlicerIFUFindObjects, skip_skysub, False)
+        objfind.run()
+        assert 'find_objects' in objfind.calls
+
+        objfind = bare_findobj(find_objects.SlicerIFUFindObjects, skip_skysub, True)
+        sky, sobjs = objfind.run()
+        assert 'find_objects' not in objfind.calls, 'Objects should not be searched for'
+        assert isinstance(sobjs, specobjs.SpecObjs) and sobjs.nobj == 0 and objfind.nobj == 0
+        if skip_skysub:
+            assert objfind.calls == [] and np.all(sky == 0.)
+        else:
+            # A single sky fit, without masking objects, as when no objects are found
+            assert objfind.calls == [('global_skysub', None, True)]
+            assert np.all(sky == 2.)
+
+    # Not allowed for fiber spectrographs
+    objfind = bare_findobj(find_objects.FiberFindObjects, False, True)
+    with pytest.raises(PypeItError):
+        objfind.run()
