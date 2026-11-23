@@ -511,7 +511,8 @@ as follows.
 Using one ginga viewer for all inspections
 ------------------------------------------
 
-The :ref:`pypeit_show_1dspec` script does not read the data itself.  It sends
+The :ref:`pypeit_show_1dspec`, :ref:`pypeit_chk_edges` and
+:ref:`pypeit_chk_flats` scripts do not read the data themselves.  Each sends
 its command-line options to a ``PypeItRemote`` plugin running inside `ginga`_,
 which reads the file and displays it in the viewer.  This means you can start
 ginga once and keep it open while you inspect many files:

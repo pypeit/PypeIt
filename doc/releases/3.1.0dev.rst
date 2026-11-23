@@ -40,6 +40,14 @@ Script Changes
   viewer and clears the viewer's channels first.  The script waits for
   the display and reports errors in the terminal; the new ``--timeout``
   option sets how long it waits.  See :ref:`ginga_viewer_workflow`.
+- ``pypeit_chk_edges`` and ``pypeit_chk_flats`` now also run inside the
+  ginga viewer.  Their channels are locked together in pan, zoom and
+  rotation (by pixel, so the images need no WCS), and the slits file is
+  also looked for in the directory of the calibration file, so moved
+  calibrations still show their slit edges.  An unreadable slits file is
+  reported as a warning instead of stopping the display.
+  ``pypeit_chk_flats --type`` now rejects values other than ``pixel``,
+  ``illum`` or ``all``.
 
 
 Testing

@@ -298,8 +298,9 @@ def slit_overlay(
 
     Returns
     -------
-    ``ginga.canvas.types.layer.CompoundObject``
-        Canvas object holding all edges and labels.
+    ``ginga.canvas.types.layer.Canvas``
+        Canvas holding all edges and labels.  The same canvas can be added
+        to the canvases of several channels.
     """
     _left = left.reshape(-1,1) if left.ndim == 1 else left
     _right = right.reshape(-1,1) if right.ndim == 1 else right
@@ -366,7 +367,7 @@ def slit_overlay(
                         rot_deg=90.)
             )
 
-    return dc.CompoundObject(*objs)
+    return dc.Canvas(*objs)
 
 
 def trace_overlay(
@@ -404,8 +405,9 @@ def trace_overlay(
 
     Returns
     -------
-    ``ginga.canvas.types.layer.CompoundObject``
-        Canvas object holding all traces and labels.
+    ``ginga.canvas.types.layer.Canvas``
+        Canvas holding all traces and labels.  The same canvas can be added
+        to the canvases of several channels.
     """
     _trace = trace.reshape(-1,1) if trace.ndim == 1 else trace
     nspec, ntrace = _trace.shape
@@ -431,7 +433,7 @@ def trace_overlay(
         objs.append(
             dc.Text(x, yy, text=str(_trc_name[i]), color=color, fontsize=17., rot_deg=90.)
         )
-    return dc.CompoundObject(*objs)
+    return dc.Canvas(*objs)
 
 
 def add_overlay(channel, overlay, tag):

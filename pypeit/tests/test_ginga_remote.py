@@ -14,6 +14,7 @@ import pytest
 from pypeit import __version__
 from pypeit import log
 from pypeit import PypeItError
+from pypeit import slittrace
 from pypeit.display import remote_handlers
 from pypeit.display import remote_jobs
 from pypeit.display import remote
@@ -275,3 +276,29 @@ def test_handlers_are_registered():
     handlers = remote_handlers.get_handlers()
     assert 'show_1dspec' in handlers, 'pypeit_show_1dspec should have a handler'
     assert all(callable(h) for h in handlers.values()), 'Every handler should be callable'
+
+
+def test_find_slits_file(tmp_path):
+    name = slittrace.SlitTraceSet.construct_file_name('A_0_DET01')
+    recorded = tmp_path / 'recorded'
+    moved = tmp_path / 'moved'
+    recorded.mkdir()
+    moved.mkdir()
+    assert remote_handlers.find_slits_file('A_0_DET01', str(recorded), moved) is None, \
+        'No slits file should be found when none exists'
+    (moved / name).touch()
+    assert remote_handlers.find_slits_file('A_0_DET01', str(recorded), moved) == moved / name, \
+        'The slits file next to the calibration file should be found if the recorded one is missing'
+    (recorded / name).touch()
+    assert remote_handlers.find_slits_file('A_0_DET01', str(recorded), moved) \
+                == recorded / name, 'The slits file in the recorded directory should come first'
+    assert remote_handlers.find_slits_file(None, str(recorded), moved) is None, \
+        'Without a calibration key, no slits file can be found'
+
+
+def test_read_slits_unreadable(tmp_path):
+    bad = tmp_path / 'Slits_A_0_DET01.fits.gz'
+    bad.write_text('not a fits file')
+    assert remote_handlers.read_slits(None) is None, 'No file should give no slits'
+    assert remote_handlers.read_slits(bad) is None, \
+        'An unreadable slits file should give no slits rather than an error'
