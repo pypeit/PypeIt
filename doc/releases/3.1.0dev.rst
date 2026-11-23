@@ -47,7 +47,12 @@ Testing
 Under-the-hood Improvements
 ---------------------------
 
-- placeholder
+- Added the hidden ``PypeItRemote`` ginga plugin and its client
+  (``pypeit.display.remote``), which let the PypeIt display scripts run
+  their work inside a long-lived ginga viewer instead of sending image
+  buffers over the remote-control interface.  Added in-process drawing
+  helpers (``pypeit.display.ginga_draw``); ``SlitImage`` moved there from
+  ``pypeit.display.slitwavelength``.
 
 
 Bug Fixes

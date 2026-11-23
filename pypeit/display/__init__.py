@@ -7,7 +7,7 @@ import numpy
 
 from ginga.misc.Bunch import Bunch
 
-required_plugins = ['SlitWavelength', 'Spec1dView', 'QLView']
+required_plugins = ['SlitWavelength', 'Spec1dView', 'QLView', 'PypeItRemote']
 
 def plugins_available(return_report=False):
     available_plugins = []
@@ -41,3 +41,8 @@ def setup_QLView():
     return Bunch(module='pypeit.display.qlview.qlview', klass='QLView',
                  ptype='local', workspace='right', start=False,
                  category='PypeIt', menu='QLView', tab='QLView')
+
+def setup_PypeItRemote():
+    return Bunch(module='pypeit.display.pypeit_remote', klass='PypeItRemote',
+                 name='PypeItRemote', ptype='global', hidden=True, start=False,
+                 category='PypeIt')
