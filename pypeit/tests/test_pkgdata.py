@@ -21,6 +21,23 @@ from pypeit.core.wavecal import waveio
 from pypeit import onespec
 
 
+@pytest.mark.parametrize('branch, subdir', [
+    ('develop', 'tests'),
+    ('fix/cache-urls', 'tests'),
+    ('fix/cache-urls', 'arc_lines/reid_arxiv'),
+])
+def test_parse_github_cache_url(branch, subdir):
+    url = f'https://raw.githubusercontent.com/pypeit/PypeIt/{branch}/pypeit/data/{subdir}/test.fits'
+    assert cache.parse_cache_url(url) == (
+        'github', '/pypeit/PypeIt', branch, subdir, 'test.fits')
+
+
+def test_parse_s3_cache_url():
+    url = 'https://s3.cloud.com/pypeit/telluric/atm_grids/test.fits'
+    assert cache.parse_cache_url(url) == (
+        's3_cloud', None, None, 'telluric/atm_grids', 'test.fits')
+
+
 @pytest.mark.remote_data
 def test_cloud_url():
 

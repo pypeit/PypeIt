@@ -263,7 +263,8 @@ where releases that increment the *major* version number are *not* backwards
 compatible.  We expect the most common reason for incrementing the *major*
 version number will be because of a backwards-incompatible change to either the
 input configuration files (like the ``*.pypeit`` file) or the data models of the
-primary output products.
+primary output products.  See :ref:`breaking_changes` for the full list of
+changes we consider backwards-incompatible.
 
 .. important::
 
@@ -310,6 +311,45 @@ Beyond this, we emphasize two important considerations regarding PypeIt versioni
     If you find particular data files useful for your reductions, please
     consider issuing a PR to include them in the PypeIt repository.  This helps
     the community, and it means you'll avoid these upgrading complications.
+
+.. _breaking_changes:
+
+Breaking changes
+----------------
+
+We consider the following to be *breaking* (backwards-incompatible) changes:
+
+- **Changes to input files** that cause an existing input file to fail or
+  require editing.  This applies to the ``*.pypeit`` file and all of the other
+  PypeIt input files (e.g., ``*.sens``, ``*.flux``, ``*.coadd1d``,
+  ``*.coadd2d``, ``*.coadd3d``, ``*.tell``, ``*.collate1d``).  Examples are
+  changes to the block structure or required columns, renaming or removing a
+  user-level parameter, and changing a the allowed options or data type of a
+  parameter such that previously valid values are rejected.
+
+- **Changes to output data models** that cause files written by a previous
+  version of PypeIt to be unreadable.  This applies to the primary output
+  products (e.g., ``spec1d``, ``spec2d``, sensitivity function, coadded, and
+  datacube files) and the calibration files they depend on (e.g., ``Slits``
+  files).
+
+- **Changes to command-line scripts**, including renaming or removing a script
+  or one of its command-line options.
+
+The following are *not* considered breaking changes, although they are still
+documented in the release notes:
+
+- **New user-level parameters** and **changes to parameter default values**,
+  even if they change the reduction results.
+
+- **Changes to the Python API** (e.g., function or class signatures), unless
+  the relevant objects are documented as a public interface.
+
+- **Dropping support for a Python version or increasing the minimum required
+  version of a dependency**; these are listed as dependency changes.
+
+Breaking changes are always listed under "Breaking Changes" in the release
+notes; see :doc:`whatsnew`.
 
 ----
 
