@@ -297,6 +297,13 @@ that its file extensions are:
 
 To view the coadded spectrum, using :ref:`pypeit_show_1dspec`.
 
+If the :class:`~pypeit.spectrographs.spectrograph.Spectrograph` is an Echelle, the script will also
+create an :ref:`orderstack` object as a .fits file. The file contains the coadded spectrum and its 
+wavelength solution, each presented as an N x M array, where N is the number of traces in the echellogram 
+and M is the number of pixels in each echelle order. If multiple instrument setups are being coadded, each 
+setup will be coadded and saved into an individual :ref:`orderstack` file, with the setup name appended
+to the file name.
+
 UVES_popler coaddition
 ======================
 
