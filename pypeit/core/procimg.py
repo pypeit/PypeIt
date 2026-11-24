@@ -761,8 +761,9 @@ def _masked_overscan_stats(overscan, os_bpm, osvar, compress_axis, scalar):
     osfit = pydl.djs_maskinterp1(osfit.filled(0.), np.ma.getmaskarray(osfit))
     if osvar is not None:
         ngood = np.sum(gpm, axis=compress_axis)
-        osvar = np.pi/2*np.sum(np.where(gpm, osvar, 0.), axis=compress_axis) \
-                    / np.maximum(ngood, 1)**2
+        osvar = (
+            np.pi/2*np.sum(np.where(gpm, osvar, 0.), axis=compress_axis) / np.maximum(ngood, 1)**2
+        )
         osvar = pydl.djs_maskinterp1(osvar, ngood == 0)
     return osfit, osvar
 
@@ -779,10 +780,10 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
         - median: Use the median of the overscan region to subtract it.
         - odd_even: Use the median of the odd and even rows/columns to subtract (MDM/OSMOS)
 
-    Overscan pixels flagged by ``bpm`` or with non-finite values (e.g., NaN)
-    are excluded from the overscan statistics.  If an entire row (or column) of the overscan region
-    is excluded, its overscan level is interpolated from the adjacent rows (or
-    columns).
+    Overscan pixels flagged by ``bpm`` or with non-finite values (e.g., NaN) are
+    excluded from the overscan statistics.  If an entire row (or column) of the
+    overscan region is excluded, its overscan level is interpolated from the
+    adjacent rows (or columns).
 
     Args:
         rawframe (`numpy.ndarray`_):

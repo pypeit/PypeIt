@@ -166,9 +166,10 @@ class RawImage:
         # raw data (see io.fits_open), so they are not flagged here.
         self.raw_undef = np.logical_not(np.isfinite(self.rawimage))
         if np.any(self.raw_undef):
-            log.warning(f'{np.sum(self.raw_undef)} raw pixel values in '
-                        f'{os.path.basename(self.filename)} are undefined (not finite); these '
-                        'will be masked.')
+            log.warning(
+                f'{np.sum(self.raw_undef)} raw pixel values in {os.path.basename(self.filename)} '
+                'are undefined (not finite); these will be masked.'
+            )
             self.rawimage = np.where(self.raw_undef, 0., self.rawimage)
 
         # Grab items from rawImage (for convenience and for processing)
@@ -379,8 +380,8 @@ class RawImage:
                     raise PypeItError(f'Cannot estimate readnoise for amplifier {amp+1}.  Raw image '
                                'has no overscan region!')
                 gain = 1. if self.steps['apply_gain'] else self.detector[i]['gain'][amp]
-                biaspix = self.image[i, (self.oscansec_img[i] == amp+1)
-                                        & np.logical_not(self.raw_undef[i])] * gain
+                indx = (self.oscansec_img[i] == amp+1) & np.logical_not(self.raw_undef[i])
+                biaspix = self.image[i,indx] * gain
                 self.ronoise[i,amp] = stats.sigma_clipped_stats(biaspix, sigma=5)[-1]
                 log.info(f'Estimated readnoise of amplifier {amp+1} = '
                           f'{self.ronoise[i,amp]:.3f} e-')
@@ -752,8 +753,9 @@ class RawImage:
         pypeitImage.build_mask(saturation='default', mincounts='default')
         # Flag pixels with undefined raw values (these are also included in the
         # BPM; see above)
-        pypeitImage.update_mask('IS_NAN',
-                                indx=self.raw_undef[0] if self.nimg == 1 else self.raw_undef)
+        pypeitImage.update_mask(
+            'IS_NAN', indx=self.raw_undef[0] if self.nimg == 1 else self.raw_undef
+        )
         if flat_bpm is not None:
             pypeitImage.update_mask('BADSCALE', indx=flat_bpm)
 
@@ -967,8 +969,9 @@ class RawImage:
                                       for d,i in zip(self.detector, self.proc_var)])
         self.datasec_img = np.array([self.spectrograph.orient_image(d, i)
                                      for d,i in zip(self.detector, self.datasec_img)])
-        self.raw_undef = np.array([self.spectrograph.orient_image(d, i)
-                                   for d,i in zip(self.detector, self.raw_undef)])
+        self.raw_undef = np.array([
+            self.spectrograph.orient_image(d, i) for d,i in zip(self.detector, self.raw_undef)
+        ])
         self.steps[step] = True
 
     def subtract_bias(self, bias_image, force=False):
@@ -1144,10 +1147,9 @@ class RawImage:
             # subtraction.
             _os_img[i], var[i] = procimg.subtract_overscan(
                 self.image[i], self.datasec_img[i], self.oscansec_img[i],
-                method=self.par['overscan_method'],
-                params=self.par['overscan_par'],
-                var=None if self.rn2img is None else self.rn2img[i],
-                bpm=self.raw_undef[i])
+                method=self.par['overscan_method'], params=self.par['overscan_par'],
+                var=None if self.rn2img is None else self.rn2img[i], bpm=self.raw_undef[i]
+            )
         self.image = np.array(_os_img)
         # Parse the returned value
         if self.rn2img is not None:
@@ -1416,8 +1418,9 @@ class RawImage:
         if self.proc_var is not None:
             self.proc_var = np.array([procimg.trim_frame(p, d < 1)
                                       for p, d in zip(self.proc_var, self.datasec_img)])
-        self.raw_undef = np.array([procimg.trim_frame(u, d < 1)
-                                   for u, d in zip(self.raw_undef, self.datasec_img)])
+        self.raw_undef = np.array([
+            procimg.trim_frame(u, d < 1) for u, d in zip(self.raw_undef, self.datasec_img)
+        ])
         # NOTE: This must be done last because the untrimmed image is used for
         # deciding what to trim!
         self.datasec_img = np.array([procimg.trim_frame(d, d < 1) for d in self.datasec_img])
@@ -1488,8 +1491,9 @@ class RawImage:
         # Transform the mask of undefined raw pixels.  Pixels without any
         # contribution from the original images are flagged by the BPM, not
         # this mask.
-        self.raw_undef = build_image_mosaic(self.raw_undef.astype(float), _tforms,
-                                            mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
+        self.raw_undef, *_ = build_image_mosaic(
+            self.raw_undef.astype(float), _tforms, mosaic_shape=shape, order=self.mosaic.msc_ord
+        )
         self.raw_undef[_img_npix < 1] = 0.
         self.raw_undef = np.expand_dims(np.round(self.raw_undef).astype(bool), 0)
 
