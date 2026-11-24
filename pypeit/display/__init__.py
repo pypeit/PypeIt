@@ -7,7 +7,8 @@ import numpy
 
 from ginga.misc.Bunch import Bunch
 
-required_plugins = ['SlitWavelength', 'Spec1dView', 'QLView', 'PypeItRemote']
+required_plugins = ['SlitWavelength', 'Spec1dView', 'QLView', 'PypeItRemote', 'Spec2dView',
+                    'EdgesView', 'FlatsView']
 
 def plugins_available(return_report=False):
     available_plugins = []
@@ -46,3 +47,18 @@ def setup_PypeItRemote():
     return Bunch(module='pypeit.display.pypeit_remote', klass='PypeItRemote',
                  name='PypeItRemote', ptype='global', hidden=True, start=False,
                  category='PypeIt')
+
+def setup_Spec2dView():
+    return Bunch(module='pypeit.display.views', klass='Spec2dView', name='Spec2dView',
+                 ptype='local', workspace='right', start=False,
+                 category='PypeIt', menu='Spec2dView', tab='Spec2dView')
+
+def setup_EdgesView():
+    return Bunch(module='pypeit.display.views', klass='EdgesView', name='EdgesView',
+                 ptype='local', workspace='right', start=False,
+                 category='PypeIt', menu='EdgesView', tab='EdgesView')
+
+def setup_FlatsView():
+    return Bunch(module='pypeit.display.views', klass='FlatsView', name='FlatsView',
+                 ptype='local', workspace='right', start=False,
+                 category='PypeIt', menu='FlatsView', tab='FlatsView')

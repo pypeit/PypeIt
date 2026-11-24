@@ -65,11 +65,11 @@ class PypeItRemote(GingaPlugin.GlobalPlugin):
         """
         return __version__
 
-    def submit(self, command, args_json, version):
+    def submit(self, command, args_json, version, notify=False):
         """
         Queue a command; see :meth:`~pypeit.display.remote_jobs.JobManager.submit`.
         """
-        return self.jobs.submit(command, args_json, version)
+        return self.jobs.submit(command, args_json, version, notify=notify)
 
     def status(self, job_id):
         """

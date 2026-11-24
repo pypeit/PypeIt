@@ -254,10 +254,10 @@ def _label_xy(spat, spec, rotate):
 
 def slit_overlay(
     left, right, slit_ids=None, left_ids=None, right_ids=None, maskdef_ids=None, spec_vals=None,
-    rotate=False, pstep=50, synced=True
+    rotate=False, pstep=50, synced=True, lines=True, labels=True
 ):
     r"""
-    Construct a ginga canvas object with slit edges and their labels.
+    Construct a ginga canvas object with slit edges and/or their labels.
 
     This is the in-process equivalent of :func:`pypeit.display.display.show_slits`.
     Left edges are green and right edges magenta; slit IDs are aquamarine and
@@ -295,11 +295,15 @@ def slit_overlay(
     synced : :obj:`bool`, optional
         If True, the left and right edges are synchronized into slits and
         labeled by slit; otherwise each edge is labeled separately.
+    lines : :obj:`bool`, optional
+        Include the edges.
+    labels : :obj:`bool`, optional
+        Include the slit or edge IDs.
 
     Returns
     -------
     ``ginga.canvas.types.layer.Canvas``
-        Canvas holding all edges and labels.  The same canvas can be added
+        Canvas holding the edges and/or labels.  The same canvas can be added
         to the canvases of several channels.
     """
     _left = left.reshape(-1,1) if left.ndim == 1 else left
@@ -319,15 +323,18 @@ def slit_overlay(
 
     dc = get_canvas_types()
     objs = []
-    for i in range(nleft):
-        objs.append(
-            dc.Path(_edge_points(_left[:,i], y_left[:,i], pstep, rotate), color='green')
-        )
-    for i in range(nright):
-        objs.append(dc.Path(_edge_points(_right[:,i], y[:,i], pstep, rotate), color='magenta'))
+    if lines:
+        for i in range(nleft):
+            objs.append(
+                dc.Path(_edge_points(_left[:,i], y_left[:,i], pstep, rotate), color='green')
+            )
+        for i in range(nright):
+            objs.append(
+                dc.Path(_edge_points(_right[:,i], y[:,i], pstep, rotate), color='magenta')
+            )
 
     bot = nspec // 2
-    if synced:
+    if labels and synced:
         _slit_ids = np.arange(nleft) if slit_ids is None else np.atleast_1d(slit_ids)
         if len(_slit_ids) != nleft:
             raise PypeItError('Incorrect number of slit IDs provided.')
@@ -347,7 +354,7 @@ def slit_overlay(
                     dc.Text(x, yy, text=f'{_maskdef_ids[i]}', color='cyan', fontsize=20.,
                             rot_deg=90.)
                 )
-    else:
+    elif labels:
         _left_ids = -np.arange(nleft) if left_ids is None else np.atleast_1d(left_ids)
         if len(_left_ids) != nleft:
             raise PypeItError('Incorrect number of left IDs provided.')
@@ -371,10 +378,11 @@ def slit_overlay(
 
 
 def trace_overlay(
-    trace, trc_name=None, maskdef_extr=None, manual_extr=None, rotate=False, pstep=3, yval=None
+    trace, trc_name=None, maskdef_extr=None, manual_extr=None, rotate=False, pstep=3, yval=None,
+    lines=True, labels=True
 ):
     r"""
-    Construct a ginga canvas object with object traces and their names.
+    Construct a ginga canvas object with object traces and/or their names.
 
     This is the in-process equivalent of :func:`pypeit.display.display.show_trace`.
     Traces are orange, except those extracted at slit-mask design positions
@@ -402,11 +410,15 @@ def trace_overlay(
         Spectral positions of the traces, with shape :math:`(N_{\rm spec},)`
         or the same shape as ``trace``.  If None, the spectral pixel index is
         used.
+    lines : :obj:`bool`, optional
+        Include the traces.
+    labels : :obj:`bool`, optional
+        Include the trace names.
 
     Returns
     -------
     ``ginga.canvas.types.layer.Canvas``
-        Canvas holding all traces and labels.  The same canvas can be added
+        Canvas holding the traces and/or names.  The same canvas can be added
         to the canvases of several channels.
     """
     _trace = trace.reshape(-1,1) if trace.ndim == 1 else trace
@@ -428,11 +440,15 @@ def trace_overlay(
             color = '#33ccff'
         else:
             color = 'orange'
-        objs.append(dc.Path(_edge_points(_trace[:,i], y[:,i], pstep, rotate), color=color))
-        x, yy = _label_xy(_trace[half,i], y[half,i], rotate)
-        objs.append(
-            dc.Text(x, yy, text=str(_trc_name[i]), color=color, fontsize=17., rot_deg=90.)
-        )
+        if lines:
+            objs.append(
+                dc.Path(_edge_points(_trace[:,i], y[:,i], pstep, rotate), color=color)
+            )
+        if labels:
+            x, yy = _label_xy(_trace[half,i], y[half,i], rotate)
+            objs.append(
+                dc.Text(x, yy, text=str(_trc_name[i]), color=color, fontsize=17., rot_deg=90.)
+            )
     return dc.Canvas(*objs)
 
 
@@ -454,6 +470,22 @@ def add_overlay(channel, overlay, tag):
     canvas = channel.fitsimage.get_canvas()
     canvas.delete_object_by_tag(tag, redraw=False)
     canvas.add(overlay, tag=tag, redraw=True)
+
+
+def remove_overlay(channel, tag):
+    """
+    Remove an overlay from a channel's canvas.
+
+    Must be called on the ginga GUI thread.
+
+    Parameters
+    ----------
+    channel : ``ginga.rv.Channel.Channel``
+        Channel to remove the overlay from.
+    tag : :obj:`str`
+        Tag of the overlay; nothing happens if no overlay has this tag.
+    """
+    channel.fitsimage.get_canvas().delete_object_by_tag(tag, redraw=True)
 
 
 def clear_channels(fv, chnames):

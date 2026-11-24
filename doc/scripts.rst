@@ -530,6 +530,22 @@ channels in the viewer before showing the new data
 display to finish and reports any warnings or errors in your terminal; use
 ``--timeout`` to change how long it waits (120 seconds by default).
 
+:ref:`pypeit_show_2dspec`, :ref:`pypeit_chk_edges` and :ref:`pypeit_chk_flats`
+also open a control panel (the ``Spec2dView``, ``EdgesView`` or ``FlatsView``
+plugin) on the right side of the viewer.  It has:
+
+- **File**: the file shown, and a **Reload** button to read it again, e.g.
+  after re-running a reduction step;
+- **Overlays**: check boxes to show or hide the slit edges, slit IDs, object
+  traces and object names in all channels at once;
+- **Options**: options of the script, e.g. the detector shown by
+  :ref:`pypeit_show_2dspec` or the flats shown by :ref:`pypeit_chk_flats`;
+  **Show** displays the file again with the new options;
+- **Slits**: a table of the slits; selecting one pans and zooms all channels
+  to it.
+
+Errors from **Reload** and **Show** are reported in the ginga Errors tab.
+
 ginga must be started from the same environment where PypeIt is installed, so
 that it can load the PypeIt plugins.  If you update PypeIt while ginga is
 running, the script warns that the two versions differ; restart ginga to use

@@ -110,6 +110,23 @@ def trace_overlay_args(sobjs, detname):
     )
 
 
+def spec2d_detectors(spec2d_file):
+    """
+    Return the names of the detectors or mosaics in a spec2d file.
+
+    Parameters
+    ----------
+    spec2d_file : :obj:`str`, `Path`_
+        The spec2d file.
+
+    Returns
+    -------
+    :obj:`list`
+        Detector or mosaic names, e.g. ``['DET01', 'DET02']``.
+    """
+    return fits.getval(spec2d_file, 'HIERARCH ALLSPEC2D_DETS').split(',')
+
+
 def spec2d_detname(spec2d_file, det=None):
     """
     Return the name of the detector or mosaic to show.
@@ -129,7 +146,7 @@ def spec2d_detname(spec2d_file, det=None):
         Detector or mosaic name, e.g. ``DET01`` or ``MSC01``.
     """
     if det is None:
-        return fits.getval(spec2d_file, 'HIERARCH ALLSPEC2D_DETS').split(',')[0]
+        return spec2d_detectors(spec2d_file)[0]
     try:
         return DetectorContainer.get_name(int(det))
     except ValueError:
@@ -387,7 +404,9 @@ def load_spec2d(args):
             - ``slits``: keyword arguments for
               :func:`~pypeit.display.ginga_draw.slit_overlay`, or None;
             - ``traces``: keyword arguments for
-              :func:`~pypeit.display.ginga_draw.trace_overlay`, or None.
+              :func:`~pypeit.display.ginga_draw.trace_overlay`, or None;
+            - ``detname``: the detector or mosaic shown;
+            - ``detectors``: all detectors or mosaics in the file.
     """
     detname = spec2d_detname(args.file, det=args.det)
     show_channels = [0, 1, 2, 3] if args.channels is None \
@@ -467,5 +486,5 @@ def load_spec2d(args):
 
     return dict(
         channels=channels, waveimg=data['waveimg'], rms_img=data['rms_img'], slits=slits,
-        traces=traces
+        traces=traces, detname=detname, detectors=spec2d_detectors(args.file)
     )

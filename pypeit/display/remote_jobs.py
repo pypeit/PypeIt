@@ -53,6 +53,7 @@ class RemoteJob:
         self.args = args
         self.state = 'queued'
         self.message = ''
+        self.notify = False
         self.warnings = []
         self._cancel_event = threading.Event()
         self._lock = threading.Lock()
@@ -196,7 +197,7 @@ class JobManager:
         self._lock = threading.Lock()
         self._run_lock = threading.Lock()
 
-    def submit(self, command, args_json, version):
+    def submit(self, command, args_json, version, notify=False):
         """
         Queue a command and return at once.
 
@@ -210,6 +211,10 @@ class JobManager:
             JSON-encoded dictionary of the parsed command-line arguments.
         version : :obj:`str`
             PypeIt version of the script submitting the command.
+        notify : :obj:`bool`, optional
+            Show an error in the ginga viewer if the command fails.  Used for
+            commands submitted from inside ginga, e.g. by a view plugin,
+            where there is no terminal to report the error.
 
         Returns
         -------
@@ -233,6 +238,7 @@ class JobManager:
             return self._add_job(job).status()
 
         job = self._add_job(RemoteJob(job_id, command, args))
+        job.notify = notify
         if version != __version__:
             job.warn(
                 f'Ginga is running PypeIt {__version__}, but the script is from PypeIt '
@@ -303,6 +309,8 @@ class JobManager:
                 job.set_state('done')
             finally:
                 log.removeHandler(log_handler)
+            if job.notify and job.state == 'error':
+                self.fv.gui_do(self.fv.show_error, f'{job.command} failed: {job.message}')
 
     def status(self, job_id):
         """

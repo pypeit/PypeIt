@@ -34,7 +34,11 @@ Dependency Changes
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
 
-- placeholder
+- Added the ``Spec2dView``, ``EdgesView`` and ``FlatsView`` ginga plugins,
+  opened by ``pypeit_show_2dspec``, ``pypeit_chk_edges`` and
+  ``pypeit_chk_flats``.  They reload the file, toggle the slit and object
+  overlays, re-display with different options (e.g. another detector), and
+  navigate to a slit.  See :ref:`ginga_viewer_workflow`.
 
 
 Instrument-specific Updates

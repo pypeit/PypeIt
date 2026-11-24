@@ -187,6 +187,9 @@ SlitWavelength = "pypeit.display:setup_SlitWavelength"
 Spec1dView = "pypeit.display:setup_Spec1dView"
 QLView = "pypeit.display:setup_QLView"
 PypeItRemote = "pypeit.display:setup_PypeItRemote"
+Spec2dView = "pypeit.display:setup_Spec2dView"
+EdgesView = "pypeit.display:setup_EdgesView"
+FlatsView = "pypeit.display:setup_FlatsView"
 
 [project.entry-points."ginga_modes"]
 

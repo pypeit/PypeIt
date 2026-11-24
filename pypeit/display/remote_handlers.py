@@ -226,9 +226,129 @@ def read_slits(slits_file, chk_version=True):
         return None
 
 
-def _show_channel(fv, chname, image, cuts, overlay):
+class Overlay:
     """
-    Show an image, and optionally an overlay, in a channel.
+    A canvas drawn on a set of channels, which a view plugin can show or hide.
+
+    Parameters
+    ----------
+    name : :obj:`str`
+        Name shown in the view plugin, e.g. ``'Slit edges'``.
+    tag : :obj:`str`
+        Tag of the canvas on each channel's canvas.
+    canvas : ``ginga.canvas.types.layer.Canvas``
+        The overlay; the same canvas is added to every channel that shows it.
+    """
+    def __init__(self, name, tag, canvas):
+        self.name = name
+        self.tag = tag
+        self.canvas = canvas
+        self.chnames = []
+        self.visible = True
+
+
+class ViewState:
+    """
+    What a command displayed, handed to the view plugin that controls it.
+
+    Parameters
+    ----------
+    command : :obj:`str`
+        Name of the command; used to re-run it.
+    args : `argparse.Namespace`_
+        Arguments of the command; used to re-run it.
+    path : :obj:`str`
+        File that was displayed.
+    """
+    def __init__(self, command, args, path):
+        self.command = command
+        self.args = args
+        self.path = path
+        self.chnames = []
+        """Names of the channels shown, the first one being the reference."""
+        self.overlays = []
+        """List of :class:`Overlay` objects."""
+        self.slits = []
+        """List of dictionaries describing each slit; see :func:`slit_rows`."""
+        self.options = {}
+        """Additional information for the view plugin, e.g. the detectors."""
+
+
+def make_overlays(slits=None, traces=None):
+    """
+    Build the overlays a view plugin can toggle.
+
+    Parameters
+    ----------
+    slits : :obj:`dict`, optional
+        Keyword arguments for :func:`~pypeit.display.ginga_draw.slit_overlay`.
+    traces : :obj:`dict`, optional
+        Keyword arguments for :func:`~pypeit.display.ginga_draw.trace_overlay`.
+
+    Returns
+    -------
+    :obj:`dict`
+        :class:`Overlay` objects keyed by ``'slit_edges'``, ``'slit_ids'``,
+        ``'traces'`` and ``'trace_names'``; only those that can be built are
+        included.
+    """
+    overlays = {}
+    if slits is not None:
+        overlays['slit_edges'] = Overlay(
+            'Slit edges', 'pypeit_slit_edges', ginga_draw.slit_overlay(**slits, labels=False)
+        )
+        overlays['slit_ids'] = Overlay(
+            'Slit IDs', 'pypeit_slit_ids', ginga_draw.slit_overlay(**slits, lines=False)
+        )
+    if traces is not None:
+        overlays['traces'] = Overlay(
+            'Object traces', 'pypeit_traces', ginga_draw.trace_overlay(**traces, labels=False)
+        )
+        overlays['trace_names'] = Overlay(
+            'Object names', 'pypeit_trace_names',
+            ginga_draw.trace_overlay(**traces, lines=False)
+        )
+    return overlays
+
+
+def slit_rows(left, right, slit_ids=None, maskdef_ids=None):
+    r"""
+    Describe each slit for the slit navigator of a view plugin.
+
+    Parameters
+    ----------
+    left : `numpy.ndarray`_
+        Left edges, shape :math:`(N_{\rm spec}, N_{\rm slits})`.
+    right : `numpy.ndarray`_
+        Right edges, with the same shape as ``left``.
+    slit_ids : array-like, optional
+        Slit IDs.  If None, the slits are numbered from 0.
+    maskdef_ids : array-like, optional
+        Slit-mask design IDs.  Ignored if None or of the wrong length.
+
+    Returns
+    -------
+    :obj:`list`
+        One dictionary per slit, with the slit ``id``, ``maskdef_id`` (None if
+        unknown), and the spatial center (``x``), spectral center (``y``) and
+        width (``width``) at the middle of the spectral range, in pixels.
+    """
+    nspec, nslits = left.shape
+    _ids = np.arange(nslits) if slit_ids is None else np.atleast_1d(slit_ids)
+    _maskdef = None if maskdef_ids is None or np.atleast_1d(maskdef_ids).size != nslits \
+                    else np.atleast_1d(maskdef_ids)
+    mid = nspec // 2
+    return [
+        dict(id=int(_ids[i]), maskdef_id=None if _maskdef is None else int(_maskdef[i]),
+             x=float(0.5*(left[mid,i] + right[mid,i])), y=float(mid),
+             width=float(right[mid,i] - left[mid,i]))
+        for i in range(nslits)
+    ]
+
+
+def _show_channel(fv, chname, image, cuts, overlays):
+    """
+    Show an image and its overlays in a channel.
 
     Must be called on the ginga GUI thread.
 
@@ -242,12 +362,12 @@ def _show_channel(fv, chname, image, cuts, overlay):
         Image to show.
     cuts : :obj:`tuple`
         Lower and upper cut levels, or None.
-    overlay : ``ginga.canvas.CanvasObject.CanvasObjectBase``
-        Overlay to draw, or None.
+    overlays : :obj:`list`
+        :class:`Overlay` objects to draw.
     """
     channel = ginga_draw.show_image(fv, chname, image, cuts=cuts)
-    if overlay is not None:
-        ginga_draw.add_overlay(channel, overlay, 'pypeit_slits')
+    for overlay in overlays:
+        ginga_draw.add_overlay(channel, overlay.canvas, overlay.tag)
 
 
 def _link_views(fv, chnames):
@@ -273,9 +393,11 @@ def _link_views(fv, chnames):
         )
 
 
-def show_images(fv, job, images, overlay=None, waveimg=None, link_views=False):
+def display_channels(
+    fv, job, channels, overlays=None, waveimg=None, rms_img=None, clear=True, link_views=True
+):
     """
-    Clear the viewer and show a set of images, one per channel.
+    Show a set of images, one per channel, with their overlays.
 
     Must be called on a ginga worker thread.  The images are built on the
     calling thread; only the display is done on the GUI thread.
@@ -287,29 +409,70 @@ def show_images(fv, job, images, overlay=None, waveimg=None, link_views=False):
     job : :class:`~pypeit.display.remote_jobs.RemoteJob`
         The job running the command; checked for cancellation before each
         channel.
-    images : :obj:`list`
-        List of ``(image, chname, cuts)`` tuples, where ``image`` is a
-        `numpy.ndarray`_, ``chname`` is the channel name, and ``cuts`` is a
-        tuple with the lower and upper cut levels or None.
-    overlay : :obj:`dict`, optional
-        Keyword arguments for :func:`~pypeit.display.ginga_draw.slit_overlay`.
-        The overlay is built once and shared by every channel.  If None, no
-        overlay is drawn.
+    channels : :obj:`list`
+        One dictionary per channel, with the ``image`` (a
+        `numpy.ndarray`_), the channel name (``chname``), the cut levels
+        (``cuts``, a tuple or None), and the keys of the ``overlays`` to draw
+        on it (``overlays``, a list).
+    overlays : :obj:`dict`, optional
+        :class:`Overlay` objects, as returned by :func:`make_overlays`.  Each
+        object's list of channel names is filled in.
     waveimg : `numpy.ndarray`_, optional
         Wavelength image shown in the cursor readout of every channel.
+    rms_img : `numpy.ndarray`_, optional
+        Wavelength-RMS image shown in the cursor readout of every channel.
+    clear : :obj:`bool`, optional
+        Delete all channels first.  If False, only the channels being shown
+        are replaced.
     link_views : :obj:`bool`, optional
         Lock the pan, zoom and rotation of all channels together; see
         :func:`_link_views`.
+
+    Returns
+    -------
+    :obj:`list`
+        Names of the channels shown.
     """
-    # One overlay canvas is built and shared by all channels
-    slits = None if overlay is None else ginga_draw.slit_overlay(**overlay)
-    fv.gui_call(clear_workspace, fv)
-    for img, chname, cuts in images:
+    _overlays = {} if overlays is None else overlays
+    chnames = [channel['chname'] for channel in channels]
+    if clear:
+        fv.gui_call(clear_workspace, fv)
+    else:
+        fv.gui_call(ginga_draw.clear_channels, fv, chnames)
+    for channel in channels:
         job.check_cancel()
-        image = ginga_draw.make_image(img, chname, waveimg=waveimg, logger=fv.logger)
-        fv.gui_call(_show_channel, fv, chname, image, cuts, slits)
-    if link_views and len(images) > 1:
-        fv.gui_call(_link_views, fv, [chname for _, chname, _ in images])
+        image = ginga_draw.make_image(
+            channel['image'], channel['chname'], waveimg=waveimg, rms_img=rms_img,
+            logger=fv.logger
+        )
+        drawn = [_overlays[key] for key in channel['overlays'] if key in _overlays]
+        for overlay in drawn:
+            overlay.chnames.append(channel['chname'])
+        fv.gui_call(_show_channel, fv, channel['chname'], image, channel['cuts'], drawn)
+    if link_views and len(chnames) > 1:
+        fv.gui_call(_link_views, fv, chnames)
+    return chnames
+
+
+def _start_view(fv, plugin_name, state):
+    """
+    Start a view plugin on the reference channel of a display.
+
+    Must be called on the ginga GUI thread.
+
+    Parameters
+    ----------
+    fv : ``ginga.rv.Control.GingaShell``
+        The ginga reference viewer shell.
+    plugin_name : :obj:`str`
+        Name of the local plugin, e.g. ``'Spec2dView'``.
+    state : :class:`ViewState`
+        What was displayed.
+    """
+    chname = state.chnames[0]
+    fv.call_local_plugin_method(chname, plugin_name, 'set_state', [state], {})
+    fv.start_local_plugin(chname, plugin_name)
+    fv.change_channel(chname)
 
 
 def chk_flats(fv, args, job):
@@ -317,7 +480,8 @@ def chk_flats(fv, args, job):
     Show the images in a flat-field calibration file.
 
     Handler for ``pypeit_chk_flats``; see
-    :class:`~pypeit.scripts.chk_flats.ChkFlats` for the arguments.
+    :class:`~pypeit.scripts.chk_flats.ChkFlats` for the arguments.  The
+    display is controlled by the ``FlatsView`` plugin.
 
     Parameters
     ----------
@@ -336,16 +500,24 @@ def chk_flats(fv, args, job):
     products = flats.ginga_products(frametype=args.type, slits=slits, chk_version=chk_version)
     if len(products['images']) == 0:
         raise PypeItError(f'{args.file} has no {args.type} flat-field images to show.')
-    overlay = None
+
+    state = ViewState('chk_flats', args, args.file)
+    slit_kwargs = None
     if products['slits'] is not None:
         left, right, mask = products['slits'].select_edges()
         gpm = mask == 0
-        overlay = dict(left=left[:,gpm], right=right[:,gpm],
-                       slit_ids=products['slits'].spat_id[gpm])
-    show_images(
-        fv, job, products['images'], overlay=overlay, waveimg=products['waveimg'],
-        link_views=True
+        slit_kwargs = dict(left=left[:,gpm], right=right[:,gpm],
+                           slit_ids=products['slits'].spat_id[gpm])
+        state.slits = slit_rows(slit_kwargs['left'], slit_kwargs['right'],
+                                slit_ids=slit_kwargs['slit_ids'])
+    overlays = make_overlays(slits=slit_kwargs)
+    channels = [dict(image=img, chname=chname, cuts=cuts, overlays=['slit_edges', 'slit_ids'])
+                for img, chname, cuts in products['images']]
+    state.chnames = display_channels(
+        fv, job, channels, overlays=overlays, waveimg=products['waveimg']
     )
+    state.overlays = list(overlays.values())
+    fv.gui_call(_start_view, fv, 'FlatsView', state)
 
 
 def chk_edges(fv, args, job):
@@ -354,7 +526,8 @@ def chk_edges(fv, args, job):
     file.
 
     Handler for ``pypeit_chk_edges``; see
-    :class:`~pypeit.scripts.chk_edges.ChkEdges` for the arguments.
+    :class:`~pypeit.scripts.chk_edges.ChkEdges` for the arguments.  The
+    display is controlled by the ``EdgesView`` plugin.
 
     Parameters
     ----------
@@ -381,32 +554,19 @@ def chk_edges(fv, args, job):
 
     job.check_cancel()
     products = edges.ginga_products(thin=10, slits=slits)
-    images = [(img, chname, None) for img, chname in products['images']]
-    show_images(fv, job, images, overlay=products['overlay'], link_views=True)
-
-
-def _show_spec2d_channel(fv, chname, image, cuts, overlays):
-    """
-    Show one spec2d image and its overlays.
-
-    Must be called on the ginga GUI thread.
-
-    Parameters
-    ----------
-    fv : ``ginga.rv.Control.GingaShell``
-        The ginga reference viewer shell.
-    chname : :obj:`str`
-        Name of the channel.
-    image : `AstroImage`_
-        Image to show.
-    cuts : :obj:`tuple`
-        Lower and upper cut levels, or None.
-    overlays : :obj:`dict`
-        Overlay canvases to draw, keyed by their tag.
-    """
-    channel = ginga_draw.show_image(fv, chname, image, cuts=cuts)
-    for tag, overlay in overlays.items():
-        ginga_draw.add_overlay(channel, overlay, tag)
+    state = ViewState('chk_edges', args, args.trace_file)
+    slit_kwargs = products['overlay']
+    if slit_kwargs is not None and slit_kwargs['synced']:
+        state.slits = slit_rows(
+            slit_kwargs['left'], slit_kwargs['right'], slit_ids=slit_kwargs.get('slit_ids'),
+            maskdef_ids=slit_kwargs.get('maskdef_ids')
+        )
+    overlays = make_overlays(slits=slit_kwargs)
+    channels = [dict(image=img, chname=chname, cuts=None, overlays=['slit_edges', 'slit_ids'])
+                for img, chname in products['images']]
+    state.chnames = display_channels(fv, job, channels, overlays=overlays)
+    state.overlays = list(overlays.values())
+    fv.gui_call(_start_view, fv, 'EdgesView', state)
 
 
 def show_2dspec(fv, args, job):
@@ -414,7 +574,8 @@ def show_2dspec(fv, args, job):
     Show the images in a spec2d file, with the slit edges and object traces.
 
     Handler for ``pypeit_show_2dspec``; see
-    :class:`~pypeit.scripts.show_2dspec.Show2DSpec` for the arguments.
+    :class:`~pypeit.scripts.show_2dspec.Show2DSpec` for the arguments.  The
+    display is controlled by the ``Spec2dView`` plugin.
 
     Parameters
     ----------
@@ -428,30 +589,26 @@ def show_2dspec(fv, args, job):
     data = spec2d_data.load_spec2d(args)
     job.check_cancel()
 
-    # Each overlay is built once and shared by the channels that show it
-    slits = None if data['slits'] is None else ginga_draw.slit_overlay(**data['slits'])
-    traces = None if data['traces'] is None else ginga_draw.trace_overlay(**data['traces'])
-
-    chnames = [channel['chname'] for channel in data['channels']]
-    if args.clear:
-        fv.gui_call(clear_workspace, fv)
-    else:
-        # Replace only the channels being shown again
-        fv.gui_call(ginga_draw.clear_channels, fv, chnames)
-
+    state = ViewState('show_2dspec', args, args.file)
+    state.options = dict(detname=data['detname'], detectors=data['detectors'])
+    if data['slits'] is not None:
+        state.slits = slit_rows(
+            data['slits']['left'], data['slits']['right'], slit_ids=data['slits']['slit_ids'],
+            maskdef_ids=data['slits']['maskdef_ids']
+        )
+    overlays = make_overlays(slits=data['slits'], traces=data['traces'])
+    channels = []
     for channel in data['channels']:
-        job.check_cancel()
-        image = ginga_draw.make_image(
-            channel['image'], channel['chname'], waveimg=data['waveimg'],
-            rms_img=data['rms_img'], logger=fv.logger
-        )
-        overlays = {}
-        if channel['slits'] and slits is not None:
-            overlays['pypeit_slits'] = slits
-        if channel['traces'] and traces is not None:
-            overlays['pypeit_traces'] = traces
-        fv.gui_call(
-            _show_spec2d_channel, fv, channel['chname'], image, channel['cuts'], overlays
-        )
-    if len(chnames) > 1:
-        fv.gui_call(_link_views, fv, chnames)
+        keys = []
+        if channel['slits']:
+            keys += ['slit_edges', 'slit_ids']
+        if channel['traces']:
+            keys += ['traces', 'trace_names']
+        channels.append(dict(image=channel['image'], chname=channel['chname'],
+                             cuts=channel['cuts'], overlays=keys))
+    state.chnames = display_channels(
+        fv, job, channels, overlays=overlays, waveimg=data['waveimg'], rms_img=data['rms_img'],
+        clear=args.clear
+    )
+    state.overlays = list(overlays.values())
+    fv.gui_call(_start_view, fv, 'Spec2dView', state)

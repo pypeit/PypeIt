@@ -302,3 +302,20 @@ def test_read_slits_unreadable(tmp_path):
     assert remote_handlers.read_slits(None) is None, 'No file should give no slits'
     assert remote_handlers.read_slits(bad) is None, \
         'An unreadable slits file should give no slits rather than an error'
+
+
+def test_notify_shows_error_in_ginga():
+    errors = []
+
+    def handler(fv, args, job):
+        raise PypeItError('cannot read')
+
+    fv = FakeShell()
+    fv.gui_do = lambda method, *args: method(*args)
+    fv.show_error = errors.append
+    manager = remote_jobs.JobManager(fv, {'show': handler})
+    manager.submit('show', _args_json(), __version__)
+    assert errors == [], 'Errors of commands from a script should only go to the script'
+    manager.submit('show', _args_json(), __version__, notify=True)
+    assert errors == ['show failed: cannot read'], \
+        'Errors of commands submitted from inside ginga should be shown in ginga'
