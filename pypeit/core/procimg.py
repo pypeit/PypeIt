@@ -18,6 +18,7 @@ import scipy.signal
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import utils
+from pypeit.core import pydl
 
 
 # NOTE: This is slower than utils.rebin_evlist by a factor of ~2, but avoids an
@@ -707,31 +708,6 @@ def clean_overscan_vector(overscan, w=9, nsig=1.0, rdnoise=4.0):
     return clean
 
 
-def _fill_nonfinite_1d(vec):
-    """
-    Replace non-finite elements of a vector by linearly interpolating between
-    the nearest finite elements.
-
-    Elements beyond the first or last finite element are set to the value of
-    that element (i.e., constant extrapolation).
-
-    Parameters
-    ----------
-    vec : `numpy.ndarray`_
-        1D vector to fill.  Must have at least one finite element.
-
-    Returns
-    -------
-    `numpy.ndarray`_
-        Copy of ``vec`` with all non-finite elements replaced.
-    """
-    good = np.isfinite(vec)
-    if np.all(good):
-        return vec
-    indx = np.arange(vec.size)
-    return np.interp(indx, indx[good], vec[good])
-
-
 def _masked_overscan_stats(overscan, os_bpm, osvar, compress_axis, scalar):
     """
     Compute the overscan level (and its variance) from the good pixels in an
@@ -781,13 +757,13 @@ def _masked_overscan_stats(overscan, os_bpm, osvar, compress_axis, scalar):
             osvar = np.pi/2*np.sum(osvar[gpm])/np.sum(gpm)**2
         return osfit, osvar
 
-    _overscan = np.ma.MaskedArray(overscan, mask=os_bpm)
-    osfit = _fill_nonfinite_1d(np.ma.median(_overscan, axis=compress_axis).filled(np.nan))
+    osfit = np.ma.median(np.ma.MaskedArray(overscan, mask=os_bpm), axis=compress_axis)
+    osfit = pydl.djs_maskinterp1(osfit.filled(0.), np.ma.getmaskarray(osfit))
     if osvar is not None:
         ngood = np.sum(gpm, axis=compress_axis)
         osvar = np.pi/2*np.sum(np.where(gpm, osvar, 0.), axis=compress_axis) \
                     / np.maximum(ngood, 1)**2
-        osvar = _fill_nonfinite_1d(np.where(ngood > 0, osvar, np.nan))
+        osvar = pydl.djs_maskinterp1(osvar, ngood == 0)
     return osfit, osvar
 
 
@@ -937,12 +913,10 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
                     raise PypeItError('All pixels in the odd or even overscan stripes are masked '
                                       'or undefined!')
                 _ma_overscan = np.ma.MaskedArray(_overscan, mask=_os_bpm)
-                odd = _fill_nonfinite_1d(
-                        np.ma.median(_ma_overscan[:,1::2], axis=1).filled(np.nan)
-                )
-                even = _fill_nonfinite_1d(
-                        np.ma.median(_ma_overscan[:,0::2], axis=1).filled(np.nan)
-                )
+                odd = np.ma.median(_ma_overscan[:,1::2], axis=1)
+                odd = pydl.djs_maskinterp1(odd.filled(0.), np.ma.getmaskarray(odd))
+                even = np.ma.median(_ma_overscan[:,0::2], axis=1)
+                even = pydl.djs_maskinterp1(even.filled(0.), np.ma.getmaskarray(even))
             else:
                 odd = np.median(_overscan[:,1::2], axis=1)
                 even = np.median(_overscan[:,0::2], axis=1)
