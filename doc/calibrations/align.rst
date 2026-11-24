@@ -28,7 +28,7 @@ You can view it with any standard image viewer, e.g.:
 
 .. code-block:: console
 
-    ginga Calibrations/Alignment_A_1_DET01.fits
+    pypeit_show_calib Calibrations/Alignment_A_1_DET01.fits
 
 The image will also be a trimmed portion of the raw image and also re-oriented
 so that vertical is the spectral dimension with blue at the bottom, following

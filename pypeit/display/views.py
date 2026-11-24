@@ -4,10 +4,11 @@ View plugins that control the displays made by the PypeIt ginga scripts.
 Plugin Type: Local
 ==================
 
-``Spec2dView``, ``EdgesView`` and ``FlatsView`` are local plugins.  The
-``PypeItRemote`` plugin opens one on the first channel of a display made by
-``pypeit_show_2dspec``, ``pypeit_chk_edges`` or ``pypeit_chk_flats``,
-respectively.  They are not meant to be opened by hand.
+``Spec2dView``, ``EdgesView``, ``FlatsView`` and ``CalibView`` are local
+plugins.  The ``PypeItRemote`` plugin opens one on the first channel of a
+display made by ``pypeit_show_2dspec``, ``pypeit_chk_edges``,
+``pypeit_chk_flats`` or ``pypeit_show_calib``, respectively.  They are not
+meant to be opened by hand.
 
 Usage
 -----
@@ -43,7 +44,7 @@ from ginga.gw import Widgets
 from pypeit import __version__
 from pypeit.display import ginga_draw
 
-__all__ = ['Spec2dView', 'EdgesView', 'FlatsView']
+__all__ = ['Spec2dView', 'EdgesView', 'FlatsView', 'CalibView']
 
 
 class PypeItView(GingaPlugin.LocalPlugin):
@@ -497,3 +498,57 @@ class EdgesView(PypeItView):
     Plugin that controls a ``pypeit_chk_edges`` display.
     """
     script = 'pypeit_chk_edges'
+
+
+class CalibView(PypeItView):
+    """
+    Plugin that controls a ``pypeit_show_calib`` display.
+
+    Its options add the inverse-variance and mask channels and the slit
+    overlays.
+    """
+    script = 'pypeit_show_calib'
+
+    def build_options(self, vbox):
+        """
+        Add the channel and slit options.
+
+        Parameters
+        ----------
+        vbox : ``ginga.gw.Widgets.VBox``
+            Container for the widgets.
+
+        Returns
+        -------
+        :obj:`bool`
+            True, because options were added.
+        """
+        args = self.state.args
+        for key, label, tip in (
+                ('ivar', 'Inverse variance', 'Add a channel with the inverse variance'),
+                ('mask', 'Mask', 'Add a channel with the mask bits'),
+                ('slits', 'Slits', 'Overlay the slit edges, if the Slits file is found')):
+            cb = Widgets.CheckBox(label)
+            cb.set_state(getattr(args, key))
+            cb.set_tooltip(tip)
+            vbox.add_widget(cb, stretch=0)
+            self.w[key] = cb
+        return True
+
+    def options_args(self, args):
+        """
+        Return the arguments with the channel and slit options set.
+
+        Parameters
+        ----------
+        args : `argparse.Namespace`_
+            A copy of the current arguments.
+
+        Returns
+        -------
+        `argparse.Namespace`_
+            The arguments to re-run ``show_calib`` with.
+        """
+        for key in ('ivar', 'mask', 'slits'):
+            setattr(args, key, self.w[key].get_state())
+        return args

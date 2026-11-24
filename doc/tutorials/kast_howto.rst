@@ -113,7 +113,7 @@ with `ginga`_:
 
 .. code-block:: bash
 
-    ginga Calibrations/Bias_A_0_DET01.fits
+    pypeit_show_calib Calibrations/Bias_A_0_DET01.fits
 
 As typical of most bias images, it is featureless
 (effectively noise from the readout).
@@ -131,7 +131,7 @@ with `ginga`_:
 
 .. code-block:: bash
 
-    ginga Calibrations/Arc_A_0_DET01.fits
+    pypeit_show_calib Calibrations/Arc_A_0_DET01.fits
 
 As typical of most arc images, one sees a series
 of arc lines, here oriented horizontally (as always in PypeIt).

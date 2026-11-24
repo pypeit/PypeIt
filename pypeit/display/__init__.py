@@ -8,7 +8,7 @@ import numpy
 from ginga.misc.Bunch import Bunch
 
 required_plugins = ['SlitWavelength', 'Spec1dView', 'QLView', 'PypeItRemote', 'Spec2dView',
-                    'EdgesView', 'FlatsView']
+                    'EdgesView', 'FlatsView', 'CalibView']
 
 def plugins_available(return_report=False):
     available_plugins = []
@@ -62,3 +62,8 @@ def setup_FlatsView():
     return Bunch(module='pypeit.display.views', klass='FlatsView', name='FlatsView',
                  ptype='local', workspace='right', start=False,
                  category='PypeIt', menu='FlatsView', tab='FlatsView')
+
+def setup_CalibView():
+    return Bunch(module='pypeit.display.views', klass='CalibView', name='CalibView',
+                 ptype='local', workspace='right', start=False,
+                 category='PypeIt', menu='CalibView', tab='CalibView')

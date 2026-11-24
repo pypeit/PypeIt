@@ -56,6 +56,7 @@ __all__ = [
     'show_1dspec',
     'show_2dspec',
     'show_arxiv',
+    'show_calib',
     'show_pixflat',
     'show_wvcalib',
     'skysub_regions',

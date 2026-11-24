@@ -22,7 +22,7 @@ any standard image viewer, e.g.:
 
 .. code-block:: console
 
-    ginga Calibrations/Dark_A_1_01.fits
+    pypeit_show_calib Calibrations/Dark_A_1_01.fits
 
 It should resemble any one of your input dark frames aside from:
 

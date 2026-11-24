@@ -512,8 +512,8 @@ Using one ginga viewer for all inspections
 ------------------------------------------
 
 The :ref:`pypeit_show_1dspec`, :ref:`pypeit_show_2dspec`,
-:ref:`pypeit_chk_edges` and :ref:`pypeit_chk_flats` scripts do not read the
-data themselves.  Each sends
+:ref:`pypeit_chk_edges`, :ref:`pypeit_chk_flats` and :ref:`pypeit_show_calib`
+scripts do not read the data themselves.  Each sends
 its command-line options to a ``PypeItRemote`` plugin running inside `ginga`_,
 which reads the file and displays it in the viewer.  This means you can start
 ginga once and keep it open while you inspect many files:
@@ -530,9 +530,10 @@ channels in the viewer before showing the new data
 display to finish and reports any warnings or errors in your terminal; use
 ``--timeout`` to change how long it waits (120 seconds by default).
 
-:ref:`pypeit_show_2dspec`, :ref:`pypeit_chk_edges` and :ref:`pypeit_chk_flats`
-also open a control panel (the ``Spec2dView``, ``EdgesView`` or ``FlatsView``
-plugin) on the right side of the viewer.  It has:
+:ref:`pypeit_show_2dspec`, :ref:`pypeit_chk_edges`, :ref:`pypeit_chk_flats` and
+:ref:`pypeit_show_calib` also open a control panel (the ``Spec2dView``,
+``EdgesView``, ``FlatsView`` or ``CalibView`` plugin) on the right side of the
+viewer.  It has:
 
 - **File**: the file shown, and a **Reload** button to read it again, e.g.
   after re-running a reduction step;
@@ -550,6 +551,25 @@ ginga must be started from the same environment where PypeIt is installed, so
 that it can load the PypeIt plugins.  If you update PypeIt while ginga is
 running, the script warns that the two versions differ; restart ginga to use
 the new version.
+
+.. _pypeit_show_calib:
+
+pypeit_show_calib
+-----------------
+
+This script shows a single-image calibration file, e.g. a ``Bias``, ``Arc``,
+``Dark``, ``Tiltimg`` or ``Alignment`` file, in the `ginga`_ viewer after
+clearing it; see :ref:`ginga_viewer_workflow`.  Options add channels with the
+inverse variance and mask, and overlay the slit edges:
+
+.. code-block:: console
+
+    pypeit_show_calib Calibrations/Arc_A_0_DET01.fits --slits
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_show_calib.rst
 
 pypeit_view_fits
 ----------------

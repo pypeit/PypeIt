@@ -306,7 +306,7 @@ Here is a zoom-in screenshot of the ``Arc`` image as viewed with `ginga`_:
 
 .. code-block:: bash
 
-    ginga Calibrations/Arc_A_1_DET01.fits
+    pypeit_show_calib Calibrations/Arc_A_1_DET01.fits
 
 .. image:: ../figures/mosfire_arc_image.png
    :scale: 40%

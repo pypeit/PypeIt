@@ -8,6 +8,7 @@ from pathlib import Path
 import threading
 import xmlrpc.client
 
+from astropy.io import fits
 import numpy as np
 import pytest
 
@@ -288,7 +289,8 @@ def test_find_slits_file(tmp_path):
         'No slits file should be found when none exists'
     (moved / name).touch()
     assert remote_handlers.find_slits_file('A_0_DET01', str(recorded), moved) == moved / name, \
-        'The slits file next to the calibration file should be found if the recorded one is missing'
+        'The slits file next to the calibration file should be found if the recorded one is ' \
+        'missing'
     (recorded / name).touch()
     assert remote_handlers.find_slits_file('A_0_DET01', str(recorded), moved) \
                 == recorded / name, 'The slits file in the recorded directory should come first'
@@ -319,3 +321,18 @@ def test_notify_shows_error_in_ginga():
     manager.submit('show', _args_json(), __version__, notify=True)
     assert errors == ['show failed: cannot read'], \
         'Errors of commands submitted from inside ginga should be shown in ginga'
+
+
+def test_read_calib_image(tmp_path):
+    # A file that is not a PypeIt calibration falls back to its first image
+    ofile = tmp_path / 'Arc_A_0_DET01.fits'
+    img = np.arange(12, dtype=float).reshape(3,4)
+    fits.HDUList([fits.PrimaryHDU(), fits.ImageHDU(data=img, name='SOMETHING')]).writeto(ofile)
+    calib = remote_handlers.read_calib_image(ofile)
+    assert np.array_equal(calib['image'], img), 'The first image extension should be read'
+    assert calib['ivar'] is None and calib['calib_key'] is None, \
+        'Nothing else is known about a file that is not a PypeIt calibration'
+    empty = tmp_path / 'empty.fits'
+    fits.HDUList([fits.PrimaryHDU()]).writeto(empty)
+    with pytest.raises(PypeItError, match='no image'):
+        remote_handlers.read_calib_image(empty)

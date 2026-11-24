@@ -197,7 +197,7 @@ observations with `ginga`_:
 
 .. code-block:: bash
 
-    ginga Calibrations/sArc_A_2_DET01.fits
+    pypeit_show_calib Calibrations/sArc_A_2_DET01.fits
 
 1D Wavelength Solution
 ++++++++++++++++++++++

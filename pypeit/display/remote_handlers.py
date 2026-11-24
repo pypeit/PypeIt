@@ -27,12 +27,16 @@ from pathlib import Path
 
 import numpy as np
 
+from astropy.io import fits
+
 from pypeit import edgetrace
 from pypeit import flatfield
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import slittrace
 from pypeit import specobjs
+from pypeit.images import buildimage
+from pypeit.images import pypeitimage
 from pypeit.display import ginga_draw
 from pypeit.display import spec2d_data
 
@@ -51,7 +55,7 @@ def get_handlers():
     """
     return {
         'chk_edges': chk_edges, 'chk_flats': chk_flats, 'show_1dspec': show_1dspec,
-        'show_2dspec': show_2dspec
+        'show_2dspec': show_2dspec, 'show_calib': show_calib
     }
 
 
@@ -612,3 +616,110 @@ def show_2dspec(fv, args, job):
     )
     state.overlays = list(overlays.values())
     fv.gui_call(_start_view, fv, 'Spec2dView', state)
+
+
+def read_calib_image(calib_file, chk_version=True):
+    """
+    Read a single-image calibration file, e.g. a Bias or Arc file.
+
+    The calibration class is identified by the ``DMODCLS`` keyword of the
+    first extension.  If the class is unknown, or the file cannot be parsed
+    with the current datamodel and ``chk_version`` is False, the first image
+    extension is read directly.
+
+    Parameters
+    ----------
+    calib_file : :obj:`str`, `Path`_
+        The calibration file.
+    chk_version : :obj:`bool`, optional
+        Require the datamodel version of the file to match the current one.
+
+    Returns
+    -------
+    :obj:`dict`
+        Dictionary with the ``image``, the inverse variance (``ivar``) and
+        mask bits (``mask``), which are None if not available, and the
+        calibration key and directory (``calib_key``, ``calib_dir``), which
+        are None if unknown.
+    """
+    with fits.open(calib_file) as hdu:
+        clsname = hdu[1].header.get('DMODCLS') if len(hdu) > 1 else None
+    cls = getattr(buildimage, clsname, None) if isinstance(clsname, str) else None
+    if cls is not None and issubclass(cls, pypeitimage.PypeItCalibrationImage):
+        try:
+            calib = cls.from_file(calib_file, chk_version=chk_version)
+        except (PypeItError, TypeError, ValueError, KeyError):
+            # Files written by older versions of PypeIt can fail in several ways
+            if chk_version:
+                raise
+            log.warning(f'Could not parse {calib_file} as a {clsname}; showing its first image.')
+        else:
+            return dict(
+                image=calib.image, ivar=calib.ivar,
+                mask=None if calib.fullmask is None else calib.fullmask.mask,
+                calib_key=calib.calib_key, calib_dir=calib.calib_dir
+            )
+    with fits.open(calib_file) as hdu:
+        images = [h.data for h in hdu if h.data is not None and h.data.ndim == 2]
+    if len(images) == 0:
+        raise PypeItError(f'{calib_file} has no image to show.')
+    return dict(image=images[0], ivar=None, mask=None, calib_key=None, calib_dir=None)
+
+
+def show_calib(fv, args, job):
+    """
+    Show a single-image calibration file, e.g. a Bias, Arc or Tiltimg file.
+
+    Handler for ``pypeit_show_calib``; see
+    :class:`~pypeit.scripts.show_calib.ShowCalib` for the arguments.  The
+    display is controlled by the ``CalibView`` plugin.
+
+    Parameters
+    ----------
+    fv : ``ginga.rv.Control.GingaShell``
+        The ginga reference viewer shell.
+    args : `argparse.Namespace`_
+        Arguments parsed by ``pypeit_show_calib``.
+    job : :class:`~pypeit.display.remote_jobs.RemoteJob`
+        The job running the command.
+    """
+    chk_version = not args.try_old
+    calib = read_calib_image(args.file, chk_version=chk_version)
+    job.check_cancel()
+
+    state = ViewState('show_calib', args, args.file)
+    slit_kwargs = None
+    if args.slits:
+        slits_file = find_slits_file(calib['calib_key'], calib['calib_dir'],
+                                     Path(args.file).parent)
+        slits = read_slits(slits_file, chk_version=chk_version)
+        if slits is not None:
+            left, right, mask = slits.select_edges()
+            gpm = mask == 0
+            slit_kwargs = dict(left=left[:,gpm], right=right[:,gpm],
+                               slit_ids=slits.slitord_id[gpm],
+                               maskdef_ids=None if slits.maskdef_id is None
+                                           else slits.maskdef_id[gpm])
+            state.slits = slit_rows(slit_kwargs['left'], slit_kwargs['right'],
+                                    slit_ids=slit_kwargs['slit_ids'],
+                                    maskdef_ids=slit_kwargs['maskdef_ids'])
+    overlays = make_overlays(slits=slit_kwargs)
+
+    stem = Path(args.file).name.split('.')[0]
+    keys = ['slit_edges', 'slit_ids']
+    channels = [dict(image=calib['image'], chname=stem, cuts=None, overlays=keys)]
+    if args.ivar:
+        if calib['ivar'] is None:
+            log.warning(f'{args.file} has no inverse variance image.')
+        else:
+            channels.append(dict(image=calib['ivar'], chname=f'{stem}-ivar', cuts=None,
+                                 overlays=keys))
+    if args.mask:
+        if calib['mask'] is None:
+            log.warning(f'{args.file} has no mask.')
+        else:
+            channels.append(dict(image=calib['mask'], chname=f'{stem}-mask', cuts=None,
+                                 overlays=keys))
+    state.chnames = display_channels(fv, job, channels, overlays=overlays)
+    state.overlays = list(overlays.values())
+    fv.gui_call(_start_view, fv, 'CalibView', state)
