@@ -86,18 +86,6 @@ Dependency Changes
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
-- :func:`~pypeit.core.arc.detect_lines` now rejects, by default, lines whose
-  Gaussian sigma is less than half the median sigma of the lines in the same
-  spectrum (single hot pixels, cosmic rays, noise spikes).  This changes the
-  detected arc lines slightly (about 2%, mostly in echelle data) and can change the line
-  identifications of the wavelength calibration.  The cut is controlled by
-  the new ``[calibrations][wavelengths] min_frac_med_width`` (0 disables it)
-  and ``min_nlines_med_width`` parameters.  See "Under-the-hood
-  Improvements".
-- The spectral flexure correction is faster: the FWHM of the archived sky
-  spectrum is now measured once per sky file instead of once per slit/object
-  (about 8% of a serial Keck/DEIMOS 600ZD reduction).  See "Under-the-hood
-  Improvements".
 - PypeIt can now reduce detectors/mosaics concurrently.  With ``[rdx] ncpu``
   (or ``run_pypeit --ncpu``) greater than 1, the calibration build, the
   science-image processing, and the extraction are distributed over worker
@@ -375,15 +363,6 @@ Instrument-specific Updates
   configuration handling for the ``H3000``/``H`` and ``HK``/``HK3`` grism/filter
   combinations, completing coverage of the observatory-recommended
   configurations.  See :ref:`mmt_mmirs`.
-- MMT/MMIRS: the ``J_zJ``, ``HK_zJ`` and ``K3000_Kspec`` ``full_template``
-  arc templates held three identical copies of the same spectrum.  They now
-  hold one.  The copies gave two exactly tied peaks in the global
-  cross-correlation, so which copy was used depended on noise at the
-  1e-5 level; this put one ``J_zJ`` slit off by a full template copy.
-- Gemini/GNIRS echelle (32/mm, SXD): the tilt fit for order 8 now uses
-  ``spec_order = 2`` (the other orders keep 4).  Order 8 has few usable lines
-  at its blue end, and a 4th-order fit could curl there by tens of pixels
-  when the bluest line was lost, making the wavelengths non-monotonic.
 
 Script Changes
 --------------
@@ -416,19 +395,6 @@ Testing
 - Added a dev-suite ``--ncpu 2`` reduction of the two-detector
   ``keck_lris_blue/multi_600_4000_slitmask`` setup, with a ``vet_tests`` comparison
   against the serial products.
-- Added tests of :func:`~pypeit.core.arc.fit_arcspec` (recovery of synthetic
-  lines; edge cases: truncated windows, degenerate and NaN windows) and of
-  the median-width floor of :func:`~pypeit.core.arc.detect_lines` (it rejects
-  narrow spikes but no arc line, is skipped for spectra with few lines, and
-  is not applied to the synthetic arc of
-  :func:`~pypeit.core.wavecal.wvutils.get_xcorr_arc`).
-- Added dev-suite ``vet_tests`` (``test_arcfit.py``) that the lines detected
-  in the stored arc spectra of the wavelength calibrations obey the
-  median-width floor, and that the Keck/DEIMOS ``830G_L_8100`` solution,
-  which sub-resolution spikes can degrade, keeps a low RMS.
-- Added a test that the archived sky spectrum FWHM used by the spectral
-  flexure correction is measured only once per sky file
-  (:func:`~pypeit.core.flexure.get_archive_spectrum`).
 - Add new tests for :mod:`~pypeit.core.pydl`
 - Added new tests for :class:`~pypeit.inputfiles.InputFile` objects.
 - Added tests for MMT/Binospec setup grouping and INCAN-based flat/trace frame
@@ -455,37 +421,6 @@ Under-the-hood Improvements
   backend), and buffer their log records and Python warnings, which the parent
   replays grouped in detector order so that each detector's block stays
   contiguous in the run log.
-- :func:`~pypeit.core.arc.detect_lines` has new ``min_frac_med_width`` and
-  ``min_nlines_med_width`` arguments.  By default it rejects lines whose
-  Gaussian sigma is less than ``min_frac_med_width`` (0.5) times the median
-  sigma of the lines in the same spectrum that pass the other cuts.  Arc
-  lines share the instrumental profile, so such features (single hot pixels,
-  cosmic rays, noise spikes) are not arc lines; previously there was no lower
-  bound on the width, and they were kept whenever ``curve_fit`` converged on
-  them.  The cut is skipped for spectra with fewer than
-  ``min_nlines_med_width`` (5) lines.  For the wavelength calibration and the
-  tilts, both are set by the new ``[calibrations][wavelengths]
-  min_frac_med_width`` and ``min_nlines_med_width`` parameters
-  (:class:`~pypeit.par.pypeitpar.WavelengthSolutionPar`) and are passed
-  explicitly through :mod:`~pypeit.core.wavecal.autoid` and
-  :func:`~pypeit.core.tracewave.tilts_find_lines`; other callers use the
-  defaults.  The cut is disabled for the callers whose peaks are not arc or sky lines (slit edges,
-  object profiles and cross-correlation peaks) and for the synthetic arc
-  spectra used for the cross-correlations of the wavelength calibration
-  (:func:`~pypeit.core.wavecal.wvutils.get_xcorr_arc`), to which the
-  ``full_template`` cross-correlations are very sensitive.  Over the
-  development-suite arc spectra it removes 2% of the lines (most strongly in
-  echelle data), nearly all outside the final wavelength fits.
-- :func:`~pypeit.core.arc.fit_arcspec` no longer raises on fit windows that
-  contain non-finite pixels (they are skipped), and fits that return
-  non-finite parameters are now flagged with the -999 sentinel instead of
-  NaN.
-- The spectral FWHM of the archived sky spectrum used by the spectral flexure
-  correction (:func:`~pypeit.core.flexure.get_archive_spectrum`) is now
-  measured once per sky file and cached, instead of once per slit/object.  The
-  results are identical.  In a serial Keck/DEIMOS 600ZD reduction it was
-  called 170 times (once per slit and science frame), for ~800 s, which was
-  most of the time spent fitting Gaussians to lines.
 - Adds new :class:`~pypeit.core.fitting.PypeItFitCollection` class to replace
   the pypeit-specific uses of ``pypeit.core.pydl.TraceSet``.  This was
   primarily done to avoid a circular import.
