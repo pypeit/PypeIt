@@ -157,7 +157,12 @@ class PypeItView(GingaPlugin.LocalPlugin):
             self.w['status'] = Widgets.Label('')
             vbox.add_widget(self.w['status'], stretch=0)
 
-        top.add_widget(vbox, stretch=1)
+        # The slit table takes up any extra height; without it, a spacer
+        # keeps the widgets together at the top, above the buttons
+        has_table = self.state is not None and len(self.state.slits) > 0
+        top.add_widget(vbox, stretch=1 if has_table else 0)
+        if not has_table:
+            top.add_widget(Widgets.Label(''), stretch=1)
         btns = Widgets.HBox()
         btns.set_spacing(3)
         btn = Widgets.Button('Close')
