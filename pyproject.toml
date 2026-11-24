@@ -192,6 +192,8 @@ Spec2dView = "pypeit.display:setup_Spec2dView"
 EdgesView = "pypeit.display:setup_EdgesView"
 FlatsView = "pypeit.display:setup_FlatsView"
 CalibView = "pypeit.display:setup_CalibView"
+TiltsView = "pypeit.display:setup_TiltsView"
+FileView = "pypeit.display:setup_FileView"
 
 [project.entry-points."ginga_modes"]
 

@@ -336,3 +336,9 @@ def test_read_calib_image(tmp_path):
     fits.HDUList([fits.PrimaryHDU()]).writeto(empty)
     with pytest.raises(PypeItError, match='no image'):
         remote_handlers.read_calib_image(empty)
+
+
+def test_send_command_unresponsive_viewer():
+    viewer = FakeViewer(None, ping_error=TimeoutError('timed out'))
+    with pytest.raises(PypeItError, match='not responding'):
+        remote.send_command('show', _args_json(), viewer=viewer)

@@ -31,13 +31,16 @@ from astropy.io import fits
 
 from pypeit import edgetrace
 from pypeit import flatfield
+from pypeit import scattlight
 from pypeit import log
 from pypeit import PypeItError
 from pypeit import slittrace
 from pypeit import specobjs
+from pypeit import wavetilts
 from pypeit.images import buildimage
 from pypeit.images import pypeitimage
 from pypeit.display import ginga_draw
+from pypeit.display import image_data
 from pypeit.display import spec2d_data
 
 
@@ -55,7 +58,8 @@ def get_handlers():
     """
     return {
         'chk_edges': chk_edges, 'chk_flats': chk_flats, 'show_1dspec': show_1dspec,
-        'show_2dspec': show_2dspec, 'show_calib': show_calib
+        'show_2dspec': show_2dspec, 'show_calib': show_calib, 'chk_tilts': chk_tilts,
+        'view_fits': view_fits, 'show_pixflat': show_pixflat, 'chk_scattlight': chk_scattlight
     }
 
 
@@ -723,3 +727,156 @@ def show_calib(fv, args, job):
     state.chnames = display_channels(fv, job, channels, overlays=overlays)
     state.overlays = list(overlays.values())
     fv.gui_call(_start_view, fv, 'CalibView', state)
+
+
+def _slit_overlay_args(slits):
+    """
+    Return the slit-overlay arguments and slit-table rows for a set of slits.
+
+    Parameters
+    ----------
+    slits : :class:`~pypeit.slittrace.SlitTraceSet`
+        The slits.  Only the unmasked slits are used.
+
+    Returns
+    -------
+    :obj:`tuple`
+        Keyword arguments for :func:`~pypeit.display.ginga_draw.slit_overlay`
+        and the rows for the slit navigator (see :func:`slit_rows`).
+    """
+    left, right, mask = slits.select_edges()
+    gpm = mask == 0
+    kwargs = dict(left=left[:,gpm], right=right[:,gpm], slit_ids=slits.spat_id[gpm],
+                  maskdef_ids=None if slits.maskdef_id is None else slits.maskdef_id[gpm])
+    return kwargs, slit_rows(kwargs['left'], kwargs['right'], slit_ids=kwargs['slit_ids'],
+                             maskdef_ids=kwargs['maskdef_ids'])
+
+
+def chk_tilts(fv, args, job):
+    """
+    Show the tilt image with the traced and fitted arc-line tilts.
+
+    Handler for ``pypeit_chk_tilts``; see
+    :class:`~pypeit.scripts.chk_tilts.ChkTilts` for the arguments.  The
+    display is controlled by the ``TiltsView`` plugin.
+
+    Parameters
+    ----------
+    fv : ``ginga.rv.Control.GingaShell``
+        The ginga reference viewer shell.
+    args : `argparse.Namespace`_
+        Arguments parsed by ``pypeit_chk_tilts``.
+    job : :class:`~pypeit.display.remote_jobs.RemoteJob`
+        The job running the command.
+    """
+    chk_version = not args.try_old
+    tilts = wavetilts.WaveTilts.from_file(args.file, chk_version=chk_version)
+    products = tilts.ginga_products(calib_dir=Path(args.file).parent, chk_version=chk_version)
+    job.check_cancel()
+
+    state = ViewState('chk_tilts', args, args.file)
+    slit_kwargs = None
+    if products['left'] is not None:
+        slit_kwargs = dict(left=products['left'], right=products['right'],
+                           slit_ids=products['slit_ids'])
+        state.slits = slit_rows(products['left'], products['right'],
+                                slit_ids=products['slit_ids'])
+    overlays = make_overlays(slits=slit_kwargs)
+    for key, (name, canvas) in ginga_draw.tilt_overlays(
+            tilts.tilt_traces, products['image'].shape[0], show_traces=args.show_traces).items():
+        overlays[key] = Overlay(name, f'pypeit_{key}', canvas)
+    channels = [dict(image=products['image'], chname='Tilts', cuts=products['cuts'],
+                     overlays=list(overlays.keys()))]
+    state.chnames = display_channels(
+        fv, job, channels, overlays=overlays, waveimg=products['waveimg']
+    )
+    state.overlays = list(overlays.values())
+    fv.gui_call(_start_view, fv, 'TiltsView', state)
+
+
+def view_fits(fv, args, job):
+    """
+    Show a raw or processed image.
+
+    Handler for ``pypeit_view_fits``; see
+    :class:`~pypeit.scripts.view_fits.ViewFits` for the arguments.  The
+    display is controlled by the ``FileView`` plugin.
+
+    Parameters
+    ----------
+    fv : ``ginga.rv.Control.GingaShell``
+        The ginga reference viewer shell.
+    args : `argparse.Namespace`_
+        Arguments parsed by ``pypeit_view_fits``.
+    job : :class:`~pypeit.display.remote_jobs.RemoteJob`
+        The job running the command.
+    """
+    images = image_data.view_fits_images(args)
+    job.check_cancel()
+    state = ViewState('view_fits', args, args.file)
+    channels = [dict(image=img, chname=chname, cuts=None, overlays=[])
+                for img, chname in images]
+    state.chnames = display_channels(fv, job, channels, clear=args.clear)
+    fv.gui_call(_start_view, fv, 'FileView', state)
+
+
+def show_pixflat(fv, args, job):
+    """
+    Show the detector images in an archived pixel-flat file.
+
+    Handler for ``pypeit_show_pixflat``; see
+    :class:`~pypeit.scripts.show_pixflat.ShowPixFlat` for the arguments.
+    The display is controlled by the ``FileView`` plugin.
+
+    Parameters
+    ----------
+    fv : ``ginga.rv.Control.GingaShell``
+        The ginga reference viewer shell.
+    args : `argparse.Namespace`_
+        Arguments parsed by ``pypeit_show_pixflat``.
+    job : :class:`~pypeit.display.remote_jobs.RemoteJob`
+        The job running the command.
+    """
+    images = image_data.pixflat_images(args.file, det=args.det)
+    job.check_cancel()
+    state = ViewState('show_pixflat', args, args.file)
+    channels = [dict(image=img, chname=chname, cuts=(0.9, 1.1), overlays=[])
+                for img, chname in images]
+    # The detectors can have different shapes, so the channels are not linked
+    state.chnames = display_channels(fv, job, channels, link_views=False)
+    fv.gui_call(_start_view, fv, 'FileView', state)
+
+
+def chk_scattlight(fv, args, job):
+    """
+    Show the scattered-light data, model and residuals.
+
+    Handler for ``pypeit_chk_scattlight``; see
+    :class:`~pypeit.scripts.chk_scattlight.ChkScattLight` for the arguments.
+    The display is controlled by the ``FileView`` plugin.
+
+    Parameters
+    ----------
+    fv : ``ginga.rv.Control.GingaShell``
+        The ginga reference viewer shell.
+    args : `argparse.Namespace`_
+        Arguments parsed by ``pypeit_chk_scattlight``.
+    job : :class:`~pypeit.display.remote_jobs.RemoteJob`
+        The job running the command.
+    """
+    if args.spec2d is not None:
+        raise PypeItError('Displaying the spec2d scattered light is not currently supported.')
+    chk_version = not args.try_old
+    model = scattlight.ScatteredLight.from_file(args.file, chk_version=chk_version)
+    slits = slittrace.SlitTraceSet.from_file(args.slits, chk_version=chk_version)
+    images = model.ginga_products(slits=slits, mask=args.mask)
+    job.check_cancel()
+
+    state = ViewState('chk_scattlight', args, args.file)
+    slit_kwargs, state.slits = _slit_overlay_args(slits)
+    overlays = make_overlays(slits=slit_kwargs)
+    channels = [dict(image=img, chname=chname, cuts=cuts, overlays=['slit_edges', 'slit_ids'])
+                for img, chname, cuts in images]
+    state.chnames = display_channels(fv, job, channels, overlays=overlays)
+    state.overlays = list(overlays.values())
+    fv.gui_call(_start_view, fv, 'FileView', state)

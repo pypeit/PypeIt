@@ -90,3 +90,27 @@ def test_make_image():
     assert isinstance(image, ginga_draw.SlitImage), 'A wavelength image should give a SlitImage'
     with pytest.raises(PypeItError):
         ginga_draw.make_image(img, 'sci', waveimg=img.T)
+
+
+def test_tilt_overlays():
+    from astropy.table import Table
+    tbl = Table()
+    tbl['good2dfit_lid'] = [np.array([0, 0, 0, 1, 1, 1])]
+    tbl['good2dfit_spat'] = [np.arange(6, dtype=float)]
+    tbl['good2dfit_tilt'] = [np.arange(6, dtype=float) + 100]
+    tbl['goodpix_spat'] = [np.array([1., 2.])]
+    tbl['goodpix_tilt'] = [np.array([3., 4.])]
+    tbl['badpix_spat'] = [np.array([5.])]
+    tbl['badpix_tilt'] = [np.array([6.])]
+    tbl['bad2dfit_spat'] = [np.array([], dtype=float)]
+    tbl['bad2dfit_tilt'] = [np.array([], dtype=float)]
+    overlays = ginga_draw.tilt_overlays(tbl, 1000, pstep=1)
+    assert set(overlays.keys()) == {'tilt_fits', 'tilt_masked', 'tilt_legend'}, \
+        'Traced pixels are off by default, and overlays without data are omitted'
+    assert len(overlays['tilt_fits'][1].get_objects()) == 2, 'There should be one path per line'
+    legend = [o.text for o in overlays['tilt_legend'][1].get_objects()]
+    assert legend == ['Masked pixel', 'Good tilt fit'], \
+        'The legend should list only the overlays that are shown'
+    overlays = ginga_draw.tilt_overlays(tbl, 1000, show_traces=True)
+    assert len(overlays['tilt_pixels'][1].get_objects()) == 2, \
+        'Each traced pixel should be marked when requested'

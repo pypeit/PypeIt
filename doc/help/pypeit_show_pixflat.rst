@@ -3,6 +3,7 @@
     $ pypeit_show_pixflat -h
     usage: pypeit_show_pixflat [-h] [-v VERBOSITY] [--log_file LOG_FILE]
                                [--log_level LOG_LEVEL] [--det DET [DET ...]]
+                               [--timeout TIMEOUT]
                                file
     
     Show an archived Pixel Flat image in a ginga window.
@@ -13,7 +14,7 @@
     
     options:
       -h, --help            show this help message and exit
-      -v, --verbosity VERBOSITY
+      -v VERBOSITY, --verbosity VERBOSITY
                             Verbosity level, which must be 0, 1, or 2. Level 0
                             includes warning and error messages, level 1 adds
                             informational messages, and level 2 adds debugging
@@ -29,4 +30,8 @@
                             detectors as, e.g. --det 1 2 to show detectors 1 and 2.
                             If not provided, all detectors will be shown. (default:
                             None)
+      --timeout TIMEOUT     Number of seconds to wait for ginga to display the data.
+                            If the display is not done by then, the script stops
+                            waiting, but ginga finishes the display. (default:
+                            120.0)
     

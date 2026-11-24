@@ -1,13 +1,15 @@
 """
-This script displays the Trace image and the traces in an RC Ginga window.
+This script displays the Tiltimg image with the traced and fitted arc-line
+tilts in a ginga viewer, or in a matplotlib window.
+
+In ginga, the data are read and displayed inside the viewer by the
+``PypeItRemote`` plugin; see :mod:`pypeit.display.remote`.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
 
-import numpy as np
 from pypeit.scripts import scriptbase
-from IPython import embed
 
 
 class ChkTilts(scriptbase.ScriptBase):
@@ -28,25 +30,26 @@ class ChkTilts(scriptbase.ScriptBase):
                                  'only the fitted, masked and rejected in the fit tilts are shown.')
         parser.add_argument('--try_old', default=False, action='store_true',
                             help='Attempt to load old datamodel versions.  A crash may ensue..')
+        scriptbase.add_ginga_timeout_argument(parser)
         return parser
 
     @classmethod
     def main(cls, args):
         from pathlib import Path
         from pypeit import wavetilts
+        from pypeit.display import remote
 
         # Initialize the log
         cls.init_log(args)
 
-        chk_version = not args.try_old
+        if args.mpl:
+            file = Path(args.file).absolute()
+            tilts = wavetilts.WaveTilts.from_file(file, chk_version=not args.try_old)
+            tilts.show(in_ginga=False, show_traces=args.show_traces, calib_dir=file.parent,
+                       chk_version=not args.try_old)
+            return
 
-        # tilts file path
-        file = Path(args.file).absolute()
-
-        # Load
-        tilts = wavetilts.WaveTilts.from_file(file, chk_version=chk_version)
-        tilts.show(in_ginga=np.logical_not(args.mpl), show_traces=args.show_traces,
-                   calib_dir=file.parent, chk_version=chk_version)
-
-
-
+        # Read and show the tilts in ginga
+        remote.send_command(
+            'chk_tilts', remote.args_to_json(args, path_args=['file']), timeout=args.timeout
+        )

@@ -8,7 +8,7 @@ import numpy
 from ginga.misc.Bunch import Bunch
 
 required_plugins = ['SlitWavelength', 'Spec1dView', 'QLView', 'PypeItRemote', 'Spec2dView',
-                    'EdgesView', 'FlatsView', 'CalibView']
+                    'EdgesView', 'FlatsView', 'CalibView', 'TiltsView', 'FileView']
 
 def plugins_available(return_report=False):
     available_plugins = []
@@ -67,3 +67,13 @@ def setup_CalibView():
     return Bunch(module='pypeit.display.views', klass='CalibView', name='CalibView',
                  ptype='local', workspace='right', start=False,
                  category='PypeIt', menu='CalibView', tab='CalibView')
+
+def setup_TiltsView():
+    return Bunch(module='pypeit.display.views', klass='TiltsView', name='TiltsView',
+                 ptype='local', workspace='right', start=False,
+                 category='PypeIt', menu='TiltsView', tab='TiltsView')
+
+def setup_FileView():
+    return Bunch(module='pypeit.display.views', klass='FileView', name='FileView',
+                 ptype='local', workspace='right', start=False,
+                 category='PypeIt', menu='FileView', tab='FileView')

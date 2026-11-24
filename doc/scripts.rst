@@ -511,12 +511,14 @@ as follows.
 Using one ginga viewer for all inspections
 ------------------------------------------
 
-The :ref:`pypeit_show_1dspec`, :ref:`pypeit_show_2dspec`,
-:ref:`pypeit_chk_edges`, :ref:`pypeit_chk_flats` and :ref:`pypeit_show_calib`
-scripts do not read the data themselves.  Each sends
-its command-line options to a ``PypeItRemote`` plugin running inside `ginga`_,
-which reads the file and displays it in the viewer.  This means you can start
-ginga once and keep it open while you inspect many files:
+The `ginga`_ inspection scripts do not read the data themselves.  Each sends
+its command-line options to a ``PypeItRemote`` plugin running inside ginga,
+which reads the file and displays it in the viewer.  This applies to
+:ref:`pypeit_show_1dspec`, :ref:`pypeit_show_2dspec`, :ref:`pypeit_chk_edges`,
+:ref:`pypeit_chk_flats`, :ref:`pypeit_chk_tilts`, :ref:`pypeit_show_calib`,
+:ref:`pypeit_view_fits`, :ref:`pypeit_show_pixflat` and
+``pypeit_chk_scattlight``.  This means you can start ginga once and keep it
+open while you inspect many files:
 
 .. code-block:: console
 
@@ -526,19 +528,19 @@ ginga once and keep it open while you inspect many files:
 
 If no viewer is running, the script starts one.  Each command clears the
 channels in the viewer before showing the new data
-(:ref:`pypeit_show_2dspec` keeps them with ``--no_clear``).  The script waits for the
-display to finish and reports any warnings or errors in your terminal; use
-``--timeout`` to change how long it waits (120 seconds by default).
+(:ref:`pypeit_show_2dspec` and :ref:`pypeit_view_fits` keep them with
+``--no_clear``).  The script waits for the display to finish and reports any
+warnings or errors in your terminal; use ``--timeout`` to change how long it
+waits (120 seconds by default).
 
-:ref:`pypeit_show_2dspec`, :ref:`pypeit_chk_edges`, :ref:`pypeit_chk_flats` and
-:ref:`pypeit_show_calib` also open a control panel (the ``Spec2dView``,
-``EdgesView``, ``FlatsView`` or ``CalibView`` plugin) on the right side of the
-viewer.  It has:
+Except for :ref:`pypeit_show_1dspec`, which uses the ``Spec1dView`` plugin,
+these scripts also open a control panel (e.g. the ``Spec2dView`` plugin for
+:ref:`pypeit_show_2dspec`) on the right side of the viewer.  It has:
 
 - **File**: the file shown, and a **Reload** button to read it again, e.g.
   after re-running a reduction step;
-- **Overlays**: check boxes to show or hide the slit edges, slit IDs, object
-  traces and object names in all channels at once;
+- **Overlays**: check boxes to show or hide each overlay (e.g. slit edges, slit
+  IDs, object traces and names, or tilt fits) in all channels at once;
 - **Options**: options of the script, e.g. the detector shown by
   :ref:`pypeit_show_2dspec` or the flats shown by :ref:`pypeit_chk_flats`;
   **Show** displays the file again with the new options;
@@ -570,6 +572,8 @@ The script usage can be displayed by calling the script with the
 ``-h`` option:
 
 .. include:: help/pypeit_show_calib.rst
+
+.. _pypeit_view_fits:
 
 pypeit_view_fits
 ----------------

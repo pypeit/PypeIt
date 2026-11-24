@@ -12,6 +12,7 @@ remote control (RC) interface, and waits for the command to finish.
 """
 import json
 from pathlib import Path
+import subprocess
 import time
 import xmlrpc.client
 
@@ -20,7 +21,6 @@ from ginga.util import grc
 from pypeit import __version__
 from pypeit import log
 from pypeit import PypeItError
-from pypeit.display import display
 
 
 def args_to_json(args, path_args=None):
@@ -127,17 +127,54 @@ class RemoteViewer:
         return grc.unmarshall(self._proxy.dispatch_call('ginga', p_args, grc.marshall({})))
 
 
-def connect(viewer=None):
+def _ping(viewer):
+    """
+    Check that a viewer answers and has the ``PypeItRemote`` plugin.
+
+    Parameters
+    ----------
+    viewer : :class:`RemoteViewer`
+        The connection to check.
+
+    Raises
+    ------
+    ConnectionRefusedError
+        Raised if no viewer is listening.
+    :class:`~pypeit.PypeItError`
+        Raised if the viewer does not answer or lacks the plugin.
+    """
+    try:
+        viewer.call('ping')
+    except xmlrpc.client.Fault as e:
+        raise PypeItError(
+            'The running ginga viewer does not have the PypeItRemote plugin.  Close ginga and '
+            'restart it with "ginga --modules=RC" from the environment where PypeIt is '
+            'installed.'
+        ) from e
+    except ConnectionRefusedError:
+        raise
+    except OSError as e:
+        raise PypeItError(
+            f'The ginga viewer is not responding ({e}).  If it is stuck, close it and try '
+            'again; a new viewer is started if none is running.'
+        ) from e
+
+
+def connect(viewer=None, start_timeout=60.):
     """
     Connect to a ginga viewer running the ``PypeItRemote`` plugin.
 
-    A new ginga viewer is started if none is running.
+    A new ginga viewer is started if none is running.  Every call to the
+    viewer has a timeout, so a viewer that has stopped responding cannot hang
+    the calling script.
 
     Parameters
     ----------
     viewer : :class:`RemoteViewer`, optional
         Viewer to check.  If None, a new connection to the default host and
         port is made.
+    start_timeout : :obj:`float`, optional
+        Number of seconds to wait for a new viewer to start.
 
     Returns
     -------
@@ -147,23 +184,34 @@ def connect(viewer=None):
     Raises
     ------
     :class:`~pypeit.PypeItError`
-        Raised if ginga cannot be reached or does not have the
+        Raised if ginga cannot be reached or started, or does not have the
         ``PypeItRemote`` plugin.
     """
-    if viewer is None:
-        display.connect_to_ginga(raise_err=True, allow_new=True)
-        viewer = RemoteViewer()
+    _viewer = RemoteViewer() if viewer is None else viewer
     try:
-        viewer.call('ping')
-    except xmlrpc.client.Fault as e:
-        raise PypeItError(
-            'The running ginga viewer does not have the PypeItRemote plugin.  Close ginga and '
-            'restart it with "ginga --modules=RC" from the environment where PypeIt is '
-            'installed.'
-        ) from e
+        _ping(_viewer)
+        return _viewer
+    except ConnectionRefusedError:
+        pass
+
+    # No viewer is running; start one
+    log.info('Starting a ginga viewer.')
+    try:
+        subprocess.Popen(['ginga', f'--rcport={grc.default_rc_port}', '--modules=RC'])
     except OSError as e:
-        raise PypeItError(f'Could not communicate with the ginga viewer: {e}') from e
-    return viewer
+        raise PypeItError(f'Could not start ginga: {e}') from e
+    deadline = time.monotonic() + start_timeout
+    while time.monotonic() < deadline:
+        time.sleep(0.5)
+        try:
+            _ping(_viewer)
+            return _viewer
+        except ConnectionRefusedError:
+            continue
+    raise PypeItError(
+        f'Timed out after {start_timeout} s waiting for ginga to start.  Start it with '
+        '"ginga --modules=RC", wait for the window to open, and run the command again.'
+    )
 
 
 def send_command(command, args_json, timeout=120., poll_interval=0.25, viewer=None):

@@ -107,6 +107,46 @@ class ScatteredLight(calibframe.CalibFrame):
         # Return the model of the scattered light
         return scattlight.scattered_light_model_pad(self.scattlight_param, image)
 
+    def ginga_products(self, image=None, slits=None, mask=False):
+        """
+        Collect the data, model and residual images to show.
+
+        This does not interact with any viewer; see :func:`show` and
+        :func:`pypeit.display.remote_handlers.chk_scattlight`.
+
+        Parameters
+        ----------
+        image : `numpy.ndarray`_, optional
+            A 2D image to show (including a scattered light model).  If None,
+            the scattered light frame is shown.
+        slits : :class:`~pypeit.slittrace.SlitTraceSet`, optional
+            The slit traces; required if ``mask`` is True.
+        mask : :obj:`bool`, optional
+            If True, the slits are masked to show only the scattered light
+            regions.
+
+        Returns
+        -------
+        :obj:`list`
+            List of ``(image, name, cuts)`` tuples for the data, model and
+            data-model images.
+        """
+        offslitmask = slits.slit_img(pad=0, flexure=None) == -1 if mask else 1
+
+        # Prepare the frames
+        _data = self.scattlight_raw if image is None else image
+        _model = self.scattlight_model if image is None else self.get_model(image)
+        _resid = (_data - _model)
+
+        # Fold in the mask
+        _data = _data * offslitmask
+        _model = _model * offslitmask
+        _resid = _resid * offslitmask
+
+        modmax = np.max(_model)
+        return [(_data, 'data', (0.0, modmax)), (_model, 'model', (0.0, modmax)),
+                (_resid, 'data-model', (-modmax/2, modmax/2))]
+
     def show(self, image=None, slits=None, mask=False, wcs_match=True):
         """ Display the master scattered light frame, the model, and data-model.
 
@@ -122,23 +162,6 @@ class ScatteredLight(calibframe.CalibFrame):
         wcs_match : :obj:`bool`, optional
             Use a reference image for the WCS and match all image in other channels to it.
         """
-        offslitmask = slits.slit_img(pad=0, flexure=None) == -1 if mask else 1
-
-        # Prepare the frames
-        _data = self.scattlight_raw if image is None else image
-        _model = self.scattlight_model if image is None else self.get_model(image)
-        _resid = (_data - _model)
-
-        # Fold in the mask
-        _data *= offslitmask
-        _model *= offslitmask
-        _resid *= offslitmask
-
-        modmax = np.max(_model)
-        image_list = zip([_data, _model, _resid],
-                             ['data', 'model', 'data-model'],
-                             [(0.0, modmax), (0.0, modmax), (-modmax/2,modmax/2)])
-
-        # Display frames
+        image_list = self.ginga_products(image=image, slits=slits, mask=mask)
         display.show_scattered_light(image_list, slits=slits, wcs_match=wcs_match)
 

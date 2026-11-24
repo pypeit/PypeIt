@@ -452,6 +452,96 @@ def trace_overlay(
     return dc.Canvas(*objs)
 
 
+def _point_boxes(spat, spec, color):
+    """
+    Return small square boxes marking a set of pixels.
+
+    Parameters
+    ----------
+    spat : `numpy.ndarray`_
+        Spatial (x) positions.
+    spec : `numpy.ndarray`_
+        Spectral (y) positions.
+    color : :obj:`str`
+        Box color.
+
+    Returns
+    -------
+    :obj:`list`
+        The ginga canvas objects.
+    """
+    dc = get_canvas_types()
+    return [dc.SquareBox(float(x), float(y), 1, color=color, fill=False)
+            for x, y in zip(spat, spec)]
+
+
+def tilt_overlays(tilt_traces, nspec, show_traces=False, pstep=3):
+    """
+    Construct the ginga canvases showing the traced and fitted arc-line tilts.
+
+    This is the in-process equivalent of :func:`pypeit.display.display.show_tilts`.
+    Can be called from any thread.
+
+    Parameters
+    ----------
+    tilt_traces : `astropy.table.Table`_
+        Table with the traced and fitted tilts; see
+        :func:`~pypeit.wavetilts.BuildWaveTilts.make_tbl_tilt_traces`.
+    nspec : :obj:`int`
+        Number of spectral pixels in the tilt image; sets the legend spacing.
+    show_traces : :obj:`bool`, optional
+        Include the pixels of the traced tilts, which can be slow to draw.
+    pstep : :obj:`int`, optional
+        Keep every ``pstep``-th point along the fitted tilts.
+
+    Returns
+    -------
+    :obj:`dict`
+        Tuples with the name and canvas of each overlay, keyed by
+        ``'tilt_fits'`` (good 2D fits, blue), ``'tilt_pixels'`` (traced
+        pixels, cyan; only if ``show_traces`` is True), ``'tilt_masked'``
+        (masked pixels, red), ``'tilt_rejected'`` (pixels rejected in the fit,
+        yellow) and ``'tilt_legend'``.  Overlays without data are omitted,
+        except the legend.
+    """
+    if tilt_traces is None:
+        raise PypeItError('No tilts have been traced or fitted')
+    dc = get_canvas_types()
+    keys = tilt_traces.keys()
+    overlays = {}
+
+    if 'good2dfit_lid' in keys:
+        lid = tilt_traces['good2dfit_lid'][0]
+        spat = tilt_traces['good2dfit_spat'][0]
+        spec = tilt_traces['good2dfit_tilt'][0]
+        paths = []
+        for iline in np.unique(lid):
+            indx = lid == iline
+            points = list(zip(spat[indx][::pstep].tolist(), spec[indx][::pstep].tolist()))
+            if len(points) > 1:
+                paths.append(dc.Path(points, color='blue', linewidth=1))
+        overlays['tilt_fits'] = ('Good tilt fits', dc.Canvas(*paths))
+    for key, name, prefix, color, include in (
+            ('tilt_pixels', 'Traced tilt pixels', 'goodpix', 'cyan', show_traces),
+            ('tilt_masked', 'Masked pixels', 'badpix', 'red', True),
+            ('tilt_rejected', 'Rejected in fit', 'bad2dfit', 'yellow', True)):
+        spec_key = f'{prefix}_tilt'
+        if include and spec_key in keys and tilt_traces[spec_key][0].size > 0:
+            boxes = _point_boxes(tilt_traces[f'{prefix}_spat'][0], tilt_traces[spec_key][0],
+                                 color)
+            overlays[key] = (name, dc.Canvas(*boxes))
+
+    # Legend for the overlays that are included
+    legend = [('tilt_masked', 'Masked pixel', 'red'),
+              ('tilt_rejected', 'Rejected in fit', 'yellow'),
+              ('tilt_fits', 'Good tilt fit', 'blue'), ('tilt_pixels', 'Good pixel', 'cyan')]
+    step = 0.03*nspec
+    texts = [dc.Text(20., 20. + i*step, text=text, color=color, fontsize=20)
+             for i, (key, text, color) in enumerate([lg for lg in legend if lg[0] in overlays])]
+    overlays['tilt_legend'] = ('Legend', dc.Canvas(*texts))
+    return overlays
+
+
 def add_overlay(channel, overlay, tag):
     """
     Add an overlay to a channel's canvas, replacing any with the same tag.

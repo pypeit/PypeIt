@@ -17,6 +17,10 @@ Breaking Changes
 - ``pypeit.scripts.show_2dspec.show_trace`` and ``wave_rms_image`` have been
   removed; ``wave_rms_image`` is now in ``pypeit.display.spec2d_data``.
   ``pypeit.display.display.show_1dspec`` has been removed.
+- The ``--embed`` option of ``pypeit_view_fits`` has been removed, and
+  ``pypeit_view_fits`` and ``pypeit_show_pixflat`` now clear the ginga
+  viewer before showing an image (``pypeit_view_fits --no_clear`` keeps the
+  existing channels).
 
 
 Documentation Updates
@@ -43,6 +47,11 @@ Functionality/Performance Improvements and Additions
   (e.g. Bias, Arc, Dark, Tiltimg) in the ginga viewer after clearing it,
   optionally with its inverse variance, mask and slit edges.  The
   documentation now uses it instead of ``ginga <file>``.
+- ``pypeit_chk_tilts``, ``pypeit_view_fits``, ``pypeit_show_pixflat`` and
+  ``pypeit_chk_scattlight`` now also run inside the ginga viewer, with a
+  control panel (``TiltsView`` or ``FileView``).  In ``pypeit_chk_tilts`` the
+  good fits, masked pixels, rejected pixels, traced pixels and legend are
+  separate overlays that can be toggled.
 
 
 Instrument-specific Updates
@@ -92,5 +101,10 @@ Under-the-hood Improvements
 Bug Fixes
 ---------
 
-- placeholder
+- ``pypeit_view_fits --proc --showmask`` failed because it read the
+  bad-pixel mask from the wrong attribute.
+- ``WaveTilts.show`` (``pypeit_chk_tilts``) failed when the Slits file was
+  not found.
+- ``ScatteredLight.show`` (``pypeit_chk_scattlight``) multiplied the stored
+  scattered-light frame by the slit mask in place.
 

@@ -5,7 +5,7 @@
                             [--log_level LOG_LEVEL] [--list] [--proc]
                             [--bkg_file BKG_FILE] [--inter] [--exten EXTEN]
                             [--det [DET ...]] [--chname CHNAME] [--showmask]
-                            [--embed]
+                            [--no_clear] [--timeout TIMEOUT]
                             spectrograph file
     
     View FITS files with ginga
@@ -45,7 +45,7 @@
     
     options:
       -h, --help            show this help message and exit
-      -v, --verbosity VERBOSITY
+      -v VERBOSITY, --verbosity VERBOSITY
                             Verbosity level, which must be 0, 1, or 2. Level 0
                             includes warning and error messages, level 1 adds
                             informational messages, and level 2 adds debugging
@@ -76,5 +76,9 @@
                             mosaic of all detectors. (default: 1)
       --chname CHNAME       Name of Ginga tab (default: Image)
       --showmask            Overplot masked pixels (default: False)
-      --embed               Upon completion embed in ipython shell (default: False)
+      --no_clear            Do *not* clear all existing channels (default: True)
+      --timeout TIMEOUT     Number of seconds to wait for ginga to display the data.
+                            If the display is not done by then, the script stops
+                            waiting, but ginga finishes the display. (default:
+                            120.0)
     
