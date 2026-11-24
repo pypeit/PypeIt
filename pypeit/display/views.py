@@ -12,17 +12,18 @@ first channel of a display made by ``pypeit_show_2dspec``,
 ``pypeit_view_fits``, ``pypeit_show_pixflat`` and ``pypeit_chk_scattlight``.
 They are not meant to be opened by hand.
 
-Usage
------
+Control panel
+-------------
 
 The plugin panel has four parts:
 
 - **File**: the file being displayed.  **Reload** reads it again, e.g. after
   re-running a reduction step.
 
-- **Overlays**: check boxes that show or hide the slit edges, slit IDs,
-  object traces and object names.  Each overlay is shared by all channels of
-  the display, so a check box affects every channel at once.
+- **Overlays**: check boxes that show or hide each overlay, e.g. the slit
+  edges, slit IDs, object traces and names, or tilt fits.  Each overlay is
+  shared by all channels of the display, so a check box affects every channel
+  at once.
 
 - **Options**: options of the script that made the display, e.g. the
   detector shown by ``pypeit_show_2dspec`` or the flats shown by
@@ -37,6 +38,7 @@ Errors from **Reload** and **Show** are reported in the ginga Errors tab.
 .. include:: ../include/links.rst
 """
 import argparse
+import inspect
 import json
 from pathlib import Path
 
@@ -343,6 +345,30 @@ class PypeItView(GingaPlugin.LocalPlugin):
         """
         self.rerun(self.options_args(argparse.Namespace(**vars(self.state.args))))
 
+    def help(self, text_kind='rst'):
+        """
+        Show the help for the plugin as RST text in a ginga tab.
+
+        The help is the docstring of the plugin class, which describes its
+        display and options, followed by the description of the panel shared
+        by all PypeIt view plugins (the Control panel section of the module
+        docstring).
+
+        Parameters
+        ----------
+        text_kind : :obj:`str`, optional
+            Ignored; the help is always shown as RST text.
+        """
+        name = type(self).__name__
+        # Only the Control panel section of the module docstring describes
+        # the panel;
+        # the Sphinx include directives that end it are not help
+        module_doc = inspect.getmodule(self).__doc__
+        usage = module_doc[module_doc.find('Control panel\n'):module_doc.find('.. include')]
+        text = f"{name}\n{'=' * len(name)}\n\n{inspect.cleandoc(type(self).__doc__)}\n\n" \
+               f"{usage.strip()}\n"
+        self.fv.show_help_text(name, text)
+
     def close(self):
         """
         Close the plugin.
@@ -361,10 +387,31 @@ class PypeItView(GingaPlugin.LocalPlugin):
 
 class Spec2dView(PypeItView):
     """
-    Plugin that controls a ``pypeit_show_2dspec`` display.
+    Controls the display of a spec2d file made by ``pypeit_show_2dspec``.
 
-    Its options select the detector, the channels to show, and the mask,
-    wavelength-RMS and extraction-mask options of ``pypeit_show_2dspec``.
+    The display has up to five channels for one detector or mosaic: the
+    processed science image (``sciimg``), the sky-subtracted image
+    (``skysub``), the sky residuals (``sky_resid``), the full residuals after
+    removing the objects too (``resid``), and optionally the mask bits
+    (``MASK``).  The channels are locked together in pan and zoom.  The
+    cursor readout shows the wavelength (and, optionally, the RMS of the
+    wavelength solution) at the cursor.
+
+    **Overlays**: the slit edges (green left, magenta right), the slit IDs
+    (aquamarine, with the slit-mask IDs in cyan), and the extracted object
+    traces and names (orange; yellow for objects extracted at their
+    slit-mask positions and light blue for manual extractions).
+
+    **Options**, equivalent to the ``pypeit_show_2dspec`` options:
+
+    - **Detector** (``--det``): the detector or mosaic to show.
+    - **sciimg / skysub / sky_resid / resid** (``--channels``): the channels
+      to show.
+    - **Show mask** (``--showmask``): add the channel with the mask bits.
+    - **Wavelength RMS** (``--show_wave_rms``): show the RMS of the
+      wavelength solution of the slit under the cursor.
+    - **Ignore extraction mask** (``--ignore_extract_mask``): ignore the
+      extraction mask in the sky-subtracted images.
     """
     script = 'pypeit_show_2dspec'
     channel_names = ('sciimg', 'skysub', 'sky_resid', 'resid')
@@ -449,9 +496,23 @@ class Spec2dView(PypeItView):
 
 class FlatsView(PypeItView):
     """
-    Plugin that controls a ``pypeit_chk_flats`` display.
+    Controls the display of a Flat calibration file made by
+    ``pypeit_chk_flats``.
 
-    Its option selects which flats are shown.
+    Each flat-field image is shown in its own channel: e.g. the processed
+    pixel flat (``pixelflat_raw``), its model (``pixelflat_model``), the
+    normalized pixel flat (``pixelflat_norm``), the spatial and spectral
+    illumination (``pixelflat_spat_illum``, ``pixelflat_spec_illum``), the fine
+    correction (``pixelflat_finecorr``) and their illumflat counterparts.  The
+    channels are locked together in pan and zoom.
+
+    **Overlays**: the slit edges (green left, magenta right) and the slit IDs
+    (aquamarine).  Slits masked in the flat-field calibration are not shown.
+
+    **Options**, equivalent to the ``pypeit_chk_flats`` options:
+
+    - **Flats** (``--type``): show the ``pixel`` flats, the ``illum`` flats,
+      or ``all`` of them.
     """
     script = 'pypeit_chk_flats'
     flat_types = ('all', 'pixel', 'illum')
@@ -502,17 +563,44 @@ class FlatsView(PypeItView):
 
 class EdgesView(PypeItView):
     """
-    Plugin that controls a ``pypeit_chk_edges`` display.
+    Controls the display of an Edges calibration file made by
+    ``pypeit_chk_edges``.
+
+    The display has two channels, locked together in pan and zoom: the trace
+    image (``Trace Image``), typically a combination of dome flats, and the
+    Sobel-filtered image used to detect the slit edges (``Sobel
+    Filtered``).
+
+    **Overlays**: the slit edges (green left, magenta right) and their IDs.
+    For edges that have been synchronized into slits, the IDs are the slit
+    IDs (aquamarine, with the slit-mask IDs in cyan); otherwise each edge has
+    its own ID.  If the Slits file is found, its edges are shown instead of
+    those in the Edges file.
+
+    This display has no options.
     """
     script = 'pypeit_chk_edges'
 
 
 class CalibView(PypeItView):
     """
-    Plugin that controls a ``pypeit_show_calib`` display.
+    Controls the display of a single-image calibration file (e.g. Bias, Arc,
+    Dark, Tiltimg or Alignment) made by ``pypeit_show_calib``.
 
-    Its options add the inverse-variance and mask channels and the slit
-    overlays.
+    The calibration image is shown in a channel named after the file,
+    optionally with its inverse variance (``-ivar``) and mask bits (``-mask``)
+    in channels locked to it in pan and zoom.
+
+    **Overlays**: if requested, the slit edges (green left, magenta right) and
+    the slit IDs (aquamarine, with the slit-mask IDs in cyan).
+
+    **Options**, equivalent to the ``pypeit_show_calib`` options:
+
+    - **Inverse variance** (``--ivar``): add the inverse-variance channel.
+    - **Mask** (``--mask``): add the mask-bits channel.
+    - **Slits** (``--slits``): overlay the slit edges, if the Slits file is
+      found in the calibration directory recorded in the file or in the
+      directory of the file.
     """
     script = 'pypeit_show_calib'
 
@@ -563,9 +651,22 @@ class CalibView(PypeItView):
 
 class TiltsView(PypeItView):
     """
-    Plugin that controls a ``pypeit_chk_tilts`` display.
+    Controls the display of a Tilts calibration file made by
+    ``pypeit_chk_tilts``.
 
-    Its option adds the pixels of the traced tilts, which can be slow to draw.
+    The Tiltimg image used to trace the arc-line tilts is shown in the
+    ``Tilts`` channel, masked outside the slits.  The cursor readout shows
+    the wavelength at the cursor, if the WaveCalib file is found.
+
+    **Overlays**: the good 2D tilt fits (blue), the pixels masked in the
+    tracing (red), the pixels rejected in the 2D fit (yellow), optionally the
+    pixels of the traced tilts (cyan), a legend of these colors, and the slit
+    edges and IDs.
+
+    **Options**, equivalent to the ``pypeit_chk_tilts`` options:
+
+    - **Traced tilt pixels** (``--show_traces``): mark every pixel of the
+      traced tilts.  This can be slow to draw.
     """
     script = 'pypeit_chk_tilts'
 
@@ -610,8 +711,18 @@ class TiltsView(PypeItView):
 
 class FileView(PypeItView):
     """
-    Plugin that controls displays without their own options, e.g. those of
-    ``pypeit_view_fits``, ``pypeit_show_pixflat`` and
-    ``pypeit_chk_scattlight``.
+    Controls the displays made by ``pypeit_view_fits``,
+    ``pypeit_show_pixflat`` and ``pypeit_chk_scattlight``, which have no
+    options in the panel.
+
+    - ``pypeit_view_fits`` shows a raw image (or a processed one, with
+      ``--proc``), optionally with its bad-pixel mask (``BPM``).
+    - ``pypeit_show_pixflat`` shows each detector of an archived pixel-flat
+      file in its own channel.
+    - ``pypeit_chk_scattlight`` shows the scattered-light data, model and
+      data-model residuals, locked together in pan and zoom, with the slit
+      edges and IDs as overlays.
+
+    Use **Reload** to read the file again with the same options.
     """
     pass

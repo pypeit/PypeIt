@@ -692,6 +692,19 @@ class Spec1dView(GingaPlugin.LocalPlugin):
         self.ext_name = self.sobjs.NAME[self.exten]
         self.replot()
 
+    def help(self, text_kind='rst'):
+        """
+        Show the help for the plugin (the module docstring) as RST text in a
+        ginga tab, instead of offering to open the web documentation.
+
+        Parameters
+        ----------
+        text_kind : :obj:`str`, optional
+            Ignored; the help is always shown as RST text.
+        """
+        name = type(self).__name__
+        self.fv.show_help_text(name, f"{name}\n{'=' * len(name)}\n{__doc__}")
+
     def close(self):
         """Method called to close the plugin when the Close button is pressed."""
         self.fv.stop_local_plugin(self.chname, str(self))

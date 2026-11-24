@@ -93,3 +93,24 @@ def test_make_overlays():
     kinds = {key: {o.kind for o in ov.canvas.get_objects()} for key, ov in overlays.items()}
     assert kinds == {'slit_edges': {'path'}, 'slit_ids': {'text'}}, \
         'Edges and IDs should be separate overlays so they can be toggled separately'
+
+
+class FakeShell:
+    def show_help_text(self, name, text):
+        self.name = name
+        self.text = text
+
+
+@pytest.mark.parametrize('cls', [views.Spec2dView, views.EdgesView, views.FlatsView,
+                                 views.CalibView, views.TiltsView, views.FileView])
+def test_help_is_unique_rst(cls):
+    plugin = object.__new__(cls)
+    plugin.fv = FakeShell()
+    plugin.help()
+    assert plugin.fv.name == cls.__name__, 'The help tab should be named after the plugin'
+    assert plugin.fv.text.startswith(f'{cls.__name__}\n{"=" * len(cls.__name__)}\n'), \
+        'The help should start with the plugin name as its title'
+    assert cls.__doc__.split('\n')[1].strip() in plugin.fv.text, \
+        'The help should include the docstring of the plugin class'
+    assert 'Control panel' in plugin.fv.text and '.. include' not in plugin.fv.text, \
+        'The help should end with the shared panel description, without Sphinx directives'
