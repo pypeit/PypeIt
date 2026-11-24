@@ -873,9 +873,10 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
 
         # Fit/Model the overscan region
         if use_mask and method.lower() != 'odd_even':
-            osfit, osvar = _masked_overscan_stats(overscan, os_bpm,
-                                                  None if var is None else osvar,
-                                                  compress_axis, method.lower() == 'median')
+            osfit, osvar = _masked_overscan_stats(
+                overscan, os_bpm, None if var is None else osvar, compress_axis,
+                method.lower() == 'median'
+            )
         else:
             osfit = np.median(overscan) if method.lower() == 'median' \
                         else np.median(overscan, axis=compress_axis)
@@ -910,8 +911,9 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
             if use_mask:
                 _os_bpm = os_bpm if compress_axis == 1 else os_bpm.T
                 if np.all(_os_bpm[:,1::2]) or np.all(_os_bpm[:,0::2]):
-                    raise PypeItError('All pixels in the odd or even overscan stripes are masked '
-                                      'or undefined!')
+                    raise PypeItError(
+                        'All pixels in the odd or even overscan stripes are masked or undefined!'
+                    )
                 _ma_overscan = np.ma.MaskedArray(_overscan, mask=_os_bpm)
                 odd = np.ma.median(_ma_overscan[:,1::2], axis=1)
                 odd = pydl.djs_maskinterp1(odd.filled(0.), np.ma.getmaskarray(odd))
