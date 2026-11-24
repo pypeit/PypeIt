@@ -28,6 +28,23 @@ This tutorial will use the _proc classes, but within the RAW_DATA folder of the 
 can find sets of both raw and pre-processed data, and pypeit_files for each dataset are in 
 `Pypeit-development-suite github <https://github.com/pypeit/PypeIt-development-suite/tree/main/pypeit_files>`_. 
 
+.. important:: 
+   Both MODS1 and MODS2 underwent controller upgrades in August 2025, and this has changed how the MODS data are stored. Whereas data taken with
+   the original controllers were stored as simple FITS files, data taken with the new, Archon, controllers are stored in multi-extension FITS files,
+   in which the first 4 extensions contain data for each of the ADC channels (the correpsondence of ADC channel to detector quadrant is illustrated
+   `here <https://scienceops.lbto.org/mods/instrument-characteristics/detector/#TOC-Data-Format>`_), the 5th extension stores the controller configuration as a FITS binary table,
+   and the 6th extension contains an overscan-subtracted and trimmed, merged image. The merged image still contains the columns of prescan at either end;
+   only the overscan has been trimmed.
+
+   Although the detectors are the original ones, the dimensions of the data have changed because the 32-column overscan region is now being read 
+   and the number of prescan columns has changed from 48 to 50 (50 for no binning along the dispersion axis, 25 if binned by 2). The detector is still read out through 4 amplifiers, but now through a 
+   single chain rather than two, so the even-odd column striping is no longer seen. A single overscan value can be subtracted from each quadrant.
+   More information on the new data format can be found on the `LBTO SciOps webpages under MODS -> Detector Characteristics <https://scienceops.lbto.org/mods/instrument-characteristics/detector/>`_.
+
+   The *lbt_mods1b_proc*, *lbt_mods1r_proc*, *lbt_mods2b_proc* and *lbt_mods2r_proc* classes will continue to work for the post-upgrade data, once the
+   merged image has been isolated to a simple FITS file, trimmed of prescan and processed (i.e. flat-fielded and bad pixels have been corrected). 
+
+
 Setup
 =====
 
@@ -115,13 +132,13 @@ Modify the pypeit setup files
 
 Now, make the following edits to the pypeit setup files:
 
-1) Remove frametypes pixelflat and illumflat from the slit flats since, in this case, they will be used only to trace the slit edges. The 20 spaces keep the columns aligned, but this is only for readability as the columns in pypeit files are separated by '|' and don't need to line up. 
+1) Remove frametype illumflat from the slit flats since, in this case, they will be used only to trace the slit edges. The 10 spaces keep the columns aligned, but this is only for readability as the columns in pypeit files are separated by '|' and don't need to line up. 
 
 .. code-block:: bash
 
-    sed -i -e s/pixelflat,illumflat,/'\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ '/ lbt_mods1b_proc_A.pypeit
+    sed -i -e s/illumflat,/'\ \ \ \ \ \ \ \ \ \ '/ lbt_mods1b_proc_A.pypeit
 
-    sed -i -e s/pixelflat,illumflat,/'\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ '/ lbt_mods1r_proc_A.pypeit
+    sed -i -e s/illumflat,/'\ \ \ \ \ \ \ \ \ \ '/ lbt_mods1r_proc_A.pypeit
 
 2) Comment out the 5" slit flats. The central slit segment of the science slit will be used to trace the
 5" slit edges.
@@ -350,7 +367,7 @@ Flux Calibration
 Sensitivity function
 ------------------------
 
-As described in :ref:`fluxing`, pypeit currently has two algorithms to determine the sensitivity function -- UVIS for wavelengths < 7000 :math:`\mathrm{\mathring{A}}` and IR for spectra at longer wavelengths.  The IR method does not apply extinction but does a detailed fitting of the telluric absorption. To maximize the matching of blue and red channel dual grating spectra, it is recommended to use the same algorithm, and the UVIS algorithm works well although some iteration over parameters may be necessary, particularly in the red where, with the UVIS algorithm, it is necessary to fit across regions of telluric absorption. Overriding the default resolution with the resolution of MODS (R~2000, 0.6" slit), setting the breakpoint spacing to 40 rather than the default 20 times the resolution element, and using a fairly low order may help, but if the order is too low, then the wiggles in the dichroic transmission may be washed out. 
+As described in :ref:`fluxing`, pypeit currently has two algorithms to determine the sensitivity function -- UVIS for wavelengths < 7000 :math:`\mathrm{\mathring{A}}` and IR for spectra at longer wavelengths.  The IR method does not apply extinction but does a detailed fitting of the telluric absorption. To maximize the matching of blue and red channel dual grating spectra, it is recommended to use the same algorithm, and the UVIS algorithm works well although some iteration over parameters may be necessary, particularly in the red where, with the UVIS algorithm, it is necessary to fit across regions of telluric absorption. 
 
 The script :ref:`pypeit_sensfunc` generates the sensitivity function from a single spectrophotometric standard star spectrum. Since MODS scripts typically take 3 
 back-to-back standard star integrations, it can be reassuring to overplot these (you may need to write a custom script with commands similar to those shown above) to insure that
@@ -363,6 +380,17 @@ and
 ``pypeit_sensfunc -s mods1r_dual.sens Science/spec1d_mods1r.20230909.0044_otf-Feige110dualgrating_MODS1R_20230909T084726.333.fits --debug -v 2``
 
 The ``debug`` and high verbosity (``v = [0,1,2]``) options are helpful, especially when starting to reduce a dataset. 
+Sample sensfunc input files for the blue and red channels are given below.
+
+Hydrogen absorption lines are masked, and the default 10 :math:`\mathrm{\mathring{A}}` setting appears to be fine, though in some cases
+where uncorrected flexure causes a mismatch between the lines in the data and in the flux table, a larger mask width may be needed. 
+
+The user-level parameters, ``polyorder``, ``nresln`` and ``resolution`` may need adjusting. ``nresln`` and ``resolution`` control the bpline breakpoint spacing. The standard
+stars are observed at resolutions closer to ~1500 than the default 3000 (they are observed through the 5" wide slit, and in most cases their resolution 
+will be dictated by the seeing FWHM which is usually clsoe to 1"). The breakpoints should be close enough to fit the wiggles in the dual-grating sensitivity function which arise from the dichroic
+transmission, but far enough apart to land outside of lines or telluric absoprtion features; this is particularly important to check in the red channel. When `pypeit_sensfunc` is
+run with the ``debug`` option, a plot is produced which shows the locations of breakpoints on the sensitivity function, and this is helpful in determining whether
+any changes to ``polyorder``, ``nresln`` or ``resolution`` are needed.
 
 :ref:`pypeit_sensfunc` outputs the sensitivity function as a fits file and also 3 PDFs: one of the 
 throughput vs wavelength; another of the zeropoint vs wavelength; and a third of the flux-calibrated standard 
@@ -384,7 +412,10 @@ star spectrum, with the tabulated spectrum overplotted in green for comparison.
 
    where :math:`\lambda` is the wavelength in :math:`\mathrm{\mathring{A}}` and g, the conversion gain in e-/ADU (g=1 for the *proc* classes).
 
-Sample sensfunc input files for the blue and red channels are given below.
+.. note:: 
+
+   Hz43 has an M-dwarf ~2.3" away, and separating the two traces will require special attention in run_pypeit. BD+28 4211 also has a nearby companion 3" away, but the two traces are distinguished.
+
 
 Blue
 ++++
@@ -396,27 +427,19 @@ For the blue channel, `mods1b_dual.sens` is:
    [sensfunc]
       algorithm = UVIS
       extr = OPT
-      polyorder = 25 # default is 7, higher order to fit wiggles in dichroic transmission
-      extrap_blu = 0.3
-      extrap_red = 0.15
-      trim_std_pixs = 1400,1500 #for MODS1B Dual Grating, 3027-5745 Angstroms
+      polyorder = 15 # default is 7 
       use_flat = False
+      #star_arxiv = lbt_mods # Recommend leaving commented to use the default flux table from calspec or xshooter, uncomment 
+                             # if the flux table is only in lbt_mods or the default table does not extend far enough to the red.
       # for algorithm = UVIS
       [[UVIS]] 
+         polycorrect = False # Do not replace bspline by polynomial fit in regions where Hydrogen lines are masked
+         nresln = 10 # default value is 20, bspline breakpoints are spaced by 10 resolution elements to fit dichroic wiggles 
+         resolution = 1500 # the default value is 3000
          extinct_correct = True
          extinct_file = lbtoextinct.dat
 
-The dual grating standard star spectrum drops precipitously in the blue, at the atmospheric cutoff, and in the red, due to the dichroic 
-transmission. For this reason, trim_std_pixs was set to trim the first 1400 and the last 1500 pixels. These values were determined by locating
-the wavelength of the sharp turndown on the 1D spectrum plot and then reading off the corresponding pixel value on the 2D spectrum plot.
-The `extrap_blu` and `extrap_red` were set to extrapolate the fit to endpoints of the spectral range.
 
-The `polyorder` has been increased over the default to fit through wiggles in the dichroic transmission function.
-
-Hydrogen absorption lines are masked, and the default 10 :math:`\mathrm{\mathring{A}}` setting appears to be fine.
-Uncorrected flexure causes 'P-Cygni'-like profiles for the hydrogen lines, but because these are masked, the fit is 
-unaffected. But there is an absorption line, probably HeII/5411 angstroms, in some standards (e.g. Feige 110) which is 
-not masked and contributes a small-scale blip in the sensitivity function.
 
 .. figure:: ../figures/mods/mods1b_dual_sensfuncQA.png
    :width: 40%
@@ -432,21 +455,15 @@ For the red channel, `mods1r_dual.sens` is:
    algorithm = UVIS
 
    extr = OPT
-   polyorder = 6
-
-   hydrogen_mask_wid = 15. #default is 10.
-   trim_std_pixs = 1600,1100  #for MODS1R Dual Grating 5635 - 10272 angstroms
-
-   extrap_blu = 0.4
-   extrap_red = 0.1
+   polyorder = 15
 
    use_flat = False
 
-
    # for algorithm = UVIS
    [[UVIS]]
-      nresln = 40 # default is 20
-      resolution = 2000 # default is 3000
+      polycorrect = False
+      nresln = 20 # default value, bspline breakpoints are spaced by 20 resolution elements
+      resolution = 1500 # the default value is 3000
       extinct_correct = True
       extinct_file = lbtoextinct.dat
       telluric = True
@@ -470,12 +487,17 @@ Flux Calibrating the spectra
 ----------------------------
 
 Setup files for the next three steps: flux calibrating the spectra, coadding these, and correcting for
-telluric absorption; are generated with a single script, :ref:`pypeit_flux_setup`.
+telluric absorption; are generated with a single script, :ref:`pypeit_flux_setup`, e.g.: 
+
+``pypeit_flux_setup lbt_mods1b_proc.flux --objmodel qso Science/ ./``
+
+which will generate 3 files: lbt_mods1b_proc.flux, lbt_mods1b_proc.coadd1d and lbt_mods1b_proc.tell. The object model is used in the telluric correction. In case there are no quasar object models that cover the rest-frame wavelength range of these data (~845 - 2550 angstroms), then use objmodel = poly. 
 
 Flux Calibration
 ++++++++++++++++
 
-First the spectra are flux calibrated, using the sensitivity functions just generated. The following commands were used, and the input flux files are included below.
+First the spectra are flux calibrated, using the sensitivity functions just generated. Note that you will need to modify the input flux files to set ``extinct_correct = True``.
+The following commands were used, and the input flux files are included below.
 
 ``pypeit_flux_calib lbt_mods1b_proc.flux``
 
@@ -546,9 +568,6 @@ The input files, lbt_mods1b_proc.coadd1d and lbt_mods1r_proc.coadd1d (see below)
 
 .. code-block:: console
 
-   # Auto-generated Coadd1D input file using PypeIt version: 1.18.0
-   # UTC 2025-10-18T19:37:47.795+00:00
-
    # User-defined execution parameters
    [coadd1d]
      coaddfile = m1b_HS1946+7658_coadd1d.fits # Please set your output file name
@@ -572,9 +591,6 @@ The input files, lbt_mods1b_proc.coadd1d and lbt_mods1r_proc.coadd1d (see below)
 
 .. code-block:: console
 
-   # Auto-generated Coadd1D input file using PypeIt version: 1.18.0
-   # UTC 2025-10-18T19:56:18.097+00:00
-
    # User-defined execution parameters
    [coadd1d]
      coaddfile = m1r_HS1946+7658_coadd1d.fits  # Please set your output file name
@@ -596,4 +612,31 @@ The input files, lbt_mods1b_proc.coadd1d and lbt_mods1r_proc.coadd1d (see below)
 Correcting the Telluric Absorption
 ==================================
 
-   Under construction...
+The telluric correction is done by ``pypeit_tellfit``, which fits the object spectrum with a joint telluric plus object model. 
+
+``pypeit_tellfit -t lbt_mods1b_proc.tell m1b_HS1946+7658_coadd1d.fits --debug``
+
+``pypeit_tellfit -t lbt_mods1r_proc.tell m1r_HS1946+7658_coadd1d.fits --debug``
+
+For this example, a polynomial model is used, although better results may be obtained using a quasar model which covers the rest-frame wavelength range of the data. Sample telluric input files, lbt_mods1b_proc.tell and lbt_mods1r_proc.tell, are provided below, though ``polyorder`` and ``fit_wv_min_max`` could be further adjusted to optimize the fits. 
+
+`lbt_mods1b_proc.tell`:
+
+.. code-block:: console
+
+   # User-defined execution parameters
+   [telluric]
+     objmodel = poly
+     polyorder = 4
+     upper = 2
+     lower = 4
+     fit_wv_min_max = 3300,4750,5175,5650
+
+`lbt_mods1r_proc.tell`:
+
+.. code-block:: console
+
+   # User-defined execution parameters
+   [telluric]
+     objmodel = poly
+     polyorder = 3

@@ -1,6 +1,14 @@
 pypeit.display package
 ======================
 
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   pypeit.display.qlview
+
 Submodules
 ----------
 

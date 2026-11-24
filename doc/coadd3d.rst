@@ -64,7 +64,7 @@ saved as ``BB1245p4238.coadd3d``:
     [reduce]
         [[cube]]
             combine = True
-            align = True
+            alignment_method = phase
             output_filename = BB1245p4238_datacube.fits
             save_whitelight = True
 
@@ -515,7 +515,7 @@ like the following:
         [[cube]]
             combine = True
             output_filename = BB1245p4238_datacube.fits
-            align = True
+            alignment_method = user
 
     # Read in the data
     spec2d read

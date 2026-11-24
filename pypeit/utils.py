@@ -475,58 +475,6 @@ def to_string(data, use_repr=True, verbatim=False):
     return data.__repr__() if use_repr else str(data)
 
 
-def string_table(tbl, delimeter='print', has_header=True):
-    """
-    Provided the array of data, format it with equally spaced columns
-    and add a header (first row) and contents delimeter.
-
-    Args:
-        tbl (`numpy.ndarray`_):
-            Array of string representations of the data to print.
-        delimeter (:obj:`str`, optional):
-            If the first row in the table containts the column headers (see
-            ``has_header``), this sets the delimeter between first table row and
-            the column data. Use ``'print'`` for a simple line of hyphens,
-            anything else results in an ``rst`` style table formatting.
-        has_header (:obj:`bool`, optional):
-            The first row in ``tbl`` contains the column headers.
-
-    Returns:
-        :obj:`str`: Single long string with the data table.
-    """
-    nrows, ncols = tbl.shape
-    col_width = [np.amax([len(dij) for dij in dj]) for dj in tbl.T]
-
-    _nrows = nrows
-    start = 1
-    if delimeter != 'print':
-        _nrows += 2
-        start += 1
-    if has_header:
-        _nrows += 1
-        start += 1
-
-    row_string = [''] * _nrows
-
-    for i in range(start, nrows + start - 1):
-        row_string[i] = '  '.join([tbl[1 + i - start, j].ljust(col_width[j]) for j in range(ncols)])
-    if delimeter == 'print':
-        # Heading row
-        row_string[0] = '  '.join([tbl[0, j].ljust(col_width[j]) for j in range(ncols)])
-        # Delimiter
-        if has_header:
-            row_string[1] = '-' * len(row_string[0])
-        return '\n'.join(row_string) + '\n'
-
-    # For an rst table
-    row_string[0] = '  '.join(['=' * col_width[j] for j in range(ncols)])
-    row_string[1] = '  '.join([tbl[0, j].ljust(col_width[j]) for j in range(ncols)])
-    if has_header:
-        row_string[2] = row_string[0]
-    row_string[-1] = row_string[0]
-    return '\n'.join(row_string) + '\n'
-
-
 def spec_atleast_2d(wave, flux, ivar, gpm, log10_blaze_function=None, copy=False):
     """
     Force spectral arrays to be 2D.

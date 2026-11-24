@@ -1,9 +1,57 @@
 
-Version 2.1.0dev
-================
+Version 3.0.0
+=============
 
 Breaking Changes
----------------------
+----------------
+
+- ``spec2d`` files and ``Slits`` calibration files written by previous versions
+  of PypeIt cannot be read.  The ``pad`` element of the
+  :class:`~pypeit.slittrace.SlitTraceSet` datamodel (version 1.1.6) is now a
+  2-element float array (the padding of the left and right edges) instead of
+  an integer, and :class:`~pypeit.spec2dobj.Spec2DObj` (version 1.1.2) nests
+  this object.  Old files cannot be read, even when skipping the datamodel
+  version check; data must be reprocessed.
+- ``Flat`` calibration files written by previous versions of PypeIt cannot be
+  read.  The spatial B-spline models saved by
+  :class:`~pypeit.flatfield.FlatImages` (version 1.2.0) are now
+  :class:`~pypeit.containers.bspline.BSplineContainer` objects, replacing the
+  removed ``pypeit.bspline.bspline`` class.
+- Because of the two changes above, existing ``Calibrations`` directories
+  cannot be reused.  Delete them (or at least the ``Slits`` and ``Flat`` files)
+  before re-running :ref:`run-pypeit` or ``pypeit_ql`` (see
+  :doc:`../quicklook`) on data reduced with a previous version.
+- The ``[reduce][[cube]] align`` parameter has been removed and replaced by
+  ``alignment_method``, which selects the method used to spatially align the
+  datacubes (``none``, ``phase``, ``cc``, ``fit``, or ``user``).  Coadd3d files
+  that set ``align`` will fault; replace ``align = True`` with
+  ``alignment_method = phase`` and ``align = False`` with ``alignment_method =
+  none``.  Note that the default has also changed: previously the datacubes
+  were not aligned by default, whereas the default is now ``alignment_method =
+  phase``.
+- The meaning of the ``shift`` column in the PypeIt file has changed; see the
+  manual spatial flexure bug fix below.  A blank entry means no manual
+  override, whereas *any* number, including 0, now overrides the automatically
+  computed spatial flexure.  PypeIt files written by previous versions of
+  ``pypeit_setup --flexure`` fill this column with 0, which will now disable
+  the automatic spatial flexure correction for every frame.  Blank the column
+  (or regenerate the PypeIt file) to restore the automatic correction.
+- The root name of the output ``spec1d`` and ``spec2d`` files is now
+  constructed by removing the raw-file extension recognized by the
+  spectrograph, instead of only removing ``.fits``.  This changes the output
+  file names of spectrographs whose raw files have other extensions:
+  ``aat_uhrf`` (``.FTS``), ``mdm_modspec`` (``.fit``), and ``wht_isis_blue``
+  (``.fit``, ``.fit.gz``); e.g., the outputs for the raw file ``a001.fit`` were
+  previously named ``spec1d_a001.fit-...`` and are now named
+  ``spec1d_a001-...``.  Post-processing input files (e.g., coadd1d or fluxing
+  files) that list these outputs must be updated.
+- Keck/LRIS blue (``keck_lris_blue_orig``) ``spec2d`` extensions and ``spec1d``
+  object names now use the correct detector (``DET01`` <-> ``DET02``); see the
+  related bug fix below.  Post-processing input files that list the objects in
+  existing reductions must be updated.
+- The ``scikit-image`` optional-dependency group has been renamed to
+  ``datacube`` (which now also includes ``photutils``); i.e., use ``pip install
+  "pypeit[datacube]"`` instead of ``pip install "pypeit[scikit-image]"``.
 
 Documentation Updates
 ---------------------
@@ -30,6 +78,11 @@ Dependency Changes
 - Adds support for python 3.14
 - ``pillow`` (already required by ``matplotlib``) is now an explicit
   dependency; it is used to write the QA PNGs.
+- ``pydantic`` (version 2.0 or later) is now a required dependency; it is used
+  by the reduction-state layer (:mod:`pypeit.state`).
+- The ``scikit-image`` optional-dependency group has been renamed to
+  ``datacube`` and now also includes ``photutils``, which is needed for the
+  ``alignment_method = fit`` datacube alignment option.
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
@@ -90,6 +143,9 @@ Functionality/Performance Improvements and Additions
   AI assistant).
 - Setup GUI now uses a standard button bar that can be moved.
 - Re-enabled the Cancel button on the Setup GUI progress dialog.
+- The ``SlitWavelength`` `ginga` plugin can now show the RMS of the wavelength
+  solution, in addition to the wavelength, in the cursor readout; see the new
+  ``rms_img`` argument of :func:`~pypeit.display.display.show_image`.
 - Increased default font size for Setup GUI.
 - Added an optional residual-CR path to L.A.Cosmic-based cosmic-ray
   rejection, controlled by the new ``cr_median_width`` process
@@ -98,6 +154,13 @@ Functionality/Performance Improvements and Additions
 - Adds ability to select the specific archive of standard stars to use when
   searching for a match to an observed standard.  This is particularly import
   for LBT/MODS.
+- Instrument support for the quicklook viewer (``pypeit_qlview``) is now
+  defined by new ``qlview_*`` hooks of the
+  :class:`~pypeit.spectrographs.spectrograph.Spectrograph` classes; set
+  ``qlview_supported = True`` to offer a spectrograph in the viewer.  Keck/DEIMOS,
+  Keck/LRIS red (Mark4 detector), and Keck/MOSFIRE are currently supported.  The viewer's remote HTTP API
+  identifies instruments by their PypeIt spectrograph name (e.g.,
+  ``keck_deimos``).
 - Added the ``[collate1d] outfile_from`` parameter, which chooses how coadded
   output files are named: ``'coord'`` (the previous behavior, from the object
   sky coordinate) or ``'maskdef_objname'`` (the catalog target name from the
@@ -167,6 +230,12 @@ Functionality/Performance Improvements and Additions
   points processed at a time by the chunked 2D polynomial fits and
   evaluations above.  It trades peak memory for speed and does not change the
   results beyond round-off.
+- The vectorized boxcar pre-extraction of the ``Fiber`` pypeline
+  (``FiberFindObjects._preextract_fibers``) now handles a different aperture
+  radius for each fiber, so it is used for the Binospec IFU instead of
+  falling back to the per-fiber loop (Issue #2222).  Pre-extraction of a
+  Binospec IFU detector is ~10x faster (about 70 s to 8 s) and its results
+  are unchanged.
 
 Instrument-specific Updates
 ---------------------------
@@ -322,7 +391,14 @@ Script Changes
   spec1d files.  Combines both detector sides and produces FITS datacubes
   with 3-axis WCS.
 
+- Added the ``--show_wave_rms`` option to ``pypeit_show_2dspec``, which shows the
+  RMS (in pixels) of the wavelength solution for the slit under the cursor; see
+  :ref:`pypeit_show_2dspec`.
 - Removed -G/--gui option from pypeit_obslog.
+
+- Fixed the ``pypeit_install_ql_calibs`` entry point, which pointed to a
+  non-existent module, and removed the ``pypeit_ql_multislit`` entry point,
+  whose module was removed when the script was deprecated in version 1.13.0.
 
 - Added ``pypeit_binospec_ifu_extract`` for interactive selection of
   Binospec IFU fibers and extraction of combined 1D spectra from spec1d
@@ -450,6 +526,11 @@ Under-the-hood Improvements
 Bug Fixes
 ---------
 
+- :func:`~pypeit.core.moment.moment1d` no longer truncates the wider apertures
+  when called with an array of different widths; its integration window was
+  sized by the narrowest aperture (Issues #2158, #2222).  Calls with a single
+  width, or with widths that span no more than one additional pixel, are
+  unchanged.
 - Fixed a bug in :func:`~pypeit.exposure.reduce_exposure` where a detector
   whose calibrations failed was removed from the detector list *while that list
   was being iterated*, causing the following detector to be skipped silently
@@ -460,6 +541,19 @@ Bug Fixes
   attribute set by ``__init__``; because :mod:`pickle` builds an instance
   without calling ``__init__`` and then probes it for ``__setstate__``, the
   lookup re-entered ``__getattr__`` indefinitely.
+- MMT Binospec: the ``ra``/``dec`` metadata now come from the catalog
+  ``CATRA``/``CATDEC`` header cards instead of ``RA``/``DEC``, which give the
+  instrument rotator axis and are offset from the target by the instrument
+  offset (``IAZOFF``/``IELOFF``, ~594 arcsec for the IFU and ~337 arcsec for
+  the long slits).  Decimal ``CATRA`` values in older headers are now read as
+  hours, not degrees.  For the IFU, the datacube and fiber-extraction WCS no
+  longer read the decimal-degree ``RA`` of spec1d/spec2d headers as hours, and
+  ``POSANG`` is now propagated to those headers so the WCS is correctly
+  rotated.  IFU combination groups are still built from the rotator-axis
+  pointing, now recorded as the ``ra_off``/``dec_off`` offset from the target,
+  so dithers made with the instrument offset (which leave
+  ``CATRA``/``CATDEC`` unchanged) still separate.
+
 - Make reductions reproducible run to run (Issue #2208).
   :func:`~pypeit.core.pca.pca_decomposition` now uses the exact
   (``svd_solver='full'``) SVD solver.  With sklearn's default (``'auto'``), the
@@ -539,6 +633,23 @@ Bug Fixes
   populates its own portion of the shared ``*_state.json``.
 - Fixes a bug in :class:`~pypeit.bspline.bspline.bspline` which was not
   correctly setting ``xmin`` and ``xmax`` when using the ``x2`` option.
+- MMT Binospec IFU: fix mirrored fiber identification on side B (DET02)
+  (Issue #2220).  The side-B fiber reference profile (from the IDL pipeline)
+  is stored in a frame that is spatially mirrored relative to PypeIt's DET02
+  image and is now mirrored onto that frame when loaded.  Previously every
+  side-B fiber was assigned the name and ID of its mirror partner, so fibers
+  B122, B162, B242, and B294 appeared to be missing (they were labeled as
+  B199, B159, B79, and B27).  The truly dead fibers are now correctly
+  identified as B27, B79, B159, and B199, and side-B reference fiber positions
+  agree with observed flat-field traces to ~0.3 pixel rms (previously ~1 pixel,
+  up to 2.8 pixels).  Science-fiber sky positions were already correct and
+  are now assigned by fiber name.  Side-B calibrations and spec1d files must
+  be regenerated to pick up the corrected fiber IDs.
+- Fiber pypeline: the boxcar aperture of a fiber at the end of a block-slit
+  whose neighbor is a dead fiber is no longer doubled in width; it now uses
+  the block's median fiber spacing across the dead fiber's slot.  This
+  affected three side-B Binospec IFU fibers (B80, B160, and B200), whose
+  boxcar extractions also picked up the dead fiber's slot.
 - MMT/Binospec: flat/trace/illumflat frame typing now requires the
   incandescent lamp to be on (``INCAN`` = ``on``), preventing dark/noisy
   ``INCAN`` = ``off`` exposures from being combined into pixel and trace flats.
@@ -589,6 +700,19 @@ Bug Fixes
   reference point (``CRVAL``) rather than the sky position of the source
   actually used for the extraction (the fitted or manually-specified
   position). Affects any SlicerIFU-pypeline point-source extraction.
+- Fixed ``pypeit_extract_datacube`` failing on datacubes written at the
+  native sampling of the spectrograph (``save_native = True``).  These cubes
+  take their WCS from the CD matrix built by the spectrograph ``get_wcs``
+  method, which is written as ``PCi_j`` with ``CDELTi = 1``.
+  :func:`~pypeit.core.datacube.extract_point_source` read the spaxel size and
+  wavelength step from ``CDELT`` alone, so it took the spaxels to be 1 degree
+  across: the point source was not detected ("No sources found"), and any
+  forced extraction gave counts too large by a factor of ~10\ :sup:`18`.  The
+  pixel scales are now computed from the full linear transformation of the
+  WCS.  The same fix applies to the spaxel size taken from a
+  ``reference_image`` by :func:`~pypeit.core.datacube.create_wcs`.  Affects
+  native cubes from all SlicerIFU spectrographs (Keck/KCWI, Keck/KCRM,
+  Gemini/GNIRS and GTC/MAAT).
 - Fix a memory leak on Python 3.13 and later: the
   ``inspect.getargvalues(inspect.currentframe())`` idiom used by many
   ``__init__`` methods to collect their arguments created a reference cycle
@@ -599,3 +723,18 @@ Bug Fixes
 - ``BSpline2D.fit`` now rebuilds its cached design matrix when ``npoly``,
   ``xmin`` or ``xmax`` change between calls with the same ``x`` and
   ``basis_x``; previously it reused the matrix built with the old basis.
+- Keck/LRIS blue (``keck_lris_blue_orig``, data taken before May 2009): fixed
+  :func:`~pypeit.spectrographs.keck_lris.KeckLRISBOrigSpectrograph.get_rawimage`,
+  which attached the detector parameters of the other detector to the data it
+  read (since version 1.1.0).  The gains and read noise of detector 2 (1.63,
+  1.70 e-/ADU; 3.6 e-) were applied to detector 1 and vice versa, so counts in
+  electrons were wrong by 5-9%, the noise model was wrong, and the two
+  amplifiers of each detector were mismatched by about 4%, which the pixel flat
+  did not fully remove near the amplifier boundary.  The outputs of detector 1
+  were also labelled ``DET02`` (and vice versa), so science objects were traced
+  using the standard-star trace of the other detector when both detectors were
+  reduced (and without it when only one was).  Calibration files were
+  named after the correct detector, but the spec2d extensions and spec1d object
+  names were not: they now change (``DET01`` <-> ``DET02``), so coadd1d or
+  fluxing files that list the spec1d objects of existing reductions need the
+  new names.
