@@ -317,9 +317,30 @@ def get_wave_grid(waves=None, gpms=None, wave_method='linear', iref=0, wave_grid
     return wave_grid, wave_grid_mid, dsamp
 
 
+def med_width_kwargs(par):
+    """
+    Keyword arguments of :func:`~pypeit.core.arc.detect_lines` that set the
+    median-width floor, from the wavelength-solution parameters.
+
+    Args:
+        par (:class:`~pypeit.par.pypeitpar.WavelengthSolutionPar`, None):
+            Wavelength-solution parameters.  If None, an empty dictionary is
+            returned, so that the defaults of
+            :func:`~pypeit.core.arc.detect_lines` apply.
+
+    Returns:
+        :obj:`dict`: ``min_frac_med_width`` and ``min_nlines_med_width``.
+    """
+    if par is None:
+        return {}
+    return dict(min_frac_med_width=par['min_frac_med_width'],
+                min_nlines_med_width=par['min_nlines_med_width'])
+
+
 def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,
                         fit_frac_fwhm = 1.25, cont_frac_fwhm=1.0,max_frac_fwhm=2.0,
-                        cont_samp=30, niter_cont=3,nonlinear_counts=1e10, debug=False):
+                        cont_samp=30, niter_cont=3,nonlinear_counts=1e10, min_frac_med_width=0.5,
+                        min_nlines_med_width=5, debug=False):
     """
     Simple wrapper to arc.detect_lines.
     See that code for docs
@@ -335,6 +356,12 @@ def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,
         niter_cont:
         nonlinear_counts (float, optional):
             Counts where the arc is presumed to go non-linear
+        min_frac_med_width (float, optional):
+            Minimum Gaussian sigma of a line, as a fraction of the median
+            sigma of the lines; see :func:`~pypeit.core.arc.detect_lines`.
+        min_nlines_med_width (int, optional):
+            Minimum number of lines for the ``min_frac_med_width`` cut to be
+            applied; see :func:`~pypeit.core.arc.detect_lines`.
         debug:
 
     Returns:
@@ -348,6 +375,7 @@ def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,
         spec, sigdetect = sigdetect, fwhm=fwhm, fit_frac_fwhm=fit_frac_fwhm,
         cont_frac_fwhm=cont_frac_fwhm, max_frac_fwhm=max_frac_fwhm,
         cont_samp=cont_samp,niter_cont = niter_cont, nonlinear_counts = nonlinear_counts,
+        min_frac_med_width=min_frac_med_width, min_nlines_med_width=min_nlines_med_width,
         debug=debug)
     all_tcent = tcent[w]
     all_ecent = centerr[w]

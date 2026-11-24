@@ -3231,7 +3231,7 @@ class WavelengthSolutionPar(ParSet):
     def __init__(self, reference=None, method=None, echelle=None, ech_nspec_coeff=None, ech_norder_coeff=None,
                  ech_sigrej=None, lamps=None, lamps_wvrng=None, bad_orders_maxfrac=None, frac_rms_thresh=None,
                  sigdetect=None, fwhm=None, fwhm_fromlines=None, fwhm_spat_order=None, fwhm_spec_order=None,
-                 reid_arxiv=None, nreid_min=None, reid_cont_sub=None, cc_shift_range=None, cc_thresh=None,
+                 min_frac_med_width=None, min_nlines_med_width=None, reid_arxiv=None, nreid_min=None, reid_cont_sub=None, cc_shift_range=None, cc_thresh=None,
                  cc_local_thresh=None, nlocal_cc=None, rms_thresh_frac_fwhm=None, match_toler=None, func=None,
                  n_first=None, n_final=None, sigrej_first=None, sigrej_final=None, numsearch=None,
                  nfitpix=None, boxcar_radius=None, refframe=None,
@@ -3399,6 +3399,21 @@ class WavelengthSolutionPar(ParSet):
         dtypes['fwhm_spec_order'] = int
         descr['fwhm_spec_order'] = 'This parameter determines the spectral polynomial order to use in the ' \
                                    '2D polynomial fit to the FWHM of the arc lines. See also, fwhm_spat_order.'
+
+        defaults['min_frac_med_width'] = 0.5
+        dtypes['min_frac_med_width'] = [int, float]
+        descr['min_frac_med_width'] = 'Reject detected arc lines whose Gaussian sigma is less than this ' \
+                                      'fraction of the median sigma of the lines detected in the same ' \
+                                      'spectrum.  Arc lines share the instrumental profile, so much ' \
+                                      'narrower features (single hot pixels, cosmic rays, noise spikes) ' \
+                                      'are not arc lines.  Applies to the line detection of the ' \
+                                      'wavelength calibration and of the tilts.  Set to 0 to disable ' \
+                                      'the cut.  See also, min_nlines_med_width.'
+
+        defaults['min_nlines_med_width'] = 5
+        dtypes['min_nlines_med_width'] = int
+        descr['min_nlines_med_width'] = 'The min_frac_med_width cut is applied only to spectra in which at ' \
+                                        'least this many lines pass the other line-detection criteria.'
 
         # These are the parameters used for reidentification
         defaults['reid_arxiv'] = None
@@ -3627,7 +3642,7 @@ class WavelengthSolutionPar(ParSet):
         parkeys = ['reference', 'method', 'echelle', 'ech_nspec_coeff', 'ech_2dfit',
                    'ech_norder_coeff', 'ech_sigrej', 'ech_separate_2d', 'bad_orders_maxfrac', 'frac_rms_thresh',
                    'lamps', 'lamps_wvrng', 'sigdetect', 'fwhm', 'fwhm_fromlines', 'fwhm_spat_order', 'fwhm_spec_order',
-                   'reid_arxiv', 'nreid_min', 'reid_cont_sub', 'cc_shift_range', 'cc_thresh', 'cc_local_thresh',
+                   'min_frac_med_width', 'min_nlines_med_width', 'reid_arxiv', 'nreid_min', 'reid_cont_sub', 'cc_shift_range', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_thresh_frac_fwhm', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix', 'boxcar_radius',
                    'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 'reference_slit',
@@ -3686,7 +3701,10 @@ class WavelengthSolutionPar(ParSet):
         return ['linear', 'quadratic']
 
     def validate(self):
-        pass
+        if self.data['min_frac_med_width'] < 0:
+            raise ValueError('min_frac_med_width must be >= 0.')
+        if self.data['min_nlines_med_width'] < 1:
+            raise ValueError('min_nlines_med_width must be >= 1.')
 
 
 class EdgeTracePar(ParSet):

@@ -26,7 +26,7 @@ from pypeit.display import display
 from pypeit.core import arc
 from pypeit.core import fitting
 from pypeit.core import tracewave
-from pypeit.core.wavecal import autoid
+from pypeit.core.wavecal import autoid, wvutils
 from pypeit.images import buildimage
 from pypeit.qa import arc_tilts_2d_qa, arc_tilts_spat_qa, arc_tilts_spec_qa
 
@@ -461,7 +461,8 @@ class BuildWaveTilts:
                                              only_these_lines=only_these_lines,
                                              fwhm=fwhm,
                                              nonlinear_counts=self.nonlinear_counts,
-                                             bpm=bpm, debug_peaks=False, debug_lines=debug)
+                                             bpm=bpm, debug_peaks=False, debug_lines=debug,
+                                             **wvutils.med_width_kwargs(self.wavepar))
 
         if debug:
             mean, median, stddev = stats.sigma_clipped_stats(self.mstilt.image, sigma=3.)

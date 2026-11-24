@@ -637,7 +637,8 @@ class BuildWaveCalib:
         # TODO nsample should be a parameter
         fwhm_map = autoid.map_fwhm(self.msarc.image, self.gpm, self.slits_left, self.slits_right, self.slitmask,
                                    nsample=10, slit_bpm=self.wvc_bpm, specord=self.par['fwhm_spec_order'],
-                                   spatord=self.par['fwhm_spat_order'])
+                                   spatord=self.par['fwhm_spat_order'],
+                                   **wvutils.med_width_kwargs(self.par))
         # Calculate the typical spectral FWHM down the centre of the slit
         measured_fwhms = np.zeros(arccen.shape[1], dtype=object)
         for islit in range(arccen.shape[1]):
@@ -907,7 +908,7 @@ class BuildWaveCalib:
                 match_toler=self.par['match_toler'], 
                 nonlinear_counts=self.nonlinear_counts, 
                 sigdetect=wvutils.parse_param(self.par, 'sigdetect', iord),
-                fwhm=fwhm)
+                fwhm=fwhm, **wvutils.med_width_kwargs(self.par))
 
                 if not patt_dict_slit['acceptable']:
                     log.warning(f"Order {order} is still not acceptable after attempt to reidentify.")

@@ -24,23 +24,6 @@ from pypeit.core.plot import pyplot_rcparams, pyplot_rcparams_default
 from IPython import embed
 
 
-ARCFIT_MIN_FRAC_MED_WIDTH = 0.5
-"""
-Default lower bound on the Gaussian sigma of the lines accepted by
-:func:`detect_lines`, as a fraction of the median sigma of the lines in the
-same spectrum that pass all other cuts.  Arc lines share the instrumental
-profile, so features much narrower than the typical line (single hot pixels,
-cosmic rays, noise spikes) are not arc lines.  See the ``min_frac_med_width``
-argument of :func:`detect_lines`.
-"""
-
-ARCFIT_MIN_NLINES_MED_WIDTH = 5
-"""
-Minimum number of lines passing the other cuts of :func:`detect_lines` for the
-median-width floor (:data:`ARCFIT_MIN_FRAC_MED_WIDTH`) to be applied.
-"""
-
-
 def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigrej=3.0, func2d='legendre2d', debug=False):
     """Routine to obtain the 2D wavelength solution for an echelle spectrograph. 
     This is calculated from the spec direction pixel-centroid and the order number 
@@ -886,8 +869,8 @@ def iter_continuum(spec, gpm=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_
 def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thresh=None,
                  cont_subtract=True, cont_frac_fwhm=1.0, max_frac_fwhm=3.0,
                  min_pkdist_frac_fwhm=0.75, cont_samp=30, nonlinear_counts=1e10, niter_cont=3,
-                 nfind=None, bpm=None, min_frac_med_width=None, verbose=False, debug=False,
-                 debug_peak_find=False, debug_cont=False):
+                 nfind=None, bpm=None, min_frac_med_width=0.5, min_nlines_med_width=5,
+                 verbose=False, debug=False, debug_peak_find=False, debug_cont=False):
     """
     Identify peaks in an input arc spectrum that satisfy a series of criteria:
 
@@ -973,13 +956,21 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
         Bad-pixel mask for input spectrum. If None, all pixels
         considered good. If passed in shape must match that of censpec
 
-    min_frac_med_width: float, optional
+    min_frac_med_width: float, default = 0.5, optional
        Minimum Gaussian sigma of a usable line, as a fraction of the median
        sigma of the lines that pass all other criteria.  Lines narrower than
-       this are rejected.  The cut is only applied if at least
-       :data:`ARCFIT_MIN_NLINES_MED_WIDTH` lines pass the other criteria.  If
-       None, :data:`ARCFIT_MIN_FRAC_MED_WIDTH` is used.  Set to 0 to disable
-       the cut, e.g. for peaks that are not arc lines.
+       this are rejected: arc lines share the instrumental profile, so much
+       narrower features (single hot pixels, cosmic rays, noise spikes) are
+       not arc lines.  Set to 0 to disable the cut, e.g. for peaks that are
+       not arc lines.  For the wavelength calibration and the tilts, this is
+       set by the ``min_frac_med_width`` parameter of
+       :class:`~pypeit.par.pypeitpar.WavelengthSolutionPar`.
+
+    min_nlines_med_width: int, default = 5, optional
+       The ``min_frac_med_width`` cut is only applied if at least this many
+       lines pass the other criteria.  For the wavelength calibration and the
+       tilts, this is set by the ``min_nlines_med_width`` parameter of
+       :class:`~pypeit.par.pypeitpar.WavelengthSolutionPar`.
 
     verbose: bool, default = False
        Output more stuff to the screen.
@@ -1084,9 +1075,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
                 & (tcent < xrng[-1]) & (tampl_true < nonlinear_counts) \
                 & (np.abs(tcent-pixt) < fwhm*0.75)
     # Reject features much narrower than the typical line in this spectrum
-    if min_frac_med_width is None:
-        min_frac_med_width = ARCFIT_MIN_FRAC_MED_WIDTH
-    if min_frac_med_width > 0 and np.sum(good) >= ARCFIT_MIN_NLINES_MED_WIDTH:
+    if min_frac_med_width > 0 and np.sum(good) >= min_nlines_med_width:
         good &= twid > min_frac_med_width * np.median(twid[good])
     # Get the indices of the good measurements
     ww = np.where(good)[0]

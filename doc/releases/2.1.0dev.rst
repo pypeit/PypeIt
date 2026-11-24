@@ -37,7 +37,9 @@ Functionality/Performance Improvements and Additions
   Gaussian sigma is less than half the median sigma of the lines in the same
   spectrum (single hot pixels, cosmic rays, noise spikes).  This changes the
   detected arc lines slightly (about 2%, mostly in echelle data) and can change the line
-  identifications of the wavelength calibration.  See "Under-the-hood
+  identifications of the wavelength calibration.  The cut is controlled by
+  the new ``[calibrations][wavelengths] min_frac_med_width`` (0 disables it)
+  and ``min_nlines_med_width`` parameters.  See "Under-the-hood
   Improvements".
 - The spectral flexure correction is faster: the FWHM of the archived sky
   spectrum is now measured once per sky file instead of once per slit/object
@@ -377,15 +379,21 @@ Under-the-hood Improvements
   backend), and buffer their log records and Python warnings, which the parent
   replays grouped in detector order so that each detector's block stays
   contiguous in the run log.
-- :func:`~pypeit.core.arc.detect_lines` has a new ``min_frac_med_width``
-  argument.  By default it rejects lines whose Gaussian sigma is less than
-  :data:`~pypeit.core.arc.ARCFIT_MIN_FRAC_MED_WIDTH` (0.5) times the median
+- :func:`~pypeit.core.arc.detect_lines` has new ``min_frac_med_width`` and
+  ``min_nlines_med_width`` arguments.  By default it rejects lines whose
+  Gaussian sigma is less than ``min_frac_med_width`` (0.5) times the median
   sigma of the lines in the same spectrum that pass the other cuts.  Arc
   lines share the instrumental profile, so such features (single hot pixels,
   cosmic rays, noise spikes) are not arc lines; previously there was no lower
   bound on the width, and they were kept whenever ``curve_fit`` converged on
-  them.  The cut is skipped for spectra with fewer than five lines, and is
-  disabled for the callers whose peaks are not arc or sky lines (slit edges,
+  them.  The cut is skipped for spectra with fewer than
+  ``min_nlines_med_width`` (5) lines.  For the wavelength calibration and the
+  tilts, both are set by the new ``[calibrations][wavelengths]
+  min_frac_med_width`` and ``min_nlines_med_width`` parameters
+  (:class:`~pypeit.par.pypeitpar.WavelengthSolutionPar`) and are passed
+  explicitly through :mod:`~pypeit.core.wavecal.autoid` and
+  :func:`~pypeit.core.tracewave.tilts_find_lines`; other callers use the
+  defaults.  The cut is disabled for the callers whose peaks are not arc or sky lines (slit edges,
   object profiles and cross-correlation peaks) and for the synthetic arc
   spectra used for the cross-correlations of the wavelength calibration
   (:func:`~pypeit.core.wavecal.wvutils.get_xcorr_arc`), to which the

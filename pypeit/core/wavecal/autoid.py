@@ -367,7 +367,8 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
                cc_shift_range=None, cc_thresh=0.8, cc_local_thresh=0.8,
                match_toler=2.0, nlocal_cc=11, nonlinear_counts=1e10,
                sigdetect=5.0, fwhm=4.0, percent_ceil=50, max_lag_frac=1.0,
-               debug_xcorr=False, debug_reid=False, debug_peaks = False, stretch_func = 'linear'):
+               debug_xcorr=False, debug_reid=False, debug_peaks = False, stretch_func = 'linear',
+               min_frac_med_width=0.5, min_nlines_med_width=5):
     """ Determine  a wavelength solution for a set of spectra based on archival wavelength solutions
 
     Parameters
@@ -456,7 +457,15 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
         Fraction of the total spectral pixels used to determine the range of lags
         to search over.  The range of lags will be [-nspec*max_lag_frac +1, nspec*max_lag_frac].
 
-        
+    min_frac_med_width : float, default = 0.5
+        Minimum Gaussian sigma of a detected line, as a fraction of the median
+        sigma of the lines in the same spectrum; see
+        :func:`~pypeit.core.arc.detect_lines`.
+
+    min_nlines_med_width : int, default = 5
+        Minimum number of lines for the ``min_frac_med_width`` cut to be
+        applied; see :func:`~pypeit.core.arc.detect_lines`.
+
     Returns
     -------
     (detections, spec_cont_sub, patt_dict)
@@ -525,7 +534,9 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
     use_spec = spec
     # Continuum subtract the arc spectrum
     tcent, ecent, cut_tcent, icut, spec_cont_sub = wvutils.arc_lines_from_spec(
-        spec, sigdetect=sigdetect, nonlinear_counts=nonlinear_counts, fwhm=fwhm, debug=debug_peaks)
+        spec, sigdetect=sigdetect, nonlinear_counts=nonlinear_counts, fwhm=fwhm,
+        min_frac_med_width=min_frac_med_width, min_nlines_med_width=min_nlines_med_width,
+        debug=debug_peaks)
     # If the detections were not passed in measure them
     if detections is None:
         detections = tcent[icut]
@@ -540,6 +551,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
     for iarxiv in range(narxiv):
         tcent_arxiv, ecent_arxiv, cut_tcent_arxiv, icut_arxiv, spec_cont_sub_now = wvutils.arc_lines_from_spec(
             spec_arxiv[:, iarxiv], sigdetect=sigdetect, nonlinear_counts=nonlinear_counts, fwhm=fwhm,
+            min_frac_med_width=min_frac_med_width, min_nlines_med_width=min_nlines_med_width,
             debug=debug_peaks)
         spec_arxiv_cont_sub[:, iarxiv] = spec_cont_sub_now
         det_arxiv1[str(iarxiv)] = tcent_arxiv[icut_arxiv]
@@ -717,7 +729,8 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
 def match_to_arxiv(lamps:list, spec:np.ndarray, wv_guess:np.ndarray,
                    spec_arxiv:np.ndarray, wave_arxiv:np.ndarray, nreid_min:int,
                    match_toler=2.0, nonlinear_counts=1e10, sigdetect=5.0, fwhm=4.0,
-                   debug_peaks:bool=False, use_unknowns:bool=False):
+                   debug_peaks:bool=False, use_unknowns:bool=False,
+                   min_frac_med_width=0.5, min_nlines_med_width=5):
     """
     Algorithm to match an input arc spectrum to an archival arc spectrum using a
     set wavelength guess for the input.  This is an alternative to
@@ -765,6 +778,13 @@ def match_to_arxiv(lamps:list, spec:np.ndarray, wv_guess:np.ndarray,
         use_unknowns (bool, optional):
             If True, use the unknowns in the solution (not recommended).
             Defaults to False.
+        min_frac_med_width (float, optional):
+            Minimum Gaussian sigma of a detected line, as a fraction of the
+            median sigma of the lines in the same spectrum; see
+            :func:`~pypeit.core.arc.detect_lines`.  Defaults to 0.5.
+        min_nlines_med_width (int, optional):
+            Minimum number of lines for the ``min_frac_med_width`` cut to be
+            applied; see :func:`~pypeit.core.arc.detect_lines`.  Defaults to 5.
 
     Returns:
         tuple: tcent (np.ndarray; centroid of lines), spec_cont_sub (np.ndarray;
@@ -783,7 +803,8 @@ def match_to_arxiv(lamps:list, spec:np.ndarray, wv_guess:np.ndarray,
     tcent, ecent, cut_tcent, icut, spec_cont_sub = wvutils.arc_lines_from_spec(
         spec, sigdetect=sigdetect,
         nonlinear_counts=nonlinear_counts,
-        fwhm=fwhm, debug=debug_peaks)
+        fwhm=fwhm, min_frac_med_width=min_frac_med_width,
+        min_nlines_med_width=min_nlines_med_width, debug=debug_peaks)
     # If there are no lines in the input arc, return
     if tcent.size == 0:
         return None, None, patterns.empty_patt_dict(tcent.size), None
@@ -791,7 +812,8 @@ def match_to_arxiv(lamps:list, spec:np.ndarray, wv_guess:np.ndarray,
     # Search for lines in the arxiv arc
     tcent_arxiv, ecent_arxiv, cut_tcent_arxiv, icut_arxiv, spec_cont_sub_now = wvutils.arc_lines_from_spec(
             spec_arxiv, sigdetect=sigdetect,
-            nonlinear_counts=nonlinear_counts, fwhm=fwhm, debug=debug_peaks)
+            nonlinear_counts=nonlinear_counts, fwhm=fwhm, min_frac_med_width=min_frac_med_width,
+            min_nlines_med_width=min_nlines_med_width, debug=debug_peaks)
     # If there are no lines in the arxiv arc, return
     if tcent_arxiv.size == 0:
         return None, None, patterns.empty_patt_dict(tcent_arxiv.size), None
@@ -853,7 +875,8 @@ def match_to_arxiv(lamps:list, spec:np.ndarray, wv_guess:np.ndarray,
 
 
 def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample=None, sigdetect=10., specord=1,
-             spatord=0, fwhm=5., box_rad=3.0, slit_bpm=None):
+             spatord=0, fwhm=5., box_rad=3.0, slit_bpm=None, min_frac_med_width=0.5,
+             min_nlines_med_width=5):
     """
     Map the spectral FWHM at all spectral and spatial locations of all slits, using an input image (usually an arc)
 
@@ -892,6 +915,13 @@ def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample
         slit_bpm (`numpy.ndarray`_, bool, optional):
             Bad pixel mask for the slits. True = bad. Shape must be (nslits,). Arc
             spectra are filled with np.nan for masked slits.
+        min_frac_med_width (:obj:`float`, optional):
+            Minimum Gaussian sigma of a detected line, as a fraction of the
+            median sigma of the lines in the same spectrum; see
+            :func:`~pypeit.core.arc.detect_lines`.  Defaults to 0.5.
+        min_nlines_med_width (:obj:`int`, optional):
+            Minimum number of lines for the ``min_frac_med_width`` cut to be
+            applied; see :func:`~pypeit.core.arc.detect_lines`.  Defaults to 5.
 
     Returns:
         `numpy.ndarray`_: Numpy array of PypeItFit objects that provide the
@@ -927,7 +957,9 @@ def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample
                 log.warning('Failed to extract the arc at fractional location {0:.2f} along slit {1:d}'.format(slitsamp[ss], sl+1))
                 continue
             # Detect lines and store the spectral FWHM
-            _, _, cent, wdth, _, best, _, nsig = arc.detect_lines(arc_spec.squeeze(), sigdetect=sigdetect, fwhm=fwhm, bpm=arc_spec_bpm.squeeze())
+            _, _, cent, wdth, _, best, _, nsig = arc.detect_lines(
+                arc_spec.squeeze(), sigdetect=sigdetect, fwhm=fwhm, bpm=arc_spec_bpm.squeeze(),
+                min_frac_med_width=min_frac_med_width, min_nlines_med_width=min_nlines_med_width)
             this_cent = np.append(this_cent, cent[best])
             this_fwhm = np.append(this_fwhm, scale*wdth[best])  # Scale convert sig to spectral FWHM
             this_samp = np.append(this_samp, slitsamp[ss]*np.ones(wdth[best].size))
@@ -938,7 +970,7 @@ def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample
     return np.array(resmap)
 
 
-def measure_fwhm(spec, sigdetect=10., fwhm=5.):
+def measure_fwhm(spec, sigdetect=10., fwhm=5., min_frac_med_width=0.5, min_nlines_med_width=5):
     """
     Measure the arc lines FWHM, i.e, approximate spectral resolution
 
@@ -951,6 +983,13 @@ def measure_fwhm(spec, sigdetect=10., fwhm=5.):
         fwhm (:obj:`float`, optional):
             Number of pixels per fwhm resolution element.
             Used by :func:`pypeit.core.arc.detect_lines`.
+        min_frac_med_width (:obj:`float`, optional):
+            Minimum Gaussian sigma of a line, as a fraction of the median
+            sigma of the lines in the spectrum; see
+            :func:`~pypeit.core.arc.detect_lines`.
+        min_nlines_med_width (:obj:`int`, optional):
+            Minimum number of lines for the ``min_frac_med_width`` cut to be
+            applied; see :func:`~pypeit.core.arc.detect_lines`.
 
     Returns:
         :obj:`float`: Measured arc lines FWHM in binned pixels of the input arc image
@@ -958,7 +997,9 @@ def measure_fwhm(spec, sigdetect=10., fwhm=5.):
 
     # Determine the lines FWHM, i.e, approximate spectral resolution
     #  This may only be recorded and not used by the algorithms
-    _, _, _, wdth, _, best, _, nsig = arc.detect_lines(spec, sigdetect=sigdetect, fwhm=fwhm)
+    _, _, _, wdth, _, best, _, nsig = arc.detect_lines(spec, sigdetect=sigdetect, fwhm=fwhm,
+                                                       min_frac_med_width=min_frac_med_width,
+                                                       min_nlines_med_width=min_nlines_med_width)
     # 1sigma Gaussian widths of the line detections
     wdth = wdth[best]
     # significance of each line detected
@@ -1279,6 +1320,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
                                                               nonlinear_counts=nonlinear_counts,
                                                               debug_reid=debug_reid,  # verbose=True,
                                                               match_toler=par['match_toler'],
+                                                              **wvutils.med_width_kwargs(par),
                                                               percent_ceil=x_percentile,
                                                               cc_shift_range=par['cc_shift_range'],
                                                               cc_thresh=0.1, fwhm=fwhm,
@@ -1458,6 +1500,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
             cc_thresh=cc_thresh, cc_local_thresh=par['cc_local_thresh'], nlocal_cc=par['nlocal_cc'],
             nonlinear_counts=nonlinear_counts, sigdetect=sigdetect, fwhm=fwhm,
             percent_ceil=par['cc_percent_ceil'], max_lag_frac=par['cc_offset_minmax'],
+            **wvutils.med_width_kwargs(par),
             debug_peaks=(debug_peaks or debug_all),
             debug_xcorr=(debug_xcorr or debug_all),
             debug_reid=(debug_reid or debug_all), stretch_func=par['stretch_func'])
@@ -1777,7 +1820,8 @@ class ArchiveReid:
                            cc_shift_range=self.par['cc_shift_range'], cc_local_thresh=self.cc_local_thresh,
                            nlocal_cc=self.nlocal_cc, nonlinear_counts=self.nonlinear_counts,
                            sigdetect=sigdetect, fwhm=fwhm, debug_peaks=self.debug_peaks, debug_xcorr=self.debug_xcorr,
-                           debug_reid=self.debug_reid, stretch_func=self.par['stretch_func'])
+                           debug_reid=self.debug_reid, stretch_func=self.par['stretch_func'],
+                           **wvutils.med_width_kwargs(self.par))
             # str for the reports below
             order_str = '' if orders is None else ', order={}'.format(orders[slit])
             # Check if an acceptable reidentification solution was found
@@ -2105,10 +2149,12 @@ class HolyGrail:
             rms_thresh = round(self._par['rms_thresh_frac_fwhm'] * fwhm, 3)
             self._all_tcent, self._all_ecent, self._cut_tcent, self._icut, _ =\
                 wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), sigdetect=sigdetect, fwhm=fwhm,
-                                            nonlinear_counts=self._nonlinear_counts)
+                                            nonlinear_counts=self._nonlinear_counts,
+                                            **wvutils.med_width_kwargs(self._par))
             self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak, _ =\
                 wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), sigdetect=sigdetect, fwhm=fwhm,
-                                            nonlinear_counts =self._nonlinear_counts)
+                                            nonlinear_counts =self._nonlinear_counts,
+                                            **wvutils.med_width_kwargs(self._par))
 
             # Were there enough lines?  This mainly deals with junk slits
             if self._all_tcent.size < min_nlines:
@@ -2217,10 +2263,12 @@ class HolyGrail:
             sigdetect = wvutils.parse_param(self._par, 'sigdetect', slit)
             self._all_tcent, self._all_ecent, self._cut_tcent, self._icut, _ =\
                 wvutils.arc_lines_from_spec(self._spec[:, slit], sigdetect=sigdetect, fwhm=fwhm,
-                                            nonlinear_counts=self._nonlinear_counts)
+                                            nonlinear_counts=self._nonlinear_counts,
+                                            **wvutils.med_width_kwargs(self._par))
             self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak, _ =\
                 wvutils.arc_lines_from_spec(self._spec[:, slit], sigdetect=sigdetect, fwhm=fwhm,
-                                            nonlinear_counts = self._nonlinear_counts)
+                                            nonlinear_counts = self._nonlinear_counts,
+                                            **wvutils.med_width_kwargs(self._par))
             if self._all_tcent.size == 0:
                 log.warning("No lines to identify in slit {0:d}!".format(slit+ 1))
                 continue

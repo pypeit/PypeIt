@@ -24,7 +24,8 @@ from pypeit.core.moment import moment1d
 def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sig_neigh=5.0, nfwhm_neigh=2.0,
                      only_these_lines=None, fwhm=4.0, nonlinear_counts=1e10, fit_frac_fwhm=1.25,
                      cont_frac_fwhm=1.0, max_frac_fwhm=2.0, cont_samp=30, niter_cont=3,
-                     bpm=None, debug_lines=False, debug_peaks=False):
+                     bpm=None, min_frac_med_width=0.5, min_nlines_med_width=5,
+                     debug_lines=False, debug_peaks=False):
     """
     I can't believe this method has no docs
 
@@ -44,6 +45,14 @@ def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sig_neigh=5.0, nfwhm_
         max_frac_fwhm:
         cont_samp:
         niter_cont:
+        bpm:
+        min_frac_med_width (:obj:`float`, optional):
+            Minimum Gaussian sigma of a detected line, as a fraction of the
+            median sigma of the lines in the spectrum; see
+            :func:`~pypeit.core.arc.detect_lines`.
+        min_nlines_med_width (:obj:`int`, optional):
+            Minimum number of lines for the ``min_frac_med_width`` cut to be
+            applied; see :func:`~pypeit.core.arc.detect_lines`.
         debug_lines:
         debug_peaks:
 
@@ -64,7 +73,8 @@ def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sig_neigh=5.0, nfwhm_
                            fit_frac_fwhm=fit_frac_fwhm, cont_frac_fwhm=cont_frac_fwhm,
                            max_frac_fwhm=max_frac_fwhm, cont_samp=cont_samp,
                            niter_cont=niter_cont, nonlinear_counts=nonlinear_counts,
-                           bpm=bpm, debug=debug_peaks)
+                           bpm=bpm, min_frac_med_width=min_frac_med_width,
+                           min_nlines_med_width=min_nlines_med_width, debug=debug_peaks)
 
     # Good lines
     arcdet = tcent_tot[wgood]

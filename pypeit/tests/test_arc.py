@@ -7,6 +7,8 @@ import numpy as np
 from pypeit.core import arc
 from pypeit.core import skyspec
 from pypeit.core.wavecal import wvutils
+from pypeit.core import tracewave
+from pypeit.par.pypeitpar import PypeItPar, WavelengthSolutionPar
 
 
 def test_detect_lines():
@@ -16,7 +18,7 @@ def test_detect_lines():
             = arc.detect_lines(arx_sky.flux)
     # The default rejects lines narrower than half the median width
     assert 3250 < len(arx_w) < 3350
-    assert np.all(arx_wid[arx_w] > arc.ARCFIT_MIN_FRAC_MED_WIDTH * np.median(arx_wid[arx_w]) * 0.9)
+    assert np.all(arx_wid[arx_w] > 0.5 * np.median(arx_wid[arx_w]) * 0.9)
     # Without the floor (previous behaviour)
     old = arc.detect_lines(arx_sky.flux, min_frac_med_width=0.)
     assert len(old[5]) > 3700
@@ -108,7 +110,7 @@ def test_detect_lines_rejects_narrow_features():
     _, _, cent, wid, _, good, _, _ = arc.detect_lines(y, fwhm=4.)
     assert np.all(_found(cent, good, cen))                 # every arc line is kept
     assert not np.any(_found(cent, good, spikes))           # no spike survives
-    assert np.all(wid[good] > arc.ARCFIT_MIN_FRAC_MED_WIDTH * np.median(wid[good]))
+    assert np.all(wid[good] > 0.5 * np.median(wid[good]))
 
     # Without the floor, most spikes are accepted (curve_fit fails on a few)
     _, _, cent, wid, _, good, _, _ = arc.detect_lines(y, fwhm=4., min_frac_med_width=0.)
@@ -125,7 +127,7 @@ def test_detect_lines_floor_needs_enough_lines():
     y += rng.normal(scale=1., size=x.size)
     _, _, cent, wid, _, good, _, _ = arc.detect_lines(y, fwhm=7., cont_subtract=False,
                                                       input_thresh=50.)
-    assert good.size < arc.ARCFIT_MIN_NLINES_MED_WIDTH
+    assert good.size < 5
     assert np.any(np.absolute(cent[good] - 220.) < 1.)
 
 
@@ -151,5 +153,35 @@ def test_get_xcorr_arc_no_floor(monkeypatch):
     monkeypatch.setattr(arc, 'detect_lines', _spy)
     wvutils.get_xcorr_arc(y, fwhm=4.)
     assert seen == [0.]
+
+def test_med_width_pars():
+    """The median-width floor is set by WavelengthSolutionPar."""
+    par = WavelengthSolutionPar()
+    assert par['min_frac_med_width'] == 0.5
+    assert par['min_nlines_med_width'] == 5
+    assert wvutils.med_width_kwargs(par) == dict(min_frac_med_width=0.5, min_nlines_med_width=5)
+    assert wvutils.med_width_kwargs(None) == {}
+    cfg = ['[calibrations]', '    [[wavelengths]]', '        min_frac_med_width = 0.',
+           '        min_nlines_med_width = 10']
+    par = PypeItPar.from_cfg_lines(merge_with=(cfg,))['calibrations']['wavelengths']
+    assert par['min_frac_med_width'] == 0.
+    assert par['min_nlines_med_width'] == 10
+    with pytest.raises(ValueError):
+        WavelengthSolutionPar(min_frac_med_width=-1.)
+    with pytest.raises(ValueError):
+        WavelengthSolutionPar(min_nlines_med_width=0)
+
+
+def test_tilts_find_lines_med_width():
+    """The tilt line detection applies the median-width floor it is given."""
+    y, cen, spikes = _arc_with_spikes()
+    slit_cen = np.full(y.size, 50.)
+    nspike = []
+    for frac in [0.5, 0.]:
+        lines_spec, _, good = tracewave.tilts_find_lines(y, slit_cen, tracethresh=5., fwhm=4.,
+                                                         min_frac_med_width=frac)
+        nspike.append(np.sum(_found(lines_spec, good, spikes)))
+    assert nspike[0] == 0
+    assert nspike[1] > 0
 
 # Many more functions in pypeit.core.arc that need tests!
