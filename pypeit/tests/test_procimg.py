@@ -6,10 +6,12 @@ import os
 from IPython import embed
 
 import numpy as np
+import pytest
 
 from astropy.convolution import convolve
 
 from pypeit.core import procimg
+from pypeit.pkg.exceptions import PypeItError
 from pypeit import utils
 
 def test_replace_columns():
@@ -75,6 +77,99 @@ def test_sub_overscan():
     assert np.array_equal(var_sub[datasec > 0],
                           np.full(np.sum(datasec > 0), np.pi/2/15, dtype=float)), \
             'Bad variance calculation'
+
+
+def _overscan_test_frame():
+    """Build a two-amplifier test frame with row-dependent overscan levels."""
+    datasec = np.zeros((10,10), dtype=int)
+    datasec[:5,:-3] = 1
+    datasec[5:,:-3] = 2
+
+    oscan = np.zeros((10,10), dtype=int)
+    oscan[:5,-3:] = 1
+    oscan[5:,-3:] = 2
+
+    level = np.arange(10, dtype=float)[:,None]
+    raw = np.zeros((10,10), dtype=float)
+    raw[datasec > 0] = (level + 1. + np.zeros((10,10)))[datasec > 0]
+    raw[oscan > 0] = (level + np.zeros((10,10)))[oscan > 0]
+    return raw, datasec, oscan
+
+
+def test_sub_overscan_undefined_median():
+    raw, datasec, oscan = _overscan_test_frame()
+    raw[datasec == 1] = 10.
+    raw[datasec == 2] = 20.
+    raw[oscan == 1] = 9.
+    raw[oscan == 2] = 19.
+    # A NaN in the overscan (e.g., a FITS BLANK pixel) should be ignored
+    raw[2,-1] = np.nan
+    # A pixel flagged by the bpm should be ignored, even if it is finite
+    bpm = np.zeros(raw.shape, dtype=bool)
+    raw[7,-1] = 1000.
+    bpm[7,-1] = True
+
+    var = np.ones((10,10), dtype=float)
+    raw_sub, var_sub = procimg.subtract_overscan(raw, datasec, oscan, method='median', var=var,
+                                                 bpm=bpm)
+    assert np.array_equal(raw_sub[datasec > 0], np.ones(np.sum(datasec > 0), dtype=float)), \
+            'Masked overscan pixels should not affect the overscan subtraction'
+    # Each amplifier has 14 good overscan pixels
+    assert np.allclose(var_sub[datasec > 0], np.pi/2/14), 'Bad variance calculation'
+
+
+def test_sub_overscan_undefined_rows():
+    raw, datasec, oscan = _overscan_test_frame()
+    # Overscan-subtracted data should be all ones
+    expected = np.ones(np.sum(datasec > 0), dtype=float)
+    _raw = raw.copy()
+    # One undefined overscan pixel
+    _raw[1,-2] = np.nan
+    # An entire overscan row that is undefined; its level is interpolated from
+    # the adjacent rows
+    _raw[6,-3:] = np.nan
+    for method, params in zip(['savgol', 'chebyshev'], [[1, 3], [1]]):
+        raw_sub, var_sub = procimg.subtract_overscan(_raw, datasec, oscan, method=method,
+                                                     params=params,
+                                                     var=np.ones(raw.shape, dtype=float))
+        assert np.all(np.isfinite(raw_sub[datasec > 0])) \
+                and np.all(np.isfinite(var_sub[datasec > 0])), \
+                f'Undefined overscan pixels should not propagate ({method})'
+        assert np.allclose(raw_sub[datasec > 0], expected), \
+                f'Bad overscan subtraction with undefined pixels ({method})'
+
+
+def test_sub_overscan_undefined_odd_even():
+    raw, datasec, oscan = _overscan_test_frame()
+    _raw = raw.copy()
+    _raw[3,-1] = np.nan
+    raw_sub, _ = procimg.subtract_overscan(_raw, datasec, oscan, method='odd_even')
+    assert np.all(np.isfinite(raw_sub[datasec > 0])), \
+            'Undefined overscan pixels should not propagate'
+    assert np.allclose(raw_sub[datasec > 0], 1.), 'Bad overscan subtraction'
+
+
+def test_sub_overscan_unmasked_unchanged():
+    # Results must be identical to the unmasked calculation if no overscan
+    # pixels are flagged, even if pixels in the data region are flagged
+    raw, datasec, oscan = _overscan_test_frame()
+    rng = np.random.default_rng(seed=8)
+    raw += rng.normal(scale=0.1, size=raw.shape)
+    bpm = np.zeros(raw.shape, dtype=bool)
+    bpm[0,0] = True
+    for method in ['median', 'savgol', 'odd_even']:
+        ref, _ = procimg.subtract_overscan(raw, datasec, oscan, method=method, params=[1, 3])
+        test, _ = procimg.subtract_overscan(raw, datasec, oscan, method=method, params=[1, 3],
+                                            bpm=bpm)
+        assert np.array_equal(ref, test), f'Unmasked overscan results changed ({method})'
+
+
+def test_sub_overscan_all_undefined():
+    raw, datasec, oscan = _overscan_test_frame()
+    raw[oscan == 1] = np.nan
+    with pytest.raises(PypeItError):
+        procimg.subtract_overscan(raw, datasec, oscan, method='median')
+
 
 def test_trim():
     datasec = np.zeros((10,10), dtype=int)

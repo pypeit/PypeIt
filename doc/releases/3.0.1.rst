@@ -1,0 +1,24 @@
+
+Version 3.0.1
+=============
+
+- Fixes reduction failures caused by a change in astropy 8.0.3.  Astropy now
+  converts pixels that match the FITS ``BLANK`` value in pseudo-unsigned 16-bit
+  integer images to NaN, where previous versions ignored ``BLANK``.  This broke
+  spectrographs with their own raw-image readers.  For example, a single
+  ``BLANK`` pixel in a Subaru/FOCAS overscan region turned an entire amplifier
+  into NaNs, and saturated arc-line pixels in Keck/HIRES images were masked
+  instead of read as before.  ``BLANK`` values are now ignored whenever PypeIt
+  opens a FITS file (:func:`~pypeit.io.fits_open`).  This matches what
+  PypeIt's generic raw-image reader already did, and results no longer depend
+  on the astropy version.
+
+- Raw pixels with undefined (non-finite) values are now flagged as bad pixels
+  (``BPM`` and ``IS_NAN``) and replaced with a finite placeholder.  They are
+  also excluded from the overscan statistics and from image combination, so
+  they can no longer propagate NaNs through the reduction.
+
+- :func:`~pypeit.io.fits_open` no longer raises a ``TypeError`` when it retries
+  opening a file with ``ignore_missing_end=True`` and the caller already passed
+  that keyword.
+

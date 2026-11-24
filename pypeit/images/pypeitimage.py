@@ -558,7 +558,11 @@ class PypeItImage(datamodel.DataContainer):
                 OFFSLITS bit; see :func:`update_mask_slitmask`.
             from_scratch (:obj:`bool`, optional):
                 Build the mask from scratch.  That is, if :attr:`fullmask`
-                already exists, all bits are turned off except for BPM and CR.
+                already exists, all bits are turned off except for BPM, CR, and
+                IS_NAN.  IS_NAN is retained because it can flag pixels with
+                undefined (non-finite) *raw* values that have since been
+                replaced with a finite placeholder; see
+                :class:`~pypeit.images.rawimage.RawImage`.
         """
         # Check input
         if saturation is not None and isinstance(saturation, np.ndarray) \
@@ -590,14 +594,16 @@ class PypeItImage(datamodel.DataContainer):
             _mincounts = mincounts
 
         if from_scratch:
-            # Save the existing BPM and CR masks
+            # Save the existing BPM, CR, and IS_NAN masks
             bpm = self.fullmask.flagged('BPM')
             cr = self.fullmask.flagged('CR')
+            is_nan = self.fullmask.flagged('IS_NAN')
             # Re-initialize the fullmask (erases all existing masks)
             self.reinit_mask()
-            # Recover the BPM and CR masks
+            # Recover the BPM, CR, and IS_NAN masks
             self.update_mask('BPM', indx=bpm)
             self.update_mask('CR', indx=cr)
+            self.update_mask('IS_NAN', indx=is_nan)
 
         # Saturated pixels
         if _saturation is not None:
