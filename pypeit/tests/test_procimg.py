@@ -7,6 +7,7 @@ from IPython import embed
 
 import numpy as np
 import pytest
+import scipy.signal
 
 from astropy.convolution import convolve
 
@@ -96,6 +97,59 @@ def _overscan_test_frame():
     return raw, datasec, oscan
 
 
+def test_overscan_stats_scalar():
+    overscan = np.arange(12, dtype=float).reshape(4,3)
+    osvar = np.full(overscan.shape, 2., dtype=float)
+    os_bpm = np.zeros(overscan.shape, dtype=bool)
+
+    # No masked pixels: identical to the unmasked calculation
+    osfit, var = procimg.overscan_stats(overscan, os_bpm, osvar=osvar)
+    assert osfit == np.median(overscan), 'Bad median with no masked pixels'
+    assert var == np.pi/2*(np.sum(osvar)/osvar.size**2), 'Bad variance with no masked pixels'
+
+    # Masked pixels are excluded from both the median and the variance
+    os_bpm[3,:] = True
+    osfit, var = procimg.overscan_stats(overscan, os_bpm, osvar=osvar)
+    assert osfit == np.median(overscan[:3]), 'Masked pixels should be excluded from the median'
+    assert np.isclose(var, np.pi/2*(2.*9/9**2)), \
+            'Masked pixels should be excluded from the variance'
+
+    # Variance is only computed if requested
+    _, var = procimg.overscan_stats(overscan, os_bpm)
+    assert var is None, 'Variance should be None if osvar is not provided'
+
+
+def test_overscan_stats_vector():
+    nrow, ncol = 6, 4
+    overscan = np.repeat(np.arange(nrow, dtype=float)[:,None], ncol, axis=1)
+    osvar = np.ones(overscan.shape, dtype=float)
+    os_bpm = np.zeros(overscan.shape, dtype=bool)
+    # One masked pixel in row 1, and all pixels masked in row 3
+    overscan[1,0] = 1000.
+    os_bpm[1,0] = True
+    os_bpm[3,:] = True
+    overscan[3,:] = -1000.
+
+    osfit, var = procimg.overscan_stats(overscan, os_bpm, osvar=osvar, axis=1)
+    # Row 3 is interpolated from rows 2 and 4
+    assert np.array_equal(osfit, np.arange(nrow, dtype=float)), \
+            'Masked pixels should be excluded and fully masked rows interpolated'
+    expected_var = np.full(nrow, np.pi/2*(ncol/ncol**2))
+    expected_var[1] = np.pi/2*((ncol-1)/(ncol-1)**2)
+    assert np.allclose(var, expected_var), \
+            'Variance should be computed per row from its good pixels'
+
+    # Collapsing along the other axis gives one value per column
+    osfit, _ = procimg.overscan_stats(overscan, os_bpm, axis=0)
+    assert osfit.shape == (ncol,), 'Collapsing along axis 0 should give one value per column'
+
+
+def test_overscan_stats_all_masked():
+    overscan = np.ones((3,3), dtype=float)
+    with pytest.raises(PypeItError):
+        procimg.overscan_stats(overscan, np.ones(overscan.shape, dtype=bool))
+
+
 def test_sub_overscan_undefined_median():
     raw, datasec, oscan = _overscan_test_frame()
     raw[datasec == 1] = 10.
@@ -149,19 +203,60 @@ def test_sub_overscan_undefined_odd_even():
     assert np.allclose(raw_sub[datasec > 0], 1.), 'Bad overscan subtraction'
 
 
+def test_sub_overscan_odd_even_variance():
+    raw, datasec, oscan = _overscan_test_frame()
+    var = np.ones(raw.shape, dtype=float)
+    # Flag one pixel in the even stripe of the second row of amplifier 1
+    bpm = np.zeros(raw.shape, dtype=bool)
+    bpm[1,-3] = True
+    _, var_sub = procimg.subtract_overscan(raw, datasec, oscan, method='odd_even', var=var,
+                                           bpm=bpm)
+    # Each row of amplifier 1 has 1 odd and 2 even overscan pixels (columns 7-9
+    # of the frame are overscan stripe columns 0-2).  The variance in the median
+    # of each row is pi/2 times the variance in the mean of the good pixels in
+    # that row.
+    odd_var = np.pi/2*(1./1**2)
+    even_var = np.full(5, np.pi/2*(2./2**2))
+    even_var[1] = np.pi/2*(1./1**2)
+    amp_var = var_sub[:5,:-3]
+    assert np.allclose(amp_var[:,1::2], odd_var), 'Bad odd-column variance'
+    assert np.allclose(amp_var[:,0::2], even_var[:,None]), \
+            'Bad even-column variance; must be computed per row from the good pixels'
+
+
 def test_sub_overscan_unmasked_unchanged():
     # Results must be identical to the unmasked calculation if no overscan
     # pixels are flagged, even if pixels in the data region are flagged
     raw, datasec, oscan = _overscan_test_frame()
     rng = np.random.default_rng(seed=8)
     raw += rng.normal(scale=0.1, size=raw.shape)
+    var = rng.uniform(low=0.5, high=1.5, size=raw.shape)
     bpm = np.zeros(raw.shape, dtype=bool)
     bpm[0,0] = True
-    for method in ['median', 'savgol', 'odd_even']:
-        ref, _ = procimg.subtract_overscan(raw, datasec, oscan, method=method, params=[1, 3])
-        test, _ = procimg.subtract_overscan(raw, datasec, oscan, method=method, params=[1, 3],
-                                            bpm=bpm)
-        assert np.array_equal(ref, test), f'Unmasked overscan results changed ({method})'
+
+    # Unmasked reference calculations for amplifier 1
+    data = raw[:5,:-3]
+    overscan = raw[:5,-3:]
+    osvar = var[:5,-3:]
+    ref = {'median': data - np.median(overscan),
+           'savgol': data - scipy.signal.savgol_filter(np.median(overscan, axis=1), 3, 1)[:,None]}
+    ref_var = {'median': np.full(data.shape, np.pi/2*(np.sum(osvar)/osvar.size**2)),
+               'savgol': np.repeat(np.pi/2*(np.sum(osvar, axis=1)/osvar.shape[1]**2)[:,None],
+                                   data.shape[1], axis=1)}
+    for method in ['median', 'savgol']:
+        test, test_var = procimg.subtract_overscan(raw, datasec, oscan, method=method,
+                                                   params=[1, 3], var=var, bpm=bpm)
+        assert np.array_equal(test[:5,:-3], ref[method]), \
+                f'Unmasked overscan subtraction changed ({method})'
+        assert np.array_equal(test_var[:5,:-3], ref_var[method]), \
+                f'Unmasked overscan variance changed ({method})'
+
+    # Odd/even stripes
+    test, _ = procimg.subtract_overscan(raw, datasec, oscan, method='odd_even', bpm=bpm)
+    expected = data.copy()
+    expected[:,1::2] -= np.median(overscan[:,1::2], axis=1)[:,None]
+    expected[:,0::2] -= np.median(overscan[:,0::2], axis=1)[:,None]
+    assert np.array_equal(test[:5,:-3], expected), 'Unmasked odd/even subtraction changed'
 
 
 def test_sub_overscan_all_undefined():

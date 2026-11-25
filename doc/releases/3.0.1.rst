@@ -22,3 +22,12 @@ Version 3.0.1
   opening a file with ``ignore_missing_end=True`` and the caller already passed
   that keyword.
 
+- Fixes the variance in the ``odd_even`` overscan subtraction, which is used
+  by MDM/OSMOS and LBT/MODS.  The variance of each row's odd and even overscan
+  levels was divided by the square of the total number of pixels in the
+  overscan stripe, rather than the number in that row.  This made it smaller
+  than it should be by a factor of the number of rows squared, so it was
+  effectively ignored.  It is now the variance in the median of that row's
+  pixels, matching the other overscan methods.  Inverse variances in
+  reductions with this method are therefore slightly lower than before.
+

@@ -708,14 +708,15 @@ def clean_overscan_vector(overscan, w=9, nsig=1.0, rdnoise=4.0):
     return clean
 
 
-def _masked_overscan_stats(overscan, os_bpm, osvar, compress_axis, scalar):
-    """
+def overscan_stats(overscan, os_bpm, osvar=None, axis=None):
+    r"""
     Compute the overscan level (and its variance) from the good pixels in an
     overscan region.
 
-    This is the masked analog of the statistics computed by
-    :func:`subtract_overscan` when bad pixels are present in the overscan
-    region.
+    The overscan level is the median of the good pixels, and its variance is
+    the asymptotic variance in the median, :math:`\pi/2` times the variance in
+    the mean of the good pixels.  If no pixels are flagged, these are identical
+    to the unmasked calculations.
 
     Parameters
     ----------
@@ -724,22 +725,19 @@ def _masked_overscan_stats(overscan, os_bpm, osvar, compress_axis, scalar):
     os_bpm : `numpy.ndarray`_
         Boolean array with the same shape as ``overscan`` flagging pixels
         (True) that should be ignored.
-    osvar : `numpy.ndarray`_
-        Variance in the overscan region.  Can be None.
-    compress_axis : :obj:`int`
-        Axis along which to collapse the overscan region.  Ignored if
-        ``scalar`` is True.
-    scalar : :obj:`bool`
-        If True, return a single overscan value for the full region (i.e., the
-        ``'median'`` overscan method); otherwise, return a vector by collapsing
-        along ``compress_axis``.
+    osvar : `numpy.ndarray`_, optional
+        Variance in the overscan region.  If None, the variance in the
+        overscan level is not calculated.
+    axis : :obj:`int`, optional
+        Axis along which to collapse the overscan region.  If None, a single
+        value is computed for the full region.
 
     Returns
     -------
     osfit : :obj:`float`, `numpy.ndarray`_
         Median of the good overscan pixels, either for the full region or along
-        ``compress_axis``.  Vector elements without any good pixels are
-        interpolated from the adjacent elements.
+        ``axis``.  Vector elements without any good pixels are interpolated
+        from the adjacent elements.
     osvar : :obj:`float`, `numpy.ndarray`_
         Asymptotic variance in the median; None if ``osvar`` is None.
 
@@ -751,19 +749,20 @@ def _masked_overscan_stats(overscan, os_bpm, osvar, compress_axis, scalar):
     gpm = np.logical_not(os_bpm)
     if not np.any(gpm):
         raise PypeItError('All pixels in the overscan region are masked or undefined!')
-    if scalar:
+    # NOTE: For the variance, np.where is used instead of selecting the good
+    # pixels so that the summation is identical to the unmasked calculation if
+    # no pixels are flagged.
+    if axis is None:
         osfit = np.median(overscan[gpm])
         if osvar is not None:
-            osvar = np.pi/2*np.sum(osvar[gpm])/np.sum(gpm)**2
+            osvar = np.pi/2*(np.sum(np.where(gpm, osvar, 0.))/np.sum(gpm)**2)
         return osfit, osvar
 
-    osfit = np.ma.median(np.ma.MaskedArray(overscan, mask=os_bpm), axis=compress_axis)
+    osfit = np.ma.median(np.ma.MaskedArray(overscan, mask=os_bpm), axis=axis)
     osfit = pydl.djs_maskinterp1(osfit.filled(0.), np.ma.getmaskarray(osfit))
     if osvar is not None:
-        ngood = np.sum(gpm, axis=compress_axis)
-        osvar = (
-            np.pi/2*np.sum(np.where(gpm, osvar, 0.), axis=compress_axis) / np.maximum(ngood, 1)**2
-        )
+        ngood = np.sum(gpm, axis=axis)
+        osvar = np.pi/2*(np.sum(np.where(gpm, osvar, 0.), axis=axis) / np.maximum(ngood, 1)**2)
         osvar = pydl.djs_maskinterp1(osvar, ngood == 0)
     return osfit, osvar
 
@@ -864,32 +863,18 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
                        'amplifier {0}'.format(amp))
         compress_axis = 1 if data.shape[0] == overscan.shape[0] else 0
 
-        # Identify overscan pixels to exclude from the statistics.  The masked
-        # computations are only used if there are pixels to exclude, which
-        # leaves the results identical to the unmasked computations otherwise.
+        # Identify overscan pixels to exclude from the statistics
         os_bpm = np.logical_not(np.isfinite(overscan))
         if bpm is not None:
             os_bpm = np.logical_or(os_bpm, bpm[os_slice])
-        use_mask = np.any(os_bpm)
 
-        # Fit/Model the overscan region
-        if use_mask and method.lower() != 'odd_even':
-            osfit, osvar = _masked_overscan_stats(
-                overscan, os_bpm, None if var is None else osvar, compress_axis,
-                method.lower() == 'median'
+        # Fit/Model the overscan region.  The odd_even method computes its own
+        # statistics below.
+        if method.lower() != 'odd_even':
+            osfit, osvar = overscan_stats(
+                overscan, os_bpm, osvar=None if var is None else osvar,
+                axis=None if method.lower() == 'median' else compress_axis
             )
-        else:
-            osfit = (
-                np.median(overscan) if method.lower() == 'median'
-                else np.median(overscan, axis=compress_axis)
-            )
-            if var is not None:
-                # pi/2 coefficient yields asymptotic variance in the median
-                # relative to the error in the mean
-                osvar = np.pi/2 * (
-                    np.sum(osvar)/osvar.size**2 if method.lower() == 'median'
-                    else np.sum(osvar, axis=compress_axis) / osvar.shape[compress_axis]**2
-                )
 
         # Method time
         if method.lower() == 'polynomial':
@@ -912,21 +897,20 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
             _overscan = overscan if compress_axis == 1 else overscan.T
             _no_overscan = no_overscan[data_slice] if compress_axis == 1 \
                                else no_overscan[data_slice].T
-            # Compute median overscan of odd and even pixel stripes in overscan
-            if use_mask:
-                _os_bpm = os_bpm if compress_axis == 1 else os_bpm.T
-                if np.all(_os_bpm[:,1::2]) or np.all(_os_bpm[:,0::2]):
-                    raise PypeItError(
-                        'All pixels in the odd or even overscan stripes are masked or undefined!'
-                    )
-                _ma_overscan = np.ma.MaskedArray(_overscan, mask=_os_bpm)
-                odd = np.ma.median(_ma_overscan[:,1::2], axis=1)
-                odd = pydl.djs_maskinterp1(odd.filled(0.), np.ma.getmaskarray(odd))
-                even = np.ma.median(_ma_overscan[:,0::2], axis=1)
-                even = pydl.djs_maskinterp1(even.filled(0.), np.ma.getmaskarray(even))
-            else:
-                odd = np.median(_overscan[:,1::2], axis=1)
-                even = np.median(_overscan[:,0::2], axis=1)
+            _os_bpm = os_bpm if compress_axis == 1 else os_bpm.T
+            _osvar = None if var is None else (
+                var[os_slice] if compress_axis == 1 else var[os_slice].T
+            )
+            # Compute median overscan (and its variance) of odd and even pixel
+            # stripes in overscan
+            odd, odd_var = overscan_stats(
+                _overscan[:,1::2], _os_bpm[:,1::2],
+                osvar=None if _osvar is None else _osvar[:,1::2], axis=1
+            )
+            even, even_var = overscan_stats(
+                _overscan[:,0::2], _os_bpm[:,0::2],
+                osvar=None if _osvar is None else _osvar[:,0::2], axis=1
+            )
             # Do the same for the data
             odd_data = np.median(_no_overscan[:,1::2], axis=1)
             even_data = np.median(_no_overscan[:,0::2], axis=1)
@@ -936,28 +920,19 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
             aligned = np.sign(np.median(odd-even)) == np.sign(np.median(odd_data-even_data))
             if not aligned and compress_axis == 0:
                 odd, even = even, odd
+                odd_var, even_var = even_var, odd_var
             # Now subtract
             _no_overscan[:,1::2] -= odd[:,None]
             _no_overscan[:,0::2] -= even[:,None]
             no_overscan[data_slice] = _no_overscan if compress_axis == 1 else _no_overscan.T
             if var is not None:
-                _osvar = var[os_slice] if compress_axis == 1 else var[os_slice].T
-                if use_mask:
-                    # Only include the good pixels
-                    _osvar = np.where(_os_bpm, 0., _osvar)
-                    odd_n = np.sum(np.logical_not(_os_bpm[:,1::2]))
-                    even_n = np.sum(np.logical_not(_os_bpm[:,0::2]))
-                else:
-                    odd_n = _osvar[:,1::2].size
-                    even_n = _osvar[:,0::2].size
-                odd_var = np.sum(_osvar[:,1::2],axis=1)/odd_n**2
-                even_var = np.sum(_osvar[:,0::2],axis=1)/even_n**2
-                if not aligned and compress_axis == 0:
-                    odd_var, even_var = even_var, odd_var
+                # The variance in the overscan level for each row (or column)
+                # is the variance in the median of the good pixels in that row
+                # of the odd (or even) stripes.
                 __var = _var[data_slice] if compress_axis == 1 else _var[data_slice].T
-                __var[:,1::2] = np.pi/2 * odd_var[:,None]
-                __var[:,0::2] = np.pi/2 * even_var[:,None]
-                _var[data_slice ] = __var if compress_axis == 1 else __var.T
+                __var[:,1::2] = odd_var[:,None]
+                __var[:,0::2] = even_var[:,None]
+                _var[data_slice] = __var if compress_axis == 1 else __var.T
             continue
 
 
