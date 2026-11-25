@@ -95,7 +95,9 @@ The Binospec IFU is a fiber-fed integral field unit with a hexagonal
 lenslet array feeding approximately 360 fibers per side into the
 spectrograph.  Each side has 40 dedicated sky fibers located at the
 outermost ring of each hexagonal sub-bundle, which are used for sky
-subtraction.  See the `Binospec IFU instrument page
+subtraction.  The 640 science fibers cover a contiguous 12 x 16 arcsec field
+with a pitch of 0.6 arcsec (`Fabricant et al. (2025, PASP, 137, 015002)
+<https://doi.org/10.1088/1538-3873/ada701>`__).  See the `Binospec IFU instrument page
 <https://www.mmto.org/instrument-suite/binospec/binospec-ifu-information/>`__
 for more details on the hardware and observing modes.
 
@@ -296,6 +298,47 @@ field center (e.g. for a bright extended target):
         [[skysub]]
             joint_fit_use_sci = True
             sci_exclude_radius = 3.0
+
+Position angle and fiber offsets
+++++++++++++++++++++++++++++++++
+
+The primary headers of the spec1d, spec2d, and datacube files include the
+position angle of the observation, ``POSANG`` (in degrees), read from the raw
+frames.
+
+The IFU spec1d files also include a binary table extension named
+``FIBER_OFFSETS`` with the offset of each extracted science fiber from the
+center of the IFU.  Sky fibers have no offsets and are not listed.  The columns
+are:
+
+- ``NAME``: name of the spec1d extension with the spectrum of the fiber
+- ``FIBER_ID``: fiber ID (``MASKDEF_ID`` of the spectrum)
+- ``TARGET_NAME``: fiber name (``MASKDEF_OBJNAME`` of the spectrum)
+- ``TARGETX_ASEC``, ``TARGETY_ASEC``: offsets from the IFU center in arcsec, in
+  the instrument frame, i.e. before the rotation by ``POSANG``
+
+The last three columns have the same names as in the fiber table written by the
+IDL pipeline.  For example, to read the table and the spectrum of its first
+fiber:
+
+.. code-block:: python
+
+   from pypeit.specobjs import SpecObjs
+
+   sobjs = SpecObjs.from_fitsfile('spec1d_obj.fits')
+   offsets = sobjs.fiber_offsets
+   spec = sobjs[sobjs.NAME == offsets['NAME'][0]][0]
+
+For ``POSANG = 0``, +y is north and +x is west; for other position angles, the
+field is rotated by ``POSANG`` from north through east.
+
+.. note::
+
+   Spec1d files with this extension cannot be read by PypeIt 3.0 or earlier.
+   Files reduced with those versions can be read, but they do not include
+   ``POSANG`` or the fiber offsets.  Datacubes built from them are not rotated
+   to the position angle, and a warning is issued; re-reduce the data to
+   include it.
 
 Producing datacubes
 +++++++++++++++++++

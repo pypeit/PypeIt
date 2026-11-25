@@ -13,20 +13,27 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
+from astropy import wcs
+from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.io.fits import Header
 from astropy.table import Table
 
 from pypeit import dataPaths
 from pypeit import PypeItError
+from pypeit import specobj
+from pypeit import specobjs
 from pypeit.onespec import OneSpec
+from pypeit.core import meta
 from pypeit.core.procimg import clean_overscan_vector
+from pypeit.spectrographs import mmt_binospec
 from pypeit.spectrographs.mmt_binospec import (binospec_read_amp,
                                                MMTBINOSPECSpectrograph,
                                                MMTBINOSPECIFUSpectrograph)
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.scripts.binospec_ifu_extract import BinospecIFUExtract
 from pypeit.core.datacube import (
+    build_cube_common,
     load_fibers,
     project_to_sky,
     resample_and_combine,
@@ -631,6 +638,19 @@ def test_project_to_sky_missing_posang_defaults_to_zero():
     np.testing.assert_allclose(dec, 30.0 + 1.0 / 3600.0, atol=1e-7)
 
 
+@pytest.mark.parametrize('has_posang', [True, False])
+def test_missing_posang_warns(monkeypatch, has_posang):
+    """A missing POSANG leaves the IFU unrotated; that must not be silent."""
+    warnings = []
+    monkeypatch.setattr(mmt_binospec.log, 'warning', warnings.append)
+    hdr = _fake_header()
+    if not has_posang:
+        del hdr['POSANG']
+    _IFU_SPEC.ifu_sky_wcs(hdr, 1.)
+    assert any('POSANG' in w for w in warnings) != has_posang, \
+        'a warning must be issued if, and only if, POSANG is missing'
+
+
 def test_project_to_sky_numeric_ra_is_degrees():
     """spec1d headers carry RA in decimal degrees; it must not be read as hours."""
     hdr = _fake_header(ra=189.0429167, dec=62.2753056, posang=0.0)
@@ -685,9 +705,168 @@ def test_ra_dec_meta_decimal_hours():
     np.testing.assert_allclose(dec, 16.57105833, atol=1e-6)
 
 
-def test_posang_propagated_to_output_headers():
-    assert 'POSANG' in _IFU_SPEC.raw_header_cards(), \
-        'POSANG must reach spec1d/spec2d headers so ifu_sky_wcs can orient the IFU'
+def _raw_headers(**kwargs):
+    """
+    Headers of a raw Binospec frame: the primary has only structural cards, and
+    the instrument cards are in extension 1.
+    """
+    hdr = Header()
+    hdr.update(_IFU_RAW_COORDS)
+    hdr.update(kwargs)
+    return [Header(), hdr]
+
+
+@pytest.mark.parametrize('spec_name', ['mmt_binospec', 'mmt_binospec_ifu'])
+def test_posang_meta_read_from_extension(spec_name):
+    spec = load_spectrograph(spec_name)
+    assert spec.get_meta_value(_raw_headers(POSANG=150.05), 'posang') == 150.05, \
+        'posang must be read from the POSANG card of raw extension 1'
+
+
+def test_posang_meta_missing_is_not_fatal():
+    headers = _raw_headers()
+    del headers[1]['POSANG']
+    assert _IFU_SPEC.get_meta_value(headers, 'posang', required=True) is None, \
+        'frames without POSANG must still be usable'
+
+
+def _subheader(**kwargs):
+    """
+    Build the output subheader from a metadata row and a raw primary header
+    that, as in real data, carries none of the instrument cards.
+    """
+    row = {key: 0. for key in meta.define_core_meta()}
+    row.update({key: 'x' for key in _IFU_SPEC.pypeit_file_keys()})
+    row.update(dict(
+        filename='raw.fits', slitwid=0.6 / 3600, airmass=1., parangle=0., pressure=730.,
+        temperature=5., humidity=20.
+    ))
+    row.update(kwargs)
+    return _IFU_SPEC.subheader_for_spec(row, Header())
+
+
+def test_posang_in_subheader():
+    card = _subheader(posang=150.05)['POSANG']
+    assert card[0] == 150.05, \
+        'POSANG must reach the spec1d/spec2d headers although the raw primary header lacks it'
+
+
+@pytest.mark.parametrize('kwargs', [{}, {'posang': None}])
+def test_posang_missing_not_in_subheader(kwargs):
+    assert 'POSANG' not in _subheader(**kwargs), \
+        'an unknown position angle must not be written to the output headers'
+
+
+# ---------------------------------------------------------------------------
+# IFU sky layout, fiber offsets and cube WCS
+# ---------------------------------------------------------------------------
+
+def test_sky_layout_is_in_sky_arcsec():
+    x, y = _IFU_SPEC.load_sky_layout()
+    assert x.shape == y.shape == (640,), 'the layout must have one entry per science fiber'
+    sep = np.hypot(x[:,None] - x, y[:,None] - y)
+    np.fill_diagonal(sep, np.inf)
+    np.testing.assert_allclose(
+        np.median(np.min(sep, axis=1)), _IFU_SPEC.ifu_fiber_pitch, atol=0.03,
+        err_msg='adjacent fibers must be one fiber pitch apart on the sky'
+    )
+    np.testing.assert_allclose(
+        [np.ptp(x), np.ptp(y)], [16., 12.], atol=0.6,
+        err_msg='the science fibers must span the 16x12 arcsec field of the IFU'
+    )
+
+
+def _fiber_sobjs(det=1):
+    """
+    SpecObjs for every live fiber of one detector, as left by the Fiber
+    pypeline.
+    """
+    ref = _IFU_SPEC.load_fiber_ref_profile(det)
+    sobjs = specobjs.SpecObjs()
+    for row in ref[ref['FIB_BLOCK'] >= 0]:
+        sobj = specobj.SpecObj('Fiber', f'DET{det:02d}', SLITID=int(row['TR_PIX']))
+        sobj.SPAT_PIXPOS = float(row['TR_PIX'])
+        sobj.MASKDEF_ID = int(row['FIB_ID'])
+        sobj.MASKDEF_OBJNAME = row['FIB_NAME'].strip()
+        sobj.BOX_WAVE = np.linspace(5000., 5100., 5)
+        sobj.set_name()
+        sobjs.add_sobj(sobj)
+    return sobjs
+
+
+def test_fiber_offsets_table():
+    sobjs = _fiber_sobjs()
+    tab = _IFU_SPEC.get_fiber_offsets(sobjs)
+    is_sky = np.array([name.startswith('SKY') for name in sobjs.MASKDEF_OBJNAME])
+    assert list(tab['NAME']) == list(sobjs.NAME[np.logical_not(is_sky)]), \
+        'the table must list the science fibers, and only those, by extension name'
+    with fits.open(_IFU_SPEC._ifu_calib_path() / 'bino_IFU_sky_layout.fits') as hdu:
+        names = [n.strip() for n in hdu[1].data[0]['TARGET_NAME']]
+    x, y = _IFU_SPEC.load_sky_layout()
+    indx = [names.index(n) for n in tab['TARGET_NAME']]
+    np.testing.assert_allclose(
+        tab['TARGETX_ASEC'], x[indx], err_msg='x offsets must follow the fiber names'
+    )
+    np.testing.assert_allclose(
+        tab['TARGETY_ASEC'], y[indx], err_msg='y offsets must follow the fiber names'
+    )
+    assert tab['TARGETX_ASEC'].unit == 'arcsec', 'offsets must carry their unit'
+
+
+def test_fiber_offsets_default_is_none():
+    spec = load_spectrograph('keck_kcwi')
+    assert spec.get_fiber_offsets(specobjs.SpecObjs()) is None, \
+        'spectrographs without fiber offsets must write no table'
+
+
+def _cube_input(x0, y0, sigma=1.):
+    """
+    Fiber spectra of a Gaussian source at the given instrument-frame offset.
+    """
+    x, y = _IFU_SPEC.load_sky_layout()
+    data = {}
+    for det in [1, 2]:
+        ref = _IFU_SPEC.load_fiber_ref_profile(det)
+        ref = ref[ref['FIB_BLOCK'] >= 0]
+        names = [n.strip() for n in ref['FIB_NAME']]
+        ftype = np.array(['SKY' if n.startswith('SKY') else 'SCI' for n in names])
+        indx = _IFU_SPEC.get_science_fiber_layout_indices(det, ref['FIB_ID'], ftype)
+        amp = np.exp(-((x[indx] - x0)**2 + (y[indx] - y0)**2) / 2 / sigma**2)
+        amp[indx < 0] = 0.
+        nfib = len(ref)
+        data[f'DET{det:02d}'] = dict(
+            wave=np.tile(np.linspace(5000., 5100., 20), (nfib,1)),
+            flux=np.tile(amp[:,None], (1,20)), ivar=np.ones((nfib,20)),
+            fiber_meta=dict(fiber_id=ref['FIB_ID'], fiber_type=ftype)
+        )
+    return data
+
+
+@pytest.mark.parametrize('scale', [0.27, 0.5])
+@pytest.mark.parametrize('x0, y0', [(0., 0.), (2., -1.)])
+def test_cube_wcs_matches_fiber_positions(tmp_path, scale, x0, y0):
+    """
+    A source at a known fiber offset must land at the same RA/Dec in the cube
+    as given by project_to_sky.
+    """
+    hdr = _fake_header(ra=189.04, dec=62.275, posang=150.05)
+    ofile = tmp_path / 'cube.fits'
+    x, y = _IFU_SPEC.load_sky_layout()
+    build_cube_common(
+        _cube_input(x0, y0), _IFU_SPEC, x, y, hdr, 'spec1d_test.fits', spatial_scale=scale,
+        output=str(ofile)
+    )
+    with fits.open(ofile) as hdu:
+        img = np.mean(hdu['FLUX'].data[2:-2], axis=0)
+        cube_hdr = hdu['FLUX'].header
+    yy, xx = np.indices(img.shape)
+    cen = [np.sum(img * xx) / np.sum(img), np.sum(img * yy) / np.sum(img)]
+    coord = wcs.WCS(cube_hdr).celestial.pixel_to_world(*cen)
+    ra, dec = project_to_sky(np.array([x0]), np.array([y0]), hdr, _IFU_SPEC)
+    sep = coord.separation(SkyCoord(ra[0], dec[0], unit='deg')).arcsec
+    assert sep < 0.03, \
+        f'the cube WCS must place the source at its fiber position; off by {sep:.3f} arcsec'
+    assert cube_hdr['POSANG'] == 150.05, 'the cube header must record the position angle'
 
 
 def test_compute_fiber_fluxes_basic():

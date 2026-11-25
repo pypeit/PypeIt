@@ -248,7 +248,10 @@ is written as an `astropy.io.fits.BinTableHDU`_ in the `spec1d*` fits
 file with this `Naming`_. In addition, one
 :class:`~pypeit.images.detector_container.DetectorContainer` is
 written to a fits extension --- named, e.g., ``DET01-DETECTOR`` ---
-for each detector with at least one spectrum extracted.
+for each detector with at least one spectrum extracted.  For some fiber-fed
+IFUs (currently ``mmt_binospec_ifu``), a ``FIBER_OFFSETS`` table extension
+gives the offsets of the science fibers from the center of the IFU; see
+:doc:`spectrographs/mmt_binospec`.
 
 All wavelengths are in vacuum.
 

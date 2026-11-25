@@ -1,6 +1,7 @@
 """
 Module to run tests on SpecObjs
 """
+import mmap
 import os
 
 from IPython import embed
@@ -10,6 +11,7 @@ import pytest
 import numpy as np
 
 from astropy.io import fits
+from astropy.table import Table
 
 from pypeit import specobjs
 from pypeit import specobj
@@ -131,4 +133,100 @@ def test_io(sobj1, sobj2, sobj3, sobj4):
     os.remove(ofile)
 
 
+def _sobjs_with_offsets(dets, first=0):
+    """
+    SpecObjs with one named object per detector and a table of fiber offsets.
+    """
+    sobjs = specobjs.SpecObjs()
+    for i, det in enumerate(dets):
+        sobj = specobj.SpecObj('MultiSlit', det, SLITID=first+i)
+        sobj.BOX_WAVE = np.arange(10).astype(float)
+        sobj.NAME = f'SPAT{first+i:04d}-{det}'
+        sobjs.add_sobj(sobj)
+    sobjs.fiber_offsets = Table(dict(
+        NAME=[sobj.NAME for sobj in sobjs], TARGETX_ASEC=np.arange(len(dets)) + 0.1 + first
+    ))
+    return sobjs
 
+
+def test_fiber_offsets_io(tmp_path):
+    ofile = tmp_path / 'spec1d.fits'
+    hdr = fits.Header()
+    sobjs = _sobjs_with_offsets(['DET01', 'DET02'])
+    sobjs.write_to_fits(hdr, str(ofile))
+    # Read and rewrite, as done by, e.g., the flux calibration
+    for _ in range(2):
+        with io.fits_open(ofile) as hdul:
+            assert 'FIBER_OFFSETS' in hdul, 'the offsets must be in their own extension'
+            assert hdul[0].header['NSPEC'] == 2, 'the table must not be counted as a spectrum'
+        _sobjs = specobjs.SpecObjs.from_fitsfile(ofile)
+        assert _sobjs.nobj == 2, 'the table must not be read as a spectrum'
+        assert list(_sobjs.fiber_offsets['NAME']) == list(sobjs.NAME), \
+            'names must match the spectra after reading'
+        np.testing.assert_allclose(
+            _sobjs.fiber_offsets['TARGETX_ASEC'], sobjs.fiber_offsets['TARGETX_ASEC'],
+            err_msg='offsets must be unchanged after reading'
+        )
+        _sobjs.write_to_fits(hdr, str(ofile))
+
+
+def _uses_mmap(arr):
+    """
+    Whether or not the memory of an array is a memory-mapped file.
+    """
+    while arr is not None:
+        if isinstance(arr, (np.memmap, mmap.mmap)):
+            return True
+        arr = arr.obj if isinstance(arr, memoryview) else getattr(arr, 'base', None)
+    return False
+
+
+def test_fiber_offsets_release_file(tmp_path):
+    """
+    The file must be released after reading; Windows cannot overwrite it
+    otherwise.
+    """
+    ofile = tmp_path / 'spec1d.fits'
+    _sobjs_with_offsets(['DET01', 'DET02']).write_to_fits(fits.Header(), str(ofile))
+    tab = specobjs.SpecObjs.from_fitsfile(ofile).fiber_offsets
+    for name in tab.colnames:
+        assert not _uses_mmap(np.asarray(tab[name])), \
+            f'column {name} must not be memory-mapped to the file it was read from'
+
+
+def test_fiber_offsets_kept_by_slice_and_copy():
+    sobjs = _sobjs_with_offsets(['DET01', 'DET02'])
+    for new in [sobjs[sobjs.DET == 'DET01'], sobjs.copy()]:
+        assert new.fiber_offsets is not None, 'slices and copies must keep the fiber offsets'
+
+
+def test_fiber_offsets_only_written_for_spectra(tmp_path):
+    ofile = tmp_path / 'spec1d.fits'
+    sobjs = _sobjs_with_offsets(['DET01', 'DET02'])
+    sobjs[sobjs.DET == 'DET01'].write_to_fits(fits.Header(), str(ofile))
+    tab = specobjs.SpecObjs.from_fitsfile(ofile).fiber_offsets
+    assert list(tab['NAME']) == ['SPAT0000-DET01'], \
+        'offsets must only be written for spectra in the file'
+
+
+def test_fiber_offsets_update_det(tmp_path):
+    ofile = tmp_path / 'spec1d.fits'
+    hdr = fits.Header()
+    _sobjs_with_offsets(['DET01', 'DET02']).write_to_fits(hdr, str(ofile))
+    _sobjs_with_offsets(['DET02'], first=5).write_to_fits(hdr, str(ofile), update_det='DET02')
+    tab = specobjs.SpecObjs.from_fitsfile(ofile).fiber_offsets
+    assert list(tab['NAME']) == ['SPAT0000-DET01', 'SPAT0005-DET02'], \
+        'updating a detector must replace its offsets and keep the others'
+    np.testing.assert_allclose(
+        tab['TARGETX_ASEC'], [0.1, 5.1], err_msg='offsets must stay with their fibers'
+    )
+
+
+def test_no_fiber_offsets_extension_by_default(tmp_path, sobj1):
+    sobj1.BOX_WAVE = np.arange(10).astype(float)
+    ofile = tmp_path / 'spec1d.fits'
+    specobjs.SpecObjs([sobj1]).write_to_fits(fits.Header(), str(ofile))
+    with io.fits_open(ofile) as hdul:
+        assert 'FIBER_OFFSETS' not in hdul, 'files without fiber offsets must be unchanged'
+    assert specobjs.SpecObjs.from_fitsfile(ofile).fiber_offsets is None, \
+        'fiber_offsets must be None for files without the table'

@@ -469,7 +469,10 @@ def build_cube_common(det_fiber_data, spectrograph, targetx, targety,
     w.wcs.cunit = [units.degree, units.degree, units.Angstrom]
     w.wcs.ctype = ['RA---TAN', 'DEC--TAN', 'WAVE']
     w.wcs.crval = [coord.ra.degree, coord.dec.degree, wave_grid[0]]
-    w.wcs.crpix = [nx / 2.0, ny / 2.0, 1.0]
+    # The pointing is at the origin of the fiber layout (cf. project_to_sky),
+    # which is generally not at the center of the grid.  FITS pixels are
+    # 1-indexed.
+    w.wcs.crpix = [1.0 - x_min / scl, 1.0 - y_min / scl, 1.0]
     w.wcs.cd = np.array([[cd11, cd12, 0.0],
                          [cd21, cd22, 0.0],
                          [0.0, 0.0, dwv]])
@@ -489,7 +492,7 @@ def build_cube_common(det_fiber_data, spectrograph, targetx, targety,
     hdr['INTERP'] = (method, 'Spatial interpolation method')
 
     # Copy useful keywords from raw header
-    for key in ['OBJECT', 'EXPTIME', 'DATE-OBS', 'DISPERSE', 'FILTER']:
+    for key in ['OBJECT', 'EXPTIME', 'DATE-OBS', 'DISPERSE', 'FILTER', 'POSANG']:
         if key in raw_hdr:
             hdr[key] = raw_hdr[key]
 

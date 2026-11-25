@@ -612,6 +612,7 @@ def save_exposure(spectrograph, fitstbl, par,
     if all_specobjs.nobj > 0 and not par['reduce']['extraction']['skip_extraction']:
         # Spectra
         outfile1d = outputfiles.spec_output_file(fitstbl, par, frame)
+        all_specobjs.fiber_offsets = spectrograph.get_fiber_offsets(all_specobjs)
         # TODO
         #embed(header='deal with the following for maskIDs;  713 of pypeit')
         all_specobjs.write_to_fits(subheader, outfile1d,

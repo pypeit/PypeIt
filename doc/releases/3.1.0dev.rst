@@ -29,7 +29,10 @@ Functionality/Performance Improvements and Additions
 Instrument-specific Updates
 ---------------------------
 
-- placeholder
+- MMT/Binospec IFU: ``spec1d`` files now include a ``FIBER_OFFSETS`` table
+  extension with the offset of each science fiber from the center of the IFU.
+  IFU ``spec1d`` files with this extension cannot be read by previous versions
+  of PypeIt; files written by previous versions can still be read.
 
 
 Script Changes
@@ -53,5 +56,16 @@ Under-the-hood Improvements
 Bug Fixes
 ---------
 
-- placeholder
+- MMT/Binospec IFU: Fixed the spatial scale of the fiber positions, which was 3
+  times too large.  This changes the dimensions and WCS of all Binospec IFU
+  datacubes, the fiber coordinates used by ``pypeit_binospec_ifu_extract``, and
+  the fibers excluded by the ``sci_exclude_radius`` parameter.  Any value of
+  this parameter that was adjusted to the previous scale should be divided by 3.
+- MMT/Binospec: The position angle (``POSANG``) is now written to the headers of
+  the ``spec1d``, ``spec2d``, and datacube files.  It was missing because the
+  card is not in the primary header of the raw frames, which meant that IFU
+  datacubes were not rotated to the position angle.  Existing data must be
+  re-reduced.
+- MMT/Binospec IFU: The reference pixel of the datacube WCS is now at the center
+  of the fiber layout, instead of half the number of pixels along each axis.
 
