@@ -13,7 +13,7 @@ import numpy as np
 
 from astropy import units
 from astropy.io import fits
-from astropy.table import Table
+from astropy.table import Table, vstack
 from astropy.time import Time
 
 from pypeit import log
@@ -25,6 +25,30 @@ from pypeit.core import parse
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
 from pypeit import utils
+
+
+def _select_fiber_offsets(fiber_offsets, sobjs):
+    """
+    Select the rows of a table of fiber offsets for a set of spectra.
+
+    Parameters
+    ----------
+    fiber_offsets : `astropy.table.Table`_
+        Table with the fiber offsets; see :class:`SpecObjs`.  Can be None.
+    sobjs : :class:`SpecObjs`
+        Spectra to select.
+
+    Returns
+    -------
+    `astropy.table.Table`_
+        The rows with a ``NAME`` that matches one of the spectra.  None if
+        there are no such rows or the input table is None.
+    """
+    if fiber_offsets is None:
+        return None
+    names = [sobj.NAME for sobj in sobjs.specobjs if sobj is not None]
+    selected = fiber_offsets[np.isin(fiber_offsets['NAME'], names)]
+    return None if len(selected) == 0 else selected
 
 
 # TODO: Make this a DataContainer
@@ -120,6 +144,9 @@ class SpecObjs:
             for hdu in hdul[1:]:
                 if 'DETECTOR' in hdu.name:
                     continue
+                if hdu.name == 'FIBER_OFFSETS':
+                    slf.fiber_offsets = Table.read(hdu, character_as_bytes=False)
+                    continue
                 sobj = specobj.SpecObj.from_hdu(hdu, chk_version=chk_version)
                 # Restrict on det?
                 if det is not None and sobj.DET != det:
@@ -136,7 +163,7 @@ class SpecObjs:
 
     def __init__(self, specobjs=None, header=None):
 
-        # Only two attributes are allowed for this Object -- specobjs, header
+        # Only the attributes defined here are allowed for this object
         if specobjs is None:
             self.specobjs = np.array([])
         else:
@@ -147,6 +174,9 @@ class SpecObjs:
         self.header = header
         self.hdul = None
         self.calibs = None
+        # Table with the offsets of fibers from the IFU center, or None.  Rows
+        # are matched to the spectra using their NAME.
+        self.fiber_offsets = None
 
         # Turn off attributes from here
         #   Anything else set will be on the individual specobj objects in the specobjs array
@@ -737,6 +767,8 @@ class SpecObjs:
         sobj_copy = SpecObjs(header=self.header)
         for sobj in self.specobjs:
             sobj_copy.add_sobj(sobj.copy())
+        if self.fiber_offsets is not None:
+            sobj_copy.fiber_offsets = self.fiber_offsets.copy()
         return sobj_copy
 
     def __getitem__(self, item):
@@ -764,7 +796,9 @@ class SpecObjs:
             # here for the many ways to give a slice; a tuple of ndarray
             # is produced by np.where, as in t[np.where(t['a'] > 2)]
             # For all, a new table is constructed with slice of all columns
-            return SpecObjs(specobjs=self.specobjs[item], header=self.header)
+            new = SpecObjs(specobjs=self.specobjs[item], header=self.header)
+            new.fiber_offsets = self.fiber_offsets
+            return new
 
     def __getattr__(self, attr):
         """
@@ -860,12 +894,17 @@ class SpecObjs:
                 for det in np.atleast_1d(update_det):
                     mask[_specobjs.DET == det] = False
             _specobjs = _specobjs[mask]
+            fiber_offsets = [
+                _select_fiber_offsets(_specobjs.fiber_offsets, _specobjs),
+                _select_fiber_offsets(self.fiber_offsets, self)
+            ]
             # Add in the new
             # TODO: Is the loop necessary? add_sobj can take many SpecObj objects.
             for sobj in self.specobjs:
                 _specobjs.add_sobj(sobj)
         else:
             _specobjs = self.specobjs
+            fiber_offsets = [_select_fiber_offsets(self.fiber_offsets, self)]
 
         # Build up the Header
         header = io.initialize_header()
@@ -944,6 +983,13 @@ class SpecObjs:
                 item.name = f'{prefix}-{item.name}'
             # Append
             hdus += [item]
+
+        # Fiber offsets
+        fiber_offsets = [tab for tab in fiber_offsets if tab is not None]
+        if len(fiber_offsets) > 0:
+            offset_hdu = fits.table_to_hdu(vstack(fiber_offsets, metadata_conflicts='silent'))
+            offset_hdu.name = 'FIBER_OFFSETS'
+            hdus += [offset_hdu]
 
         # A few more for the header
         prihdu.header['NSPEC'] = nspec

@@ -945,6 +945,25 @@ class Spectrograph:
             "does not implement identify_fibers_in_block(); it is required for "
             "the Fiber pypeline.")
 
+    def get_fiber_offsets(self, sobjs):
+        """
+        Construct the table with the offsets of the science fibers from the
+        center of the IFU, which is written to the spec1d file.
+
+        Parameters
+        ----------
+        sobjs : :class:`~pypeit.specobjs.SpecObjs`
+            Extracted fiber spectra.
+
+        Returns
+        -------
+        `astropy.table.Table`_
+            Table with one row per science fiber.  The ``NAME`` column must
+            match the name of the spectrum.  None, the default, if the
+            spectrograph has no fiber offsets.
+        """
+        return None
+
     def get_ifu_datacube_meta(self, raw_hdr):
         """
         Return descriptive metadata for a fiber-IFU datacube.
