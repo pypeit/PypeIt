@@ -879,14 +879,18 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
                 method.lower() == 'median'
             )
         else:
-            osfit = np.median(overscan) if method.lower() == 'median' \
-                        else np.median(overscan, axis=compress_axis)
+            osfit = (
+                np.median(overscan) if method.lower() == 'median'
+                else np.median(overscan, axis=compress_axis)
+            )
             if var is not None:
                 # pi/2 coefficient yields asymptotic variance in the median
                 # relative to the error in the mean
-                osvar = np.pi/2*(np.sum(osvar)/osvar.size**2 if method.lower() == 'median'
-                                 else np.sum(osvar, axis=compress_axis)
-                                        / osvar.shape[compress_axis]**2)
+                osvar = np.pi/2 * (
+                    np.sum(osvar)/osvar.size**2 if method.lower() == 'median'
+                    else np.sum(osvar, axis=compress_axis) / osvar.shape[compress_axis]**2
+                )
+
         # Method time
         if method.lower() == 'polynomial':
             warnings.warn('Method "polynomial" is identical to "chebyshev".  Former will be deprecated.',
