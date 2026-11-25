@@ -160,6 +160,7 @@ class CombineImage:
                 rn2img_stack = np.zeros(shape, dtype=float)
                 basev_stack = np.zeros(shape, dtype=float)
                 gpm_stack = np.zeros(shape, dtype=bool)
+                undef_stack = np.zeros(shape, dtype=bool)
                 exptime = np.zeros(self.nimgs, dtype=float)
                 spat_flex = np.zeros(self.nimgs, dtype=float)
 
@@ -186,6 +187,8 @@ class CombineImage:
                 rawImage.update_mask('SATURATION', action='turn_off')
             # Get a simple boolean good-pixel mask for all the unmasked pixels
             gpm_stack[kk] = rawImage.select_flag(invert=True)
+            # Track pixels with undefined (non-finite) raw values
+            undef_stack[kk] = rawImage.select_flag(flag='IS_NAN')
             file_list.append(rawImage.filename)
 
         # Check that all exposure times are consistent
@@ -307,6 +310,10 @@ class CombineImage:
 
         # Flag all pixels with no contributions from any of the stacked images.
         comb.update_mask('STCKMASK', indx=np.logical_not(gpm))
+        # Flag pixels that are undefined in all of the stacked images.  Pixels
+        # that are undefined in only some images are excluded from the stack
+        # by gpm_stack.
+        comb.update_mask('IS_NAN', indx=np.all(undef_stack, axis=0))
 
         # Return
         return comb

@@ -767,11 +767,21 @@ def fits_open(filename, **kwargs):
     Thin wrapper around `astropy.io.fits.open`_ that handles empty padding
     bytes.
 
+    Unless the caller specifies otherwise, FITS ``BLANK`` keywords are ignored
+    (``ignore_blank=True``).  Pixels in integer images that match the
+    ``BLANK`` value are therefore read as their stored value (e.g., 0 for
+    pseudo-unsigned 16-bit images), not converted to NaN, which is the
+    default behavior of astropy (version 8.0.3 and later) for pseudo-unsigned
+    integer images.  This keeps raw-image processing consistent across
+    spectrographs and astropy versions.  Images with floating-point data are
+    not affected.
+
     Args:
         filename (:obj:`str`, `Path`_):
             File name for the fits file to open.
         **kwargs:
-            Passed directly to `astropy.io.fits.open`_.
+            Passed directly to `astropy.io.fits.open`_.  Set
+            ``ignore_blank=False`` to apply the ``BLANK`` keyword.
 
     Returns:
         `astropy.io.fits.HDUList`_: List of all the HDUs in the fits file.
@@ -786,13 +796,14 @@ def fits_open(filename, **kwargs):
     # for this different type of object?
     if isinstance(filename, (str, Path)) and not Path(filename).absolute().exists():
         raise PypeItError(f'{filename} does not exist!')
+    _kwargs = {'ignore_blank': True, **kwargs}
     try:
-        return fits.open(filename, **kwargs)
+        return fits.open(filename, **_kwargs)
     except OSError as e:
         log.warning(f'Error opening {filename} ({e}).  Trying again by setting '
                   'ignore_missing_end=True, assuming the error was a header problem.')
         try:
-            return fits.open(filename, ignore_missing_end=True, **kwargs)
+            return fits.open(filename, **{**_kwargs, 'ignore_missing_end': True})
         except OSError as e:
             raise PypeItError(f'That failed, too!  Astropy is unable to open {filename} and reports the '
                        f'following error: {e}')

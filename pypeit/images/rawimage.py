@@ -73,6 +73,16 @@ class RawImage:
             Mosaic/Detector characteristics
         rawimage (`numpy.ndarray`_):
             The raw, not trimmed or reoriented, image data for the detector(s).
+            Undefined (non-finite) raw values are replaced by 0; see
+            :attr:`raw_undef`.
+        raw_undef (`numpy.ndarray`_):
+            Boolean array flagging pixels with undefined (non-finite) values in
+            the raw image data.  Note that FITS ``BLANK`` values are ignored
+            when reading raw data (see :func:`~pypeit.io.fits_open`), so they
+            are *not* flagged.  This array is trimmed, reoriented, and mosaiced
+            along with :attr:`image`.  The flagged pixels are excluded from the
+            overscan statistics and flagged as ``BPM`` and ``IS_NAN`` in the
+            processed image.
         hdu (`astropy.io.fits.HDUList`_):
             The full list of HDUs provided by :attr:`filename`.
         exptime (:obj:`float`):
@@ -148,6 +158,19 @@ class RawImage:
             self.rawimage = np.expand_dims(self.rawimage, 0)
             self.rawdatasec_img = np.expand_dims(self.rawdatasec_img, 0)
             self.oscansec_img = np.expand_dims(self.oscansec_img, 0)
+
+        # Identify undefined (non-finite) raw pixel values.  These pixels are
+        # given a finite placeholder value (0), excluded from the overscan
+        # statistics, and flagged as bad pixels (BPM and IS_NAN) in the
+        # processed image.  NOTE: FITS BLANK values are ignored when reading
+        # raw data (see io.fits_open), so they are not flagged here.
+        self.raw_undef = np.logical_not(np.isfinite(self.rawimage))
+        if np.any(self.raw_undef):
+            log.warning(
+                f'{np.sum(self.raw_undef)} raw pixel values in {os.path.basename(self.filename)} '
+                'are undefined (not finite); these will be masked.'
+            )
+            self.rawimage = np.where(self.raw_undef, 0., self.rawimage)
 
         # Grab items from rawImage (for convenience and for processing)
         #   Could just keep rawImage in the object, if preferred
@@ -357,7 +380,8 @@ class RawImage:
                     raise PypeItError(f'Cannot estimate readnoise for amplifier {amp+1}.  Raw image '
                                'has no overscan region!')
                 gain = 1. if self.steps['apply_gain'] else self.detector[i]['gain'][amp]
-                biaspix = self.image[i,self.oscansec_img[i]==amp+1] * gain
+                indx = (self.oscansec_img[i] == amp+1) & np.logical_not(self.raw_undef[i])
+                biaspix = self.image[i,indx] * gain
                 self.ronoise[i,amp] = stats.sigma_clipped_stats(biaspix, sigma=5)[-1]
                 log.info(f'Estimated readnoise of amplifier {amp+1} = '
                           f'{self.ronoise[i,amp]:.3f} e-')
@@ -633,7 +657,13 @@ class RawImage:
                       'various frames.  Recreating BPM specifically for this frame '
                       f'({os.path.basename(self.filename)}) and assuming the difference in the '
                       'binning will be handled later in the code.')
-            
+
+        #   - Include pixels with undefined raw values in the bad-pixel mask.
+        #     NOTE: This creates a new array so that a BPM provided by the
+        #     caller is not altered.
+        if np.any(self.raw_undef):
+            self._bpm = np.logical_or(self.bpm, self.raw_undef).astype(self.bpm.dtype)
+
         #   - Subtract processed bias
         if self.par['use_biasimage']:
             # Bias frame.  Shape and orientation must match *processed* image,.
@@ -721,6 +751,11 @@ class RawImage:
             pypeitImage.build_crmask(self.par)
 
         pypeitImage.build_mask(saturation='default', mincounts='default')
+        # Flag pixels with undefined raw values (these are also included in the
+        # BPM; see above)
+        pypeitImage.update_mask(
+            'IS_NAN', indx=self.raw_undef[0] if self.nimg == 1 else self.raw_undef
+        )
         if flat_bpm is not None:
             pypeitImage.update_mask('BADSCALE', indx=flat_bpm)
 
@@ -910,7 +945,8 @@ class RawImage:
         from high (left) to low (right).
         
         This edits :attr:`image`, :attr:`rn2img` (if it exists),
-        :attr:`proc_var` (if it exists), and :attr:`datasec_img` in place.
+        :attr:`proc_var` (if it exists), :attr:`datasec_img`, and
+        :attr:`raw_undef` in place.
 
         Args:
             force (:obj:`bool`, optional):
@@ -933,6 +969,9 @@ class RawImage:
                                       for d,i in zip(self.detector, self.proc_var)])
         self.datasec_img = np.array([self.spectrograph.orient_image(d, i)
                                      for d,i in zip(self.detector, self.datasec_img)])
+        self.raw_undef = np.array([
+            self.spectrograph.orient_image(d, i) for d,i in zip(self.detector, self.raw_undef)
+        ])
         self.steps[step] = True
 
     def subtract_bias(self, bias_image, force=False):
@@ -1108,9 +1147,9 @@ class RawImage:
             # subtraction.
             _os_img[i], var[i] = procimg.subtract_overscan(
                 self.image[i], self.datasec_img[i], self.oscansec_img[i],
-                method=self.par['overscan_method'],
-                params=self.par['overscan_par'],
-                var=None if self.rn2img is None else self.rn2img[i])
+                method=self.par['overscan_method'], params=self.par['overscan_par'],
+                var=None if self.rn2img is None else self.rn2img[i], bpm=self.raw_undef[i]
+            )
         self.image = np.array(_os_img)
         # Parse the returned value
         if self.rn2img is not None:
@@ -1352,7 +1391,8 @@ class RawImage:
         Trim image attributes to include only the science data.
         
         This edits :attr:`image`, :attr:`rn2img` (if it exists),
-        :attr:`proc_var` (if it exists), and :attr:`datasec_img` in place.
+        :attr:`proc_var` (if it exists), :attr:`datasec_img`, and
+        :attr:`raw_undef` in place.
 
         Args:
             force (:obj:`bool`, optional):
@@ -1378,6 +1418,9 @@ class RawImage:
         if self.proc_var is not None:
             self.proc_var = np.array([procimg.trim_frame(p, d < 1)
                                       for p, d in zip(self.proc_var, self.datasec_img)])
+        self.raw_undef = np.array([
+            procimg.trim_frame(u, d < 1) for u, d in zip(self.raw_undef, self.datasec_img)
+        ])
         # NOTE: This must be done last because the untrimmed image is used for
         # deciding what to trim!
         self.datasec_img = np.array([procimg.trim_frame(d, d < 1) for d in self.datasec_img])
@@ -1394,11 +1437,12 @@ class RawImage:
         Construction of the mosaic(s) must be done *after* the images have been
         trimmed and oriented to follow the ``PypeIt`` convention.
 
-        This function remaps ``image``, ``datasec_img``, ``rn2img``, ``dark``,
-        ``dark_var``, ``proc_var``, and ``base_var``.  These are all originally
-        calculated in the native detector frame.  Because ``img_scale`` is only
-        related to the flat-field images, it is not remapped because these
-        images are always processed in the mosaic frame.
+        This function remaps ``image``, ``datasec_img``, ``raw_undef``,
+        ``rn2img``, ``dark``, ``dark_var``, ``proc_var``, and ``base_var``.
+        These are all originally calculated in the native detector frame.
+        Because ``img_scale`` is only related to the flat-field images, it is
+        not remapped because these images are always processed in the mosaic
+        frame.
         """
         if self.nimg == 1:
             # NOTE: This also catches cases where the mosaicing has already been
@@ -1443,6 +1487,15 @@ class RawImage:
         # contributions when creating the image mosaic and when mosaicing the
         # detector bpms.  The `_img_npix` equivalent for the other mosaics
         # (e.g., the rn2img mosaic) should be identical.
+
+        # Transform the mask of undefined raw pixels.  Pixels without any
+        # contribution from the original images are flagged by the BPM, not
+        # this mask.
+        self.raw_undef, *_ = build_image_mosaic(
+            self.raw_undef.astype(float), _tforms, mosaic_shape=shape, order=self.mosaic.msc_ord
+        )
+        self.raw_undef[_img_npix < 1] = 0.
+        self.raw_undef = np.expand_dims(np.round(self.raw_undef).astype(bool), 0)
 
         # Get the pixels associated with each amplifier
         self.datasec_img = build_image_mosaic(self.datasec_img.astype(float), _tforms,

@@ -1,0 +1,33 @@
+
+Version 3.0.1
+=============
+
+- Fixes reduction failures caused by a change in astropy 8.0.3.  Astropy now
+  converts pixels that match the FITS ``BLANK`` value in pseudo-unsigned 16-bit
+  integer images to NaN, where previous versions ignored ``BLANK``.  This broke
+  spectrographs with their own raw-image readers.  For example, a single
+  ``BLANK`` pixel in a Subaru/FOCAS overscan region turned an entire amplifier
+  into NaNs, and saturated arc-line pixels in Keck/HIRES images were masked
+  instead of read as before.  ``BLANK`` values are now ignored whenever PypeIt
+  opens a FITS file (:func:`~pypeit.io.fits_open`).  This matches what
+  PypeIt's generic raw-image reader already did, and results no longer depend
+  on the astropy version.
+
+- Raw pixels with undefined (non-finite) values are now flagged as bad pixels
+  (``BPM`` and ``IS_NAN``) and replaced with a finite placeholder.  They are
+  also excluded from the overscan statistics and from image combination, so
+  they can no longer propagate NaNs through the reduction.
+
+- :func:`~pypeit.io.fits_open` no longer raises a ``TypeError`` when it retries
+  opening a file with ``ignore_missing_end=True`` and the caller already passed
+  that keyword.
+
+- Fixes the variance in the ``odd_even`` overscan subtraction, which is used
+  by MDM/OSMOS and LBT/MODS.  The variance of each row's odd and even overscan
+  levels was divided by the square of the total number of pixels in the
+  overscan stripe, rather than the number in that row.  This made it smaller
+  than it should be by a factor of the number of rows squared, so it was
+  effectively ignored.  It is now the variance in the median of that row's
+  pixels, matching the other overscan methods.  Inverse variances in
+  reductions with this method are therefore slightly lower than before.
+
