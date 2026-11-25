@@ -96,8 +96,8 @@ lenslet array feeding approximately 360 fibers per side into the
 spectrograph.  Each side has 40 dedicated sky fibers located at the
 outermost ring of each hexagonal sub-bundle, which are used for sky
 subtraction.  The 640 science fibers cover a contiguous 12 x 16 arcsec field
-with a pitch of 0.6 arcsec (`Fabricant et al. 2025
-<https://arxiv.org/abs/2501.01528>`__).  See the `Binospec IFU instrument page
+with a pitch of 0.6 arcsec (`Fabricant et al. (2025, PASP, 137, 015002)
+<https://doi.org/10.1088/1538-3873/ada701>`__).  See the `Binospec IFU instrument page
 <https://www.mmto.org/instrument-suite/binospec/binospec-ifu-information/>`__
 for more details on the hardware and observing modes.
 

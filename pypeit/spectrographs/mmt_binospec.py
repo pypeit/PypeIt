@@ -1640,9 +1640,10 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         than the on-sky offsets, i.e. adjacent fibers are 1.8 apart instead of
         :attr:`ifu_fiber_pitch`, consistent with the 3X magnification of the
         relay optics in front of the lenslet array.  Dividing by 3 gives the
-        12x16 arcsec field and 0.6 arcsec pitch of Fabricant et al. (2025,
-        arXiv:2501.01528), who measured the pitch on sky to 1%.  The IDL
-        pipeline makes the same correction.
+        12x16 arcsec field and 0.6 arcsec pitch of `Fabricant et al. (2025,
+        PASP, 137, 015002) <https://doi.org/10.1088/1538-3873/ada701>`__, who
+        measured the pitch on sky to 1%.  The IDL pipeline makes the same
+        correction.
 
         Returns:
             :obj:`tuple`:
