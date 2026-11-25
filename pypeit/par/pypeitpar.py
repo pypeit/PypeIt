@@ -329,7 +329,13 @@ class ProcessImagesPar(ParSet):
         defaults['empirical_rn'] = False
         dtypes['empirical_rn'] = bool
         descr['empirical_rn'] = 'If True, use the standard deviation in the overscan region to ' \
-                                'measure an empirical readnoise to use in the noise model.'
+                                'measure an empirical readnoise to use in the noise model.  ' \
+                                'For JWST/NIRSpec, which has no overscan region, the noise ' \
+                                'missing from the JWST readnoise variance is instead measured ' \
+                                'on the pixels without signal and added to the readnoise ' \
+                                'variance.  It is measured on the differences of the exposures ' \
+                                'with the same configuration listed in the PypeIt file, if ' \
+                                'any; otherwise, on the full-frame image itself.'
 
         defaults['shot_noise'] = True
         dtypes['shot_noise'] = bool

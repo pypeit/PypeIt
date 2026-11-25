@@ -63,6 +63,17 @@ Instrument-specific Updates
   reference point of the aperture.  This allows to coadd with ``offsets =
   header`` MSA exposures taken in different visits.  Spec2d files reduced
   before this change must be re-reduced.  See :ref:`jwst_nirspec`.
+- JWST/NIRSpec: the noise model is revised.  The shot noise is now computed
+  from the image counts, as for all other instruments, instead of being taken
+  from the JWST ``VAR_POISSON`` extension (which includes the shot noise of the
+  subtracted dark current).  In addition, the ``empirical_rn`` parameter is
+  now true by default for the science frames: the detector noise missing from
+  the JWST ``VAR_RNOISE`` extension is added to the readnoise variance.  It is
+  measured in the pixels without signal, on the differences of the exposures
+  with the same configuration listed in the PypeIt file or, if there are none,
+  on the science image itself.  This increases the errors of the reduced
+  spectra, which were previously underestimated.  See the :ref:`NIRSpec noise
+  model <jwst_nirspec_noise>`.
 
 
 Script Changes
@@ -76,6 +87,9 @@ Testing
 
 - Added a unit test for the variance propagation in
   :class:`~pypeit.images.combineimage.CombineImage`.
+- Added unit tests for :func:`~pypeit.core.procimg.excess_variance`,
+  :func:`~pypeit.core.procimg.signal_free_pixels`, and the measurement of the
+  JWST/NIRSpec excess readnoise.
 
 
 Under-the-hood Improvements

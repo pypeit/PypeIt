@@ -335,9 +335,40 @@ calibrations of each slit are built from the JWST products of the exposure
       (``PHOTMJSR``) from the ``_cal.fits`` file.  The reduced spectra are
       therefore already flux calibrated, and no sensitivity function is needed.
 
-The variance of the science image is computed from the ``VAR_RNOISE`` and
-``VAR_POISSON`` extensions, and pixels flagged as ``DO_NOT_USE``, ``HOT``, or
-``DEAD`` in the ``DQ`` extension are masked.
+.. _jwst_nirspec_noise:
+
+The variance of the science image follows the PypeIt noise model (see
+:ref:`image_proc`): the readnoise variance is taken from the ``VAR_RNOISE``
+extension, and the shot noise is computed from the image counts.  The
+``VAR_POISSON`` extension is not used, because it also includes the shot noise
+of the dark current, which the JWST pipeline subtracts.
+
+The ``VAR_RNOISE`` extension underestimates the noise of the pixels without
+signal, mostly because of the detector noise that accumulates along the ramp
+(a random walk that includes the shot noise of the dark current).  For this
+reason, the ``empirical_rn`` parameter is set to true by default for the
+science frames, and, for each detector, PypeIt adds an excess readnoise to the
+readnoise variance (see
+:func:`~pypeit.images.rawimage.NIRSpecRawImage.estimate_readnoise`):
+
+    - If the PypeIt file lists other exposures with the same configuration
+      (e.g., the exposures of a nod sequence, used as science and background
+      frames), the excess readnoise is measured on the differences of
+      consecutive exposures, in the pixels that receive no light in both
+      (e.g., between the slits).  Faint fixed structure in these pixels, such
+      as the light leaking through the closed MSA shutters, cancels in the
+      differences.  The measurement is done once for each group of exposures
+      and applied to all of them.
+
+    - Otherwise (e.g., for a single exposure), the excess readnoise is
+      measured on the pixels without signal of the science image itself, and
+      a warning is issued: this overestimates the noise if these pixels
+      contain faint fixed structure.
+
+The excess readnoise used is reported in the log.
+
+Pixels flagged as ``DO_NOT_USE``, ``HOT``, or ``DEAD`` in the ``DQ`` extension
+are masked.
 
 The name of the slit is added to all the output files.  For example, for slit
 ``S200A2`` the calibration files are named ``Slits_A_1_DET01_slitS200A2.fits.gz``,

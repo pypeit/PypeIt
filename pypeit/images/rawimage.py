@@ -199,7 +199,6 @@ class RawImage:
         self.det_img = None
         self._bpm = None
         # jwst specific attributes
-        self.poisson = None
         self.dq = None
 
         # All possible processing steps.  NOTE: These have to match the
@@ -976,9 +975,6 @@ class RawImage:
         if self.rn2img is not None:
             self.rn2img = np.array([self.spectrograph.orient_image(d, i)
                                     for d,i in zip(self.detector, self.rn2img)])
-        if self.poisson is not None:
-            self.poisson = np.array([self.spectrograph.orient_image(d, i)
-                                        for d,i in zip(self.detector, self.poisson)])
         if self.dq is not None:
             self.dq = np.array([self.spectrograph.orient_image(d, i)
                                 for d,i in zip(self.detector, self.dq)])
@@ -1429,9 +1425,6 @@ class RawImage:
         if self.rn2img is not None:
             self.rn2img = np.array([procimg.trim_frame(r, d < 1)
                                     for r, d in zip(self.rn2img, self.datasec_img)])
-        if self.poisson is not None:
-            self.poisson = np.array([procimg.trim_frame(p, d < 1)
-                                     for p, d in zip(self.poisson, self.datasec_img)])
         if self.dq is not None:
             self.dq = np.array([procimg.trim_frame(dq, d < 1)
                                 for dq, d in zip(self.dq, self.datasec_img)])
@@ -1518,9 +1511,6 @@ class RawImage:
         if self.rn2img is not None:
             self.rn2img = build_image_mosaic(self.rn2img, _tforms, mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
             self.rn2img = np.expand_dims(self.rn2img, 0)
-        if self.poisson is not None:
-            self.poisson = build_image_mosaic(self.poisson, _tforms, mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
-            self.poisson = np.expand_dims(self.poisson, 0)
         if self.dq is not None:
             self.dq = build_image_mosaic(self.dq.astype(float), _tforms, mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
             self.dq = np.expand_dims(np.round(self.dq).astype(int), 0)
@@ -1560,12 +1550,16 @@ class NIRSpecRawImage(RawImage):
 
     Overrides the variance-image construction, flat-fielding, trimming, and
     image-processing methods to match the JWST NIRSpec calibration workflow.
-    Rather than estimating the readnoise from overscan regions or computing a
-    Poisson-noise model from scratch, this class reads the pre-computed
-    ``VAR_RNOISE`` and ``VAR_POISSON`` extensions produced by the JWST pipeline
-    directly from the calibration FITS files.  Processing steps that are
-    already handled upstream by the JWST pipeline (gain, overscan, bias, dark,
-    scattered-light subtraction, spatial flexure) are skipped.
+    Rather than estimating the readnoise from overscan regions (NIRSpec rate
+    images have none), this class reads the pre-computed ``VAR_RNOISE``
+    extension produced by the JWST pipeline and, if requested, adds the
+    excess noise measured on the pixels without signal (see
+    :func:`estimate_readnoise`).  As in the base class, the shot noise is
+    computed from the image counts; the ``VAR_POISSON`` extension is not used
+    because it also includes the shot noise of the (subtracted) dark current.
+    Processing steps that are already handled upstream by the JWST pipeline
+    (gain, overscan, bias, dark, scattered-light subtraction, spatial flexure)
+    are skipped.
 
     The constructor signature is identical to :class:`RawImage`.  The NIRSpec-
     specific ``slit_slices`` argument is passed to :func:`process` rather than
@@ -1579,9 +1573,6 @@ class NIRSpecRawImage(RawImage):
             (0-indexed, exclusive end) defining where the slit data lives in
             the full-detector pixel frame, one entry per detector.  Set by
             :func:`process` and consumed by :func:`trim`.
-        poisson (`numpy.ndarray`_):
-            Poisson-noise variance image read from the ``VAR_POISSON`` FITS
-            extension, scaled by the square of the exposure time.
     """
 
     def build_rn2img(self, units='e-', digitization=False):
@@ -1630,41 +1621,128 @@ class NIRSpecRawImage(RawImage):
             out[i] = rn2[i]
         return out
 
-    def build_poisson_img(self):
-        """
-        Build the Poisson-noise variance image from the JWST pipeline output.
+    def estimate_readnoise(self):
+        r"""
+        Add the detector noise missing from ``VAR_RNOISE`` to the readnoise
+        variance image (:attr:`rn2img`).
 
-        Reads the pre-computed ``VAR_POISSON`` extension from the calibration
-        FITS file and scales it by the square of the exposure time to convert
-        from rate² to count² units.  The result is stored as :attr:`poisson`
-        and later used by :func:`build_ivar` in place of a shot-noise estimate
-        derived from the image counts.
+        The ``VAR_RNOISE`` array produced by the JWST ramp fit underestimates
+        the noise of the pixels without signal, mostly because of the detector
+        noise that accumulates along the ramp (a random walk that includes the
+        shot noise of the dark current; the JWST pipeline includes the latter
+        in ``VAR_POISSON``, which is not used by PypeIt).  NIRSpec rate images
+        have no overscan region (the reference pixels are flagged as
+        ``DO_NOT_USE`` and have no data), so, unlike the base class, the noise
+        is measured on the pixels that receive no light (e.g., between the
+        slits).  For each detector, a constant excess variance is added to
+        :attr:`rn2img`:
+
+            - If the PypeIt file lists other exposures with the same
+              configuration (e.g., the exposures of a nod sequence), the
+              excess readnoise is measured on the differences of these
+              exposures (see
+              :func:`~pypeit.spectrographs.jwst_nirspec.JWSTNIRSpecSpectrograph.get_rn_excess`).
+              This is the preferred measurement, because faint fixed
+              structure in the pixels without signal (e.g., light leaking
+              through the closed MSA shutters) cancels in the differences.
+
+            - Otherwise, the excess is measured on the pixels without signal
+              of this full-frame image, i.e., the pixels not flagged as
+              ``DO_NOT_USE``, at least 16 pixels from the detector edges, and
+              with an absolute count rate, smoothed with a 15x15 boxcar, below
+              0.003 DN/s (see :func:`~pypeit.core.procimg.signal_free_pixels`):
+              it is the constant variance needed for the robust standard
+              deviation of the pixel values, divided by the square root of the
+              readnoise variance plus the excess, to be unity (see
+              :func:`~pypeit.core.procimg.excess_variance`).  This
+              overestimates the noise if the pixels without signal contain
+              faint fixed structure.  If too few pixels without signal are
+              found (e.g., if the image is the cutout of a single slit), the
+              readnoise variance is not changed.
+
+        This must be called after :func:`build_rn2img` and before
+        :func:`trim`.
+
+        .. warning::
+
+            This function edits :attr:`rn2img` in place.
+        """
+        if self.steps['trim']:
+            raise PypeItError('Must estimate readnoise before trimming the image.')
+        if self.rn2img is None:
+            raise PypeItError('Must build the readnoise variance image before estimating the '
+                              'readnoise.')
+        for i in range(self.nimg):
+            rn2img = self.rn2img[i]
+            gpm = rn2img > 0
+            # NOTE: rn2img can be a view of self.rn2img, so the median must be
+            # computed before self.rn2img is updated.
+            rn_median = np.sqrt(np.median(rn2img[gpm])) / self.exptime
+            rn_excess = self.spectrograph.get_rn_excess(self._detector_file(i))
+            if rn_excess is None:
+                excess = self._measure_excess_variance(i)
+                if excess is None:
+                    continue
+                source = 'measured on this exposure'
+            else:
+                excess = (rn_excess * self.exptime)**2
+                source = 'measured on the exposure differences'
+            self.rn2img[i] = np.where(gpm, rn2img + excess, rn2img)
+            log.info(f'{self.detector[i].name}: adding an excess readnoise of '
+                     f'{np.sqrt(excess)/self.exptime:.3g} DN/s ({source}) to VAR_RNOISE (median '
+                     f'noise {rn_median:.3g} DN/s).')
+
+    def _detector_file(self, i):
+        """
+        Return the file with the data of a detector.
+
+        Args:
+            i (:obj:`int`):
+                Index of the detector in :attr:`detector`.
 
         Returns:
-            `numpy.ndarray`_: Poisson-noise variance image.  Shape is
-            ``(nimg, nspec, nspat)`` when all detectors have the same pixel
-            dimensions; a 1-D object array of length ``nimg`` whose elements
-            are 2-D arrays when the detectors differ in size (e.g. a mosaic
-            reduction where NRS1 and NRS2 have different slit extents).
+            :obj:`str`: The file name.
         """
+        files = self.filename if isinstance(self.filename, list) else [self.filename]
+        match = [f for f in files if f'nrs{self.detector[i].det}' in Path(f).name]
+        if len(match) == 0:
+            raise PypeItError(f'Could not find the file of detector nrs{self.detector[i].det} '
+                              f'in {files}.')
+        return match[0]
 
-        _, var_poisson,_, _, _, _ = self.spectrograph.get_rawimage(self.filename, self.det, keys='VAR_POISSON')
-        if self.nimg == 1:
-            var_poisson = np.expand_dims(var_poisson, 0)
+    def _measure_excess_variance(self, i, min_pixels=10000):
+        """
+        Measure the variance missing from :attr:`rn2img` on the pixels without
+        signal of a single full-frame exposure; see :func:`estimate_readnoise`.
 
-        poiss2 = [None]*self.nimg
-        for i in range(self.nimg):
-            # Compute and return the readnoise variance image
-            poiss2[i] = var_poisson[i] * self.exptime**2
+        Args:
+            i (:obj:`int`):
+                Index of the detector in :attr:`detector`.
+            min_pixels (:obj:`int`, optional):
+                Minimum number of pixels without signal needed for the
+                measurement.
 
-        # Return uniform 3-D array when all shapes match, else 1-D object array.
-        shapes = [p.shape for p in poiss2]
-        if len(set(shapes)) == 1:
-            return np.array(poiss2)
-        out = np.empty(self.nimg, dtype=object)
-        for i in range(self.nimg):
-            out[i] = poiss2[i]
-        return out
+        Returns:
+            :obj:`float`: The excess variance in the units of :attr:`rn2img`,
+            or None if there are too few pixels without signal.
+        """
+        image = self.image[i]
+        rn2img = self.rn2img[i]
+        do_not_use = self.spectrograph.bitmask()['DO_NOT_USE']
+        gpm = ((self.dq[i] & do_not_use) == 0) & (rn2img > 0)
+        # The selection threshold is in DN/s, so the count rate is used
+        free = procimg.signal_free_pixels(image / self.exptime, gpm, 0.003, box=15, edge=16)
+        nfree = np.sum(free)
+        if nfree < min_pixels:
+            log.warning(f'{self.detector[i].name}: only {nfree} pixels without signal; cannot '
+                        'measure the excess readnoise.')
+            return None
+        log.warning(f'{self.detector[i].name}: no other exposure with the same configuration '
+                    'is listed in the PypeIt file, so the excess readnoise cannot be measured on '
+                    'the exposure differences.  Measuring it on this exposure only, which '
+                    'overestimates the noise if the pixels without signal contain faint fixed '
+                    'structure.')
+        return procimg.excess_variance(image[free], rn2img[free])
 
     def build_dq(self):
         """
@@ -1705,11 +1783,10 @@ class NIRSpecRawImage(RawImage):
         offsets are all handled upstream by the JWST pipeline and are therefore
         skipped here.
 
-        The flat correction is also propagated to :attr:`poisson` so that the
-        variance model constructed by :func:`build_ivar` remains consistent.
-        As in the base class, :attr:`rn2img` is kept in detector units; the
-        count scaling (:attr:`img_scale`) is applied to it when constructing
-        :attr:`base_var` in :func:`build_ivar`.
+        As in the base class, the flat correction is recorded in the count
+        scaling (:attr:`img_scale`), and :attr:`rn2img` is kept in detector
+        units; the count scaling is applied to the variance in
+        :func:`build_ivar`.
 
         Args:
             flatimages (:class:`~pypeit.flatfield.FlatImages`):
@@ -1742,7 +1819,6 @@ class NIRSpecRawImage(RawImage):
         total_flat = flatimages.pixelflat_norm
         self.img_scale = np.expand_dims(utils.inverse(total_flat), 0)
         self.image[0], flat_bpm = flat.flatfield(self.image[0], total_flat)
-        self.poisson[0], _ = flat.flatfield(self.poisson[0], np.square(total_flat))
         self.steps[step] = True
         return flat_bpm
 
@@ -1751,20 +1827,23 @@ class NIRSpecRawImage(RawImage):
         Generate the inverse variance in the image.
 
         Wraps :func:`~pypeit.core.procimg.base_variance` and
-        :func:`~pypeit.core.procimg.variance_model`.  Unlike the base class,
-        dark current is not included.  Shot noise is taken from
-        :attr:`poisson` (the ``VAR_POISSON`` FITS extension scaled to counts²)
-        rather than being estimated from the image counts.
+        :func:`~pypeit.core.procimg.variance_model`.  As in the base class, the
+        shot noise is computed from the image counts, so that the variance of
+        the processed image is consistent with the variance computed downstream
+        from the sky and object models.  Unlike the base class, the dark
+        current is not included: the dark is subtracted by the JWST pipeline,
+        and its noise is included in :attr:`rn2img` by
+        :func:`estimate_readnoise`.
 
         Returns:
             `numpy.ndarray`_: The inverse variance of the processed image.
         """
-
-        _dark = None
-        _counts = self.poisson if self.par['shot_noise'] else None
-
+        _counts = self.image if self.par['shot_noise'] else None
         self.base_var = procimg.base_variance(self.rn2img, count_scale=self.img_scale)
-        var = procimg.variance_model(self.base_var, counts=_counts, noise_floor=self.par['noise_floor'])
+        var = procimg.variance_model(
+            self.base_var, counts=_counts, count_scale=self.img_scale,
+            noise_floor=self.par['noise_floor']
+        )
         return utils.inverse(var)
 
     def trim(self, force=False):
@@ -1782,7 +1861,7 @@ class NIRSpecRawImage(RawImage):
            2-D arrays (one per detector) rather than a single stacked array.
 
         Applies to :attr:`image`, :attr:`rn2img` (if it exists),
-        :attr:`poisson` (if it exists), :attr:`dq` (if it exists),
+        :attr:`dq` (if it exists),
         :attr:`proc_var` (if it exists), and :attr:`datasec_img`.
 
         Args:
@@ -1814,10 +1893,6 @@ class NIRSpecRawImage(RawImage):
             self.rn2img = [procimg.trim_frame(r, d < 1) for r, d in zip(self.rn2img, self.datasec_img)]
             if self.nimg == 1:
                 self.rn2img = np.expand_dims(self.rn2img[0], 0)
-        if self.poisson is not None:
-            self.poisson = [procimg.trim_frame(p, d < 1) for p, d in zip(self.poisson, self.datasec_img)]
-            if self.nimg == 1:
-                self.poisson = np.expand_dims(self.poisson[0], 0)
         if self.dq is not None:
             self.dq = [procimg.trim_frame(dq, d < 1) for dq, d in zip(self.dq, self.datasec_img)]
             if self.nimg == 1:
@@ -1841,7 +1916,7 @@ class NIRSpecRawImage(RawImage):
         from high (left) to low (right).
 
         Applies in-place to :attr:`image`, :attr:`rn2img` (if set),
-        :attr:`poisson` (if set), :attr:`dq` (if set),
+        :attr:`dq` (if set),
         :attr:`proc_var` (if set), and :attr:`datasec_img`.
 
         .. note::
@@ -1872,9 +1947,6 @@ class NIRSpecRawImage(RawImage):
             if self.rn2img is not None:
                 self.rn2img = [self.spectrograph.orient_image(d, i)
                                         for d, i in zip(self.detector, self.rn2img)]
-            if self.poisson is not None:
-                self.poisson = [self.spectrograph.orient_image(d, i)
-                                         for d, i in zip(self.detector, self.poisson)]
             if self.dq is not None:
                 self.dq = [self.spectrograph.orient_image(d, i)
                                     for d, i in zip(self.detector, self.dq)]
@@ -1909,7 +1981,7 @@ class NIRSpecRawImage(RawImage):
            and transforms.
         3. Calls :func:`~pypeit.core.mosaic.build_image_mosaic` for
            :attr:`image`, :attr:`datasec_img`, :attr:`det_img`, and all
-           available variance/flag arrays (:attr:`rn2img`, :attr:`poisson`,
+           available variance/flag arrays (:attr:`rn2img`,
            :attr:`dq`, :attr:`dark`, :attr:`dark_var`, :attr:`proc_var`,
            :attr:`base_var`).
         4. Wraps each mosaiced 2-D result in a leading axis so that all arrays
@@ -2006,9 +2078,6 @@ class NIRSpecRawImage(RawImage):
         if self.rn2img is not None:
             self.rn2img = build_image_mosaic(self.rn2img, _tforms, mosaic_shape=self.mosaic.shape, order=self.mosaic.msc_ord)[0]
             self.rn2img = np.expand_dims(self.rn2img, 0)
-        if self.poisson is not None:
-            self.poisson = build_image_mosaic(self.poisson, _tforms, mosaic_shape=self.mosaic.shape, order=self.mosaic.msc_ord)[0]
-            self.poisson = np.expand_dims(self.poisson, 0)
         if self.dq is not None:
             self.dq = build_image_mosaic([_dq.astype(float) for _dq in self.dq], _tforms, mosaic_shape=self.mosaic.shape, order=self.mosaic.msc_ord)[0]
             self.dq = np.expand_dims(np.round(self.dq).astype(int), 0)
@@ -2054,9 +2123,9 @@ class NIRSpecRawImage(RawImage):
             #. :func:`build_rn2img`: Readnoise variance image read from
                ``VAR_RNOISE`` (scaled by exposure-time²).
 
-            #. :func:`build_poisson_img`: Poisson-noise variance image read
-               from ``VAR_POISSON`` (scaled by exposure-time²).  Stored as
-               :attr:`poisson`.
+            #. :func:`estimate_readnoise`: Add the excess noise measured on
+               the pixels without signal to the readnoise variance (only if
+               ``par['empirical_rn']`` is True).
 
             #. :func:`trim`: Trim to the slit bounding boxes defined by
                ``slit_slices``.
@@ -2071,7 +2140,8 @@ class NIRSpecRawImage(RawImage):
                requested via ``par``).
 
             #. :func:`build_ivar`: Construct the inverse variance using the
-               JWST-provided readnoise and Poisson variance images.
+               readnoise variance image and the shot noise of the image
+               counts.
 
             #. :func:`~pypeit.images.pypeitimage.PypeItImage.build_crmask`:
                Generate a cosmic-ray mask (when ``par['mask_cr']`` is True).
@@ -2170,7 +2240,10 @@ class NIRSpecRawImage(RawImage):
 
         #   - Initialize the variance images.
         self.rn2img = self.build_rn2img()
-        self.poisson = self.build_poisson_img()
+        #   - Add the excess noise measured on the pixels without signal.
+        #     This must be done on the full-frame image, before trimming.
+        if self.par['empirical_rn']:
+            self.estimate_readnoise()
 
         #   - Trim to the data region.  This trims the image, rn2img, proc_var,
         #     var, and datasec_img.
@@ -2227,7 +2300,7 @@ class NIRSpecRawImage(RawImage):
 
 
         # update mask with the bits from jwst
-        bit = self.jwst_bitmask()
+        bit = self.spectrograph.bitmask()
         pypeitImage.update_mask('BPM', indx=(_dq&bit['DO_NOT_USE']).astype(bool))
         # pypeitImage.update_mask('BPM', indx=(_dq & bit['JUMP_DET']).astype(bool))
         pypeitImage.update_mask('BPM', indx=(_dq & bit['HOT']).astype(bool))
@@ -2239,47 +2312,5 @@ class NIRSpecRawImage(RawImage):
 
         # Return
         return pypeitImage
-
-    @staticmethod
-    def jwst_bitmask():
-        """
-        Return the bitmask for JWST NIRSpec data.
-
-        Returns:
-            `dict`: The bitmask for JWST NIRSpec data.
-        """
-        return   {'GOOD': 0,
-                 'DO_NOT_USE': 1,
-                 'SATURATED': 2,
-                 'JUMP_DET': 4,
-                 'DROPOUT': 8,
-                 'OUTLIER': 16,
-                 'PERSISTENCE': 32,
-                 'AD_FLOOR': 64,
-                 'CHARGELOSS': 128,
-                 'UNRELIABLE_ERROR': 256,
-                 'NON_SCIENCE': 512,
-                 'DEAD': 1024,
-                 'HOT': 2048,
-                 'WARM': 4096,
-                 'LOW_QE': 8192,
-                 'RC': 16384,
-                 'TELEGRAPH': 32768,
-                 'NONLINEAR': 65536,
-                 'BAD_REF_PIXEL': 131072,
-                 'NO_FLAT_FIELD': 262144,
-                 'NO_GAIN_VALUE': 524288,
-                 'NO_LIN_CORR': 1048576,
-                 'NO_SAT_CHECK': 2097152,
-                 'UNRELIABLE_BIAS': 4194304,
-                 'UNRELIABLE_DARK': 8388608,
-                 'UNRELIABLE_SLOPE': 16777216,
-                 'UNRELIABLE_FLAT': 33554432,
-                 'OPEN': 67108864,
-                 'ADJ_OPEN': 134217728,
-                 'FLUX_ESTIMATED': 268435456,
-                 'MSA_FAILED_OPEN': 536870912,
-                 'OTHER_BAD_PIXEL': 1073741824,
-                 'REFERENCE_PIXEL': 2147483648}
 
 

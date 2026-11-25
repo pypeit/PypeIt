@@ -19,6 +19,7 @@ from pypeit import telescopes
 from pypeit import utils
 from pypeit import io
 from pypeit.core import framematch
+from pypeit.core import procimg
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 from pypeit.images.mosaic import Mosaic
@@ -42,6 +43,12 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         '_assign_wcs.fits', '_interpolatedflat.fits', '_interpolatedflat_fs.fits', '_cal.fits',
         'msa.fits', 'rate.fits', 'rate.fits.gz', 'uncal.fits', 'uncal.fits.gz', '.fits', '.fits.gz'
     ]
+
+    def __init__(self):
+        super().__init__()
+        # Full-frame science files used to measure the excess readnoise; set
+        # by cache_metadata
+        self._rn_excess_files = ()
 
     def rawfile_basename(self, filename, targname=None, slitname=None, mjd=None):
         """
@@ -257,6 +264,11 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         par['reduce']['extraction']['sn_gauss'] = 5.0
         par['reduce']['extraction']['boxcar_radius'] = 0.2 # extent in calwebb is 0.55" source and on NIRSpec website
         par['reduce']['extraction']['use_2dmodel_mask'] = False # Don't use 2d mask in local skysub
+
+        # Add the detector noise missing from VAR_RNOISE, measured on the
+        # pixels without signal of the full-frame science images; see
+        # NIRSpecRawImage.estimate_readnoise.
+        par['scienceframe']['process']['empirical_rn'] = True
 
         # Cosmic ray rejection parameters for science frames
         par['scienceframe']['process']['sigclip'] = 5.0
@@ -700,6 +712,100 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
             rawdatasec_arr[i] = rawdatasec_img[i]
             oscansec_arr[i] = oscansec_img[i]
         return mosaic, raw_img_arr, hdul, exptime, rawdatasec_arr, oscansec_arr
+
+    @staticmethod
+    def bitmask():
+        """
+        Return the bit values of the flags in the ``DQ`` extension of the JWST
+        data products.
+
+        Returns
+        -------
+        :obj:`dict`
+            The value of each flag, keyed by its name.
+        """
+        return {'GOOD': 0,
+                'DO_NOT_USE': 1,
+                'SATURATED': 2,
+                'JUMP_DET': 4,
+                'DROPOUT': 8,
+                'OUTLIER': 16,
+                'PERSISTENCE': 32,
+                'AD_FLOOR': 64,
+                'CHARGELOSS': 128,
+                'UNRELIABLE_ERROR': 256,
+                'NON_SCIENCE': 512,
+                'DEAD': 1024,
+                'HOT': 2048,
+                'WARM': 4096,
+                'LOW_QE': 8192,
+                'RC': 16384,
+                'TELEGRAPH': 32768,
+                'NONLINEAR': 65536,
+                'BAD_REF_PIXEL': 131072,
+                'NO_FLAT_FIELD': 262144,
+                'NO_GAIN_VALUE': 524288,
+                'NO_LIN_CORR': 1048576,
+                'NO_SAT_CHECK': 2097152,
+                'UNRELIABLE_BIAS': 4194304,
+                'UNRELIABLE_DARK': 8388608,
+                'UNRELIABLE_SLOPE': 16777216,
+                'UNRELIABLE_FLAT': 33554432,
+                'OPEN': 67108864,
+                'ADJ_OPEN': 134217728,
+                'FLUX_ESTIMATED': 268435456,
+                'MSA_FAILED_OPEN': 536870912,
+                'OTHER_BAD_PIXEL': 1073741824,
+                'REFERENCE_PIXEL': 2147483648}
+
+    def cache_metadata(self, fitstbl):
+        """
+        Record the full-frame science files (``_assign_wcs.fits``) listed in
+        the metadata table, used to measure the excess readnoise of each
+        exposure (see :func:`get_rn_excess`).
+
+        Overrides the base
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.cache_metadata`
+        no-op.  Only the file names are recorded; the measurement is done
+        lazily, when the excess readnoise of an exposure is first needed.
+
+        Parameters
+        ----------
+        fitstbl : :class:`~pypeit.metadata.PypeItMetaData`
+            The class holding the metadata for all the frames.
+        """
+        files = fitstbl.frame_paths(np.ones(len(fitstbl['filename']), dtype=bool))
+        self._rn_excess_files = tuple(sorted(str(Path(f).resolve()) for f in files
+                                             if f.endswith('_assign_wcs.fits')))
+
+    def get_rn_excess(self, raw_file):
+        """
+        Return the readnoise missing from the JWST ``VAR_RNOISE`` array of an
+        exposure.
+
+        The excess readnoise is measured on the differences of the exposures
+        with the same configuration (see :func:`group_exposures` and
+        :func:`measure_rn_excess`) among the files recorded by
+        :func:`cache_metadata`, i.e., the files listed in the PypeIt file.
+        The measurement is done once for each group of exposures and cached.
+
+        Parameters
+        ----------
+        raw_file : :obj:`str`, `Path`_
+            JWST ``_assign_wcs.fits`` file.
+
+        Returns
+        -------
+        :obj:`float`
+            The excess readnoise in DN/s, or None if it cannot be measured
+            (e.g., if no other exposure with the same configuration is
+            listed in the PypeIt file).
+        """
+        raw_file = str(Path(raw_file).resolve())
+        for group in _cached_groups(self._rn_excess_files):
+            if raw_file in group:
+                return None if len(group) < 2 else _cached_rn_excess(group)
+        return None
 
     def group_rawfiles(self, raw_files, det=1):
         """
@@ -1264,3 +1370,151 @@ def _slit_gwcs_measurements(cal_file, _slit_name, nsamp):
     log.info(f'Platescale of slit {_slit_name} from the GWCS in {Path(cal_file).name}: '
              f'{platescale:.5f} arcsec/pixel')
     return platescale, offset_pix
+
+
+def group_exposures(files):
+    """
+    Group the NIRSpec exposures that have the same configuration.
+
+    Exposures are grouped if they share the program, observation, visit, visit
+    group, sequence, and activity, the detector, the exposure type, the grating
+    and filter, the readout (pattern, number of groups and integrations, and
+    subarray), and the MSA configuration or fixed slit; i.e., they differ only
+    by the exposure number, as the exposures of a nod or dither sequence.
+    Files of other instruments are ignored.
+
+    Args:
+        files (:obj:`list`):
+            List of JWST files (e.g., ``_assign_wcs.fits``).
+
+    Returns:
+        :obj:`list`: List of groups, each a list of files in the order of
+        ``files``.
+    """
+    keys = ['PROGRAM', 'OBSERVTN', 'VISIT', 'VISITGRP', 'SEQ_ID', 'ACT_ID', 'DETECTOR',
+            'EXP_TYPE', 'GRATING', 'FILTER', 'READPATT', 'NGROUPS', 'NINTS', 'SUBARRAY',
+            'MSAMETFL', 'MSAMETID', 'FXD_SLIT']
+    groups = {}
+    for f in files:
+        hdr = fits.getheader(f, ext=0)
+        if hdr.get('INSTRUME') != 'NIRSPEC':
+            continue
+        groups.setdefault(tuple(hdr.get(k) for k in keys), []).append(f)
+    return list(groups.values())
+
+
+def _read_rate(file):
+    r"""
+    Read the count rate, ``DQ``, and ``VAR_RNOISE`` arrays of a JWST file,
+    replacing the non-finite values of the count rate and ``VAR_RNOISE`` with
+    0 (they are flagged as ``DO_NOT_USE`` in the ``DQ`` array).
+
+    Args:
+        file (:obj:`str`, `Path`_):
+            JWST ``_assign_wcs.fits`` (or ``_rate.fits``) file.
+
+    Returns:
+        :obj:`tuple`: The count rate (DN/s), the ``DQ`` array, and
+        ``VAR_RNOISE`` ((DN/s)\ :sup:`2`).
+    """
+    with fits.open(file) as hdu:
+        rate = hdu['SCI'].data.astype(float)
+        dq = hdu['DQ'].data.astype(int)
+        var_rnoise = hdu['VAR_RNOISE'].data.astype(float)
+    rate = np.where(np.isfinite(rate), rate, 0.)
+    var_rnoise = np.where(np.isfinite(var_rnoise), var_rnoise, 0.)
+    return rate, dq, var_rnoise
+
+
+def measure_rn_excess(files, min_pixels=10000):
+    """
+    Measure the readnoise missing from the JWST ``VAR_RNOISE`` arrays of a
+    group of exposures with the same configuration (see
+    :func:`group_exposures`).
+
+    ``VAR_RNOISE`` underestimates the noise of the pixels without signal,
+    mostly because of the detector noise that accumulates along the ramp.  The
+    excess is measured on the differences of consecutive exposures, in the
+    pixels without signal in both exposures, i.e., the pixels not flagged as
+    ``DO_NOT_USE``, at least 16 pixels from the detector edges, and with an
+    absolute count rate, smoothed with a 15x15 boxcar, below 0.003 DN/s (see
+    :func:`~pypeit.core.procimg.signal_free_pixels`): faint fixed structure in
+    these pixels (e.g., light leaking through the closed MSA shutters) cancels
+    in the difference, so that only the noise is measured.  For each pair, the
+    excess variance of the difference is found with
+    :func:`~pypeit.core.procimg.excess_variance` using the sum of the
+    ``VAR_RNOISE`` arrays of the two exposures, and half of it is attributed
+    to each exposure.  The excess readnoise of the group is the square root of
+    the median of these values, i.e., the excess is assumed to be the same for
+    all the exposures of the group.
+
+    Args:
+        files (:obj:`list`):
+            JWST ``_assign_wcs.fits`` files of the exposures in the group, in
+            the order of the exposures.
+        min_pixels (:obj:`int`, optional):
+            Minimum number of pixels without signal in both exposures needed to
+            use a pair.
+
+    Returns:
+        :obj:`tuple`: The excess readnoise in DN/s (None if it cannot be
+        measured) and the number of exposure pairs used.
+    """
+    do_not_use = JWSTNIRSpecSpectrograph.bitmask()['DO_NOT_USE']
+    excess = []
+    prev = None
+    for f in files:
+        rate, dq, var_rnoise = _read_rate(f)
+        gpm = ((dq & do_not_use) == 0) & (var_rnoise > 0)
+        free = procimg.signal_free_pixels(rate, gpm, 0.003, box=15, edge=16)
+        if prev is not None:
+            prev_rate, prev_var_rnoise, prev_free = prev
+            both = free & prev_free
+            if np.sum(both) >= min_pixels:
+                excess.append(procimg.excess_variance(
+                    (rate - prev_rate)[both], (var_rnoise + prev_var_rnoise)[both]
+                ) / 2)
+        prev = (rate, var_rnoise, free)
+    if len(excess) == 0:
+        return None, 0
+    return float(np.sqrt(np.median(excess))), len(excess)
+
+
+@functools.lru_cache(maxsize=16)
+def _cached_groups(files):
+    """
+    Cached call to :func:`group_exposures`, which reads the headers of all the
+    files, for :func:`JWSTNIRSpecSpectrograph.get_rn_excess`.
+
+    Args:
+        files (:obj:`tuple`):
+            JWST ``_assign_wcs.fits`` files.  Must be a tuple to be hashable.
+
+    Returns:
+        :obj:`tuple`: The groups of exposures, each a tuple of files.
+    """
+    return tuple(tuple(g) for g in group_exposures(files))
+
+
+@functools.lru_cache(maxsize=256)
+def _cached_rn_excess(group):
+    """
+    Cached call to :func:`measure_rn_excess` for
+    :func:`JWSTNIRSpecSpectrograph.get_rn_excess`, so that each group of
+    exposures is measured only once per reduction.
+
+    Args:
+        group (:obj:`tuple`):
+            JWST ``_assign_wcs.fits`` files of the exposures in the group.
+
+    Returns:
+        :obj:`float`: The excess readnoise in DN/s, or None if it cannot be
+        measured.
+    """
+    rn_excess, npairs = measure_rn_excess(group)
+    names = ', '.join(Path(f).name for f in group)
+    if rn_excess is None:
+        log.warning(f'Too few pixels without signal to measure the excess readnoise of {names}.')
+    else:
+        log.info(f'Excess readnoise of {names}: {rn_excess:.3g} DN/s ({npairs} pairs).')
+    return rn_excess

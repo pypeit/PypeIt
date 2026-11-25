@@ -14,6 +14,7 @@ import numpy as np
 import scipy.ndimage
 import scipy.optimize
 import scipy.signal
+import scipy.stats
 
 from pypeit import log
 from pypeit import PypeItError
@@ -1516,6 +1517,128 @@ def variance_model(base, counts=None, count_scale=None, noise_floor=None):
             var += (noise_floor * _counts)**2
     # Done
     return var
+
+
+def signal_free_pixels(image, gpm, threshold, box=15, edge=16):
+    """
+    Select the pixels of an image that receive no signal.
+
+    The image is smoothed with a ``box`` x ``box`` boxcar, after setting the
+    masked pixels to 0, and the pixels without signal are the unmasked pixels
+    whose absolute smoothed value is below ``threshold`` and that are at least
+    ``edge`` pixels from the image edges.
+
+    Parameters
+    ----------
+    image : `numpy.ndarray`_
+        2D image, e.g., a dark-subtracted count-rate image.
+    gpm : `numpy.ndarray`_
+        Boolean good-pixel mask (True is good), same shape as ``image``.
+    threshold : :obj:`float`
+        Maximum absolute smoothed value (in the units of ``image``) of the
+        pixels without signal.
+    box : :obj:`int`, optional
+        Size in pixels of the boxcar used to smooth the image.
+    edge : :obj:`int`, optional
+        Number of pixels at each image edge excluded from the selection (e.g.,
+        the reference pixels and the pixels affected by the smoothing at the
+        edges).
+
+    Returns
+    -------
+    `numpy.ndarray`_
+        Boolean array, True for the pixels without signal.
+    """
+    if image.shape != gpm.shape:
+        raise PypeItError('Image and good-pixel mask have different shape.')
+    smooth = scipy.ndimage.uniform_filter(np.where(gpm, image, 0.), size=box)
+    free = gpm & (np.absolute(smooth) < threshold)
+    free[:edge] = False
+    free[-edge:] = False
+    free[:,:edge] = False
+    free[:,-edge:] = False
+    return free
+
+
+def _excess_variance_resid(excess, data, var):
+    """
+    Robust standard deviation of ``data / sqrt(var + excess)`` minus unity.
+
+    Used by :func:`excess_variance` to find the root.
+
+    Parameters
+    ----------
+    excess : :obj:`float`
+        Constant variance added to ``var``.
+    data : `numpy.ndarray`_
+        Pixel values.
+    var : `numpy.ndarray`_
+        Model variance of the pixel values.
+
+    Returns
+    -------
+    :obj:`float`
+        The robust standard deviation of the normalized residuals minus 1.
+    """
+    chi = data / np.sqrt(var + excess)
+    return scipy.stats.median_abs_deviation(chi, scale='normal') - 1
+
+
+def excess_variance(data, var):
+    r"""
+    Measure the variance missing from a noise model.
+
+    Given pixels whose expected value is zero (e.g., the pixels without signal
+    of a dark-subtracted image), this finds the constant variance,
+    :math:`V_x`, that must be added to the model variance, :math:`V`, such
+    that the robust standard deviation of the normalized residuals,
+
+    .. math::
+
+        \chi = \frac{d}{\sqrt{V + V_x}},
+
+    is unity, where :math:`d` are the pixel values.  The robust standard
+    deviation is the median absolute deviation (about the median) scaled to
+    the standard deviation of a normal distribution, so that a small offset
+    of the pixel values from zero and outliers (e.g., residual cosmic rays)
+    do not affect the measurement.
+
+    The noise model is never reduced: if the normalized residuals have a
+    robust standard deviation of unity or less without any excess variance,
+    the function returns 0.
+
+    Parameters
+    ----------
+    data : `numpy.ndarray`_
+        Values of the pixels, expected to be zero within the noise.
+    var : `numpy.ndarray`_
+        Model variance of the pixel values.  Must have the same shape as
+        ``data`` and be positive.
+
+    Returns
+    -------
+    :obj:`float`
+        The excess variance, :math:`V_x`, in the units of ``var``.
+    """
+    if data.shape != var.shape:
+        raise PypeItError('Data and variance arrays have different shape.')
+    if data.size == 0:
+        raise PypeItError('No data provided to measure the excess variance.')
+    if np.any(var <= 0):
+        raise PypeItError('Model variance must be positive.')
+
+    if _excess_variance_resid(0., data, var) <= 0:
+        return 0.
+
+    # Find an excess variance large enough that the robust standard deviation
+    # of the residuals is below unity.  The variance of the data is a good
+    # first guess.
+    upper = scipy.stats.median_abs_deviation(data, scale='normal')**2
+    while _excess_variance_resid(upper, data, var) > 0:
+        upper *= 2
+    return scipy.optimize.brentq(
+        _excess_variance_resid, 0., upper, args=(data, var), xtol=1e-6*upper, rtol=1e-6
+    )
 
 
 def nonlinear_counts(counts, ampimage, nonlinearity_coeffs):
