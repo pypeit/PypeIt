@@ -2613,7 +2613,6 @@ def show_flats(image_list, wcs_match=True, slits=None, waveimg=None):
         Wavelength image to be overplotted on the images
 
     """
-    display.connect_to_ginga(raise_err=True, allow_new=True)
     if slits is not None:
         left, right, mask = slits.select_edges()
         gpm = mask == 0
@@ -2632,6 +2631,8 @@ def show_flats(image_list, wcs_match=True, slits=None, waveimg=None):
         # Turn off clear
         if clear:
             clear = False
+    # Wait for the user
+    display.show()
 
 
 # TODO :: This could possibly be moved to core.flat

@@ -18,6 +18,24 @@ from pypeit import utils
 from pypeit.spectrographs.util import load_spectrograph
 
 
+def is_onespec_file(ifile):
+    """
+    Check if a file contains a :class:`OneSpec` object.
+
+    Only the header of the first extension is read.
+
+    Args:
+        ifile (:obj:`str`, `Path`_):
+            FITS file to check.
+
+    Returns:
+        :obj:`bool`: True if the first extension of the file was written by
+        :class:`OneSpec`.
+    """
+    with io.fits_open(ifile) as hdu:
+        return len(hdu) > 1 and hdu[1].header.get('DMODCLS') == 'OneSpec'
+
+
 class OneSpec(datamodel.DataContainer):
     """
     DataContainer to hold single spectra, e.g., from

@@ -352,8 +352,9 @@ def science_object_name(spat_pixpos, slitid, det_name):
 def spec1d_command(spec1d_file, obj_name=None):
     """
     Build the ``argv`` to view a science **1D** spectrum
-    (``pypeit_show_1dspec <spec1d> [--obj <name>]``).  The user picks an
-    object; pass its reconstructed name (see :func:`science_object_name`).
+    (``pypeit_show_1dspec <spec1d> --no_clear [--obj <name>]``).  The user
+    picks an object; pass its reconstructed name (see
+    :func:`science_object_name`).
 
     Parameters
     ----------
@@ -369,7 +370,9 @@ def spec1d_command(spec1d_file, obj_name=None):
     """
     if not spec1d_file:
         return None
-    argv = ['pypeit_show_1dspec', str(spec1d_file)]
+    # Add the spectrum to an open viewer, so that the spectra viewed from the
+    # dashboard are collected in one window
+    argv = ['pypeit_show_1dspec', str(spec1d_file), '--no_clear']
     if obj_name:
         argv += ['--obj', obj_name]
     return argv

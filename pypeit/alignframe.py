@@ -174,8 +174,8 @@ class TraceAlignment:
              show_peaks (bool, optional):
                Generate QA showing peaks identified by alignment profile tracing
              show_trace (bool, optional):
-               Generate QA showing traces identified. Requires an open ginga RC modules window.
-               Launch with ``ginga --modules=RC,SlitWavelength &``
+               Show the traces identified in PypeIt's ginga viewer.  Execution
+               continues when the viewer window is closed.
              debug (bool, optional):
                Debug the alignment tracing algorithm
 
@@ -300,7 +300,6 @@ def show_alignment(alignframe, align_traces=None, slits=None, clear=False):
     -------
 
     """
-    display.connect_to_ginga(raise_err=True, allow_new=True)
     ch_name = 'alignment'
     viewer, channel = display.show_image(alignframe, chname=ch_name, clear=clear, wcs_match=False)
 
@@ -319,6 +318,9 @@ def show_alignment(alignframe, align_traces=None, slits=None, clear=False):
                     color = 'magenta'
                 # Display the trace
                 display.show_trace(viewer, channel, align_traces[:, bar, slt], color=color)
+
+    # Wait for the user
+    display.show()
 
 
 class AlignmentSplines:

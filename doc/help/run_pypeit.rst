@@ -55,10 +55,9 @@
       -m, --do_not_reuse_calibs
                             Do not load previously generated calibrations, even ones
                             made during the run.
-      -s, --show            Show reduction steps via plots (which will block further
-                            execution until clicked on) and outputs to ginga.
-                            Requires remote control ginga session via "ginga
-                            --modules=RC,SlitWavelength &"
+      -s, --show            Show reduction steps via plots and PypeIt's ginga
+                            viewer. Execution is blocked until the plot or viewer
+                            window is closed.
       -o, --overwrite       Overwrite any existing files/directories
       -c, --calib_only      Only run on calibrations
       --ncpu NCPU           Number of CPUs to use. Overrides the [rdx] ncpu

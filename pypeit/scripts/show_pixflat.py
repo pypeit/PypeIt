@@ -55,12 +55,14 @@ class ShowPixFlat(scriptbase.ScriptBase):
                     log.warning(f"Detector(s) {det_not_in_file} not found in the file. Available detectors are {file_dets}")
 
             # show the image
-            display.connect_to_ginga(raise_err=True, allow_new=True)
             for h in hdu[1:]:
                 det = int(h.name.split('-')[0].split('DET')[1])
                 if args.det is not None and det not in args.det:
                     continue
                 display.show_image(h.data, chname=h.name, cuts=(0.9, 1.1), clear=False, wcs_match=True)
+
+        # Wait for the user to close the window
+        display.show(message='close the window to exit')
 
 
 

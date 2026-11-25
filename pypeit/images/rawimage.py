@@ -890,6 +890,7 @@ class RawImage:
                 #
                 viewer, ch = display.show_image(self.image[0], chname='orig_image')
                 display.show_slits(viewer, ch, left, right)  # , slits.id)
+                display.show()
 
         # Retrieve the relative spectral illumination profile
         spec_illum = flatimages.pixelflat_spec_illum if self.par['use_specillum'] else 1.
