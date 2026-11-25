@@ -37,7 +37,9 @@ pypeit_chk_flats
 
 This script takes a ``Flat`` as input and displays
 a series of images in a
-`ginga`_ viewer, each in a separate tab.
+`ginga`_ viewer, each in a separate tab.  The tabs are locked together, so
+panning or zooming one also pans or zooms the others.  The images are read
+inside the ginga viewer; see :ref:`ginga_viewer_workflow`.
 
 Here is a typical call:
 

@@ -56,7 +56,10 @@ This is the default mode when executing, e.g.:
     large and require decompression.
 
 Two images are shown, the trace image (typically a combination of dome
-flats) and the Sobel filtered image used to detect the slit edges.
+flats) and the Sobel filtered image used to detect the slit edges.  The two
+channels are locked together, so panning or zooming one also pans or zooms the
+other.  The images are read inside the ginga viewer; see
+:ref:`ginga_viewer_workflow`.
 
 Here is a zoom-in screen shot for the :ref:`keck-lris-red` spectrograph.
 

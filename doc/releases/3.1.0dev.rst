@@ -5,7 +5,22 @@ Version 3.1.0dev
 Breaking Changes
 ----------------
 
-- placeholder
+- The ``--embed`` option of ``pypeit_show_2dspec`` has been removed.  The
+  script no longer reads the data itself (it is read inside the ginga
+  viewer), so there is nothing to inspect in an embedded IPython session.
+- ``pypeit_show_1dspec``, ``pypeit_show_2dspec``, ``pypeit_chk_edges`` and
+  ``pypeit_chk_flats`` require a ginga viewer started from an environment
+  where this version of PypeIt is installed (so that it loads the
+  ``PypeItRemote`` plugin).  The scripts start such a viewer if none is
+  running, and stop with an explanation if the running viewer lacks the
+  plugin.
+- ``pypeit.scripts.show_2dspec.show_trace`` and ``wave_rms_image`` have been
+  removed; ``wave_rms_image`` is now in ``pypeit.display.spec2d_data``.
+  ``pypeit.display.display.show_1dspec`` has been removed.
+- The ``--embed`` option of ``pypeit_view_fits`` has been removed, and
+  ``pypeit_view_fits`` and ``pypeit_show_pixflat`` now clear the ginga
+  viewer before showing an image (``pypeit_view_fits --no_clear`` keeps the
+  existing channels).
 
 
 Documentation Updates
@@ -23,7 +38,20 @@ Dependency Changes
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
 
-- placeholder
+- Added the ``Spec2dView``, ``EdgesView`` and ``FlatsView`` ginga plugins,
+  opened by ``pypeit_show_2dspec``, ``pypeit_chk_edges`` and
+  ``pypeit_chk_flats``.  They reload the file, toggle the slit and object
+  overlays, re-display with different options (e.g. another detector), and
+  navigate to a slit.  See :ref:`ginga_viewer_workflow`.
+- Added ``pypeit_show_calib``, which shows a single-image calibration file
+  (e.g. Bias, Arc, Dark, Tiltimg) in the ginga viewer after clearing it,
+  optionally with its inverse variance, mask and slit edges.  The
+  documentation now uses it instead of ``ginga <file>``.
+- ``pypeit_chk_tilts``, ``pypeit_view_fits``, ``pypeit_show_pixflat`` and
+  ``pypeit_chk_scattlight`` now also run inside the ginga viewer, with a
+  control panel (``TiltsView`` or ``FileView``).  In ``pypeit_chk_tilts`` the
+  good fits, masked pixels, rejected pixels, traced pixels and legend are
+  separate overlays that can be toggled.
 
 
 Instrument-specific Updates
@@ -35,7 +63,22 @@ Instrument-specific Updates
 Script Changes
 --------------
 
-- placeholder
+- ``pypeit_show_1dspec`` now sends its options to the ``PypeItRemote``
+  plugin, which reads and shows the spectrum inside a long-lived ginga
+  viewer and clears the viewer's channels first.  The script waits for
+  the display and reports errors in the terminal; the new ``--timeout``
+  option sets how long it waits.  See :ref:`ginga_viewer_workflow`.
+- ``pypeit_chk_edges`` and ``pypeit_chk_flats`` now also run inside the
+  ginga viewer.  Their channels are locked together in pan, zoom and
+  rotation (by pixel, so the images need no WCS), and the slits file is
+  also looked for in the directory of the calibration file, so moved
+  calibrations still show their slit edges.  An unreadable slits file is
+  reported as a warning instead of stopping the display.
+  ``pypeit_chk_flats --type`` now rejects values other than ``pixel``,
+  ``illum`` or ``all``.
+- ``pypeit_show_2dspec`` (and the display in ``pypeit_ql``) now runs inside
+  the ginga viewer.  Its channels are locked together by pixel, and with
+  ``--no_clear`` only the channels being shown again are replaced.
 
 
 Testing
@@ -47,11 +90,21 @@ Testing
 Under-the-hood Improvements
 ---------------------------
 
-- placeholder
+- Added the hidden ``PypeItRemote`` ginga plugin and its client
+  (``pypeit.display.remote``), which let the PypeIt display scripts run
+  their work inside a long-lived ginga viewer instead of sending image
+  buffers over the remote-control interface.  Added in-process drawing
+  helpers (``pypeit.display.ginga_draw``); ``SlitImage`` moved there from
+  ``pypeit.display.slitwavelength``.
 
 
 Bug Fixes
 ---------
 
-- placeholder
+- ``pypeit_view_fits --proc --showmask`` failed because it read the
+  bad-pixel mask from the wrong attribute.
+- ``WaveTilts.show`` (``pypeit_chk_tilts``) failed when the Slits file was
+  not found.
+- ``ScatteredLight.show`` (``pypeit_chk_scattlight``) multiplied the stored
+  scattered-light frame by the slit mask in place.
 

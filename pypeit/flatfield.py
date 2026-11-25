@@ -474,7 +474,8 @@ class FlatImages(calibframe.CalibFrame):
 
     def show(self, frametype='all', slits=None, wcs_match=True, chk_version=True):
         """
-        Simple wrapper to :func:`show_flats`.
+        Show the flat-field images in a ginga viewer over its remote-control
+        interface; see :func:`ginga_products` and :func:`show_flats`.
 
         Args:
             frametype (str, optional):
@@ -492,6 +493,36 @@ class FlatImages(calibframe.CalibFrame):
                 will try to keep going, but this may lead to faults and quiet
                 failures.  User beware!
         """
+        products = self.ginga_products(frametype=frametype, slits=slits, chk_version=chk_version)
+        show_flats(products['images'], wcs_match=wcs_match, slits=products['slits'],
+                   waveimg=products['waveimg'])
+
+    def ginga_products(self, frametype='all', slits=None, chk_version=True):
+        """
+        Collect the flat-field images to show in ginga.
+
+        This does not interact with ginga; see :func:`show` and
+        :func:`pypeit.display.remote_handlers.chk_flats`.
+
+        Args:
+            frametype (str, optional):
+                String used to select the flats to be displayed.  The frame type
+                should be 'illum' to show the illumflat version, 'pixel' to show
+                the pixelflat version, or 'all' to show both.
+            slits (:class:`~pypeit.slittrace.SlitTraceSet`):
+                Definition of the slit edges.  If None, the code tries to read
+                the slits file associated with this calibration.
+            chk_version (:obj:`bool`, optional):
+                When reading the slits file, perform strict version checking.
+
+        Returns:
+            :obj:`dict`: Dictionary with the list of ``(image, name, cuts)``
+            tuples to show (``images``), only including the images that are
+            available; the slits (``slits``), which can be None; and the
+            wavelength image (``waveimg``), which can be None.
+        """
+        if frametype not in ['all', 'pixel', 'illum']:
+            raise PypeItError(f'Unknown flat type: {frametype}.  Must be pixel, illum, or all.')
         illumflat_pixel, illumflat_illum = None, None
         pixelflat_finecorr, illumflat_finecorr = None, None
         pixelflat_totalillum, illumflat_totalillum = None, None
@@ -546,8 +577,8 @@ class FlatImages(calibframe.CalibFrame):
                              [(0.9, 1.1), (0.9, 1.1), (0.95, 1.05), (0.9, 1.1),
                               None, None, (0.8, 1.2),
                               (0.9, 1.1), (0.95, 1.05), (0.9, 1.1), None])
-        # Display frames
-        show_flats(image_list, wcs_match=wcs_match, slits=slits, waveimg=self.pixelflat_waveimg)
+        images = [(img, name, cuts) for img, name, cuts in image_list if img is not None]
+        return dict(images=images, slits=slits, waveimg=self.pixelflat_waveimg)
 
 
 class FiberFlatImages(calibframe.CalibFrame):

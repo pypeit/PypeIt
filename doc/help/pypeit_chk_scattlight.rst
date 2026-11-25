@@ -4,6 +4,7 @@
     usage: pypeit_chk_scattlight [-h] [-v VERBOSITY] [--log_file LOG_FILE]
                                  [--log_level LOG_LEVEL] [--spec2d SPEC2D]
                                  [--det DET] [--mask MASK] [--try_old]
+                                 [--timeout TIMEOUT]
                                  file slits
     
     Display the scattered light image in a Ginga viewer
@@ -15,7 +16,7 @@
     
     options:
       -h, --help            show this help message and exit
-      -v, --verbosity VERBOSITY
+      -v VERBOSITY, --verbosity VERBOSITY
                             Verbosity level, which must be 0, 1, or 2. Level 0
                             includes warning and error messages, level 1 adds
                             informational messages, and level 2 adds debugging
@@ -38,4 +39,8 @@
                             regions (default: False)
       --try_old             Attempt to load old datamodel versions. A crash may
                             ensue.. (default: False)
+      --timeout TIMEOUT     Number of seconds to wait for ginga to display the data.
+                            If the display is not done by then, the script stops
+                            waiting, but ginga finishes the display. (default:
+                            120.0)
     

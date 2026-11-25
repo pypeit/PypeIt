@@ -1,14 +1,15 @@
 """
-This script enables the viewing of a raw FITS file
+This script enables the viewing of a raw FITS file.
+
+The image is read and displayed inside the ginga viewer by the
+``PypeItRemote`` plugin; see :mod:`pypeit.display.remote` and
+:func:`pypeit.display.image_data.view_fits_images`.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
 
-from IPython import embed
-
 from pypeit.scripts import scriptbase
-from pypeit import utils
 
 
 class ViewFits(scriptbase.ScriptBase):
@@ -43,106 +44,27 @@ class ViewFits(scriptbase.ScriptBase):
         parser.add_argument('--chname', type=str, default='Image', help='Name of Ginga tab')
         parser.add_argument('--showmask', default=False, help='Overplot masked pixels',
                             action='store_true')
-        parser.add_argument('--embed', default=False, action='store_true',
-                            help='Upon completion embed in ipython shell')
+        parser.add_argument('--no_clear', dest='clear', default=True, action='store_false',
+                            help='Do *not* clear all existing channels')
+        scriptbase.add_ginga_timeout_argument(parser)
         return parser
 
     @classmethod
     def main(cls, args):
-
-        from pypeit import log
-        from pypeit import PypeItError
-        from pypeit.display import display
-        from pypeit.spectrographs import util
         from pypeit import io
-        from pypeit.images import buildimage
-        from pypeit.images import pypeitimage
+        from pypeit.display import remote
 
         # List only?
         if args.list:
-            hdu = io.fits_open(args.file)
-            print(hdu.info())
+            with io.fits_open(args.file) as hdu:
+                hdu.info()
             return
 
         # Initialize the log
         cls.init_log(args)
 
-        if args.proc and args.exten is not None:
-            raise PypeItError('You cannot specify --proc and --exten, since --exten shows the raw image')
-        if args.exten is not None and args.det == 'mosaic':
-            raise PypeItError('You cannot specify --exten and --det mosaic, since --mosaic displays '
-                       'multiple extensions by definition')
-
-        # Intermediate file?
-        if args.inter:
-            hdu = io.fits_open(args.file)
-            sciImg = pypeitimage.PypeItImage.from_file(args.file)
-            img = sciImg.image
-        elif args.exten is not None:
-            hdu = io.fits_open(args.file)
-            img = hdu[args.exten].data
-            hdu.close()
-        else:
-            spectrograph = util.load_spectrograph(args.spectrograph)
-            bad_read_message = 'Unable to construct image due to a read or image processing ' \
-                               'error.  Use case interpreted from command-line inputs requires ' \
-                               'a raw image, not an output image product from pypeit.  To show ' \
-                               'a pypeit output image, specify the extension using --exten.  ' \
-                               'Use --list to show the extension names.'
-            if 'mosaic' in args.det:
-                mosaic = True
-                _det = spectrograph.default_mosaic 
-                if _det is None:
-                    raise PypeItError(f'{args.spectrograph} does not have a known mosaic')
-            else:
-                try:
-                    _det = tuple(int(d) for d in args.det)
-                except:
-                    raise PypeItError(f'Could not convert detector input to integer.')
-                mosaic = len(_det) > 1
-                if not mosaic:
-                    _det = _det[0]
-            if args.proc:
-                # Use the biasframe processing parameters because processing
-                # these frames is independent of any other frames (ie., does not
-                # perform bias subtraction or flat-fielding)
-                par = spectrograph.default_pypeit_par()['calibrations']['biasframe']
-                try:
-                    Img = buildimage.buildimage_fromlist(spectrograph, _det, par,
-                                                         [args.file], mosaic=mosaic)
-                except Exception as e:
-                    raise PypeItError(bad_read_message 
-                               + f'  Original exception -- {type(e).__name__}: {str(e)}')
-
-                if args.bkg_file is not None:
-                    try:
-                        bkgImg = buildimage.buildimage_fromlist(spectrograph, _det, par,
-                                                                [args.bkg_file], mosaic=mosaic)
-                    except Exception as e:
-                        raise PypeItError(bad_read_message
-                                   + f'  Original exception -- {type(e).__name__}: {str(e)}')
-
-
-                    Img = Img.sub(bkgImg)
-
-                img = Img.image
-
-            else:
-                try:
-                    img = spectrograph.get_rawimage(args.file, _det)[1]
-                except Exception as e:
-                    raise PypeItError(bad_read_message 
-                               + f'  Original exception -- {type(e).__name__}: {str(e)}')
-
-        display.connect_to_ginga(raise_err=True, allow_new=True)
-        display.show_image(img, chname=args.chname)
-
-        if args.showmask:
-            if not args.proc:
-                log.info("You need to use --proc with --showmask to show the mask.  Ignoring your argument")
-            else:
-                viewer, ch_mask = display.show_image(Img.bpm, chname="BPM")
-
-        if args.embed:
-            embed(header=utils.embed_header())
-
+        # Read and show the image in ginga
+        remote.send_command(
+            'view_fits', remote.args_to_json(args, path_args=['file', 'bkg_file']),
+            timeout=args.timeout
+        )

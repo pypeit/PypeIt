@@ -2,7 +2,8 @@
 
     $ pypeit_chk_flats -h
     usage: pypeit_chk_flats [-h] [-v VERBOSITY] [--log_file LOG_FILE]
-                            [--log_level LOG_LEVEL] [--type TYPE] [--try_old]
+                            [--log_level LOG_LEVEL] [--type {pixel,illum,all}]
+                            [--try_old] [--timeout TIMEOUT]
                             file
     
     Display flat images in Ginga viewer
@@ -12,7 +13,7 @@
     
     options:
       -h, --help            show this help message and exit
-      -v, --verbosity VERBOSITY
+      -v VERBOSITY, --verbosity VERBOSITY
                             Verbosity level, which must be 0, 1, or 2. Level 0
                             includes warning and error messages, level 1 adds
                             informational messages, and level 2 adds debugging
@@ -24,8 +25,12 @@
                             Verbosity level for the log file. If a log file is
                             produce and this is None, the file log will match the
                             console stream log. (default: None)
-      --type TYPE           Which flats to display. Must be one of: pixel, illum,
-                            all (default: all)
+      --type {pixel,illum,all}
+                            Which flats to display. (default: all)
       --try_old             Attempt to load old datamodel versions. A crash may
                             ensue.. (default: False)
+      --timeout TIMEOUT     Number of seconds to wait for ginga to display the data.
+                            If the display is not done by then, the script stops
+                            waiting, but ginga finishes the display. (default:
+                            120.0)
     

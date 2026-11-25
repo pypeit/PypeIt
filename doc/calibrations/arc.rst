@@ -26,7 +26,7 @@ You can view it with any standard image viewer, e.g.:
 
 .. code-block:: console
 
-    ginga Calibrations/Arc_A_1_01.fits
+    pypeit_show_calib Calibrations/Arc_A_1_01.fits
 
 Most often you use only one arc frame and this appears
 very similar to the raw image.  If you do stack several,

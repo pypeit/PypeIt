@@ -42,7 +42,10 @@ This is the default mode when executing, e.g.:
 
     pypeit_chk_tilts Calibrations/Tilts_A_0_DET01.fits
 
-The :doc:`tilt` image is shown in ginga with the traced and 2D fitted tilts over-plotted.
+The :doc:`tilt` image is shown in ginga with the traced and 2D fitted tilts
+over-plotted.  The good fits, masked pixels, rejected pixels and legend are
+separate overlays that can be toggled in the ``TiltsView`` panel; see
+:ref:`ginga_viewer_workflow`.
 
 
 Here is a zoom-in screen shot for the ``shane_kast_red`` spectrograph.

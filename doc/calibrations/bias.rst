@@ -24,7 +24,7 @@ any standard image viewer, e.g.:
 
 .. code-block:: console
 
-    ginga Calibrations/Bias_A_1_01.fits
+    pypeit_show_calib Calibrations/Bias_A_1_01.fits
 
 It should resemble any one of your input bias frames aside from:
 

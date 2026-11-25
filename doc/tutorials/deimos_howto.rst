@@ -167,7 +167,7 @@ Arc
 Here is a screen shot of most of the arc image as viewed
 with `ginga`_::
 
-    ginga Calibrations/Arc_A_1_DET07.fits
+    pypeit_show_calib Calibrations/Arc_A_1_DET07.fits
 
 As typical of most arc images, one sees a series
 of arc lines, here oriented approximately horizontally. 

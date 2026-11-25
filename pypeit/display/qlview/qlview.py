@@ -2274,7 +2274,7 @@ class QLView(GingaPlugin.LocalPlugin):
 
         Overlays per-slit λ RMS annotations on the slit canvas.
         """
-        from pypeit.display.slitwavelength import SlitImage
+        from pypeit.display.ginga_draw import SlitImage
 
         current = self.fitsimage.get_image()
         if current is None:

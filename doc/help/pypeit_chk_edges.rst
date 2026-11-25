@@ -3,7 +3,7 @@
     $ pypeit_chk_edges -h
     usage: pypeit_chk_edges [-h] [-v VERBOSITY] [--log_file LOG_FILE]
                             [--log_level LOG_LEVEL] [--slits_file SLITS_FILE]
-                            [--mpl] [--try_old]
+                            [--mpl] [--try_old] [--timeout TIMEOUT]
                             trace_file
     
     Display trace image and edge traces
@@ -13,7 +13,7 @@
     
     options:
       -h, --help            show this help message and exit
-      -v, --verbosity VERBOSITY
+      -v VERBOSITY, --verbosity VERBOSITY
                             Verbosity level, which must be 0, 1, or 2. Level 0
                             includes warning and error messages, level 1 adds
                             informational messages, and level 2 adds debugging
@@ -28,11 +28,16 @@
       --slits_file SLITS_FILE
                             PypeIt Slits file [e.g. Slits_A_1_01.fits]. If this file
                             does not exist or is not provided, PypeIt will attempt
-                            to read the default file name (in the Calibrations
-                            directory). Ignored if plotting using a matplotlib
-                            window instead of ginga. (default: None)
+                            to read the default file name (in the calibration
+                            directory recorded in the Edges file, or else in the
+                            directory of the Edges file). Ignored if plotting using
+                            a matplotlib window instead of ginga. (default: None)
       --mpl                 Use a matplotlib window instead of ginga to show the
                             trace (default: False)
       --try_old             Attempt to load old datamodel versions. A crash may
                             ensue.. (default: False)
+      --timeout TIMEOUT     Number of seconds to wait for ginga to display the data.
+                            If the display is not done by then, the script stops
+                            waiting, but ginga finishes the display. (default:
+                            120.0)
     

@@ -237,7 +237,7 @@ You can view the ``Arc`` image used for the wavelength calibration of the scienc
 
 .. code-block:: bash
 
-    ginga Calibrations/Arc_A_0_DET01.fits
+    pypeit_show_calib Calibrations/Arc_A_0_DET01.fits
 
 .. image:: ../figures/lris_arc_image.png
    :scale: 60%

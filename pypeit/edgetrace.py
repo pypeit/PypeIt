@@ -1276,7 +1276,121 @@ class EdgeTraceSet(calibframe.CalibFrame):
                     else np.unique(np.concatenate([self.bitmask.flagged_bits(b) 
                                                     for b in np.unique(self.edge_msk)])).tolist()
 
-    # TODO: Break the ginga commands out into a separate method?
+    def _show_data(self, slits=None, flag=None, include_error=False):
+        """
+        Collect the slit-edge data used by :func:`show` and
+        :func:`ginga_products`.
+
+        Args:
+            slits (:class:`~pypeit.slittrace.SlitTraceSet`, optional):
+                Slits to show instead of those kept internally.
+            flag (:obj:`str`, :obj:`list`, optional):
+                Flags used to select masked data to show; see :func:`show`.
+            include_error (:obj:`bool`, optional):
+                Include the errors on the measurements; see :func:`show`.
+
+        Returns:
+            :obj:`dict`: The edge data, or None if the object is empty and
+            ``slits`` is None.
+        """
+        if slits is None and self.is_empty:
+            return None
+        if slits is None and not self.is_empty:
+            # Use the internals. Any masked data is excluded; masked
+            # data to be plotted are held in a separate array. This
+            # means that errors and fits are currently never plotted
+            # for masked data.
+            _flag = None if flag in ['any', None] else np.atleast_1d(flag)
+            cen = np.ma.MaskedArray(self.edge_cen, mask=self.bitmask.flagged(self.edge_msk))
+            fit = self.edge_fit
+            err = np.ma.MaskedArray(self.edge_err, mask=np.ma.getmaskarray(cen).copy())
+            msk = None if flag is None \
+                    else np.ma.MaskedArray(self.edge_cen, mask=np.logical_not(
+                                           self.bitmask.flagged(self.edge_msk, flag=_flag)))
+            is_left = self.is_left
+            is_right = self.is_right
+            _include_error = include_error
+            # This selects all unmasked traces, traces that were
+            # inserted, and traces that have been identified as coming
+            # from box slits.
+            gpm = np.logical_not(self.fully_masked_traces(flag=self.bitmask.bad_flags,
+                                                          exclude=self.bitmask.exclude_flags))
+            traceid = self.traceid if self.orderid is None else self.orderid
+            nslits = np.amax(traceid)   # Only used if synced is True
+            synced = self.is_synced
+            slit_ids = None
+            maskdef_ids = None
+            if synced:
+                _trc = cen if fit is None else fit
+                half = _trc.shape[0] // 2
+                slit_ids = ((_trc[half, gpm & is_left]
+                             + _trc[half, gpm & is_right]) / 2.).astype(int)
+                if self.maskdef_id is not None:
+                    maskdef_ids = self.maskdef_id[gpm & self.is_left]
+                    maskdef_ids[maskdef_ids == -99] = self.maskdef_id[gpm & self.is_right][maskdef_ids == -99]
+        elif slits is not None:
+            # Use the provided SlitTraceSet
+            _include_error = False
+            if include_error:
+                log.warning('SlitTraceSet object has no errors.')
+            left, right, _ = slits.select_edges() # original=original)
+            cen = np.hstack((left,right))
+            fit = cen
+            err = None
+            msk = None
+            nslits = slits.nslits
+            is_left = np.ones(2*nslits, dtype=bool)
+            is_left[nslits:] = False
+            is_right = np.logical_not(is_left)
+            gpm = np.ones(2*nslits, dtype=bool)
+            traceid = np.concatenate((-np.arange(nslits), np.arange(nslits)))
+            synced = True
+            # JFH Trying to make this work for the case where slits are
+            # known, but this functionality appears to be never used? I
+            # think slits needs its own show method.
+            slit_ids = slits.slitord_id
+            maskdef_ids = slits.maskdef_id
+
+        return dict(cen=cen, fit=fit, err=err, msk=msk, is_left=is_left, is_right=is_right,
+                    _include_error=_include_error, gpm=gpm, traceid=traceid, nslits=nslits,
+                    synced=synced, slit_ids=slit_ids, maskdef_ids=maskdef_ids)
+
+    def ginga_products(self, thin=10, slits=None):
+        """
+        Collect the images and edge traces shown in ginga.
+
+        This does not interact with ginga; see
+        :func:`pypeit.display.remote_handlers.chk_edges`.
+
+        Args:
+            thin (:obj:`int`, optional):
+                Keep every ``thin``-th point along the edges.
+            slits (:class:`~pypeit.slittrace.SlitTraceSet`, optional):
+                Slits to show instead of those kept internally.
+
+        Returns:
+            :obj:`dict`: Dictionary with the list of ``(image, name)`` pairs
+            to show (``images``) and the keyword arguments for
+            :func:`~pypeit.display.ginga_draw.slit_overlay` (``overlay``),
+            which is None if there are no edges to show.
+        """
+        images = [(self.traceimg.image, 'Trace Image'), (self.sobelsig, 'Sobel Filtered')]
+        data = self._show_data(slits=slits)
+        if data is None:
+            return dict(images=images, overlay=None)
+        gpm, is_left, is_right = data['gpm'], data['is_left'], data['is_right']
+        trc = data['cen'] if data['fit'] is None else data['fit']
+        overlay = dict(
+            left=np.asarray(trc[:,gpm & is_left]), right=np.asarray(trc[:,gpm & is_right]),
+            pstep=thin, synced=data['synced'], maskdef_ids=data['maskdef_ids']
+        )
+        if data['synced']:
+            overlay['slit_ids'] = data['slit_ids']
+        else:
+            overlay['left_ids'] = data['traceid'][gpm & is_left]
+            overlay['right_ids'] = data['traceid'][gpm & is_right]
+        return dict(images=images, overlay=overlay)
+
     def show(self, include_error=False, thin=10, in_ginga=False, include_img=True,
              include_sobel=False, img_buffer=100, flag=None, idlabel=True, slits=None,
              original=False, title=None):
@@ -1347,87 +1461,30 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # TODO: Currently barfs if object is empty!
 
         # Build the slit edge data to plot.
-        if slits is None and not self.is_empty:
-            # Use the internals. Any masked data is excluded; masked
-            # data to be plotted are held in a separate array. This
-            # means that errors and fits are currently never plotted
-            # for masked data.
-            _flag = None if flag in ['any', None] else np.atleast_1d(flag)
-            cen = np.ma.MaskedArray(self.edge_cen, mask=self.bitmask.flagged(self.edge_msk))
-            fit = self.edge_fit
-            err = np.ma.MaskedArray(self.edge_err, mask=np.ma.getmaskarray(cen).copy())
-            msk = None if flag is None \
-                    else np.ma.MaskedArray(self.edge_cen, mask=np.logical_not(
-                                           self.bitmask.flagged(self.edge_msk, flag=_flag)))
-            is_left = self.is_left
-            is_right = self.is_right
-            _include_error = include_error
-            # This selects all unmasked traces, traces that were
-            # inserted, and traces that have been identified as coming
-            # from box slits.
-            gpm = np.logical_not(self.fully_masked_traces(flag=self.bitmask.bad_flags,
-                                                          exclude=self.bitmask.exclude_flags))
-            traceid = self.traceid if self.orderid is None else self.orderid
-            nslits = np.amax(traceid)   # Only used if synced is True
-            synced = self.is_synced
-            slit_ids = None
-            maskdef_ids = None
-            if synced:
-                _trc = cen if fit is None else fit
-                half = _trc.shape[0] // 2
-                slit_ids = ((_trc[half, gpm & is_left]
-                             + _trc[half, gpm & is_right]) / 2.).astype(int)
-                if self.maskdef_id is not None:
-                    maskdef_ids = self.maskdef_id[gpm & self.is_left]
-                    maskdef_ids[maskdef_ids == -99] = self.maskdef_id[gpm & self.is_right][maskdef_ids == -99]
-        elif slits is not None:
-            # Use the provided SlitTraceSet
-            _include_error = False
-            if include_error:
-                log.warning('SlitTraceSet object has no errors.')
-            left, right, _ = slits.select_edges() # original=original)
-            cen = np.hstack((left,right))
-            fit = cen
-            msk = None
-            nslits = slits.nslits
-            is_left = np.ones(2*nslits, dtype=bool)
-            is_left[nslits:] = False
-            is_right = np.logical_not(is_left)
-            gpm = np.ones(2*nslits, dtype=bool)
-            traceid = np.concatenate((-np.arange(nslits), np.arange(nslits)))
-            synced = True
-            # JFH Trying to make this work for the case where slits are
-            # known, but this functionality appears to be never used? I
-            # think slits needs its own show method.
-            slit_ids = slits.slitord_id
-            maskdef_ids = slits.maskdef_id
+        data = self._show_data(slits=slits, flag=flag, include_error=include_error)
+        if data is not None:
+            cen, fit, err, msk = data['cen'], data['fit'], data['err'], data['msk']
+            is_left, is_right, gpm = data['is_left'], data['is_right'], data['gpm']
+            _include_error, traceid, nslits = data['_include_error'], data['traceid'], \
+                    data['nslits']
+            synced, slit_ids, maskdef_ids = data['synced'], data['slit_ids'], \
+                    data['maskdef_ids']
 
         # TODO: The above should set everything (self shouldn't be used
         # below). We need a single show method that both EdgeTraceSet
         # and SlitTraceSet can use.
 
         if in_ginga:
-            # Set up the appropriate keyword arguments for the IDs
-            id_kwargs = {'slit_ids': slit_ids} if synced \
-                            else {'left_ids': traceid[gpm & is_left],
-                                  'right_ids': traceid[gpm & is_right]}
-            id_kwargs['maskdef_ids'] = maskdef_ids
-            _trc = cen if fit is None else fit
-
+            products = self.ginga_products(thin=thin, slits=slits)
             # Connect to or instantiate ginga window
             display.connect_to_ginga(raise_err=True, allow_new=True)
-            # Clear the viewer and show the trace image
-            trace_viewer, trace_ch = display.show_image(self.traceimg.image, chname='Trace Image',
-                                                        clear=True)
-            if not self.is_empty:
-                display.show_slits(trace_viewer, trace_ch, _trc[:,gpm & is_left],
-                                   _trc[:,gpm & is_right], pstep=thin, synced=synced, **id_kwargs)
-
-            # Show the Sobel sigma image (do *not* clear)
-            sobel_viewer, sobel_ch = display.show_image(self.sobelsig, chname='Sobel Filtered')
-            if not self.is_empty:
-                display.show_slits(sobel_viewer, sobel_ch, _trc[:,gpm & is_left],
-                                   _trc[:,gpm & is_right], pstep=thin, synced=synced, **id_kwargs)
+            # Clear the viewer and show the trace and Sobel images
+            for i, (img, chname) in enumerate(products['images']):
+                viewer, ch = display.show_image(img, chname=chname, clear=i == 0)
+                if products['overlay'] is not None:
+                    overlay = dict(products['overlay'])
+                    display.show_slits(viewer, ch, overlay.pop('left'), overlay.pop('right'),
+                                       **overlay)
             return
 
         # Show the traced image

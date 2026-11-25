@@ -17,6 +17,24 @@ from IPython import embed
 from pypeit import log
 from pypeit import PypeItError
 
+
+def add_ginga_timeout_argument(parser):
+    """
+    Add the ``--timeout`` option shared by the scripts that display their
+    results in ginga with :func:`pypeit.display.remote.send_command`.
+
+    Parameters
+    ----------
+    parser : `argparse.ArgumentParser`_
+        Parser to add the option to.
+    """
+    parser.add_argument(
+        '--timeout', type=float, default=120.,
+        help='Number of seconds to wait for ginga to display the data.  If the display is '
+             'not done by then, the script stops waiting, but ginga finishes the display.'
+    )
+
+
 class SmartFormatter(argparse.HelpFormatter):
     r"""
     Enable a combination of both fixed-format and wrappable lines to be

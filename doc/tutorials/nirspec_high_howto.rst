@@ -430,7 +430,7 @@ can be checked by using:
 
 .. code-block:: bash
 
-    ginga Calibrations/Arc_A_0_DET01.fits
+    pypeit_show_calib Calibrations/Arc_A_0_DET01.fits
 
 The wavelength calibration can be checked by looking at the automatically
 generaged QA plots; see :ref:`qa-wave-fit`. Below is the wavelength calibration

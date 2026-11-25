@@ -7,7 +7,8 @@ import numpy
 
 from ginga.misc.Bunch import Bunch
 
-required_plugins = ['SlitWavelength', 'Spec1dView', 'QLView']
+required_plugins = ['SlitWavelength', 'Spec1dView', 'QLView', 'PypeItRemote', 'Spec2dView',
+                    'EdgesView', 'FlatsView', 'CalibView', 'TiltsView', 'FileView']
 
 def plugins_available(return_report=False):
     available_plugins = []
@@ -41,3 +42,38 @@ def setup_QLView():
     return Bunch(module='pypeit.display.qlview.qlview', klass='QLView',
                  ptype='local', workspace='right', start=False,
                  category='PypeIt', menu='QLView', tab='QLView')
+
+def setup_PypeItRemote():
+    return Bunch(module='pypeit.display.pypeit_remote', klass='PypeItRemote',
+                 name='PypeItRemote', ptype='global', hidden=True, start=False,
+                 category='PypeIt')
+
+def setup_Spec2dView():
+    return Bunch(module='pypeit.display.views', klass='Spec2dView', name='Spec2dView',
+                 ptype='local', workspace='right', start=False,
+                 category='PypeIt', menu='Spec2dView', tab='Spec2dView')
+
+def setup_EdgesView():
+    return Bunch(module='pypeit.display.views', klass='EdgesView', name='EdgesView',
+                 ptype='local', workspace='right', start=False,
+                 category='PypeIt', menu='EdgesView', tab='EdgesView')
+
+def setup_FlatsView():
+    return Bunch(module='pypeit.display.views', klass='FlatsView', name='FlatsView',
+                 ptype='local', workspace='right', start=False,
+                 category='PypeIt', menu='FlatsView', tab='FlatsView')
+
+def setup_CalibView():
+    return Bunch(module='pypeit.display.views', klass='CalibView', name='CalibView',
+                 ptype='local', workspace='right', start=False,
+                 category='PypeIt', menu='CalibView', tab='CalibView')
+
+def setup_TiltsView():
+    return Bunch(module='pypeit.display.views', klass='TiltsView', name='TiltsView',
+                 ptype='local', workspace='right', start=False,
+                 category='PypeIt', menu='TiltsView', tab='TiltsView')
+
+def setup_FileView():
+    return Bunch(module='pypeit.display.views', klass='FileView', name='FileView',
+                 ptype='local', workspace='right', start=False,
+                 category='PypeIt', menu='FileView', tab='FileView')

@@ -3,7 +3,7 @@
     $ pypeit_chk_tilts -h
     usage: pypeit_chk_tilts [-h] [-v VERBOSITY] [--log_file LOG_FILE]
                             [--log_level LOG_LEVEL] [--mpl] [--show_traces]
-                            [--try_old]
+                            [--try_old] [--timeout TIMEOUT]
                             file
     
     Display Tiltimg image and 2D fitted tilts in Ginga viewer or Matplotlib window.
@@ -14,7 +14,7 @@
     
     options:
       -h, --help            show this help message and exit
-      -v, --verbosity VERBOSITY
+      -v VERBOSITY, --verbosity VERBOSITY
                             Verbosity level, which must be 0, 1, or 2. Level 0
                             includes warning and error messages, level 1 adds
                             informational messages, and level 2 adds debugging
@@ -34,4 +34,8 @@
                             False)
       --try_old             Attempt to load old datamodel versions. A crash may
                             ensue.. (default: False)
+      --timeout TIMEOUT     Number of seconds to wait for ginga to display the data.
+                            If the display is not done by then, the script stops
+                            waiting, but ginga finishes the display. (default:
+                            120.0)
     

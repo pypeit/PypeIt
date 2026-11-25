@@ -2,8 +2,9 @@
 
     $ pypeit_show_1dspec -h
     usage: pypeit_show_1dspec [-h] [-v VERBOSITY] [--log_file LOG_FILE]
-                              [--log_level LOG_LEVEL] [--list] [--exten EXTEN |
-                              --obj OBJ] [--extract {BOX,OPT}] [--flux] [-m]
+                              [--log_level LOG_LEVEL] [--list]
+                              [--exten EXTEN | --obj OBJ] [--extract {BOX,OPT}]
+                              [--flux] [-m] [--timeout TIMEOUT]
                               file
     
     Show a 1D spectrum
@@ -14,7 +15,7 @@
     
     options:
       -h, --help            show this help message and exit
-      -v, --verbosity VERBOSITY
+      -v VERBOSITY, --verbosity VERBOSITY
                             Verbosity level, which must be 0, 1, or 2. Level 0
                             includes warning and error messages, level 1 adds
                             informational messages, and level 2 adds debugging
@@ -35,4 +36,8 @@
       --flux                Show the flux-calibrated spectrum (if available)
                             (default: False)
       -m, --unmasked        Only show the unmasked data. (default: True)
+      --timeout TIMEOUT     Number of seconds to wait for ginga to display the data.
+                            If the display is not done by then, the script stops
+                            waiting, but ginga finishes the display. (default:
+                            120.0)
     

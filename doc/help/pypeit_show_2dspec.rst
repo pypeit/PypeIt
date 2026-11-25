@@ -4,10 +4,10 @@
     usage: pypeit_show_2dspec [-h] [-v VERBOSITY] [--log_file LOG_FILE]
                               [--log_level LOG_LEVEL] [--list] [--det DET]
                               [--spat_id SPAT_ID] [--maskID MASKID]
-                              [--showmask [SHOWMASK ...]] [--removetrace] [--embed]
+                              [--showmask [SHOWMASK ...]] [--removetrace]
                               [--ignore_extract_mask] [--show_wave_rms]
                               [--channels CHANNELS] [--prefix PREFIX] [--no_clear]
-                              [--try_old]
+                              [--try_old] [--timeout TIMEOUT]
                               file
     
     Display sky subtracted, spec2d image in a ginga viewer.
@@ -17,7 +17,7 @@
     
     options:
       -h, --help            show this help message and exit
-      -v, --verbosity VERBOSITY
+      -v VERBOSITY, --verbosity VERBOSITY
                             Verbosity level, which must be 0, 1, or 2. Level 0
                             includes warning and error messages, level 1 adds
                             informational messages, and level 2 adds debugging
@@ -34,7 +34,7 @@
                             constructed assuming the reduction is for a single
                             detector. If a string, it must match the name of the
                             detector object (e.g., DET01 for a detector, MSC01 for a
-                            mosaic). If not set, the first available detectorin the
+                            mosaic). If not set, the first available detector in the
                             spec2d file will be shown (default: None)
       --spat_id SPAT_ID     Restrict plotting to this slit (PypeIt ID notation)
                             (default: None)
@@ -51,7 +51,6 @@
                             for the list of flags. (default: None)
       --removetrace         Do not overplot traces in the skysub, sky_resid, and
                             resid channels (default: False)
-      --embed               Upon completion embed in ipython shell (default: False)
       --ignore_extract_mask
                             Ignore the extraction mask (default: False)
       --show_wave_rms       Show the RMS (in pixels) of the wavelength solution for
@@ -65,4 +64,8 @@
       --no_clear            Do *not* clear all existing tabs (default: True)
       --try_old             Attempt to load old datamodel versions. A crash may
                             ensue.. (default: False)
+      --timeout TIMEOUT     Number of seconds to wait for ginga to display the data.
+                            If the display is not done by then, the script stops
+                            waiting, but ginga finishes the display. (default:
+                            120.0)
     

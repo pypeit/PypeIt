@@ -184,6 +184,89 @@ class WaveTilts(calibframe.CalibFrame):
         mtch = self.spat_id == spat_id
         return np.where(mtch)[0][0]
 
+    def ginga_products(self, waveimg=None, calib_dir=None, chk_version=True,
+                       build_waveimg=True):
+        """
+        Collect the tilt image, slit edges and wavelength image to show the
+        tilts.
+
+        This does not interact with any viewer; see :func:`show` and
+        :func:`pypeit.display.remote_handlers.chk_tilts`.
+
+        Args:
+            waveimg (`numpy.ndarray`_, optional):
+                Image with the wavelength solution.  If None, it is built from
+                the WaveCalib file, if found and the slits match the tilt
+                image.
+            calib_dir (`Path`_, optional):
+                Directory with the Tiltimg, Slits and WaveCalib files.  If None
+                or it does not exist, the directory recorded in this object is
+                used.
+            chk_version (:obj:`bool`, optional):
+                When reading the other calibration files, perform strict
+                version checking.
+            build_waveimg (:obj:`bool`, optional):
+                Build the wavelength image if ``waveimg`` is None.
+
+        Returns:
+            :obj:`dict`: Dictionary with the tilt image masked outside the
+            slits (``image``), its cut levels (``cuts``), the wavelength image
+            (``waveimg``, can be None), and the unmasked slit edges and IDs
+            (``left``, ``right``, ``slit_ids``; None if the Slits file was not
+            found).
+        """
+        _calib_dir = self.calib_dir
+        if calib_dir is not None and Path(calib_dir).exists():
+            _calib_dir = calib_dir
+            log.info(f'Searching for other calibration files in {str(_calib_dir)}')
+        else:
+            log.info('Searching for other calibration files in the default directory '
+                     f'{str(_calib_dir)}')
+
+        cal_file = Path(_calib_dir).absolute() / self.tiltimg_filename
+        if not cal_file.exists():
+            raise PypeItError(f'Tilt image {str(cal_file)} NOT FOUND.')
+        tilt_img_dict = buildimage.TiltImage.from_file(cal_file, chk_version=chk_version)
+
+        # get slits
+        products = dict(left=None, right=None, slit_ids=None)
+        slitmask = None
+        cal_file = Path(_calib_dir).absolute() / self.slits_filename
+        if cal_file.exists():
+            slits = slittrace.SlitTraceSet.from_file(cal_file, chk_version=chk_version)
+            _slitmask = slits.slit_img(initial=True, flexure=self.spat_flexure)
+            _left, _right, _mask = slits.select_edges(flexure=self.spat_flexure)
+            gpm = _mask == 0
+            # resize
+            slitmask = arc.resize_mask2arc(tilt_img_dict.image.shape, _slitmask)
+            left = arc.resize_slits2arc(tilt_img_dict.image.shape, _slitmask.shape, _left)
+            right = arc.resize_slits2arc(tilt_img_dict.image.shape, _slitmask.shape, _right)
+            products.update(left=left[:,gpm], right=right[:,gpm], slit_ids=slits.spat_id[gpm])
+        else:
+            slits = None
+            log.warning(f'Slits file {str(cal_file)} NOT FOUND.')
+
+        # get waveimg
+        if build_waveimg and waveimg is None and slits is not None \
+                and (slits.nspec, slits.nspat) == tilt_img_dict.image.shape:
+            wv_calib_name = wavecalib.WaveCalib.construct_file_name(self.calib_key,
+                                                                    calib_dir=_calib_dir)
+            if Path(wv_calib_name).absolute().exists():
+                wv_calib = wavecalib.WaveCalib.from_file(wv_calib_name, chk_version=chk_version)
+                tilts = self.fit2tiltimg(slitmask, flexure=self.spat_flexure)
+                waveimg = wv_calib.build_waveimg(tilts, slits, spat_flexure=self.spat_flexure)
+            else:
+                log.warning('Could not load Wave image to show with tilts image.')
+        products['waveimg'] = waveimg
+
+        # tilt image and its cuts
+        tilt_img = tilt_img_dict.image * (slitmask != -1) if slitmask is not None \
+                        else tilt_img_dict.image
+        zmax = stats.sigma_clip(tilt_img, sigma=10, return_bounds=True)[2]
+        zmin = stats.sigma_clip(tilt_img, sigma=5, return_bounds=True)[1] * 2
+        products.update(image=tilt_img, cuts=(zmin, zmax))
+        return products
+
     def show(self, waveimg=None, wcs_match=True, in_ginga=True, show_traces=False,
              calib_dir=None, chk_version=True):
         """
@@ -196,7 +279,8 @@ class WaveTilts(calibframe.CalibFrame):
                 If True, use this image as a reference image for the WCS and match all
                 image in other channels to it.
             in_ginga (bool, optional):
-                If True, show the image in ginga. Otherwise, use matplotlib.
+                If True, show the image in ginga over its remote-control
+                interface. Otherwise, use matplotlib.
             show_traces (bool, optional):
                 If True, show the traces of the tilts on the image.
             calib_dir (`Path`_):
@@ -208,74 +292,26 @@ class WaveTilts(calibframe.CalibFrame):
                 will try to keep going, but this may lead to faults and quiet
                 failures.  User beware!
         """
-        # get tilt_img_dict
-        _calib_dir = self.calib_dir
-        if calib_dir is not None and calib_dir.exists():
-            _calib_dir = calib_dir
-            log.info(f'Searching for other calibration files in {str(_calib_dir)}')
-        else:
-            log.info(f'Searching for other calibration files in the default directory {str(_calib_dir)}')
-
-        cal_file = Path(_calib_dir).absolute() / self.tiltimg_filename
-        if cal_file.exists():
-            tilt_img_dict = buildimage.TiltImage.from_file(cal_file, chk_version=chk_version)
-        else:
-            raise PypeItError(f'Tilt image {str(cal_file)} NOT FOUND.')
-
-        # get slits
-        slitmask = None
-        cal_file = Path(_calib_dir).absolute() / self.slits_filename
-        if cal_file.exists():
-            slits = slittrace.SlitTraceSet.from_file(cal_file, chk_version=chk_version)
-            _slitmask = slits.slit_img(initial=True, flexure=self.spat_flexure)
-            _left, _right, _mask = slits.select_edges(flexure=self.spat_flexure)
-            gpm = _mask == 0
-            # resize
-            slitmask = arc.resize_mask2arc(tilt_img_dict.image.shape, _slitmask)
-            left = arc.resize_slits2arc(tilt_img_dict.image.shape, _slitmask.shape, _left)
-            right = arc.resize_slits2arc(tilt_img_dict.image.shape, _slitmask.shape, _right)
-        else:
-            slits = None
-            log.warning(f'Slits file {str(cal_file)} NOT FOUND.')
-
-        # get waveimg
-        same_size = (slits.nspec, slits.nspat) == tilt_img_dict.image.shape
-        if waveimg is None and slits is not None and same_size and in_ginga:
-            wv_calib_name = wavecalib.WaveCalib.construct_file_name(self.calib_key, calib_dir=_calib_dir)
-            if Path(wv_calib_name).absolute().exists():
-                wv_calib = wavecalib.WaveCalib.from_file(wv_calib_name, chk_version=chk_version)
-                tilts = self.fit2tiltimg(slitmask, flexure=self.spat_flexure)
-                waveimg = wv_calib.build_waveimg(tilts, slits, spat_flexure=self.spat_flexure)
-            else:
-                log.warning('Could not load Wave image to show with tilts image.')
-
-        # Show
-        # tilt image
-        tilt_img = tilt_img_dict.image * (slitmask != -1) if slitmask is not None else tilt_img_dict.image
-        # set cuts
-        zmax = stats.sigma_clip(tilt_img, sigma=10, return_bounds=True)[2]
-        zmin = stats.sigma_clip(tilt_img, sigma=5, return_bounds=True)[1] * 2
-        cut = (zmin, zmax)
-        # show in ginga
+        products = self.ginga_products(waveimg=waveimg, calib_dir=calib_dir,
+                                       chk_version=chk_version, build_waveimg=in_ginga)
+        tilt_img, cut = products['image'], products['cuts']
+        have_slits = products['left'] is not None
         if in_ginga:
-            # connect to ginga
             display.connect_to_ginga(raise_err=True, allow_new=True)
-            # display image
             viewer, ch = display.show_image(tilt_img, chname='Tilts', cuts=cut,
-                                            wcs_match=wcs_match, waveimg=waveimg, clear=True)
-            # show tilts
-            display.show_tilts(viewer, ch, self.tilt_traces, points=show_traces, nspec=tilt_img.shape[0])
-            # show slit edges
-            if slits is not None:
-                display.show_slits(viewer, ch, left[:, gpm], right[:, gpm], slit_ids=slits.spat_id[gpm])
-
-        # show in matplotlib
+                                            wcs_match=wcs_match, waveimg=products['waveimg'],
+                                            clear=True)
+            display.show_tilts(viewer, ch, self.tilt_traces, points=show_traces,
+                               nspec=tilt_img.shape[0])
+            if have_slits:
+                display.show_slits(viewer, ch, products['left'], products['right'],
+                                   slit_ids=products['slit_ids'])
+        elif have_slits:
+            show_tilts_mpl(tilt_img, self.tilt_traces, show_traces=show_traces,
+                           left_edges=products['left'], right_edges=products['right'],
+                           slit_ids=products['slit_ids'], cut=cut)
         else:
-            if slits is not None:
-                show_tilts_mpl(tilt_img, self.tilt_traces, show_traces=show_traces, left_edges=left[:, gpm],
-                               right_edges=right[:, gpm], slit_ids=slits.spat_id[gpm], cut=cut)
-            else:
-                show_tilts_mpl(tilt_img, self.tilt_traces, show_traces=show_traces, cut=cut)
+            show_tilts_mpl(tilt_img, self.tilt_traces, show_traces=show_traces, cut=cut)
 
 
 class BuildWaveTilts:

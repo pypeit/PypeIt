@@ -1,12 +1,14 @@
 """
-Show on a ginga window the archived pixel flat field image
+Show on a ginga window the archived pixel flat field image.
+
+The images are read and displayed inside the viewer by the ``PypeItRemote``
+plugin; see :mod:`pypeit.display.remote`.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
 
 from pypeit.scripts import scriptbase
-from IPython import embed
 
 
 class ShowPixFlat(scriptbase.ScriptBase):
@@ -19,48 +21,28 @@ class ShowPixFlat(scriptbase.ScriptBase):
         parser.add_argument('--det', default=None, type=int, nargs='+',
                             help='Detector(s) to show.  If more than one, list the detectors as, e.g. --det 1 2 '
                                  'to show detectors 1 and 2. If not provided, all detectors will be shown.')
+        scriptbase.add_ginga_timeout_argument(parser)
         return parser
 
     @classmethod
     def main(cls, args):
-        import numpy as np
-        from pypeit import log
         from pypeit import PypeItError
-        from pypeit import io
-        from pypeit.display import display
         from pypeit import dataPaths
+        from pypeit.display import remote
 
         # Initialize the log
         cls.init_log(args)
 
-        # check if the file exists
+        # Find the file here, so that a file in the PypeIt cache or one that
+        # must be downloaded is reported in the terminal
         file_path = dataPaths.pixelflat.get_file_path(args.file, return_none=True)
         if file_path is None:
-            raise PypeItError(f'Provided pixelflat file, {args.file} not found. It is not a direct path, '
-                       f'a cached file, or a file that can be downloaded from a PypeIt repository.')
+            raise PypeItError(f'Provided pixelflat file, {args.file} not found. It is not a '
+                              'direct path, a cached file, or a file that can be downloaded '
+                              'from a PypeIt repository.')
+        args.file = str(file_path)
 
-        # Load the image
-        with io.fits_open(file_path) as hdu:
-            # get all the available detectors in the file
-            file_dets = [int(h.name.split('-')[0].split('DET')[1]) for h in hdu[1:]]
-            # if detectors are provided, check if they are in the file
-            if args.det is not None:
-                in_file = np.isin(args.det, file_dets)
-                # if none of the provided detectors are in the file, raise an error
-                if not np.any(in_file):
-                    raise PypeItError(f"Provided detector(s) not found in the file. Available detectors are {file_dets}")
-                # if some of the provided detectors are not in the file, warn the user
-                elif np.any(np.logical_not(in_file)):
-                    det_not_in_file = np.array(args.det)[np.logical_not(in_file)]
-                    log.warning(f"Detector(s) {det_not_in_file} not found in the file. Available detectors are {file_dets}")
-
-            # show the image
-            display.connect_to_ginga(raise_err=True, allow_new=True)
-            for h in hdu[1:]:
-                det = int(h.name.split('-')[0].split('DET')[1])
-                if args.det is not None and det not in args.det:
-                    continue
-                display.show_image(h.data, chname=h.name, cuts=(0.9, 1.1), clear=False, wcs_match=True)
-
-
-
+        # Read and show the pixel flat in ginga
+        remote.send_command(
+            'show_pixflat', remote.args_to_json(args, path_args=['file']), timeout=args.timeout
+        )
