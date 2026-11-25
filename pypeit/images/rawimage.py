@@ -1705,9 +1705,11 @@ class NIRSpecRawImage(RawImage):
         offsets are all handled upstream by the JWST pipeline and are therefore
         skipped here.
 
-        The flat correction is also propagated to :attr:`rn2img` and
-        :attr:`poisson` so that the variance model constructed by
-        :func:`build_ivar` remains consistent.
+        The flat correction is also propagated to :attr:`poisson` so that the
+        variance model constructed by :func:`build_ivar` remains consistent.
+        As in the base class, :attr:`rn2img` is kept in detector units; the
+        count scaling (:attr:`img_scale`) is applied to it when constructing
+        :attr:`base_var` in :func:`build_ivar`.
 
         Args:
             flatimages (:class:`~pypeit.flatfield.FlatImages`):
@@ -1740,7 +1742,6 @@ class NIRSpecRawImage(RawImage):
         total_flat = flatimages.pixelflat_norm
         self.img_scale = np.expand_dims(utils.inverse(total_flat), 0)
         self.image[0], flat_bpm = flat.flatfield(self.image[0], total_flat)
-        self.rn2img[0], _ = flat.flatfield(self.rn2img[0], np.square(total_flat))
         self.poisson[0], _ = flat.flatfield(self.poisson[0], np.square(total_flat))
         self.steps[step] = True
         return flat_bpm
@@ -1762,7 +1763,7 @@ class NIRSpecRawImage(RawImage):
         _dark = None
         _counts = self.poisson if self.par['shot_noise'] else None
 
-        self.base_var = procimg.base_variance(self.rn2img)
+        self.base_var = procimg.base_variance(self.rn2img, count_scale=self.img_scale)
         var = procimg.variance_model(self.base_var, counts=_counts, noise_floor=self.par['noise_floor'])
         return utils.inverse(var)
 

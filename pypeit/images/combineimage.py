@@ -79,22 +79,25 @@ class CombineImage:
         components used to construct the variance model for an individual frame.
         See :ref:`image_proc` and :func:`~pypeit.procimg.variance_model` for a
         description of these arrays.  Briefly, the relevant arrays are the
-        readnoise variance (:math:`V_{\rm rn}`), the "processing" variance
-        (:math:`V_{\rm proc}`), and the image scaling (i.e., the flat-field
-        correction) (:math:`s`).  The variance calculation for the stacked image
-        directly propagates the error in these.  For example, the propagated
-        processing variance (modulo the masking) is:
+        readnoise variance (:math:`V_{\rm rn}`), the base-level variance
+        (:math:`V_{\rm base}`), and the image scaling (i.e., the flat-field
+        correction) (:math:`s`).  The readnoise variance of each frame is in
+        detector units, whereas the base-level variance already includes the
+        count scaling, :math:`V_{\rm base} = s^2 (V_{\rm rn} + ...)`; see
+        :func:`~pypeit.core.procimg.base_variance`.  The variance calculation
+        for the stacked image directly propagates the error in these.  For
+        example, the propagated base-level variance of the mean of :math:`N`
+        frames (modulo the masking) is:
 
         .. math::
 
-            V_{\rm proc,stack} = \frac{\sum_i s_i^2 V_{{\rm
-            proc},i}}\frac{s_{\rm stack}^2}
+            V_{\rm base,stack} = \frac{\sum_i V_{{\rm base},i}}{N^2}
 
-        where :math:`s_{\rm stack}` is the combined image scaling array,
-        combined in the same way as the image data are combined.  This ensures
-        that the reconstruction of the uncertainty in the combined image
-        calculated using :func:`~pypeit.procimg.variance_model` accurately
-        includes, e.g., the processing uncertainty.
+        and the combined image scaling, :math:`s_{\rm stack}`, is the mean
+        scaling divided by :math:`N`.  This ensures that the reconstruction of
+        the uncertainty in the combined image calculated using
+        :func:`~pypeit.core.procimg.variance_model` accurately includes, e.g.,
+        the processing uncertainty.
 
         The uncertainty in the combined image, however, recalculates the
         variance model, using the combined image (which should have less noise)
@@ -172,12 +175,15 @@ class CombineImage:
             # Get the count scaling
             if rawImage.img_scale is not None:
                 scl_stack[kk] = rawImage.img_scale
-            # Read noise squared image
+            # Read noise squared image.  This is in detector units, so apply
+            # the count scaling.
             if rawImage.rn2img is not None:
                 rn2img_stack[kk] = rawImage.rn2img * scl_stack[kk]**2
-            # Processing variance image
+            # Base-level variance image.  This already includes the count
+            # scaling (see procimg.base_variance), so it must not be scaled
+            # again.
             if rawImage.base_var is not None:
-                basev_stack[kk] = rawImage.base_var * scl_stack[kk]**2
+                basev_stack[kk] = rawImage.base_var
             # Final mask for this image
             # TODO: This seems kludgy to me. Why not just pass ignore_saturation
             # to process_one and ignore the saturation when the mask is actually

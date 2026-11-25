@@ -74,7 +74,8 @@ Script Changes
 Testing
 -------
 
-- placeholder
+- Added a unit test for the variance propagation in
+  :class:`~pypeit.images.combineimage.CombineImage`.
 
 
 Under-the-hood Improvements
@@ -86,5 +87,12 @@ Under-the-hood Improvements
 Bug Fixes
 ---------
 
-- placeholder
+- Fixed a bug in the combination of multiple frames (e.g., with ``combine =
+  mean`` or ``median``) where the base-level variance of each frame, which
+  already includes the count scaling (e.g., the flat-field correction), was
+  multiplied by the count scaling a second time.  This mis-estimated the noise
+  model of combined frames wherever the flat-field correction differs from
+  unity.  For JWST/NIRSpec, the readnoise variance image is now kept in
+  detector units (as for all other instruments), so that it is also not scaled
+  twice when frames are combined.
 
