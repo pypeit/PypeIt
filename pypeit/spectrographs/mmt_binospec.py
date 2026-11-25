@@ -1638,7 +1638,11 @@ class MMTBINOSPECIFUSpectrograph(MMTBINOSPECSpectrograph):
         Returns the on-sky x,y offsets from the IFU center (in arcsec) for
         all 640 science fibers.  The positions in the file are 3 times larger
         than the on-sky offsets, i.e. adjacent fibers are 1.8 apart instead of
-        :attr:`ifu_fiber_pitch`.  The IDL pipeline makes the same correction.
+        :attr:`ifu_fiber_pitch`, consistent with the 3X magnification of the
+        relay optics in front of the lenslet array.  Dividing by 3 gives the
+        12x16 arcsec field and 0.6 arcsec pitch of Fabricant et al. (2025,
+        arXiv:2501.01528), who measured the pitch on sky to 1%.  The IDL
+        pipeline makes the same correction.
 
         Returns:
             :obj:`tuple`:
