@@ -145,7 +145,8 @@ class SpecObjs:
                 if 'DETECTOR' in hdu.name:
                     continue
                 if hdu.name == 'FIBER_OFFSETS':
-                    slf.fiber_offsets = Table.read(hdu, character_as_bytes=False)
+                    # Copy the data so that the file is not kept open by a memory map
+                    slf.fiber_offsets = Table.read(hdu, character_as_bytes=False).copy()
                     continue
                 sobj = specobj.SpecObj.from_hdu(hdu, chk_version=chk_version)
                 # Restrict on det?

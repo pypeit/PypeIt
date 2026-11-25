@@ -1,6 +1,7 @@
 """
 Module to run tests on SpecObjs
 """
+import mmap
 import os
 
 from IPython import embed
@@ -167,6 +168,30 @@ def test_fiber_offsets_io(tmp_path):
             err_msg='offsets must be unchanged after reading'
         )
         _sobjs.write_to_fits(hdr, str(ofile))
+
+
+def _uses_mmap(arr):
+    """
+    Whether or not the memory of an array is a memory-mapped file.
+    """
+    while arr is not None:
+        if isinstance(arr, (np.memmap, mmap.mmap)):
+            return True
+        arr = arr.obj if isinstance(arr, memoryview) else getattr(arr, 'base', None)
+    return False
+
+
+def test_fiber_offsets_release_file(tmp_path):
+    """
+    The file must be released after reading; Windows cannot overwrite it
+    otherwise.
+    """
+    ofile = tmp_path / 'spec1d.fits'
+    _sobjs_with_offsets(['DET01', 'DET02']).write_to_fits(fits.Header(), str(ofile))
+    tab = specobjs.SpecObjs.from_fitsfile(ofile).fiber_offsets
+    for name in tab.colnames:
+        assert not _uses_mmap(np.asarray(tab[name])), \
+            f'column {name} must not be memory-mapped to the file it was read from'
 
 
 def test_fiber_offsets_kept_by_slice_and_copy():
