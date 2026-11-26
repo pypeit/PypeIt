@@ -38,8 +38,9 @@ Functionality/Performance Improvements and Additions
   and :func:`~pypeit.core.flux_calib.fnu_to_flam`).  This also applies to the
   spectra extracted by ``pypeit_coadd_2dspec``.
 - The units of the processed science image are recorded in the ``BUNIT``
-  keyword of the primary header of the spec2d files (previously, ``BUNIT`` was
-  only written, as ``electron``, when the gain correction was applied), and
+  keyword of the primary header of the spec2d and spec1d files (previously,
+  ``BUNIT`` was only written, as ``electron``, when the gain correction was
+  applied), and
   ``pypeit_coadd_2dspec`` uses them as the units of the coadded image (all
   input spec2d files must have the same units).
 

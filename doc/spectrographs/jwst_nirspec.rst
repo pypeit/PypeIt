@@ -366,8 +366,9 @@ controlled by the ``fnu_to_flam`` parameter of the extraction (see
 :ref:`jwst_nirspec_coadd`) are also in MJy per pixel, and the ``_FLAM``
 columns of the spectra extracted from them are filled in the same way.  The
 units of the 2D spectra are recorded in the ``BUNIT`` keyword of the primary
-header of the spec2d files (and read by ``pypeit_coadd_2dspec``); they are not
-recorded in the spec1d files.
+header of the spec2d files (and read by ``pypeit_coadd_2dspec``), and the same
+keyword in the primary header of the spec1d files gives the units of the
+``_COUNTS`` columns.
 
 .. _jwst_nirspec_noise:
 
