@@ -35,7 +35,13 @@ Functionality/Performance Improvements and Additions
   ``_FLAM`` columns of the extracted spectra are filled by converting the
   extracted spectra to :math:`f_\lambda` in the PypeIt flux units, without a
   sensitivity function (see :func:`~pypeit.specobj.SpecObj.apply_fnu_calib`
-  and :func:`~pypeit.core.flux_calib.fnu_to_flam`).
+  and :func:`~pypeit.core.flux_calib.fnu_to_flam`).  This also applies to the
+  spectra extracted by ``pypeit_coadd_2dspec``.
+- The units of the processed science image are recorded in the ``BUNIT``
+  keyword of the primary header of the spec2d files (previously, ``BUNIT`` was
+  only written, as ``electron``, when the gain correction was applied), and
+  ``pypeit_coadd_2dspec`` uses them as the units of the coadded image (all
+  input spec2d files must have the same units).
 
 - ``pypeit_coadd_2dspec`` now supports exposures with different spatial
   platescales (e.g., JWST/NIRSpec slits).  The offsets of each exposure are
@@ -113,6 +119,13 @@ Testing
 
 Under-the-hood Improvements
 ---------------------------
+
+- New ``waveimg`` and ``tiltsimg`` datamodel attributes of
+  :class:`~pypeit.wavecalib.WaveCalib` (version 1.1.3) and
+  :class:`~pypeit.wavetilts.WaveTilts` (version 1.2.1), which hold the 2D
+  wavelength and tilts images provided directly by the calibrations (e.g., for
+  JWST/NIRSpec).  WaveCalib and WaveTilts calibration files made with previous
+  versions must be recreated.
 
 - The ``units`` of a :class:`~pypeit.images.pypeitimage.PypeItImage` are now
   the units of the processed image (also recorded in the ``BUNIT`` header

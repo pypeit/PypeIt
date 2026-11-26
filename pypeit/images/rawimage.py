@@ -430,7 +430,7 @@ class RawImage:
         return np.array(rn2)
 
     def process(self, par, bpm=None, scattlight=None, flatimages=None, bias=None, slits=None, dark=None,
-                mosaic=False, slit_slices=None, slit_platescale=None, slit_units=None, kludge_err=1,
+                mosaic=False, slit_slices=None, slit_platescale=None, slit_units=None,
                 debug=False):
         """
         Process the data.
@@ -561,9 +561,6 @@ class RawImage:
             slit_units (:obj:`str`, optional):
                 Units of the flat-fielded image of the slit being processed.
                 Only used by :class:`NIRSpecRawImage`.
-            kludge_err (:obj:`float`, optional):
-                Multiplicative scaling factor applied to variance estimates.
-                Only used by :class:`NIRSpecRawImage`.  Default is 1.
             debug (:obj:`bool`, optional):
                 Run in debug mode.
 
@@ -2184,7 +2181,7 @@ class NIRSpecRawImage(RawImage):
 
     def process(self, par, bpm=None, scattlight=None, flatimages=None, bias=None,
                 slits=None, dark=None, mosaic=False, slit_slices=None, slit_platescale=None,
-                slit_units=None, kludge_err=1, debug=False):
+                slit_units=None, debug=False):
         """
         Process JWST NIRSpec data into a :class:`~pypeit.images.pypeitimage.PypeItImage`.
 
@@ -2277,9 +2274,6 @@ class NIRSpecRawImage(RawImage):
                 recorded in the ``units`` of the returned image.  Without
                 flat fielding, the image is in DN (``ADU``).  If None and the
                 image is flat fielded, the units are recorded as ``unknown``.
-            kludge_err (:obj:`float`, optional):
-                Reserved for future use as a variance scaling factor.
-                Currently unused.  Default is 1.
             debug (:obj:`bool`, optional):
                 Run in debug mode.
 

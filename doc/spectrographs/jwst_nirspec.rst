@@ -362,10 +362,12 @@ flux calibrated, no sensitivity function is needed: the ``_FLAM`` columns
 s^{-1}\ cm^{-2}\ \AA^{-1}}` (see
 :func:`~pypeit.specobj.SpecObj.apply_fnu_calib`).  This conversion is
 controlled by the ``fnu_to_flam`` parameter of the extraction (see
-:ref:`extractionpar`), which is true by default for JWST/NIRSpec.  The spectra extracted from
-the 2D coadds (see :ref:`jwst_nirspec_coadd`) are also in MJy, but their
-``_FLAM`` columns are not filled.  The units are not recorded in the spec2d
-and spec1d files.
+:ref:`extractionpar`), which is true by default for JWST/NIRSpec.  The 2D coadds (see
+:ref:`jwst_nirspec_coadd`) are also in MJy per pixel, and the ``_FLAM``
+columns of the spectra extracted from them are filled in the same way.  The
+units of the 2D spectra are recorded in the ``BUNIT`` keyword of the primary
+header of the spec2d files (and read by ``pypeit_coadd_2dspec``); they are not
+recorded in the spec1d files.
 
 .. _jwst_nirspec_noise:
 

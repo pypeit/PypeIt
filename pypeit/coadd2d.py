@@ -107,6 +107,10 @@ class CoAdd2dStack:
         List of spatial-flexure corrections, one per exposure, used when
         constructing slit masks and when relating slit geometry in the input
         frames to the coadded frame.
+    units : str
+        Units of the input science images (the same for all exposures), read
+        from the ``BUNIT`` keyword of the input ``spec2d`` files (see
+        :attr:`~pypeit.spec2dobj.Spec2DObj.units`); None if not recorded.
     """
     specobjs_list:list
     slits_list:list
@@ -124,6 +128,7 @@ class CoAdd2dStack:
     pypeline:str
     maskdef_designtab_list:list
     spat_flexure_list:list
+    units:str = None
 
 
 #TODO We should decide which parameters go in through the parset 
@@ -363,6 +368,8 @@ class CoAdd2D:
 
         # effective exposure time
         self.exptime_coadd = self.coadd2d_stack.exptime_coadd
+        # units of the coadded images (the same as the input images)
+        self.units = self.coadd2d_stack.units
         
         # define the wavelength grid for the 2d coadd
         self.wave_grid, self.wave_grid_mid, self.dsamp = self.get_wave_grid()
@@ -967,8 +974,10 @@ class CoAdd2D:
         show = self.show if show is None else show
         show_peaks = self.show_peaks if show_peaks is None else show_peaks
         # NOTE: inmask is a gpm
+        # The pseudo-image has the units of the input images
         sciImage = pypeitimage.PypeItImage(pseudo_dict['imgminsky'], ivar=pseudo_dict['sciivar'],
-                                           bpm=np.logical_not(pseudo_dict['inmask']))
+                                           bpm=np.logical_not(pseudo_dict['inmask']),
+                                           units=self.units)
         # The spatial grid of the coadd is in pixels of the first exposure (see
         # `pixscale_ratios`), so the coadd inherits its detector (and platescale).
         sciImage.detector = self.coadd2d_stack.detectors[0].copy()
@@ -1032,6 +1041,12 @@ class CoAdd2D:
 
         skymodel_pseudo, _, objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, _, _, _ = exTract.run(
             model_noise=False, spat_pix=pseudo_dict['spat_img'])
+
+        # If requested, convert the extracted spectra, when the coadded image
+        # is already flux calibrated as a flux density per unit frequency
+        # (e.g., JWST/NIRSpec images in MJy), to the PypeIt flux units
+        if parcopy['reduce']['extraction']['fnu_to_flam'] and sobjs is not None:
+            sobjs.apply_fnu_calib(sciImage.units)
 
         # Add the rest to the pseudo_dict
         pseudo_dict['skymodel'] = skymodel_pseudo
@@ -1265,6 +1280,7 @@ class CoAdd2D:
         detectors_list = []
         maskdef_designtab_list = []
         spat_flexure_list = []
+        units_list = []
         for f in spec2d:
             if isinstance(f, Spec2DObj):
                 # If spec2d is a list of objects
@@ -1282,6 +1298,7 @@ class CoAdd2D:
             detectors_list.append(s2dobj.detector)
             maskdef_designtab_list.append(s2dobj.maskdef_designtab)
             spat_flexure_list.append(s2dobj.sci_spat_flexure)
+            units_list.append(s2dobj.units)
 
             sciimg_stack.append(s2dobj.sciimg)
             exptime_stack.append(s2dobj.head0['EXPTIME'])
@@ -1290,6 +1307,10 @@ class CoAdd2D:
             sciivar_stack.append(s2dobj.ivarmodel)
             mask_stack.append(s2dobj.bpmmask.mask)
             slitmask_stack.append(s2dobj.slits.slit_img(flexure=s2dobj.sci_spat_flexure))
+
+        # check that the units are the same for all images
+        if any(u != units_list[0] for u in units_list):
+            raise PypeItError(f'The spec2d files to coadd have different units: {units_list}.')
 
         # check if exptime is consistent for all images
         exptime_coadd = np.percentile(exptime_stack, 50., method='higher')
@@ -1319,7 +1340,8 @@ class CoAdd2D:
                     spectrograph=self.spectrograph.name,
                     pypeline=self.spectrograph.pypeline,
                     maskdef_designtab_list=maskdef_designtab_list,
-                    spat_flexure_list=spat_flexure_list)
+                    spat_flexure_list=spat_flexure_list,
+                    units=units_list[0])
     #                    tilts_stack=tilts_stack, waveimg_stack=waveimg_stack,
 
     def check_input(self, input, type):

@@ -215,6 +215,8 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                                                           vel_corr=None,
                                                           vel_type=None,
                                                           maskdef_designtab=maskdef_designtab)
+            # Units of the coadded image, recorded in the BUNIT keyword
+            all_spec2d[coadd.detname].units = coadd.units
 
         all_spec2d['meta']['effective_exptime'] = coadd.exptime_coadd
 

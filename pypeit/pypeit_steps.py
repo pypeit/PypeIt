@@ -1097,6 +1097,7 @@ def extract_det(spectrograph, fitstbl, par,
                                     wavesol=wavesol,
                                     maskdef_designtab=maskdef_designtab)
     spec2DObj.process_steps = sciImg.process_steps
+    spec2DObj.units = sciImg.units
 
     spec2DObj.calibs = calibrations.Calibrations.get_association(
                                 fitstbl, spectrograph, 

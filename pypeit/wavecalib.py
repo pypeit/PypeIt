@@ -41,7 +41,7 @@ class WaveCalib(calibframe.CalibFrame):
     .. include:: ../include/class_datamodel_wavecalib.rst
 
     """
-    version = '1.1.2'
+    version = '1.1.3'
 
     # Calibration frame attributes
     calib_type = 'WaveCalib'

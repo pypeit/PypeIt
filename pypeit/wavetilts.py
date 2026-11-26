@@ -48,7 +48,7 @@ class WaveTilts(calibframe.CalibFrame):
     included in the output.
 
     """
-    version = '1.2.0'
+    version = '1.2.1'
 
     # Calibration frame attributes
     calib_type = 'Tilts'
