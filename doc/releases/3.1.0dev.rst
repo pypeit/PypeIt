@@ -149,4 +149,8 @@ Bug Fixes
   unity.  For JWST/NIRSpec, the readnoise variance image is now kept in
   detector units (as for all other instruments), so that it is also not scaled
   twice when frames are combined.
+- ``pypeit_coadd_2dspec`` no longer rescales the input images to a common
+  exposure time when they are flux calibrated (e.g., JWST/NIRSpec images in
+  MJy), because they do not depend on the exposure time.  Images in detector
+  counts are still rescaled when their exposure times differ.
 

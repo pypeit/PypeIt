@@ -6,12 +6,15 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from astropy.io import fits
 from astropy.table import Table
 
 from pypeit import PypeItError
 from pypeit.coadd2d import CoAdd2dStack, MultiSlitCoAdd2D
 from pypeit.core import coadd as core_coadd
+from pypeit.images.imagebitmask import ImageBitMaskArray
 from pypeit.slittrace import SlitTraceSet
+from pypeit.spec2dobj import Spec2DObj
 from pypeit.spectrographs.util import load_spectrograph
 
 # Spectrograph used to provide the detector and the parameters of the mock coadds
@@ -175,3 +178,43 @@ def test_maskdef_offsets_different_pixscale(coadd):
     maskdef_dict = coadd.get_maskdef_dict(0, ref_trace_stack)
     assert np.isclose(maskdef_dict['maskdef_objpos'], obj_dspat[0])
     assert np.isclose(maskdef_dict['maskdef_slitcen'], maskdef_offset[0])
+
+
+def _spec2dobj(exptime, units):
+    # A minimal Spec2DObj with one slit, a given exposure time, and given units
+    shape = (100, 50)
+    left = np.full((shape[0], 1), 10., dtype=float)
+    right = np.full((shape[0], 1), 40., dtype=float)
+    slits = SlitTraceSet(left, right, 'MultiSlit', nspat=shape[1], PYP_SPEC=SPECTROGRAPH.name)
+    flex = Table()
+    flex['spat_id'] = slits.spat_id
+    flex['sci_spec_flexure'] = np.zeros(1)
+    s2dobj = Spec2DObj(sciimg=np.full(shape, 10.), ivarraw=np.ones(shape), skymodel=np.ones(shape),
+                       bkg_redux_skymodel=None, objmodel=np.zeros(shape), ivarmodel=np.ones(shape),
+                       scaleimg=np.ones(shape), waveimg=np.full(shape, 5000.),
+                       bpmmask=ImageBitMaskArray(shape), detector=SPECTROGRAPH.get_detector_par(1),
+                       sci_spat_flexure=None, sci_spec_flexure=flex, vel_type=None, vel_corr=None,
+                       slits=slits, wavesol=None, tilts=np.ones(shape), maskdef_designtab=None)
+    s2dobj.head0 = fits.Header({'EXPTIME': exptime})
+    s2dobj.units = units
+    return s2dobj
+
+
+def test_exptime_rescaling(coadd):
+    # Images in detector counts with different exposure times are rescaled to
+    # the median exposure time; flux-calibrated images are not
+    coadd.detname = 'DET01'
+    coadd.spectrograph = SPECTROGRAPH
+    for units, rescaled in [('e-', True), (None, True), ('MJy', False)]:
+        stack = coadd.load_coadd2d_stacks([_spec2dobj(100., units), _spec2dobj(200., units)])
+        assert stack.exptime_coadd == 200., 'The reference exposure time should be the median.'
+        assert stack.units == units, 'The stack should have the units of the input images.'
+        expected = 20. if rescaled else 10.
+        assert np.allclose(stack.sciimg_stack[0], expected), \
+            f'Images in {units} should {"" if rescaled else "not "}be rescaled to the ' \
+            'reference exposure time.'
+        assert np.allclose(stack.sciimg_stack[1], 10.), \
+            'The image with the reference exposure time should not be rescaled.'
+
+    with pytest.raises(PypeItError, match='different units'):
+        coadd.load_coadd2d_stacks([_spec2dobj(100., 'e-'), _spec2dobj(100., 'MJy')])

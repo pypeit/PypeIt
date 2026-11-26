@@ -84,7 +84,8 @@ class CoAdd2dStack:
         median input exposure time, using the higher of the two middle values
         for even-length stacks. If the individual exposure times differ by more
         than the allowed tolerance, the science, sky, and inverse-variance
-        images are rescaled to this effective exposure time before coaddition.
+        images in detector counts are rescaled to this effective exposure time
+        before coaddition; flux-calibrated images (see :attr:`units`) are not.
     redux_path : :obj:`~pathlib.Path`
         Reduction path associated with the current coaddition context. At
         present this is set to the current working directory when the stack is
@@ -1259,7 +1260,11 @@ class CoAdd2D:
         -----
         If the exposure times differ among the inputs beyond the allowed tolerance,
         the science, sky, and inverse-variance images are rescaled to a common
-        effective exposure time before being stored in the returned stack.
+        effective exposure time before being stored in the returned stack.  This
+        applies only to images in detector counts (``e-`` or ``ADU``, or with
+        units not recorded in the ``spec2d`` files); flux-calibrated images
+        (e.g., JWST/NIRSpec images in MJy) do not depend on the exposure time
+        and are not rescaled.
         """
         # Grab the files
         #head2d_list = []
@@ -1315,7 +1320,15 @@ class CoAdd2D:
         # check if exptime is consistent for all images
         exptime_coadd = np.percentile(exptime_stack, 50., method='higher')
         isclose_exptime = np.isclose(exptime_stack, exptime_coadd, atol=1.)
-        if not np.all(isclose_exptime):
+        # Images in detector counts (or with unknown units, e.g., from spec2d
+        # files that do not record them) scale with the exposure time, while
+        # flux-calibrated images (e.g., JWST/NIRSpec images in MJy) do not
+        counts = units_list[0] in [None, 'e-', 'ADU']
+        if not np.all(isclose_exptime) and not counts:
+            log.info(f'Exposure time is not consistent for all frames being coadded, but the '
+                     f'images are in {units_list[0]}, which do not depend on the exposure time; '
+                     'the images are not rescaled.')
+        elif not np.all(isclose_exptime):
             log.warning('Exposure time is not consistent (within 1 sec) for all frames being coadded! '
                       f'Scaling each image by the median exposure time ({exptime_coadd} s) before coadding.')
             exp_scale = exptime_coadd / exptime_stack
