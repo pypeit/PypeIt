@@ -165,7 +165,11 @@ class CombineImage:
                 gpm_stack = np.zeros(shape, dtype=bool)
                 exptime = np.zeros(self.nimgs, dtype=float)
                 spat_flex = np.zeros(self.nimgs, dtype=float)
+                units = np.empty(self.nimgs, dtype=object)
 
+            # Save the units of the processed images, which must be the same
+            # for all images
+            units[kk] = rawImage.units
             # Save the exposure time to check if it's consistent for all images.
             exptime[kk] = rawImage.exptime
             # Save the spatial flexure to check if it's consistent for all images and propagate it to the combined image
@@ -193,6 +197,10 @@ class CombineImage:
             # Get a simple boolean good-pixel mask for all the unmasked pixels
             gpm_stack[kk] = rawImage.select_flag(invert=True)
             file_list.append(rawImage.filename)
+
+        # Check that all images have the same units
+        if np.any(units != units[0]):
+            raise PypeItError(f'The images to combine have different units: {units.tolist()}.')
 
         # Check that all exposure times are consistent
         # TODO: JFH suggests that we move this to calibrations.check_calibrations
@@ -298,7 +306,7 @@ class CombineImage:
                                        detector=rawImage.detector,
                                        spat_flexure=comb_spat_flex,
                                        PYP_SPEC=rawImage.PYP_SPEC,
-                                       units='e-' if self.par['apply_gain'] else 'ADU',
+                                       units=units[0],
                                        exptime=comb_texp, noise_floor=self.par['noise_floor'],
                                        shot_noise=self.par['shot_noise'])
 

@@ -268,6 +268,7 @@ class Calibrations:
         # spectrograph-specific
         self.slit_slices = None
         self.slit_platescale = None
+        self.slit_units = None
 
     def check_calibrations(self, file_list, check_lamps=True):
         """
@@ -2994,6 +2995,14 @@ class NIRSpecSlitCalibrations(Calibrations):
         computed (e.g., because ``stdatamodels`` is not installed), in which
         case the nominal detector platescale is used.
 
+        The units of the slit in the calibration files (the ``BUNIT`` keyword
+        of the ``SCI`` extension; e.g., ``MJy`` for point sources and
+        ``MJy/sr`` for extended sources) are stored in :attr:`slit_units`.
+        They are the units of the flat-fielded science image, because the
+        flat field includes the photometric conversion (see
+        :func:`get_flats`), and they are also passed to the processing of the
+        science (and background) frames.
+
         Args:
             force (:obj:`str`, optional):
                 Currently ignored; reserved for future use.
@@ -3017,6 +3026,7 @@ class NIRSpecSlitCalibrations(Calibrations):
             cal_files = [cal_files]
 
         self.slit_slices = []
+        units = []
         for file in cal_files:
             with fits.open(file) as ff:
                 # get FITS EXTVER associated with this slit.
@@ -3034,6 +3044,13 @@ class NIRSpecSlitCalibrations(Calibrations):
                 spec_start = slit_ystart -1
                 spec_end = spec_start + slit_ysize
                 self.slit_slices.append((spat_start, spat_end, spec_start, spec_end))
+                units.append(hdr.get('BUNIT'))
+
+        # Units of the slit, which must be the same in all the files
+        if any(u != units[0] for u in units):
+            raise PypeItError(f'Slit {self.user_slits["slit_info"]} has different units in the '
+                              f'calibration files: {units}.')
+        self.slit_units = units[0]
 
         # Along-slit platescale from the slit GWCS
         self.slit_platescale = self.spectrograph.get_slit_platescale(

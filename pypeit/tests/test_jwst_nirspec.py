@@ -2,9 +2,12 @@
 Test the measurement of the readnoise missing from the JWST ``VAR_RNOISE``
 arrays, used by the JWST/NIRSpec noise model, with synthetic files.
 """
+import types
+
 import numpy as np
 from astropy.io import fits
 
+from pypeit.images import rawimage
 from pypeit.spectrographs import jwst_nirspec
 from pypeit.spectrographs.util import load_spectrograph
 
@@ -85,3 +88,25 @@ def test_get_rn_excess(tmp_path):
         'All the exposures of a group should have the same excess readnoise.'
     assert spec.get_rn_excess(nrs2) is None, \
         'An exposure without another exposure of the same configuration should not be measured.'
+
+
+def test_counts_per_electron():
+    # The conversion from electrons to image counts (the count rate times
+    # EFFEXPTM) uses the gain of each detector and the ramp time, (NGROUPS-1)
+    # * TGROUP * NINTS, and is 1 in the gap of a mosaic
+    img = rawimage.NIRSpecRawImage.__new__(rawimage.NIRSpecRawImage)
+    img.headarr = [fits.Header({'NGROUPS': 11, 'TGROUP': 100., 'NINTS': 2})]
+    img.detector = [types.SimpleNamespace(det=1, gain=np.array([1.0])),
+                    types.SimpleNamespace(det=2, gain=np.array([1.25]))]
+    img.exptime = 11 * 100. * 2
+    img.nimg = 1
+    img.image = np.zeros((1, 10, 20))
+    img.det_img = np.zeros((1, 10, 20), dtype=int)
+    img.det_img[..., :8] = 1
+    img.det_img[..., 12:] = 2
+    assert np.isclose(img.electrons_per_rate(1), 1.25 * 10 * 100. * 2), \
+        'The electrons per unit rate should be the gain times the ramp time.'
+    scale = img.counts_per_electron()
+    assert np.allclose(scale[..., :8], 2200 / 2000), 'Wrong conversion for the first detector.'
+    assert np.allclose(scale[..., 12:], 2200 / 2500), 'Wrong conversion for the second detector.'
+    assert np.allclose(scale[..., 8:12], 1.), 'The conversion in the mosaic gap should be 1.'

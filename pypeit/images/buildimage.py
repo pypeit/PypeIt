@@ -161,8 +161,8 @@ All of these **must** subclass from
 
 def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=None, dark=None,
                         scattlight=None, flatimages=None, maxiters=5, ignore_saturation=True,
-                        slits=None, mosaic=None, slit_slices=None, slit_platescale=None, calib_dir=None,
-                        setup=None, calib_id=None):
+                        slits=None, mosaic=None, slit_slices=None, slit_platescale=None,
+                        slit_units=None, calib_dir=None, setup=None, calib_id=None):
     """
     Perform basic image processing on a list of images and combine the results. All
     core processing steps for each image are handled by :class:`~pypeit.images.rawimage.RawImage` and
@@ -233,6 +233,10 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
             Along-slit platescale (arcsec/pixel) of the slit being processed,
             which replaces the nominal platescale of the detector(s).  Only
             used by :class:`~pypeit.images.rawimage.NIRSpecRawImage`.
+        slit_units (:obj:`str`, optional):
+            Units of the flat-fielded image of the slit being processed (e.g.,
+            ``MJy`` or ``MJy/sr``).  Only used by
+            :class:`~pypeit.images.rawimage.NIRSpecRawImage`.
         calib_dir (:obj:`str`, `Path`_, optional):
             The directory for processed calibration files.  Required for
             elements of :attr:`frame_image_classes`, ignored otherwise.
@@ -272,7 +276,7 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
         rawImage_list.append(rawImage.process(
             frame_par['process'], scattlight=scattlight, bias=bias,
             bpm=bpm, dark=dark, flatimages=flatimages, slits=slits, mosaic=mosaic,
-            slit_slices=slit_slices, slit_platescale=slit_platescale))
+            slit_slices=slit_slices, slit_platescale=slit_platescale, slit_units=slit_units))
 
     # Do it
     combineImage = combineimage.CombineImage(rawImage_list, frame_par['process'])

@@ -430,7 +430,8 @@ class RawImage:
         return np.array(rn2)
 
     def process(self, par, bpm=None, scattlight=None, flatimages=None, bias=None, slits=None, dark=None,
-                mosaic=False, slit_slices=None, slit_platescale=None, kludge_err=1, debug=False):
+                mosaic=False, slit_slices=None, slit_platescale=None, slit_units=None, kludge_err=1,
+                debug=False):
         """
         Process the data.
 
@@ -557,6 +558,9 @@ class RawImage:
                 Along-slit platescale (arcsec/pixel) of the slit being
                 processed, which replaces the nominal platescale of the
                 detector(s).  Only used by :class:`NIRSpecRawImage`.
+            slit_units (:obj:`str`, optional):
+                Units of the flat-fielded image of the slit being processed.
+                Only used by :class:`NIRSpecRawImage`.
             kludge_err (:obj:`float`, optional):
                 Multiplicative scaling factor applied to variance estimates.
                 Only used by :class:`NIRSpecRawImage`.  Default is 1.
@@ -1575,14 +1579,79 @@ class NIRSpecRawImage(RawImage):
             :func:`process` and consumed by :func:`trim`.
     """
 
+    def electrons_per_rate(self, i):
+        r"""
+        Conversion from the count rate of the JWST products (DN/s) to the
+        number of electrons over which the rate is measured, for one detector.
+
+        The JWST ramp fit measures the rate of each integration between its
+        first and last group, i.e., over :math:`(N_{\rm groups} - 1)\ t_{\rm
+        group}`, and combines the :math:`N_{\rm ints}` integrations, so that
+        the shot noise of the rate corresponds to the electrons collected
+        over the total ramp time :math:`t_{\rm ramp} = (N_{\rm groups} - 1)\
+        t_{\rm group}\ N_{\rm ints}`; e.g., the JWST ``VAR_POISSON`` array
+        is the rate divided by the gain and :math:`t_{\rm ramp}`.  The ramp
+        time is shorter than the effective exposure time, :attr:`exptime`
+        (``EFFEXPTM`` = :math:`N_{\rm groups}\ t_{\rm group}\ N_{\rm
+        ints}`).  The gain (e-/DN) is the median gain of the detector (see
+        :func:`~pypeit.spectrographs.jwst_nirspec.JWSTNIRSpecSpectrograph.get_detector_par`).
+
+        Args:
+            i (:obj:`int`):
+                Index of the detector in :attr:`detector`.
+
+        Returns:
+            :obj:`float`: The gain times the ramp time, in e- per DN/s.
+        """
+        hdr = self.headarr[0]
+        t_ramp = (hdr['NGROUPS'] - 1) * hdr['TGROUP'] * hdr['NINTS']
+        return float(np.atleast_1d(self.detector[i].gain)[0]) * t_ramp
+
+    def counts_per_electron(self):
+        """
+        Conversion from electrons to the counts of the image (:attr:`image`,
+        i.e., the count rate times :attr:`exptime`) for each pixel.
+
+        This is the count scaling of the image before the flat-field
+        correction (see :attr:`img_scale` and :func:`electrons_per_rate`),
+        such that the image divided by the count scaling is the number of
+        detected electrons, as expected by the noise model (see
+        :func:`~pypeit.core.procimg.variance_model`).  For a mosaic, the
+        conversion of each pixel is that of its detector (see
+        :attr:`det_img`); the gaps between the detectors, which have no data,
+        get a conversion of 1.
+
+        Returns:
+            `numpy.ndarray`_: Conversion for each pixel, with the same shape
+            as :attr:`image` (a 1-D object array of 2-D arrays if the
+            detectors have different shapes).
+        """
+        scale = {d.det: self.exptime / self.electrons_per_rate(i)
+                 for i, d in enumerate(self.detector)}
+        if self.det_img is not None:
+            out = np.ones(self.image.shape, dtype=float)
+            for det, s in scale.items():
+                out[self.det_img == det] = s
+            return out
+        out = [np.full(np.shape(img), scale[d.det], dtype=float)
+               for img, d in zip(self.image, self.detector)]
+        if len(set(o.shape for o in out)) == 1:
+            return np.array(out)
+        _out = np.empty(self.nimg, dtype=object)
+        for i in range(self.nimg):
+            _out[i] = out[i]
+        return _out
+
     def build_rn2img(self, units='e-', digitization=False):
         """
         Build the readnoise variance image from the JWST pipeline output.
 
         Instead of estimating readnoise from overscan regions (as in
         :class:`RawImage`), this reads the pre-computed ``VAR_RNOISE``
-        extension from the calibration FITS file and scales it by the square
-        of the exposure time to convert from rate² to count² units.
+        extension from the calibration FITS file, in (DN/s)², and converts it
+        to electrons² (the units of the readnoise variance in the noise
+        model) by multiplying it by the square of the gain times the ramp
+        time (see :func:`electrons_per_rate`).
 
         The ``units`` and ``digitization`` arguments are accepted for
         interface compatibility but are not used.
@@ -1610,7 +1679,7 @@ class NIRSpecRawImage(RawImage):
         rn2 = [None]*self.nimg
         for i in range(self.nimg):
             # Compute and return the readnoise variance image
-            rn2[i] = var_ronoise[i] * self.exptime**2
+            rn2[i] = var_ronoise[i] * self.electrons_per_rate(i)**2
 
         # Return uniform 3-D array when all shapes match, else 1-D object array.
         shapes = [r.shape for r in rn2]
@@ -1673,11 +1742,13 @@ class NIRSpecRawImage(RawImage):
             raise PypeItError('Must build the readnoise variance image before estimating the '
                               'readnoise.')
         for i in range(self.nimg):
+            # The readnoise variance is in electrons^2; see build_rn2img
+            e_per_rate = self.electrons_per_rate(i)
             rn2img = self.rn2img[i]
             gpm = rn2img > 0
             # NOTE: rn2img can be a view of self.rn2img, so the median must be
             # computed before self.rn2img is updated.
-            rn_median = np.sqrt(np.median(rn2img[gpm])) / self.exptime
+            rn_median = np.sqrt(np.median(rn2img[gpm])) / e_per_rate
             rn_excess = self.spectrograph.get_rn_excess(self._detector_file(i))
             if rn_excess is None:
                 excess = self._measure_excess_variance(i)
@@ -1685,11 +1756,11 @@ class NIRSpecRawImage(RawImage):
                     continue
                 source = 'measured on this exposure'
             else:
-                excess = (rn_excess * self.exptime)**2
+                excess = (rn_excess * e_per_rate)**2
                 source = 'measured on the exposure differences'
             self.rn2img[i] = np.where(gpm, rn2img + excess, rn2img)
             log.info(f'{self.detector[i].name}: adding an excess readnoise of '
-                     f'{np.sqrt(excess)/self.exptime:.3g} DN/s ({source}) to VAR_RNOISE (median '
+                     f'{np.sqrt(excess)/e_per_rate:.3g} DN/s ({source}) to VAR_RNOISE (median '
                      f'noise {rn_median:.3g} DN/s).')
 
     def _detector_file(self, i):
@@ -1726,12 +1797,12 @@ class NIRSpecRawImage(RawImage):
             :obj:`float`: The excess variance in the units of :attr:`rn2img`,
             or None if there are too few pixels without signal.
         """
-        image = self.image[i]
+        rate = self.image[i] / self.exptime
         rn2img = self.rn2img[i]
         do_not_use = self.spectrograph.bitmask()['DO_NOT_USE']
         gpm = ((self.dq[i] & do_not_use) == 0) & (rn2img > 0)
         # The selection threshold is in DN/s, so the count rate is used
-        free = procimg.signal_free_pixels(image / self.exptime, gpm, 0.003, box=15, edge=16)
+        free = procimg.signal_free_pixels(rate, gpm, 0.003, box=15, edge=16)
         nfree = np.sum(free)
         if nfree < min_pixels:
             log.warning(f'{self.detector[i].name}: only {nfree} pixels without signal; cannot '
@@ -1742,7 +1813,9 @@ class NIRSpecRawImage(RawImage):
                     'the exposure differences.  Measuring it on this exposure only, which '
                     'overestimates the noise if the pixels without signal contain faint fixed '
                     'structure.')
-        return procimg.excess_variance(image[free], rn2img[free])
+        # The readnoise variance is in electrons^2; see build_rn2img
+        electrons = rate * self.electrons_per_rate(i)
+        return procimg.excess_variance(electrons[free], rn2img[free])
 
     def build_dq(self):
         """
@@ -1784,9 +1857,10 @@ class NIRSpecRawImage(RawImage):
         skipped here.
 
         As in the base class, the flat correction is recorded in the count
-        scaling (:attr:`img_scale`), and :attr:`rn2img` is kept in detector
-        units; the count scaling is applied to the variance in
-        :func:`build_ivar`.
+        scaling (:attr:`img_scale`), which already holds the conversion from
+        electrons to image counts (see :func:`counts_per_electron`), and
+        :attr:`rn2img` is kept in detector units (electrons²); the count
+        scaling is applied to the variance in :func:`build_ivar`.
 
         Args:
             flatimages (:class:`~pypeit.flatfield.FlatImages`):
@@ -1817,7 +1891,10 @@ class NIRSpecRawImage(RawImage):
 
         # Apply flat-field correction
         total_flat = flatimages.pixelflat_norm
-        self.img_scale = np.expand_dims(utils.inverse(total_flat), 0)
+        # The count scaling already holds the conversion from electrons to the
+        # image counts (see process and counts_per_electron)
+        flat_scale = np.expand_dims(utils.inverse(total_flat), 0)
+        self.img_scale = flat_scale if self.img_scale is None else self.img_scale * flat_scale
         self.image[0], flat_bpm = flat.flatfield(self.image[0], total_flat)
         self.steps[step] = True
         return flat_bpm
@@ -2107,7 +2184,7 @@ class NIRSpecRawImage(RawImage):
 
     def process(self, par, bpm=None, scattlight=None, flatimages=None, bias=None,
                 slits=None, dark=None, mosaic=False, slit_slices=None, slit_platescale=None,
-                kludge_err=1, debug=False):
+                slit_units=None, kludge_err=1, debug=False):
         """
         Process JWST NIRSpec data into a :class:`~pypeit.images.pypeitimage.PypeItImage`.
 
@@ -2121,7 +2198,8 @@ class NIRSpecRawImage(RawImage):
         The processing steps applied, in order:
 
             #. :func:`build_rn2img`: Readnoise variance image read from
-               ``VAR_RNOISE`` (scaled by exposure-time²).
+               ``VAR_RNOISE`` (converted to electrons²; see
+               :func:`electrons_per_rate`).
 
             #. :func:`estimate_readnoise`: Add the excess noise measured on
                the pixels without signal to the readnoise variance (only if
@@ -2136,8 +2214,13 @@ class NIRSpecRawImage(RawImage):
             #. :func:`build_mosaic`: Resample per-detector images into a single
                mosaic (only when ``nimg > 1`` and ``mosaic=True``).
 
+            #. :func:`counts_per_electron`: Set the count scaling
+               (:attr:`img_scale`) to the conversion from electrons to image
+               counts.
+
             #. :func:`flatfield`: Apply ``pixelflat_norm`` correction (when
-               requested via ``par``).
+               requested via ``par``), which is included in the count
+               scaling.
 
             #. :func:`build_ivar`: Construct the inverse variance using the
                readnoise variance image and the shot noise of the image
@@ -2187,6 +2270,16 @@ class NIRSpecRawImage(RawImage):
                 returned by
                 :func:`~pypeit.spectrographs.jwst_nirspec.JWSTNIRSpecSpectrograph.get_rawimage`
                 is used.
+            slit_units (:obj:`str`, optional):
+                Units of the slit in the JWST ``_cal.fits`` file (the
+                ``BUNIT`` keyword; e.g., ``MJy`` for point sources and
+                ``MJy/sr`` for extended sources; see
+                :func:`~pypeit.calibrations.NIRSpecSlitCalibrations.get_slit_slices`).
+                These are the units of the flat-fielded image, because the
+                flat field includes the photometric conversion, and are
+                recorded in the ``units`` of the returned image.  Without
+                flat fielding, the image is in DN (``ADU``).  If None and the
+                image is flat fielded, the units are recorded as ``unknown``.
             kludge_err (:obj:`float`, optional):
                 Reserved for future use as a variance scaling factor.
                 Currently unused.  Default is 1.
@@ -2269,6 +2362,11 @@ class NIRSpecRawImage(RawImage):
         # set to zero the value of self.image where the bpm is true
         self.image[self.bpm == 1.] = 0.0
 
+        # The variance images are in electrons^2, while the image is the count
+        # rate times the exposure time: set the count scaling to the conversion
+        # from electrons to image counts.  This must come after mosaicing.
+        self.img_scale = self.counts_per_electron()
+
         # Flat-field the data.  This propagates the flat-fielding corrections to
         # the variance.  The returned bpm is propagated to the PypeItImage
         # bitmask below.
@@ -2276,6 +2374,18 @@ class NIRSpecRawImage(RawImage):
 
         # Calculate the inverse variance
         self.ivar = self.build_ivar()
+
+        # Units of the processed image: the flat field includes the photometric
+        # conversion, so the flat-fielded image is in the units of the slit in
+        # the JWST _cal.fits file; otherwise, it is in DN
+        if not self.use_flat:
+            units = 'ADU'
+        elif slit_units is None:
+            log.warning('The units of the slit are not known; the units of the flat-fielded '
+                        'image are recorded as unknown.')
+            units = 'unknown'
+        else:
+            units = slit_units
 
         # Generate a PypeItImage.
         # NOTE: To reconstruct the variance model, you need base_var, image,
@@ -2288,6 +2398,7 @@ class NIRSpecRawImage(RawImage):
                                               img_scale=_img_scale, detector=_det,
                                               spat_flexure=self.spat_flexure_shift,
                                               PYP_SPEC=self.spectrograph.name,
+                                              units=units,
                                               exptime=self.exptime,
                                               noise_floor=self.par['noise_floor'],
                                               shot_noise=self.par['shot_noise'],

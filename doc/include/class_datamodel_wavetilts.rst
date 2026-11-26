@@ -16,4 +16,5 @@
       ``spec_order``             `numpy.ndarray`_  `numpy.integer`_                                                                                                                                  Order for spectral fit (nslit)
      ``tilt_traces`` `astropy.table.table.Table`_                   Table with the positions of the traced and fitted tilts for all the slits. see :func:`~pypeit.wavetilts.BuildWaveTilts.make_tbl_tilt_traces` for more details.
 ``tiltimg_filename``                          str                                                                                             Path to Tiltimg file. This helps to find Tiltimg file when running pypeit_chk_tilts()
+        ``tiltsimg``             `numpy.ndarray`_ `numpy.floating`_                                                                                                                         2D image with the tilts for each pixel.
 ==================== ============================ ================= ===============================================================================================================================================================

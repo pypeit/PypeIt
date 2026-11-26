@@ -12,7 +12,8 @@ Documentation Updates
 ---------------------
 
 - Added a :ref:`spectrograph page <jwst_nirspec>` for JWST/NIRSpec, describing
-  the preprocessing with the JWST pipeline and the reduction workflow.
+  the preprocessing with the JWST pipeline and the reduction workflow,
+  including the :ref:`units of the reduced spectra <jwst_nirspec_units>`.
 
 
 Dependency Changes
@@ -66,7 +67,9 @@ Instrument-specific Updates
 - JWST/NIRSpec: the noise model is revised.  The shot noise is now computed
   from the image counts, as for all other instruments, instead of being taken
   from the JWST ``VAR_POISSON`` extension (which includes the shot noise of the
-  subtracted dark current).  In addition, the ``empirical_rn`` parameter is
+  subtracted dark current), and it accounts for the detector gain and for the
+  ramp time over which the JWST count rates are measured (shorter than the
+  effective exposure time).  In addition, the ``empirical_rn`` parameter is
   now true by default for the science frames: the detector noise missing from
   the JWST ``VAR_RNOISE`` extension is added to the readnoise variance.  It is
   measured in the pixels without signal, on the differences of the exposures
@@ -88,14 +91,24 @@ Testing
 - Added a unit test for the variance propagation in
   :class:`~pypeit.images.combineimage.CombineImage`.
 - Added unit tests for :func:`~pypeit.core.procimg.excess_variance`,
-  :func:`~pypeit.core.procimg.signal_free_pixels`, and the measurement of the
-  JWST/NIRSpec excess readnoise.
+  :func:`~pypeit.core.procimg.signal_free_pixels`, the measurement of the
+  JWST/NIRSpec excess readnoise, and the JWST/NIRSpec conversion between image
+  counts and electrons.
 
 
 Under-the-hood Improvements
 ---------------------------
 
-- placeholder
+- The ``units`` of a :class:`~pypeit.images.pypeitimage.PypeItImage` are now
+  the units of the processed image (also recorded in the ``BUNIT`` header
+  keyword); e.g., the flux-calibrated JWST/NIRSpec images have the units of
+  the slit in the JWST ``_cal.fits`` file (``MJy`` for point sources and
+  ``MJy/sr`` for extended sources).
+  :class:`~pypeit.images.combineimage.CombineImage` takes the units of the
+  combined image from the input images (instead of setting them from the
+  ``apply_gain`` parameter), and the default saturation and minimum-counts
+  thresholds, tabulated in detector counts, are only applied to images in
+  detector counts (``e-`` or ``ADU``).
 
 
 Bug Fixes

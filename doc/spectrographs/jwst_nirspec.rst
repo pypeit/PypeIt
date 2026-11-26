@@ -333,7 +333,35 @@ calibrations of each slit are built from the JWST products of the exposure
       (``PATHLOSS_PS`` or ``PATHLOSS_UN``, depending on the source type) and
       bar-shadow (``BARSHADOW``) corrections, and the photometric conversion
       (``PHOTMJSR``) from the ``_cal.fits`` file.  The reduced spectra are
-      therefore already flux calibrated, and no sensitivity function is needed.
+      therefore already flux calibrated, and no sensitivity function is needed
+      (see the :ref:`units of the reduced spectra <jwst_nirspec_units>`).
+
+.. _jwst_nirspec_units:
+
+The processed science image of a slit reproduces the ``SCI`` extension of the
+JWST ``_cal.fits`` file of that slit, and the reduced 2D spectra (the
+``sciimg``, ``skymodel``, and ``objmodel`` arrays of the spec2d files) are in
+its units, given by its ``BUNIT`` header keyword: **MJy** (flux density per
+pixel) for point sources and **MJy/sr** (surface brightness) for extended
+sources, depending on the source type set by the JWST ``srctype`` step (see
+the ``--source_type`` option of ``pypeit_preprocess_jwst``).  The inverse
+variances are in the inverse units squared.
+
+The extracted 1D spectra (the ``OPT_COUNTS`` and ``BOX_COUNTS`` columns of the
+spec1d files, and their errors) are the 2D spectra summed over the spatial
+pixels of the extraction (for the optimal extraction, the profile-weighted
+estimate of this sum):
+
+    - for point sources, they are flux densities in MJy;
+    - for extended sources, they are the surface brightness summed over the
+      spatial pixels, in MJy/sr; multiply them by the solid angle of a pixel
+      (e.g., the ``PIXAR_SR`` keyword of the ``SCI`` extension of the slit, in
+      sr) to obtain flux densities in MJy.
+
+Despite their names, the ``_COUNTS`` columns hold these flux-calibrated
+values, and the ``_FLAM`` columns are empty, because no sensitivity function
+is applied.  The 1D and 2D coadds keep the units of the combined spectra.  The
+units are not recorded in the spec2d and spec1d files.
 
 .. _jwst_nirspec_noise:
 
@@ -341,7 +369,15 @@ The variance of the science image follows the PypeIt noise model (see
 :ref:`image_proc`): the readnoise variance is taken from the ``VAR_RNOISE``
 extension, and the shot noise is computed from the image counts.  The
 ``VAR_POISSON`` extension is not used, because it also includes the shot noise
-of the dark current, which the JWST pipeline subtracts.
+of the dark current, which the JWST pipeline subtracts.  The noise model needs
+the number of detected electrons in each pixel: the JWST count rates are in
+DN/s and the ramp fit measures them over the ramp time, :math:`t_{\rm ramp} =
+(N_{\rm groups}-1)\ t_{\rm group}\ N_{\rm ints}`, which is shorter than the
+effective exposure time (``EFFEXPTM``).  The conversion between the image
+counts and the electrons, ``EFFEXPTM`` :math:`/ (g\ t_{\rm ramp})`, where
+:math:`g` is the detector gain, is therefore included in the count scaling
+used by the noise model, together with the flat-field correction.  The image
+itself is not changed, so that it remains flux calibrated (see above).
 
 The ``VAR_RNOISE`` extension underestimates the noise of the pixels without
 signal, mostly because of the detector noise that accumulates along the ramp
