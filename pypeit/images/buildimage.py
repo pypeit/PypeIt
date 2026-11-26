@@ -235,7 +235,7 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
             used by :class:`~pypeit.images.rawimage.NIRSpecRawImage`.
         slit_units (:obj:`str`, optional):
             Units of the flat-fielded image of the slit being processed (e.g.,
-            ``MJy`` or ``MJy/sr``).  Only used by
+            ``MJy``).  Only used by
             :class:`~pypeit.images.rawimage.NIRSpecRawImage`.
         calib_dir (:obj:`str`, `Path`_, optional):
             The directory for processed calibration files.  Required for

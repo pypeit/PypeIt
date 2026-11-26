@@ -1,12 +1,16 @@
 """
-Test the measurement of the readnoise missing from the JWST ``VAR_RNOISE``
-arrays, used by the JWST/NIRSpec noise model, with synthetic files.
+Test the JWST/NIRSpec-specific processing with synthetic data: the measurement
+of the readnoise missing from the JWST ``VAR_RNOISE`` arrays, the conversion
+between image counts and electrons, and the conversion to flux per pixel.
 """
 import types
 
 import numpy as np
+import pytest
 from astropy.io import fits
 
+from pypeit import PypeItError
+from pypeit.calibrations import NIRSpecSlitCalibrations
 from pypeit.images import rawimage
 from pypeit.spectrographs import jwst_nirspec
 from pypeit.spectrographs.util import load_spectrograph
@@ -110,3 +114,17 @@ def test_counts_per_electron():
     assert np.allclose(scale[..., :8], 2200 / 2000), 'Wrong conversion for the first detector.'
     assert np.allclose(scale[..., 12:], 2200 / 2500), 'Wrong conversion for the second detector.'
     assert np.allclose(scale[..., 8:12], 1.), 'The conversion in the mosaic gap should be 1.'
+
+
+def test_flux_per_pixel_scale():
+    # The slits of the JWST _cal.fits files are converted to MJy per pixel:
+    # surface brightnesses are multiplied by the pixel solid angle
+    hdr = fits.Header({'BUNIT': 'MJy', 'PIXAR_SR': 4.8e-13})
+    assert NIRSpecSlitCalibrations.flux_per_pixel_scale(hdr) == 1., \
+        'A slit already in MJy should not be rescaled.'
+    hdr['BUNIT'] = 'MJy/sr'
+    assert NIRSpecSlitCalibrations.flux_per_pixel_scale(hdr) == 4.8e-13, \
+        'A slit in MJy/sr should be multiplied by the pixel solid angle.'
+    hdr['BUNIT'] = 'DN/s'
+    with pytest.raises(PypeItError):
+        NIRSpecSlitCalibrations.flux_per_pixel_scale(hdr)

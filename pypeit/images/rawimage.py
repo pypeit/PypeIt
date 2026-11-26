@@ -2271,12 +2271,9 @@ class NIRSpecRawImage(RawImage):
                 :func:`~pypeit.spectrographs.jwst_nirspec.JWSTNIRSpecSpectrograph.get_rawimage`
                 is used.
             slit_units (:obj:`str`, optional):
-                Units of the slit in the JWST ``_cal.fits`` file (the
-                ``BUNIT`` keyword; e.g., ``MJy`` for point sources and
-                ``MJy/sr`` for extended sources; see
-                :func:`~pypeit.calibrations.NIRSpecSlitCalibrations.get_slit_slices`).
-                These are the units of the flat-fielded image, because the
-                flat field includes the photometric conversion, and are
+                Units of the flat-fielded image (``MJy`` per pixel, because
+                the flat field includes the photometric conversion; see
+                :func:`~pypeit.calibrations.NIRSpecSlitCalibrations.get_slit_slices`),
                 recorded in the ``units`` of the returned image.  Without
                 flat fielding, the image is in DN (``ADU``).  If None and the
                 image is flat fielded, the units are recorded as ``unknown``.

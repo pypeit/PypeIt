@@ -29,6 +29,14 @@ Dependency Changes
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
 
+- New ``fnu_to_flam`` parameter of the extraction (see :ref:`extractionpar`;
+  true by default for JWST/NIRSpec): when the processed science image is
+  already flux calibrated as a flux density per unit frequency, the
+  ``_FLAM`` columns of the extracted spectra are filled by converting the
+  extracted spectra to :math:`f_\lambda` in the PypeIt flux units, without a
+  sensitivity function (see :func:`~pypeit.specobj.SpecObj.apply_fnu_calib`
+  and :func:`~pypeit.core.flux_calib.fnu_to_flam`).
+
 - ``pypeit_coadd_2dspec`` now supports exposures with different spatial
   platescales (e.g., JWST/NIRSpec slits).  The offsets of each exposure are
   computed in pixels of that exposure: the dither offsets recorded in the
@@ -64,6 +72,13 @@ Instrument-specific Updates
   reference point of the aperture.  This allows to coadd with ``offsets =
   header`` MSA exposures taken in different visits.  Spec2d files reduced
   before this change must be re-reduced.  See :ref:`jwst_nirspec`.
+- JWST/NIRSpec: all slits are now processed in MJy per pixel.  The slits of
+  extended sources, which are in MJy/sr in the JWST ``_cal.fits`` files, are
+  multiplied by the pixel solid angle (``PIXAR_SR``), so that the extracted 1D
+  spectra are flux densities in MJy for both point and extended sources; their
+  ``_FLAM`` columns are now filled.  Flat-field calibration files of extended
+  sources made before this change must be recreated.  See the :ref:`units of
+  the reduced spectra <jwst_nirspec_units>`.
 - JWST/NIRSpec: the noise model is revised.  The shot noise is now computed
   from the image counts, as for all other instruments, instead of being taken
   from the JWST ``VAR_POISSON`` extension (which includes the shot noise of the
@@ -101,9 +116,8 @@ Under-the-hood Improvements
 
 - The ``units`` of a :class:`~pypeit.images.pypeitimage.PypeItImage` are now
   the units of the processed image (also recorded in the ``BUNIT`` header
-  keyword); e.g., the flux-calibrated JWST/NIRSpec images have the units of
-  the slit in the JWST ``_cal.fits`` file (``MJy`` for point sources and
-  ``MJy/sr`` for extended sources).
+  keyword); e.g., the flux-calibrated JWST/NIRSpec images are in ``MJy``
+  (per pixel).
   :class:`~pypeit.images.combineimage.CombineImage` takes the units of the
   combined image from the input images (instead of setting them from the
   ``apply_gain`` parameter), and the default saturation and minimum-counts

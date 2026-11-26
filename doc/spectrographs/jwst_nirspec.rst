@@ -338,30 +338,34 @@ calibrations of each slit are built from the JWST products of the exposure
 
 .. _jwst_nirspec_units:
 
-The processed science image of a slit reproduces the ``SCI`` extension of the
-JWST ``_cal.fits`` file of that slit, and the reduced 2D spectra (the
-``sciimg``, ``skymodel``, and ``objmodel`` arrays of the spec2d files) are in
-its units, given by its ``BUNIT`` header keyword: **MJy** (flux density per
-pixel) for point sources and **MJy/sr** (surface brightness) for extended
-sources, depending on the source type set by the JWST ``srctype`` step (see
-the ``--source_type`` option of ``pypeit_preprocess_jwst``).  The inverse
-variances are in the inverse units squared.
+The ``SCI`` extension of a slit in the JWST ``_cal.fits`` file is in the units
+given by its ``BUNIT`` header keyword: MJy (flux density per pixel) for point
+sources and MJy/sr (surface brightness) for extended sources, depending on the
+source type set by the JWST ``srctype`` step (see the ``--source_type`` option
+of ``pypeit_preprocess_jwst``).  PypeIt processes all slits in **MJy per
+pixel**: for point sources, the processed science image reproduces the ``SCI``
+extension of the slit; for extended sources, it is the ``SCI`` extension
+multiplied by the solid angle of a pixel (the ``PIXAR_SR`` keyword).  The
+reduced 2D spectra (the ``sciimg``, ``skymodel``, and ``objmodel`` arrays of
+the spec2d files) are therefore in MJy per pixel, and the inverse variances are
+in MJy\ :sup:`-2`.
 
 The extracted 1D spectra (the ``OPT_COUNTS`` and ``BOX_COUNTS`` columns of the
 spec1d files, and their errors) are the 2D spectra summed over the spatial
 pixels of the extraction (for the optimal extraction, the profile-weighted
-estimate of this sum):
-
-    - for point sources, they are flux densities in MJy;
-    - for extended sources, they are the surface brightness summed over the
-      spatial pixels, in MJy/sr; multiply them by the solid angle of a pixel
-      (e.g., the ``PIXAR_SR`` keyword of the ``SCI`` extension of the slit, in
-      sr) to obtain flux densities in MJy.
-
-Despite their names, the ``_COUNTS`` columns hold these flux-calibrated
-values, and the ``_FLAM`` columns are empty, because no sensitivity function
-is applied.  The 1D and 2D coadds keep the units of the combined spectra.  The
-units are not recorded in the spec2d and spec1d files.
+estimate of this sum), i.e., flux densities in MJy; for extended sources, this
+is the flux within the extraction aperture.  Despite their names, the
+``_COUNTS`` columns hold these flux densities.  Because the spectra are already
+flux calibrated, no sensitivity function is needed: the ``_FLAM`` columns
+(and their errors) are filled with the same spectra converted to
+:math:`f_\lambda`, in the PypeIt flux units of :math:`10^{-17}\ {\rm erg\
+s^{-1}\ cm^{-2}\ \AA^{-1}}` (see
+:func:`~pypeit.specobj.SpecObj.apply_fnu_calib`).  This conversion is
+controlled by the ``fnu_to_flam`` parameter of the extraction (see
+:ref:`extractionpar`), which is true by default for JWST/NIRSpec.  The spectra extracted from
+the 2D coadds (see :ref:`jwst_nirspec_coadd`) are also in MJy, but their
+``_FLAM`` columns are not filled.  The units are not recorded in the spec2d
+and spec1d files.
 
 .. _jwst_nirspec_noise:
 

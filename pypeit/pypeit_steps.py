@@ -1054,8 +1054,15 @@ def extract_det(spectrograph, fitstbl, par,
     vel_corr, waveImg = refframe_correct(spectrograph, par, slits, 
                                               fitstbl["ra"][frames[0]], 
                                               fitstbl["dec"][frames[0]],
-                                              obstime, slitgpm=slitgpm, 
+                                              obstime, slitgpm=slitgpm,
                                               waveimg=waveImg, sobjs=sobjs)
+
+    # If requested, convert the extracted spectra, when the processed image is
+    # already flux calibrated as a flux density per unit frequency (e.g.,
+    # JWST/NIRSpec images in MJy), to the PypeIt flux units without a
+    # sensitivity function
+    if par['reduce']['extraction']['fnu_to_flam'] and sobjs is not None:
+        sobjs.apply_fnu_calib(sciImg.units)
 
     # Tack on wavelength RMS (only available with standard wv_calib)
     if caliBrate.wv_calib is not None and caliBrate.wv_calib.wv_fits is not None:

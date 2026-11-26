@@ -264,6 +264,9 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         par['reduce']['extraction']['sn_gauss'] = 5.0
         par['reduce']['extraction']['boxcar_radius'] = 0.2 # extent in calwebb is 0.55" source and on NIRSpec website
         par['reduce']['extraction']['use_2dmodel_mask'] = False # Don't use 2d mask in local skysub
+        # The processed images are flux calibrated (MJy per pixel): convert the
+        # extracted spectra to f_lambda
+        par['reduce']['extraction']['fnu_to_flam'] = True
 
         # Add the detector noise missing from VAR_RNOISE, measured on the
         # pixels without signal of the full-frame science images; see

@@ -647,6 +647,33 @@ class SpecObj(datamodel.DataContainer):
             self[attr+'_FLAM_SIG'] = flam_sig
             self[attr+'_FLAM_IVAR'] = flam_ivar
 
+    def apply_fnu_calib(self, fnu_unit):
+        r"""
+        Convert extracted spectra that are already flux calibrated, as flux
+        densities per unit frequency (:math:`f_\nu`; e.g., ``MJy``), to the
+        PypeIt flux units.
+
+        This is used instead of :func:`apply_flux_calib` when the processed
+        image is flux calibrated, such that the ``_COUNTS`` arrays are
+        :math:`f_\nu` in ``fnu_unit``.  FLAM, FLAM_SIG, and FLAM_IVAR are
+        generated for each extraction (see
+        :func:`~pypeit.core.flux_calib.fnu_to_flam`); they are 0 where the
+        wavelength is not positive or the inverse variance is 0.
+
+        Args:
+            fnu_unit (:obj:`str`):
+                Unit of the ``_COUNTS`` arrays (e.g., ``MJy``).
+        """
+        for attr in ['BOX', 'OPT']:
+            if self[attr+'_WAVE'] is None or self[attr+'_COUNTS'] is None:
+                continue
+            factor = flux_calib.fnu_to_flam(self[attr+'_WAVE'], fnu_unit)
+            ivar = self[attr+'_COUNTS_IVAR']
+            gpm = (factor > 0) & (ivar > 0)
+            self[attr+'_FLAM'] = np.where(gpm, self[attr+'_COUNTS'] * factor, 0.)
+            self[attr+'_FLAM_SIG'] = np.where(gpm, factor * np.sqrt(utils.inverse(ivar)), 0.)
+            self[attr+'_FLAM_IVAR'] = np.where(gpm, ivar * utils.inverse(factor**2), 0.)
+
 
     def apply_helio(self, vel_corr, refframe):
         """

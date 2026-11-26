@@ -21,6 +21,7 @@ from pypeit import PypeItError
 from pypeit import specobj
 from pypeit import io
 from pypeit.spectrographs.util import load_spectrograph
+from pypeit.core import flux_calib
 from pypeit.core import parse
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
@@ -725,6 +726,29 @@ class SpecObjs:
         else:
             raise PypeItError('Unrecognized pypeline: {0}'.format(spectrograph.pypeline))
 
+    def apply_fnu_calib(self, fnu_unit):
+        r"""
+        Convert the extracted spectra of all the objects, when they are
+        already flux calibrated as flux densities per unit frequency
+        (:math:`f_\nu`; e.g., ``MJy``), to the PypeIt flux units.
+
+        See :func:`~pypeit.specobj.SpecObj.apply_fnu_calib`.  If ``fnu_unit``
+        is not a flux density per unit frequency (see
+        :func:`~pypeit.core.flux_calib.is_flux_density`), a warning is issued
+        and the spectra are not converted.
+
+        Args:
+            fnu_unit (:obj:`str`):
+                Units of the extracted spectra, i.e., of the processed image
+                from which they are extracted.
+        """
+        if not flux_calib.is_flux_density(fnu_unit):
+            log.warning(f'The extracted spectra are in {fnu_unit}, not a flux density per unit '
+                        'frequency; they are not converted to the PypeIt flux units.')
+            return
+        log.info(f'Converting the extracted spectra from {fnu_unit} to the PypeIt flux units.')
+        for sobj in self.specobjs:
+            sobj.apply_fnu_calib(fnu_unit)
 
     def copy(self):
         """

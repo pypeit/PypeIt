@@ -762,6 +762,57 @@ def Flam_to_Nlam(wave, zeropoint, zp_min=5.0, zp_max=30.0):
     return factor
 
 
+def is_flux_density(unit):
+    r"""
+    Check if a unit is a spectral flux density per unit frequency
+    (:math:`f_\nu`), e.g., ``MJy`` or ``erg/s/cm2/Hz``.
+
+    Parameters
+    ----------
+    unit : :obj:`str`
+        The unit, in a format understood by :class:`astropy.units.Unit`.
+        Units that are not understood (e.g., ``e-``) are not flux densities.
+
+    Returns
+    -------
+    :obj:`bool`
+        True if ``unit`` is a flux density per unit frequency.
+    """
+    return units.Unit(unit, parse_strict='silent').is_equivalent(units.Jy)
+
+
+def fnu_to_flam(wave, fnu_unit):
+    r"""
+    The factor that converts a spectral flux density per unit frequency,
+    :math:`f_\nu`, into a flux density per unit wavelength, :math:`f_\lambda
+    = f_\nu\ c / \lambda^2`, in the PypeIt flux units (:math:`10^{-17}\ {\rm
+    erg\ s^{-1}\ cm^{-2}\ \AA^{-1}}`; see :data:`PYPEIT_FLUX_SCALE`).
+
+    Parameters
+    ----------
+    wave : `numpy.ndarray`_
+        Wavelengths in Angstroms.
+    fnu_unit : :obj:`str`
+        Unit of :math:`f_\nu` (e.g., ``MJy``); see :func:`is_flux_density`.
+
+    Returns
+    -------
+    `numpy.ndarray`_
+        The conversion factor at each wavelength, i.e., :math:`f_\lambda` in
+        the PypeIt flux units for :math:`f_\nu = 1` in ``fnu_unit``.  The
+        factor is 0 where the wavelength is not positive.
+    """
+    if not is_flux_density(fnu_unit):
+        raise PypeItError(f'{fnu_unit} is not a flux density per unit frequency.')
+    gpm = wave > 0
+    factor = np.zeros(wave.shape, dtype=float)
+    flam_unit = PYPEIT_FLUX_SCALE * units.erg / units.s / units.cm**2 / units.AA
+    factor[gpm] = (1. * units.Unit(fnu_unit)).to(
+        flam_unit, equivalencies=units.spectral_density(wave[gpm] * units.AA)
+    ).value
+    return factor
+
+
 def compute_zeropoint(wave, N_lam, N_lam_gpm, flam_std_star, tellmodel=None):
     """
     Routine to compute the zeropoint and zeropoint_gpm from the N_lam (counts/s/A) of a standard star

@@ -2403,6 +2403,37 @@ class NIRSpecSlitCalibrations(Calibrations):
     See :class:`Calibrations` for constructor arguments.
     """
 
+    @staticmethod
+    def flux_per_pixel_scale(hdr):
+        """
+        Return the factor that converts the units of a slit in the JWST
+        ``_cal.fits`` file into a flux density per pixel (MJy).
+
+        The ``SCI`` extension of a slit is in MJy for point sources and in
+        MJy/sr (a surface brightness) for extended sources, depending on the
+        source type set by the JWST ``srctype`` step.  PypeIt processes all
+        slits in MJy per pixel: surface brightnesses are multiplied by the
+        solid angle of a pixel, given by the ``PIXAR_SR`` keyword.
+
+        Args:
+            hdr (:class:`astropy.io.fits.Header`):
+                Header of the ``SCI`` extension of the slit.
+
+        Returns:
+            :obj:`float`: The factor that multiplies the data of the slit to
+            get MJy per pixel.
+        """
+        bunit = hdr.get('BUNIT')
+        if bunit == 'MJy':
+            return 1.
+        if bunit == 'MJy/sr':
+            if hdr.get('PIXAR_SR') is None:
+                raise PypeItError('The slit is in MJy/sr, but the PIXAR_SR keyword, needed to '
+                                  'convert it to MJy per pixel, is missing.')
+            return float(hdr['PIXAR_SR'])
+        raise PypeItError(f'Unexpected units of the slit in the JWST _cal.fits file: {bunit}.  '
+                          'Expected MJy or MJy/sr.')
+
     def _build_calibimage(self, cal_files, extname, slit_info, cval=0.):
         """
         Build a :class:`~pypeit.images.pypeitimage.PypeItImage` from a
@@ -2935,9 +2966,12 @@ class NIRSpecSlitCalibrations(Calibrations):
 
         # conversion from DN/s to MJy/sr (or to MJy, for  point sources)
         conversion_megajanskys = calImg.rawheadlist[0].get('PHOTMJSR')
+        # conversion from the units of the slit (MJy/sr or MJy) to MJy per
+        # pixel, the units of the flat-fielded image for all slits
+        flux_per_pixel = self.flux_per_pixel_scale(calImg.rawheadlist[0])
         # apply conversion factor to the pixels that are not masked, i.e., flatImg.image !=1.
         flat_data = flatImg.image.copy()
-        flat_data[flat_data != 1] /= conversion_megajanskys
+        flat_data[flat_data != 1] /= conversion_megajanskys * flux_per_pixel
 
         # combine the flat images
         combined_flat_data = calImg.exptime * flat_data * pathloss_data * barshadow_data
@@ -2995,13 +3029,14 @@ class NIRSpecSlitCalibrations(Calibrations):
         computed (e.g., because ``stdatamodels`` is not installed), in which
         case the nominal detector platescale is used.
 
-        The units of the slit in the calibration files (the ``BUNIT`` keyword
-        of the ``SCI`` extension; e.g., ``MJy`` for point sources and
-        ``MJy/sr`` for extended sources) are stored in :attr:`slit_units`.
-        They are the units of the flat-fielded science image, because the
-        flat field includes the photometric conversion (see
-        :func:`get_flats`), and they are also passed to the processing of the
-        science (and background) frames.
+        The units of the flat-fielded science image are stored in
+        :attr:`slit_units` and passed to the processing of the science (and
+        background) frames.  The flat field includes the photometric
+        conversion and converts the units of the slit in the calibration files
+        (the ``BUNIT`` keyword of the ``SCI`` extension: ``MJy`` for point
+        sources and ``MJy/sr`` for extended sources) to MJy per pixel (see
+        :func:`get_flats` and :func:`flux_per_pixel_scale`), so
+        :attr:`slit_units` is ``MJy``.
 
         Args:
             force (:obj:`str`, optional):
@@ -3046,11 +3081,14 @@ class NIRSpecSlitCalibrations(Calibrations):
                 self.slit_slices.append((spat_start, spat_end, spec_start, spec_end))
                 units.append(hdr.get('BUNIT'))
 
-        # Units of the slit, which must be the same in all the files
+        # Units of the slit, which must be the same in all the files.  The flat
+        # field converts them to MJy per pixel (see get_flats), and this checks
+        # that the conversion is possible.
         if any(u != units[0] for u in units):
             raise PypeItError(f'Slit {self.user_slits["slit_info"]} has different units in the '
                               f'calibration files: {units}.')
-        self.slit_units = units[0]
+        self.flux_per_pixel_scale(hdr)
+        self.slit_units = 'MJy'
 
         # Along-slit platescale from the slit GWCS
         self.slit_platescale = self.spectrograph.get_slit_platescale(
