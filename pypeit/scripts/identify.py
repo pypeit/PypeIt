@@ -59,6 +59,8 @@ class Identify(scriptbase.ScriptBase):
         import json
 
         import numpy as np
+        import matplotlib.pyplot as plt
+        from astropy.io import fits
                 
         from pypeit import log
         from pypeit import PypeItError
@@ -67,7 +69,7 @@ class Identify(scriptbase.ScriptBase):
         from pypeit.wavecalib import BuildWaveCalib, WaveCalib
         from pypeit import slittrace
         from pypeit.images.buildimage import ArcImage
-        from pypeit.core.wavecal import autoid
+        from pypeit.core.wavecal import autoid, wv_fitting
         from pypeit.utils import jsonify
 
         # Initialize the log
@@ -78,6 +80,12 @@ class Identify(scriptbase.ScriptBase):
 
         # Load the Arc file
         msarc = ArcImage.from_file(args.arc_file, chk_version=chk_version)
+        #test plots
+        fig, ax = plt.subplots(2,1)
+        img = ax[0].imshow(msarc.image, vmin=-100, vmax = 100)
+        fig.colorbar(img)
+        #img = ax[1].imshow(fits.open(msarc.filename)[0].data, vmin=-100, vmax=100)
+        fig.colorbar(img)
 
         # Load the spectrograph
         spec = load_spectrograph(msarc.PYP_SPEC)
@@ -122,7 +130,8 @@ class Identify(scriptbase.ScriptBase):
             # TODO nsample should be a parameter
             fwhm_map = autoid.map_fwhm(wavecal.msarc.image, wavecal.gpm, wavecal.slits_left, wavecal.slits_right, wavecal.slitmask,
                                     nsample=10, slit_bpm=wavecal.wvc_bpm, specord=wavecal.par['fwhm_spec_order'],
-                                    spatord=wavecal.par['fwhm_spat_order'])
+                                    spatord=wavecal.par['fwhm_spat_order'],
+                                    sigdetect=wavecal.par['sigdetect'], fwhm=wavecal.par['fwhm'])
             # Calculate the typical spectral FWHM down the centre of the slit
             measured_fwhms = np.zeros(slits.nslits, dtype=object)
             for islit in range(slits.nslits):
@@ -223,10 +232,12 @@ class Identify(scriptbase.ScriptBase):
 
             
                 else:
+                    empty_wvfit = wv_fitting.WaveFit(slits.spat_id[slit_val])
+                    empty_wvfit.fwhm = measured_fwhms[slit_val]
                     if np.any(wv_calib.wv_fits):
-                        wv_calib.wv_fits[slit_val] = None
+                        wv_calib.wv_fits[slit_val] = empty_wvfit
                     else: 
-                        wv_fits_arr.append('None')
+                        wv_fits_arr.append(empty_wvfit)
                     waveCalib = None
                     custom_wav_q = ''
                     while custom_wav_q != 'y' and custom_wav_q != 'n':
@@ -259,6 +270,10 @@ class Identify(scriptbase.ScriptBase):
                         # sample the new solution to make a fake IDs list:
                         lines_pix_arr.append(np.linspace(0, nspec-1, 8)[1:-1])
                         lines_wav_arr.append(np.linspace(min_wav, max_wav, 8)[1:-1])
+                        lines_fit_ord.append([1])
+                    else:
+                        lines_pix_arr.append(np.array([], dtype=float))
+                        lines_wav_arr.append(np.array([], dtype=float))
                         lines_fit_ord.append([1])
 
             if not np.any(wv_calib.wv_fits):
@@ -334,5 +349,3 @@ class Identify(scriptbase.ScriptBase):
                                 custom_wav = np.array(custom_wav),
                                 custom_wav_ind = np.array(custom_wav_ind) )
             
-
-

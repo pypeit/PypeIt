@@ -38,6 +38,7 @@ from pypeit.dashboard.view.calibrations_view import CalibrationsView
 from pypeit.dashboard.view.main_window import DashboardMainWindow, TAB_LABELS
 from pypeit.dashboard.view.science_view import ScienceView
 from pypeit.dashboard.view.status_view import StatusView, ScienceNavCell
+from pypeit.scripts import dashboard as dashboard_script
 from pypeit.state import science_status
 from pypeit.state.run_state import RunPypeItState
 
@@ -62,6 +63,28 @@ def data_path(filename):
 # -----------------------------------------------------------------------
 # Headless model-layer tests (no Qt, no display)
 # -----------------------------------------------------------------------
+
+
+def test_conda_dashboard_avoids_gtk_platform_theme(tmp_path, monkeypatch):
+    """Choose the GTK-free Qt theme before dashboard startup in Linux Conda."""
+    (tmp_path / 'conda-meta').mkdir()
+    monkeypatch.setattr(dashboard_script.sys, 'platform', 'linux')
+    monkeypatch.setattr(dashboard_script.sys, 'prefix', str(tmp_path))
+    monkeypatch.setenv('QT_QPA_PLATFORMTHEME', 'gtk3')
+    monkeypatch.setenv('GTK_MODULES', 'appmenu-gtk-module')
+
+    dashboard_script._configure_qt_environment()
+
+    assert os.environ['QT_QPA_PLATFORMTHEME'] == 'generic'
+    assert os.environ['GTK_MODULES'] == ''
+
+    monkeypatch.setattr(dashboard_script.sys, 'prefix', str(tmp_path / 'venv'))
+    monkeypatch.setenv('QT_QPA_PLATFORMTHEME', 'gtk3')
+    monkeypatch.setenv('GTK_MODULES', 'appmenu-gtk-module')
+    dashboard_script._configure_qt_environment()
+    assert os.environ['QT_QPA_PLATFORMTHEME'] == 'gtk3'
+    assert os.environ['GTK_MODULES'] == 'appmenu-gtk-module'
+
 
 def test_read_header_info_fields():
     """

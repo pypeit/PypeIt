@@ -451,6 +451,66 @@ quit the GUI to see if you want to save the solution. Note,
 you can increase this tolerance using the command-line option
 `pixtol`, or by setting the `force_save` command-line option.
 
+.. _pypeit_identify-echelle:
+
+Echelle Spectra
+---------------
+
+For an echelle spectrum, ``pypeit_identify`` is usually run in multi-trace mode
+so that each order is inspected in sequence and the final result can be saved as
+a single template for later use with :ref:`wvcalib-fulltemplate`.  If you are
+editing an existing solution, start from the ``WaveCalib`` file produced by a
+previous reduction:
+
+.. code-block:: bash
+
+    $ pypeit_identify Calibrations/Arc_A_0_DET01.fits Calibrations/Slits_A_0_DET01.fits.gz -m -s --slits all
+
+To build a new solution from scratch, first run :ref:`run-pypeit` in calibration
+mode with ``reference = 'pixel'`` in the wavelength-calibration parameter block
+so that the required ``Arc`` and ``Slits`` files are produced.  Then run:
+
+.. code-block:: bash
+
+    $ pypeit_identify Calibrations/Arc_A_0_DET01.fits Calibrations/Slits_A_0_DET01.fits.gz -m -n
+
+In either mode, the GUI opens one order at a time.  For each order:
+
+0. Compare the extracted arc spectrum to a reference spectrum or line atlas for
+   the same instrument setup.
+1. Select recognizable lines and assign wavelengths as described above.
+2. Fit the current IDs with ``f`` and adjust the polynomial order with ``+`` or
+   ``-`` as needed.
+3. Use ``a`` to attempt automatic identification of additional lines from the
+   current solution, then refit and inspect the residuals.
+4. Press ``q`` when the order is acceptable, or immediately press ``q`` if the
+   order has too few useful lines to fit.  ``pypeit_identify`` then advances to
+   the next order.
+
+After the last order, answer the terminal prompts to write the solution.  For an
+echelle spectrograph, provide the order range being fit, e.g. ``(55:66)``.  The
+order numbers should be listed from smallest to largest; PypeIt will align these
+order numbers with the inspected traces when writing the template.  If you used
+``--slits all``, save the result as a multi-trace ``wvarxiv`` file and then use
+the printed ``reid_arxiv`` filename with ``method = full_template`` in your
+:ref:`pypeit_file`.
+
+Some echelle orders may not contain enough identifiable lines to fit.  If you
+quit such an order without a solution, ``pypeit_identify`` prompts:
+
+.. code-block:: console
+
+    No solution made! Do you want to input an estimated linear solution? y/[n]:
+
+Answer ``y`` only if you want to provide an approximate start and end wavelength
+for that order.  This creates a simple linear estimate, records placeholder line
+IDs, and keeps the order available in the saved template.  Answering ``n`` skips
+the order.  Skipped orders are still represented in the saved ``WaveCalib`` as
+empty ``WaveFit`` entries and, if a multi-trace ``wvarxiv`` is written, their
+wavelength rows are filled with ``NaN`` and their line-ID arrays are empty.  This
+keeps the order numbering and array lengths aligned while clearly indicating
+that no wavelength solution was fit for that order.
+
 In addition to writing the wavelength solution to the current
 working directory, ``PypeIt`` now also saves the solution in
 the PypeIt cache (identified by spectrograph and the current
@@ -667,4 +727,3 @@ detector (*e.g.*, the 830G grating).
    heliocorr
    wavetilts
    construct_template
-

@@ -17,3 +17,14 @@ def test_detect_lines():
 
 # Many more functions in pypeit.core.arc that need tests!
 
+def test_fit2darc_requires_two_unique_orders():
+    import numpy as np
+    import pytest
+    from pypeit import PypeItWavelengthCalibrationError
+    from pypeit.core import arc
+
+    for orders in (np.array([]), np.array([30., 30.])):
+        with pytest.raises(PypeItWavelengthCalibrationError,
+                           match='needs >= 2 unique orders'):
+            arc.fit2darc(np.ones(orders.size), np.arange(orders.size),
+                         orders, nspec=2000)
