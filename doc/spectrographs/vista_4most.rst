@@ -52,3 +52,20 @@ A grey normalization cancels when a spectrum is divided by its own
 continuum in 8440--8860 Angstrom. Relative residuals against BOSS at
 9240--9300 Angstrom therefore require a wavelength-dependent response
 calibration to improve.
+
+Relative red response products
+------------------------------
+
+The commissioning BOSS response fit can be applied as a separate
+FITS product on the native optimal wavelength grid. The fitted windows
+are 8440--8860 and 8950--9300 Angstrom in vacuum. The red window uses
+the archived telluric model and the continuum window uses the native
+counts. The response products retain the original PypeIt and telluric
+masks and carry flags for wavelengths outside the fitted windows,
+invalid inputs, low transmission, and bins with no training data.
+
+The leave-one-exposure-out validation used identical BOSS comparison
+samples before and after the response correction. The median absolute
+9240--9300 Angstrom residual dropped from 41.2 to 2.3 percent over 33
+matched spectra. The commissioning product uses the fit to all four
+exposures. It provides relative optimal-extraction counts.
