@@ -62,6 +62,7 @@ instrument-specific details for running PypeIt.
    soar_goodman
    soar_triplespec
    subaru_focas
+   vista_4most
    vlt_uves
    xshooter
 

@@ -1396,7 +1396,15 @@ class FiberFindObjects(FindObjects):
         # in individual blocks; without this refinement the end-fiber aperture
         # can miss its real peak and leave a large per-pixel residual at the
         # block edge.
-        self._refine_fiber_traces(sobjs_obj)
+        get_traces = getattr(self.spectrograph, 'get_fiber_traces', None)
+        if get_traces is None:
+            self._refine_fiber_traces(sobjs_obj)
+        else:
+            traces = get_traces(self.det, [s.MASKDEF_ID for s in sobjs_obj])
+            if traces.shape != (len(sobjs_obj), self.sciImg.image.shape[0]):
+                raise PypeItError("Calibrated fiber traces do not match the science image.")
+            for sobj, trace in zip(sobjs_obj, traces):
+                sobj.TRACE_SPAT = trace.copy()
 
         # Attach throughput scalar to each SpecObj so the sky-model build
         # and FiberExtract see one consistent per-fiber correction.
@@ -1407,6 +1415,7 @@ class FiberFindObjects(FindObjects):
         # Boxcar pre-extract every fiber so we have BOX_WAVE + BOX_COUNTS
         # for the 2D sky bspline.  FiberExtract overwrites these from
         # ``sciimg - skymodel`` later.
+        log.info(f"Pre-extracting {len(sobjs_obj)} fibers for the global sky fit.")
         self._preextract_fibers(sobjs_obj)
 
         initial_sky = self._fiber_global_skysub(sobjs_obj)
@@ -1436,6 +1445,10 @@ class FiberFindObjects(FindObjects):
         inter-block gaps; see :meth:`_fiber_apertures_within_slit`).
         """
         if len(sobjs) == 0:
+            return
+
+        if getattr(self.spectrograph, 'fiber_use_compact_profiles', False):
+            self._preextract_fibers_loop(sobjs)
             return
 
         if not self._fiber_apertures_within_slit(sobjs):
@@ -1539,16 +1552,20 @@ class FiberFindObjects(FindObjects):
                 self.tilts, self.slits, initial=True,
                 spat_flexure=self.spat_flexure_shift)
 
+        nspat = gpm.shape[1]
+        compact = getattr(self.spectrograph, 'fiber_use_compact_profiles', False)
         for sobj in sobjs:
-            other_slit = (slitmask != sobj.SLITID) & (slitmask != -1)
-            inmask = gpm & ~other_slit
+            columns = FiberExtract.fiber_footprint(sobj, nspat) if compact else slice(0, nspat)
+            aperture_slits = slitmask[:, columns]
+            other_slit = (aperture_slits != sobj.SLITID) & (aperture_slits != -1)
+            inmask = gpm[:, columns] & ~other_slit
             try:
                 wave, flux, flux_ivar, _, _, box_gpm, fwhm, _, _, _, _ = \
                     extract.extract_boxcar(
-                        sobj.BOX_R_PIX, sobj.TRACE_SPAT,
-                        self.sciImg.image, self.sciImg.ivar,
-                        inmask, self.waveimg, zero_sky,
-                        fwhmimg=fwhmimg)
+                        sobj.BOX_R_PIX, sobj.TRACE_SPAT - columns.start,
+                        self.sciImg.image[:, columns], self.sciImg.ivar[:, columns],
+                        inmask, self.waveimg[:, columns], zero_sky[:, columns],
+                        fwhmimg=None if fwhmimg is None else fwhmimg[:, columns])
             except PypeItError as e:
                 log.warning(f"Pre-extract failed for fiber "
                             f"{getattr(sobj, 'MASKDEF_ID', '?')}: {e}")
@@ -1952,15 +1969,26 @@ class FiberFindObjects(FindObjects):
             sky_spec = sobj.BOX_COUNTS_SKY
             if sky_spec is None:
                 continue
-            prof = FiberExtract._build_empirical_profile(
-                flatimg, slitmask, sobj, nspec, nspat)
+            trace = sobj.TRACE_SPAT
+            columns = (
+                FiberExtract.fiber_footprint(sobj, nspat)
+                if getattr(self.spectrograph, 'fiber_use_compact_profiles', False)
+                else slice(0, nspat)
+            )
+            sobj.TRACE_SPAT = trace - columns.start
+            try:
+                prof = FiberExtract._build_empirical_profile(
+                    flatimg[:, columns], slitmask[:, columns], sobj,
+                    nspec, columns.stop - columns.start)
+            finally:
+                sobj.TRACE_SPAT = trace
             if prof is None:
                 continue
             good = np.isfinite(sky_spec)
             if not np.any(good):
                 del prof
                 continue
-            sky_model[good, :] += prof[good, :] * sky_spec[good, None]
+            sky_model[good, columns] += prof[good, :] * sky_spec[good, None]
             n_stamped += 1
             del prof
 

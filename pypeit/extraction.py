@@ -20,6 +20,15 @@ from pypeit.core import skysub, extract, flexure, flat
 from pypeit.core.moment import moment1d
 
 
+def _crop_spatial(image, columns):
+    """
+    Select the spatial columns of an image or pass through a scalar or vector.
+    """
+    if image is None or np.ndim(image) < 2:
+        return image
+    return image[:, columns]
+
+
 class Extract:
     """
     This class will organize and run actions relatedt to sky subtraction, and extraction for
@@ -255,6 +264,8 @@ class Extract:
             if flat_raw is not None and flatimages.pixelflat_norm is not None:
                 # TODO: Can we just use flat_raw if flatimages.pixelflat_norm is None?
                 self.flatimg, _ = flat.flatfield(flat_raw, flatimages.pixelflat_norm)
+            elif flat_raw is not None and self.spectrograph.pypeline == 'Fiber':
+                self.flatimg = flat_raw
         if self.flatimg is None:
             log.warning("No flat image was found. A spectrum of the flatfield will not be extracted!")
 
@@ -1039,29 +1050,46 @@ class FiberExtract(Extract):
                 thismask = np.logical_not((slitid_img != sobj.SLITID)
                                           & (slitid_img != -1))
                 thismask_cache[sobj.SLITID] = thismask
-            sobj_inmask = inmask & thismask
+            columns = (
+                self.fiber_footprint(sobj, nspat)
+                if getattr(self.spectrograph, 'fiber_use_compact_profiles', False)
+                else slice(0, nspat)
+            )
 
-            sobj.extract_boxcar(
-                imgminsky, self.sciImg.ivar, sobj_inmask,
-                self.waveimg, extract_sky,
-                fwhmimg=self.fwhmimg, flatimg=self.flatimg,
-                base_var=self.sciImg.base_var,
-                count_scale=self.sciImg.img_scale,
-                noise_floor=self.sciImg.noise_floor)
+            trace = sobj.TRACE_SPAT
+            sobj.TRACE_SPAT = trace - columns.start
+            try:
+                aperture_slit = thismask[:, columns]
+                aperture_mask = inmask[:, columns] & aperture_slit
+                image = imgminsky[:, columns]
+                ivar = self.sciImg.ivar[:, columns]
+                wave = self.waveimg[:, columns]
+                sky = extract_sky[:, columns]
+                fwhm = _crop_spatial(self.fwhmimg, columns)
+                flat_aperture = _crop_spatial(self.flatimg, columns)
+                base_var = _crop_spatial(self.sciImg.base_var, columns)
+                count_scale = _crop_spatial(self.sciImg.img_scale, columns)
 
-            oprof = None
-            if self.flatimg is not None:
-                oprof = self._build_empirical_profile(
-                    self.flatimg, slitid_img, sobj, nspec, nspat)
-            if oprof is not None:
-                sobj.extract_optimal(
-                    imgminsky, self.sciImg.ivar, sobj_inmask,
-                    self.waveimg, extract_sky, thismask, oprof,
-                    fwhmimg=self.fwhmimg, flatimg=self.flatimg,
-                    base_var=self.sciImg.base_var,
-                    count_scale=self.sciImg.img_scale,
-                    noise_floor=self.sciImg.noise_floor)
-                n_opt += 1
+                sobj.extract_boxcar(
+                    image, ivar, aperture_mask, wave, sky, fwhmimg=fwhm, flatimg=flat_aperture,
+                    base_var=base_var, count_scale=count_scale, noise_floor=self.sciImg.noise_floor
+                )
+
+                oprof = None
+                if flat_aperture is not None:
+                    oprof = self._build_empirical_profile(
+                        flat_aperture, slitid_img[:, columns], sobj, nspec,
+                        columns.stop - columns.start
+                    )
+                if oprof is not None:
+                    sobj.extract_optimal(
+                        image, ivar, aperture_mask, wave, sky, aperture_slit, oprof, fwhmimg=fwhm,
+                        flatimg=flat_aperture, base_var=base_var, count_scale=count_scale,
+                        noise_floor=self.sciImg.noise_floor
+                    )
+                    n_opt += 1
+            finally:
+                sobj.TRACE_SPAT = trace
             # Explicitly drop the per-fiber profile so peak memory stays
             # constant rather than scaling with fiber count.
             del oprof
@@ -1121,6 +1149,10 @@ class FiberExtract(Extract):
             log.info(f"Applied cached per-fiber wavelength refinement "
                      f"to {n_shift} fibers")
 
+        calibrate_aperture = getattr(self.spectrograph, 'calibrate_fiber_aperture', None)
+        if calibrate_aperture is not None and self.objtype == 'science':
+            calibrate_aperture(self.sobjs, imgminsky)
+
         # Set the bit for pixels masked by extraction
         base_gpm = self.sciImg.select_flag(invert=True)
         self.outmask.turn_on('EXTRACT',
@@ -1135,6 +1167,16 @@ class FiberExtract(Extract):
 
         return self.skymodel, self.bkg_redux_skymodel, self.objmodel, \
             self.ivarmodel, self.outmask, self.sobjs
+
+    @staticmethod
+    def fiber_footprint(sobj, nspat):
+        """
+        Select spatial columns containing the entire trace and boxcar aperture.
+        """
+        margin = int(np.ceil(float(sobj.BOX_R_PIX))) + 3
+        low = max(0, int(np.floor(np.min(sobj.TRACE_SPAT))) - margin)
+        high = min(nspat, int(np.ceil(np.max(sobj.TRACE_SPAT))) + margin + 1)
+        return slice(low, high)
 
     @staticmethod
     def _build_empirical_profile(flatimg, slitmask, sobj, nspec, nspat):
