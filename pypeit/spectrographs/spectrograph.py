@@ -119,6 +119,9 @@ class Spectrograph:
     spectrograph.
     """
 
+    # IFU cube construction needs additional output metadata.
+    fiber_require_ifu_metadata = True
+
     ech_fixed_format = None
     """
     If an echelle spectrograph, this will be set to a boolean indicating whether it is a fixed format or tiltable 
@@ -494,7 +497,10 @@ class Spectrograph:
 
         # The following are added for SlicerIFU spectrographs, as they are
         #   needed by the coadd3d routine
-        if self.pypeline in ["SlicerIFU", "Fiber"]:
+        if (
+            self.pypeline == "SlicerIFU"
+            or (self.pypeline == "Fiber" and self.fiber_require_ifu_metadata)
+        ):
             slicer_keys = [
                 "slitwid", "airmass", "parangle", "pressure", "temperature", "humidity"
             ]

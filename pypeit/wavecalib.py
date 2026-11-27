@@ -29,6 +29,16 @@ from pypeit.core.wavecal import echelle
 
 from IPython import embed
 
+def _finite_range(values):
+    """
+    Return the first and last finite values, or zero bounds if unavailable.
+    """
+    if values is None:
+        return 0., 0.
+    finite = values[np.isfinite(values)]
+    return (finite[0], finite[-1]) if finite.size != 0 else (0., 0.)
+
+
 class WaveCalib(calibframe.CalibFrame):
     """
     Calibration frame containing the wavelength calibration.
@@ -287,6 +297,22 @@ class WaveCalib(calibframe.CalibFrame):
         # need to exclude slits that are masked (are bad)
         bad_slits = slits.bitmask.flagged(slits.mask, and_not=slits.bitmask.exclude_for_reducing)
         ok_spat_ids = slits.spat_id[np.logical_not(bad_slits)]
+        if self.fwhm_map is not None and slits.nslits > 0:
+            valid = np.flatnonzero(~bad_slits)
+            constant = all(self.fwhm_map[i] is not None
+                           and self.fwhm_map[i].fitc is not None
+                           and self.fwhm_map[i].fitc.size == 1
+                           and self.fwhm_map[i].func in ('polynomial2d', 'legendre2d',
+                                                       'chebyshev2d') for i in valid)
+            low = min(-1, int(np.min(slits.spat_id)))
+            high = max(-1, int(np.max(slits.spat_id)))
+            if constant and high - low < 4 * slitmask.shape[1]:
+                # The imported fibre model is constant inside each block.
+                # One lookup replaces a full-detector coordinate search per block.
+                values = np.zeros(high - low + 1)
+                values[slits.spat_id[valid] - low] = [
+                    self.fwhm_map[i].fitc.item() for i in valid]
+                return values[slitmask - low]
         # Build a map of the spectral FWHM
         fwhmimg = np.zeros(tilts.shape)
         for sl, spat_id in enumerate(slits.spat_id):
@@ -389,15 +415,14 @@ class WaveCalib(calibframe.CalibFrame):
             `astropy.table.Table`_: wavecalib diagnostics table
 
         """
-        # wavelength range of calibrated arc spectra
-        minWave = np.array([0 if wvfit.wave_soln is None else wvfit.wave_soln[0] for wvfit in self.wv_fits])
-        maxWave = np.array([0 if wvfit.wave_soln is None else wvfit.wave_soln[-1] for wvfit in self.wv_fits])
-
-        # wavelength range of fitted ID'd lines
-        lines_wmin = np.array([0 if wvfit is None or wvfit.pypeitfit is None else
-                              wvfit.wave_fit[wvfit.pypeitfit.gpm == 1][0] for wvfit in self.wv_fits])
-        lines_wmax = np.array([0 if wvfit is None or wvfit.pypeitfit is None else
-                              wvfit.wave_fit[wvfit.pypeitfit.gpm == 1][-1] for wvfit in self.wv_fits])
+        # Imported solutions can have a wavelength map with no saved line IDs.
+        minWave, maxWave = np.asarray([_finite_range(f.wave_soln) for f in self.wv_fits]).T
+        lines = [
+            np.empty(0) if f.pypeitfit is None or f.pypeitfit.gpm is None or f.wave_fit is None
+            else f.wave_fit[f.pypeitfit.gpm == 1]
+            for f in self.wv_fits
+        ]
+        lines_wmin, lines_wmax = np.asarray([_finite_range(w) for w in lines]).T
 
         # wavelength coverage of fitted ID'd lines
         lines_waverange = lines_wmax - lines_wmin
@@ -423,7 +448,7 @@ class WaveCalib(calibframe.CalibFrame):
         diag['dWave'] = [0 if wvfit.cen_disp is None else wvfit.cen_disp for wvfit in self.wv_fits]
         diag['dWave'].format = '0.3f'
         # Number of good lines
-        diag['Nlin'] = [0 if wvfit.pypeitfit is None else np.sum(wvfit.pypeitfit.gpm) for wvfit in self.wv_fits]
+        diag['Nlin'] = [len(w) for w in lines]
         diag['IDs_Wave_range'] = ['{:9.3f} - {:9.3f}'.format(lines_wmin[i], lines_wmax[i]) for i in range(self.wv_fits.size)]
         diag['IDs_Wave_cov(%)'] = lines_cov
         diag['IDs_Wave_cov(%)'].format = '0.1f'

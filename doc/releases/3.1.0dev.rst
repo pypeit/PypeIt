@@ -29,7 +29,9 @@ Functionality/Performance Improvements and Additions
 Instrument-specific Updates
 ---------------------------
 
-- placeholder
+- Added the experimental VISTA/4MOST LRS-B red adapter
+  (``vista_4most_lrsb_red``). The commissioning workflow imports traces,
+  wavelength calibration, and relative fiber throughput.
 
 
 Script Changes

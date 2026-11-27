@@ -324,6 +324,7 @@ def _fake_preextract_findobj(radii, seed=2222):
     fobj.slits = SimpleNamespace(slit_img=lambda initial=False: slitmask)
     fobj.waveimg = waveimg
     fobj.wv_calib = None
+    fobj.spectrograph = SimpleNamespace(fiber_use_compact_profiles=False)
 
     def make_sobjs():
         return [SimpleNamespace(TRACE_SPAT=c + 0.004*(spec_pix - nspec/2),
@@ -351,6 +352,23 @@ def test_preextract_fast_path_matches_loop_with_nonuniform_radii():
         assert np.allclose(f.BOX_COUNTS, l.BOX_COUNTS, rtol=1e-12, atol=0)
         assert np.allclose(f.BOX_COUNTS_IVAR, l.BOX_COUNTS_IVAR, rtol=1e-12, atol=0)
         assert np.allclose(f.BOX_WAVE, l.BOX_WAVE, rtol=1e-12, atol=0)
+
+
+def test_compact_preextract_matches_full_detector_loop():
+    fobj, make_sobjs = _fake_preextract_findobj(np.linspace(3.2, 3.5, 10))
+    full = make_sobjs()
+    fobj._preextract_fibers_loop(full)
+
+    fobj.spectrograph.fiber_use_compact_profiles = True
+    compact = make_sobjs()
+    fobj._preextract_fibers(compact)
+
+    for actual, expected in zip(compact, full):
+        np.testing.assert_array_equal(actual.TRACE_SPAT, expected.TRACE_SPAT)
+        np.testing.assert_array_equal(actual.BOX_MASK, expected.BOX_MASK)
+        for field in ('BOX_COUNTS', 'BOX_COUNTS_IVAR', 'BOX_WAVE'):
+            np.testing.assert_allclose(getattr(actual, field), getattr(expected, field),
+                                       rtol=1e-12, atol=0)
 
 
 def test_preextract_fast_path_uses_each_fiber_radius():
