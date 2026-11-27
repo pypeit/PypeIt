@@ -134,7 +134,7 @@ class VISTA4MOSTLRSBRedSpectrograph(Spectrograph):
                 value = getattr(sobj, field)
                 if value is not None:
                     setattr(sobj, field, value / factor**2)
-            log.info(f'4MOST aperture calibration fiber {sobj.MASKDEF_ID}: {factor:.6f}')
+            log.info(f'4MOST aperture calibration fiber {sobj.MASKDEF_ID}: {factor:.17g}')
             count += 1
         log.info(f'Applied the 4MOST optimal aperture calibration to {count} fibers.')
 

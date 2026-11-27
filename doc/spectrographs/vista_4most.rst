@@ -1,5 +1,5 @@
 VISTA/4MOST LRS-B red
-====================
+=====================
 
 The experimental ``vista_4most_lrsb_red`` adapter uses the ``Fiber``
 pipeline for the unbinned red detector of the second low-resolution
@@ -47,3 +47,8 @@ the median continuum residual against the wide aperture went from
 ``-4.35%`` to ``-0.04%``. The propagated count uncertainties are conditional
 on the normalization. They do not include a shared normalization
 uncertainty across wavelengths.
+
+A grey normalization cancels when a spectrum is divided by its own
+continuum in 8440--8860 Angstrom. Relative residuals against BOSS at
+9240--9300 Angstrom therefore require a wavelength-dependent response
+calibration to improve.
