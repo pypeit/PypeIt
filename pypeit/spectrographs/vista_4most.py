@@ -6,7 +6,7 @@ from pathlib import Path
 
 import numpy as np
 
-from pypeit import PypeItError, io
+from pypeit import PypeItError, io, log
 from pypeit.core import framematch
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.par.pypeitpar import TelescopePar
@@ -28,6 +28,115 @@ class VISTA4MOSTLRSBRedSpectrograph(Spectrograph):
     supported = False
     fiber_use_compact_profiles = True
     url = 'https://www.4most.eu/'
+
+    @cached_property
+    def aperture_scale(self):
+        """
+        Return the opt-in boxcar-to-wide-aperture calibration, if set.
+        """
+        raw = os.environ.get('PYPEIT_4MOST_APERTURE_SCALE')
+        if raw is None:
+            return None
+        try:
+            scale = float(raw)
+        except ValueError as error:
+            raise PypeItError('PYPEIT_4MOST_APERTURE_SCALE must be a positive number.') from error
+        if not np.isfinite(scale) or scale <= 0:
+            raise PypeItError('PYPEIT_4MOST_APERTURE_SCALE must be a finite positive number.')
+        return scale
+
+    def subheader_for_spec(
+        self, row_fitstbl, raw_header, extra_header_cards=None, allow_missing=False
+    ):
+        """
+        Record the opt-in aperture calibration in the spectrum primary header.
+        """
+        header = super().subheader_for_spec(
+            row_fitstbl, raw_header, extra_header_cards=extra_header_cards,
+            allow_missing=allow_missing
+        )
+        if self.aperture_scale is not None:
+            header['APERSCL'] = (self.aperture_scale, '4MOST boxcar-to-wide aperture scale')
+        return header
+
+    def calibrate_fiber_aperture(self, sobjs, image):
+        """
+        Anchor bright, isolated optimal spectra to aperture-corrected boxcar counts.
+
+        Parameters
+        ----------
+        sobjs : :class:`~pypeit.specobjs.SpecObjs`
+            This exposure's extracted spectra with observed-frame wavelengths.
+        image : `numpy.ndarray`_
+            Sky-subtracted detector image in electrons, before fiber throughput division.
+
+        The boxcar and optimal medians use identical valid rows from 8440 to
+        8860 Angstrom. The grey normalization preserves spectral shape. This
+        calibration only rescales the conditional uncertainties and does not
+        represent uncertainty in the shared normalization.
+        """
+        if self.aperture_scale is None:
+            return
+
+        positions, core_counts, anchors = [], [], []
+        for sobj in sobjs:
+            if sobj.OPT_WAVE is None or sobj.OPT_MASK is None or sobj.BOX_MASK is None:
+                positions.append(np.median(sobj.TRACE_SPAT))
+                core_counts.append(np.inf)
+                anchors.append(None)
+                continue
+            band = (sobj.OPT_WAVE >= 8440) & (sobj.OPT_WAVE < 8860) & sobj.OPT_MASK
+            rows = np.flatnonzero(band)
+            trace = sobj.TRACE_SPAT[rows]
+            positions.append(np.median(trace) if rows.size > 0 else np.median(sobj.TRACE_SPAT))
+            if rows.size < 300:
+                core_counts.append(np.inf)
+                anchors.append(None)
+                continue
+            cols = np.rint(trace).astype(int)[:, None] + np.arange(-2, 3)
+            if cols.min() < 0 or cols.max() >= image.shape[1]:
+                core_counts.append(np.inf)
+                anchors.append(None)
+                continue
+            dx = cols - trace[:, None]
+            weights = np.maximum(0., np.minimum(dx + .5, 2.) - np.maximum(dx - .5, -2.))
+            core = np.sum(weights * image[rows[:, None], cols], axis=1)
+            finite = np.isfinite(core)
+            core_median = np.median(core[finite]) if np.count_nonzero(finite) >= 300 else np.inf
+            core_counts.append(core_median)
+
+            box, opt = sobj.BOX_COUNTS[rows], sobj.OPT_COUNTS[rows]
+            common = sobj.BOX_MASK[rows] & np.isfinite(box) & np.isfinite(opt)
+            anchors.append((np.median(box[common]), np.median(opt[common]))
+                           if np.count_nonzero(common) >= 300 else None)
+
+        positions = np.asarray(positions)
+        core_counts = np.asarray(core_counts)
+        count = 0
+        for i, (sobj, anchor) in enumerate(zip(sobjs, anchors)):
+            name = sobj.MASKDEF_OBJNAME
+            if (name is None or str(name).startswith(('SKY', 'UNUSED-')) or anchor is None
+                    or not np.isfinite(core_counts[i]) or core_counts[i] < 900):
+                continue
+            distance = abs(positions - positions[i])
+            neighbors = (distance > 0) & (distance < 8.)
+            if np.any(core_counts[neighbors] > .10 * core_counts[i]):
+                continue
+            box, opt = anchor
+            if box <= 0 or opt <= 0:
+                continue
+            factor = self.aperture_scale * box / opt
+            for field in ('OPT_COUNTS', 'OPT_COUNTS_SKY', 'OPT_COUNTS_SIG', 'OPT_COUNTS_SIG_DET'):
+                value = getattr(sobj, field)
+                if value is not None:
+                    setattr(sobj, field, value * factor)
+            for field in ('OPT_COUNTS_IVAR', 'OPT_COUNTS_NIVAR'):
+                value = getattr(sobj, field)
+                if value is not None:
+                    setattr(sobj, field, value / factor**2)
+            log.info(f'4MOST aperture calibration fiber {sobj.MASKDEF_ID}: {factor:.6f}')
+            count += 1
+        log.info(f'Applied the 4MOST optimal aperture calibration to {count} fibers.')
 
     def init_meta(self):
         self.meta = {

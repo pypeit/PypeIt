@@ -1149,6 +1149,10 @@ class FiberExtract(Extract):
             log.info(f"Applied cached per-fiber wavelength refinement "
                      f"to {n_shift} fibers")
 
+        calibrate_aperture = getattr(self.spectrograph, 'calibrate_fiber_aperture', None)
+        if calibrate_aperture is not None and self.objtype == 'science':
+            calibrate_aperture(self.sobjs, imgminsky)
+
         # Set the bit for pixels masked by extraction
         base_gpm = self.sciImg.select_flag(invert=True)
         self.outmask.turn_on('EXTRACT',
