@@ -127,7 +127,7 @@ class PypeItMetaData:
             self.merge(usrdata)
 
         # Impose types on specific columns
-        self._impose_types(['comb_id', 'bkg_id', 'manual', 'shift'], [int, (int, str), str, float])
+        self._impose_types(['comb_id', 'bkg_id', 'manual', 'shift'], [int, (int, str), str, str])
 
         # Initialize internal attributes
         self.configs = None
