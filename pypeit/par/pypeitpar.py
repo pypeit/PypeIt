@@ -329,7 +329,13 @@ class ProcessImagesPar(ParSet):
         defaults['empirical_rn'] = False
         dtypes['empirical_rn'] = bool
         descr['empirical_rn'] = 'If True, use the standard deviation in the overscan region to ' \
-                                'measure an empirical readnoise to use in the noise model.'
+                                'measure an empirical readnoise to use in the noise model.  ' \
+                                'For JWST/NIRSpec, which has no overscan region, the noise ' \
+                                'missing from the JWST readnoise variance is instead measured ' \
+                                'on the pixels without signal and added to the readnoise ' \
+                                'variance.  It is measured on the differences of the exposures ' \
+                                'with the same configuration listed in the PypeIt file, if ' \
+                                'any; otherwise, on the full-frame image itself.'
 
         defaults['shot_noise'] = True
         dtypes['shot_noise'] = bool
@@ -5053,7 +5059,8 @@ class ExtractionPar(ParSet):
 
     def __init__(self, boxcar_radius=None, std_prof_nsigma=None, min_frac_prof=None, sn_gauss=None,
                  model_full_slit=None, skip_extraction=None, skip_optimal=None,
-                 use_2dmodel_mask=None, use_user_fwhm=None, return_negative=None):
+                 use_2dmodel_mask=None, use_user_fwhm=None, return_negative=None,
+                 fnu_to_flam=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -5121,6 +5128,17 @@ class ExtractionPar(ParSet):
         dtypes['return_negative'] = bool
         descr['return_negative'] = 'If ``True`` the negative traces will be extracted and saved to disk'
 
+        defaults['fnu_to_flam'] = False
+        dtypes['fnu_to_flam'] = bool
+        descr['fnu_to_flam'] = 'If ``True`` and the processed image is already flux calibrated ' \
+                               'as a flux density per unit frequency (e.g., the JWST/NIRSpec ' \
+                               'images, in MJy), convert the extracted spectra to flux density ' \
+                               'per unit wavelength in the PypeIt flux units (1e-17 ' \
+                               'erg/s/cm^2/Ang) and store them in the ``_FLAM`` columns of the ' \
+                               'spec1d files, without a sensitivity function.  If the processed ' \
+                               'image is not a flux density, a warning is issued and the ' \
+                               '``_FLAM`` columns are not filled.'
+
         # Instantiate the parameter set
         super(ExtractionPar, self).__init__(list(pars.keys()),
                                         values=list(pars.values()),
@@ -5136,7 +5154,8 @@ class ExtractionPar(ParSet):
 
         # Basic keywords
         parkeys = ['boxcar_radius', 'std_prof_nsigma', 'min_frac_prof', 'sn_gauss', 'model_full_slit',
-                   'skip_extraction', 'skip_optimal', 'use_2dmodel_mask', 'use_user_fwhm', 'return_negative']
+                   'skip_extraction', 'skip_optimal', 'use_2dmodel_mask', 'use_user_fwhm', 'return_negative',
+                   'fnu_to_flam']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

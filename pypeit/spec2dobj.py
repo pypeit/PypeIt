@@ -111,7 +111,8 @@ class Spec2DObj(datamodel.DataContainer):
 
     internals = ['calibs',              # Dictionary containing the processed calibration frames
                  'process_steps',       # List of image processing steps
-                 'head0'                # Raw header
+                 'head0',               # Raw header
+                 'units'                # Units of the processed image (see PypeItImage.units)
                 ]
 
     @classmethod
@@ -188,6 +189,10 @@ class Spec2DObj(datamodel.DataContainer):
             self.process_steps = hdr['PROCSTEP'].split(',')
 
         self.head0 = hdu[0].header
+        # Units of the processed image, from the BUNIT keyword of the primary
+        # header (see AllSpec2DObj.build_primary_hdr)
+        bunit = self.head0.get('BUNIT')
+        self.units = 'e-' if bunit == 'electron' else bunit
         return self
 
     def __init__(self, sciimg, ivarraw, skymodel, bkg_redux_skymodel, objmodel, ivarmodel,
@@ -256,11 +261,30 @@ class Spec2DObj(datamodel.DataContainer):
         return d
 
     def _primary_header(self, hdr=None):
-        """Record electron units when gain correction was performed."""
+        """Record the units of the processed image."""
         _hdr = super()._primary_header(hdr=hdr)
-        if self.process_steps is not None and 'apply_gain' in self.process_steps:
-            _hdr['BUNIT'] = ('electron', 'Units of the processed image')
+        bunit = self.bunit()
+        if bunit is not None:
+            _hdr['BUNIT'] = (bunit, 'Units of the processed image')
         return _hdr
+
+    def bunit(self):
+        """
+        Return the units of the processed image for the ``BUNIT`` header
+        keyword.
+
+        The units are :attr:`units` (with ``e-`` written as ``electron``) or,
+        if they are not set, ``electron`` if the gain correction was applied
+        (see :attr:`process_steps`).
+
+        Returns:
+            :obj:`str`: The units, or None if they are not known.
+        """
+        if self.units is not None:
+            return 'electron' if self.units == 'e-' else self.units
+        if self.process_steps is not None and 'apply_gain' in self.process_steps:
+            return 'electron'
+        return None
 
     def _base_header(self, hdr=None):
         """
@@ -586,10 +610,10 @@ class AllSpec2DObj:
             for key in subheader.keys():
                 hdr[key.upper()] = subheader[key]
 
-        if len(self.detectors) > 0 and all(
-                self[det].process_steps is not None
-                and 'apply_gain' in self[det].process_steps for det in self.detectors):
-            hdr['BUNIT'] = ('electron', 'Units of the processed image')
+        # Units of the processed images, if the same for all detectors
+        bunits = [self[det].bunit() for det in self.detectors]
+        if len(bunits) > 0 and bunits[0] is not None and all(b == bunits[0] for b in bunits):
+            hdr['BUNIT'] = (bunits[0], 'Units of the processed image')
 
         # PYPEIT
         # TODO Should the spectrograph be written to the header?
@@ -732,7 +756,7 @@ class AllSpec2DObj:
         # Finish
         hdulist = fits.HDUList(hdus)
         hdulist.writeto(_outfile, overwrite=overwrite)
-        log.info(f'Wrote: {_outfile}')
+        log.info(f'Wrote 2D spectra to {_outfile}')
 
     def __repr__(self):
         # Generate sets string

@@ -2703,3 +2703,15 @@ class FiberFindObjects(FindObjects):
                       chname='objfind', sobjs=sobjs, slits=True)
 
         return sobjs, len(sobjs)
+
+
+class NIRSpecSlitFindObjects(MultiSlitFindObjects):
+    """
+    Child of Reduce for NIRSpec Slit reductions
+
+    See parent doc string for Args and Attributes
+
+    """
+
+    def __init__(self, sciImg, slits, spectrograph, par, objtype, **kwargs):
+        super().__init__(sciImg, slits, spectrograph, par, objtype, **kwargs)

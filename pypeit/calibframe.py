@@ -84,7 +84,7 @@ class CalibFrame(datamodel.DataContainer):
                 raise PypeItError(f'CODING ERROR: datamodel for {self.__class__.__name__} must inherit '
                            'all datamodel components from CalibFrame.datamodel.')
 
-    def set_paths(self, odir, setup, calib_id, detname):
+    def set_paths(self, odir, setup, calib_id, detname, slit_name=None):
         """
         Set the internals necessary to construct the IO path for the calibration
         file.
@@ -108,6 +108,9 @@ class CalibFrame(datamodel.DataContainer):
                 The identifier used for the detector or detector mosaic for the
                 relevant instrument; see
                 :func:`~pypeit.spectrographs.spectrograph.Spectrograph.get_det_name`.
+            slit_name (:obj:`str`, optional):
+                Name of the slit for calibrations produced one slit at a time
+                (e.g., JWST/NIRSpec).  See :func:`construct_calib_key`.
         """
         self.calib_dir = Path(odir).absolute()
         # TODO: Keep this, or throw an error if the directory doesn't exist instead?
@@ -116,7 +119,8 @@ class CalibFrame(datamodel.DataContainer):
         # TODO: Use Path object instead of string here?
         self.calib_dir = str(self.calib_dir)
         self.calib_id = CalibFrame.ingest_calib_id(calib_id)
-        self.calib_key = self.construct_calib_key(setup, self.calib_id, detname)
+        self.calib_key = self.construct_calib_key(setup, self.calib_id, detname,
+                                                  slit_name=slit_name)
 
     def copy_calib_internals(self, other):
         """
@@ -365,7 +369,7 @@ class CalibFrame(datamodel.DataContainer):
         return calib_id
 
     @staticmethod
-    def construct_calib_key(setup, calib_id, detname):
+    def construct_calib_key(setup, calib_id, detname, slit_name=None):
         """
         Construct the identifier used for a given set of calibrations.
 
@@ -376,6 +380,9 @@ class CalibFrame(datamodel.DataContainer):
         "all", and the detector/mosaic identifier (e.g., DET01, MSC02) is set by
         the detector number or mosaic tuple (see
         :func:`~pypeit.spectrographs.spectrograph.Spectrograph.get_det_name`).
+        For calibrations produced one slit at a time (e.g., JWST/NIRSpec), the
+        slit name (with spaces removed) is appended with a ``slit`` prefix;
+        e.g., ``A_1_DET01_slitS200A2``.
 
         Args:
             setup (:obj:`str`):
@@ -388,11 +395,17 @@ class CalibFrame(datamodel.DataContainer):
                 The identifier used for the detector or detector mosaic for the
                 relevant instrument; see
                 :func:`~pypeit.spectrographs.spectrograph.Spectrograph.get_det_name`.
+            slit_name (:obj:`str`, optional):
+                Name of the slit for per-slit calibrations.  If None, no slit
+                name is included in the key.
 
         Returns:
             :obj:`str`: Calibration identifier.
         """
-        return f'{setup}_{CalibFrame.construct_calib_id(calib_id)}_{detname}'
+        calib_key = f'{setup}_{CalibFrame.construct_calib_id(calib_id)}_{detname}'
+        if slit_name is not None:
+            calib_key += f'_slit{str(slit_name).replace(" ", "")}'
+        return calib_key
 
     @staticmethod
     def parse_calib_key(calib_key):
@@ -406,10 +419,14 @@ class CalibFrame(datamodel.DataContainer):
                 The calibration key identifier to parse.
 
         Returns:
-            :obj:`tuple`: The three components of the calibration key.
+            :obj:`tuple`: The four components of the calibration key: the
+            setup, calibration group(s), detector, and slit name.  The slit name
+            is None if the key does not include one (i.e., the calibrations
+            are not per-slit).
         """
-        setup, calib_id_name, detname = calib_key.split('_')
-        return setup, ','.join(CalibFrame.parse_calib_id(calib_id_name)), detname
+        setup, calib_id_name, detname, *slit = calib_key.split('_', 3)
+        slit_name = slit[0].removeprefix('slit') if len(slit) > 0 else None
+        return setup, ','.join(CalibFrame.parse_calib_id(calib_id_name)), detname, slit_name
 
     @classmethod
     def construct_file_name(cls, calib_key, calib_dir=None):
@@ -474,7 +491,7 @@ class CalibFrame(datamodel.DataContainer):
         return _hdr
 
     @classmethod
-    def glob(cls, calib_dir, setup, calib_id, detname=None):
+    def glob(cls, calib_dir, setup, calib_id, detname=None, slit_name=None):
         """
         Search for calibration files.
 
@@ -488,6 +505,10 @@ class CalibFrame(datamodel.DataContainer):
             detname (:obj:`str`, optional):
                 The identifier of the detector/mosaic of the calibrations.  If
                 None, any relevant calibrations are returned.
+            slit_name (:obj:`str`, optional):
+                The slit name of per-slit calibrations.  Only files for this
+                slit are returned; if None, only files without a slit name are
+                returned.
 
         Returns:
             :obj:`list`: List of paths to applicable calibration files.  If no
@@ -511,10 +532,15 @@ class CalibFrame(datamodel.DataContainer):
             return None
 
         # For the remaining files, find the ones that have applicable
-        # calibration groups
+        # calibration groups and slit name
+        _slit_name = None if slit_name is None else str(slit_name).replace(' ', '')
         keep = np.ones(files.size, dtype=bool)
         for i, f in enumerate(files):
-            _calib_id = cls.parse_calib_key(cls.parse_key_dir(str(f), from_filename=True)[0])[1]
+            _, _calib_id, _, _slit = cls.parse_calib_key(
+                cls.parse_key_dir(str(f), from_filename=True)[0])
+            if _slit != _slit_name:
+                keep[i] = False
+                continue
             if _calib_id == 'all' or str(calib_id) in cls.ingest_calib_id(_calib_id):
                 continue
             keep[i] = False

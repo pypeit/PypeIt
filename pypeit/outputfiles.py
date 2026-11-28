@@ -4,6 +4,7 @@ Module for constructing output file names and paths for PypeIt reductions.
 .. include:: ../include/links.rst
 """
 import datetime
+import re
 import numpy as np
 from pathlib import Path
 
@@ -52,7 +53,7 @@ def strip_raw_extension(filename, allowed_extensions):
     return root
 
 
-def construct_basename(filename, target, camera, mjd, allowed_extensions):
+def construct_basename(filename, camera, allowed_extensions, target=None, mjd=None, slit=None):
     """Construct the root name primarily for PypeIt file output.
 
     Parameters
@@ -62,17 +63,20 @@ def construct_basename(filename, target, camera, mjd, allowed_extensions):
         ``allowed_extensions`` before constructing the basename.  If no
         extension in ``allowed_extensions`` matches, a warning is issued and the
         full input name is used unmodified.
-    target : str
-        The name of the target/object observed.
     camera : str
         The camera name; see
         :attr:`~pypeit.spectrographs.spectrograph.Spectrograph.camera`.
-    mjd : float
-        The MJD of the observation.
     allowed_extensions : list
         List of recognized raw-file extensions for the relevant spectrograph,
         used to correctly strip the extension from ``filename``; see
         :attr:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_extensions`.
+    target : str, optional
+        The name of the target/object observed.  Can be None.
+    mjd : float, optional
+        The MJD of the observation.
+    slit : :obj:`str`, optional
+        Slit identifier to be added in the basename for per-slit outputs.  If
+        None, no slit name will be added.
 
     Returns
     -------
@@ -80,15 +84,43 @@ def construct_basename(filename, target, camera, mjd, allowed_extensions):
         The root name for file output.
     """
     root = strip_raw_extension(filename, allowed_extensions)
-    tobs = time.Time(mjd, format='mjd')
-    dtime = datetime.datetime.strptime(tobs.isot, '%Y-%m-%dT%H:%M:%S.%f')
-    dtime = datetime.datetime.strftime(dtime, '%Y%m%dT')
-    tobs = tobs.isot.split('T')[1].replace(':', '')
-    _target = target.replace(' ', '')
-    return f'{root}-{_target}_{camera}_{dtime}{tobs}'
+    if target is None:
+        idstr = f'{camera}'
+    else:
+        idstr = f'{target.replace(" ", "")}_{camera}'
+    if mjd is not None:
+        tobs = time.Time(mjd, format='mjd')
+        dtime = datetime.datetime.strptime(tobs.isot, '%Y-%m-%dT%H:%M:%S.%f')
+        dtime = datetime.datetime.strftime(dtime, '%Y%m%dT')
+        tobs = tobs.isot.split('T')[1].replace(':', '')
+        idstr = f'{idstr}_{dtime}{tobs}'
+    return f'{root}-{idstr}' if slit is None else f'{root}-{idstr}_slit{slit.replace(" ", "")}'
 
 
-def get_std_outfile(fitstbl, par, standard_frames:list):
+def parse_basename_slit(filename):
+    """Return the slit name from a per-slit output file name.
+
+    This is the inverse of the slit part of :func:`construct_basename`, which
+    appends ``_slit{slit}`` to the basename of per-slit outputs.
+
+    Parameters
+    ----------
+    filename : str, `Path`_
+        The output file name (e.g., a ``spec2d`` file).
+
+    Returns
+    -------
+    str
+        The slit name (with spaces removed), or None if the file name does not
+        include one.
+    """
+    # The extension is everything after the last "." in the slit name; note
+    # that the observation time in the basename also includes a "."
+    match = re.search(r'_slit([^_.]+)\.[^_]*$', Path(filename).name)
+    return None if match is None else match.group(1)
+
+
+def get_std_outfile(fitstbl, par, standard_frames:list, slitname:str=None):
     """
     Return the spec1d file name for a reduced standard to use as a tracing
     crutch.
@@ -107,7 +139,9 @@ def get_std_outfile(fitstbl, par, standard_frames:list):
         standard_frames (:obj:`list`):
             List of frame indices in ``fitstbl`` corresponding to
             standard star frames.
-
+        slitname (:obj:`str`, optional):
+            Name of the slit, if applicable.  Default is None, which means
+            the slit name is not included in the standard star output file name.
     Returns:
         :obj:`str`: Full path to the standard spec1d output file to use.
     """
@@ -131,7 +165,7 @@ def get_std_outfile(fitstbl, par, standard_frames:list):
         else standard_frames[0]
     # Prepare to load up standard?
     if std_frame is not None:
-        std_outfile = spec_output_file(fitstbl, par, std_frame) \
+        std_outfile = spec_output_file(fitstbl, par, std_frame, slitname=slitname) \
                         if isinstance(std_frame, (int,np.integer)) else None
     if std_outfile is not None and not std_outfile.is_file():
         raise PypeItError(f'Could not find standard file: {std_outfile}')
@@ -175,9 +209,9 @@ def science_path(par) -> Path:
     """
     return Path(par['rdx']['redux_path']) / par['rdx']['scidir']
 
-
 def spec_output_file(
-    fitstbl, par, frame:int, twod:bool=False, ext:str='.fits', sci_path:Path=None
+    fitstbl, par, frame:int, twod:bool=False, slitname:str=None, ext:str='.fits',
+    sci_path:Path=None
 ) -> Path:
     """
     Return the path to the spectral output data file.
@@ -191,8 +225,14 @@ def spec_output_file(
             Frame index from :attr:`fitstbl`.
         twod (:obj:`bool`), optional:
             Name for the 2D output file; 1D file otherwise.
+        slitname (:obj:`str`, optional):
+            Name of the slit, if applicable.  Default is None, which means
+            the slit name is not included in the output file name.
         ext (:obj:`str`, optional):
             Extension for the output file.  Default is '.fits'.
+        sci_path (:obj:`Path`, optional):
+                Path to the science directory.  If not provided, it is constructed
+                using :func:`science_path` and the provided parameters.
     
     Returns:
         `Path`_: The path for the output file
@@ -200,7 +240,7 @@ def spec_output_file(
     if sci_path is None:
         sci_path = science_path(par)
     # Bits and pieces
-    basename = fitstbl.construct_basename(frame)
+    basename = fitstbl.construct_basename(frame, slitname=slitname)
     # Finish``
     return sci_path / f'spec{"2" if twod else "1"}d_{basename}{ext}'
 
@@ -228,18 +268,26 @@ def spec2d_target(spec2d_file):
     return None
 
 
-def find_reduced_spec2d(science_dir, row, spectrograph):
+def find_reduced_spec2d(science_dir, row, spectrograph, slitname=None):
     """
     Find the existing spec2d product for a science-frame row.
 
     Tries an exact match first, reconstructing the spec2d basename from the row's own
-    metadata via :func:`construct_basename`; a hit is target-correct by construction,
-    since the row's own target was used to build the name, so no header read is
-    needed. Falls back to matching by raw-file stem and verifying the target
-    recorded in each candidate's header, for cases where the exact name can't be
-    reconstructed (e.g. no ``mjd`` column, or a corrupt/missing ``mjd`` value) or
-    doesn't match an existing file (e.g. an older ``.pypeit`` file, or different
-    metadata precision).
+    metadata via
+    :func:`~pypeit.spectrographs.spectrograph.Spectrograph.rawfile_basename`; a hit is
+    target-correct by construction, since the row's own target was used to build the
+    name, so no header read is needed. Falls back to matching by raw-file stem and
+    verifying the target recorded in each candidate's header, for cases where the
+    exact name can't be reconstructed (e.g. no ``mjd`` column, or a corrupt/missing
+    ``mjd`` value) or doesn't match an existing file (e.g. an older ``.pypeit`` file,
+    or different metadata precision).
+
+    .. warning::
+
+        The fallback does not work for JWST/NIRSpec: the raw-file stem keeps the
+        detector tag (e.g., ``_nrs1``), which is removed from the NIRSpec spec2d
+        file names, and ``slitname`` is not used to select among the per-slit
+        spec2d files.  For NIRSpec, only the exact match is reliable.
 
     Parameters
     ----------
@@ -251,9 +299,15 @@ def find_reduced_spec2d(science_dir, row, spectrograph):
         :func:`~pypeit.inputfiles.group_science_rows`. Must have ``filename``,
         ``target``, and ``mjd`` columns.
     spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
-        Spectrograph instance, used for
-        :attr:`~pypeit.spectrographs.spectrograph.Spectrograph.camera` and
+        Spectrograph instance, used to construct the expected file name (see
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.rawfile_basename`)
+        and for
         :attr:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_extensions`.
+    slitname : :obj:`str`, optional
+        Slit name for spectrographs reduced one slit at a time (e.g.,
+        JWST/NIRSpec), which is included in the spec2d file name.  If None, the
+        spec2d file name is expected not to include a slit name.  Only used for
+        the exact match.
 
     Returns
     -------
@@ -262,18 +316,25 @@ def find_reduced_spec2d(science_dir, row, spectrograph):
         fallback search, the first (alphabetically sorted) is used and a warning is
         logged. Returns None if no candidate matches.
     """
-    raw_filename = row['filename']
+    raw_filename = str(row['filename']).strip()
     target = row['target']
     mjd = row['mjd'] if 'mjd' in row.colnames else None
     if mjd is not None:
-        expected_basename = construct_basename(
-            raw_filename, target, spectrograph.camera, mjd, spectrograph.allowed_extensions
+        # Use the spectrograph method so that any spectrograph-specific naming
+        # (e.g., JWST/NIRSpec) matches the name used when the file was written.
+        expected_basename = spectrograph.rawfile_basename(
+            raw_filename, targname=target, slitname=slitname, mjd=mjd
         )
         exact = Path(science_dir) / f'spec2d_{expected_basename}.fits'
         if exact.is_file():
             return exact
 
-    raw_stem = strip_raw_extension(str(raw_filename).strip(), spectrograph.allowed_extensions)
+    # NOTE: This fallback does not work for JWST/NIRSpec.  The raw-file stem
+    # keeps the detector tag (e.g., ``_nrs1``), which is removed from the
+    # NIRSpec spec2d file names (see
+    # JWSTNIRSpecSpectrograph.rawfile_basename), and ``slitname`` is not used
+    # to select among the per-slit spec2d files.
+    raw_stem = strip_raw_extension(raw_filename, spectrograph.allowed_extensions)
     candidates = sorted(Path(science_dir).glob(f'spec2d_{raw_stem}-*.fits'))
     matches = []
     for candidate in candidates:
@@ -292,7 +353,7 @@ def find_reduced_spec2d(science_dir, row, spectrograph):
     return None if len(matches) == 0 else matches[0]
 
 
-def existing_spec2d_files(pypeit_file, target, science_dir, spectrograph):
+def existing_spec2d_files(pypeit_file, target, science_dir, spectrograph, slitname=None):
     """
     Find the current reduced spec2d products expected for a target.
 
@@ -306,6 +367,8 @@ def existing_spec2d_files(pypeit_file, target, science_dir, spectrograph):
         Directory to search for reduced spec2d files.
     spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
         Spectrograph instance, passed through to :func:`find_reduced_spec2d`.
+    slitname : :obj:`str`, optional
+        Slit name, passed through to :func:`find_reduced_spec2d`.
 
     Returns
     -------
@@ -324,7 +387,7 @@ def existing_spec2d_files(pypeit_file, target, science_dir, spectrograph):
     missing = []
     for group in inputfiles.group_science_rows(rows):
         row = group[0]
-        spec2d = find_reduced_spec2d(science_dir, row, spectrograph)
+        spec2d = find_reduced_spec2d(science_dir, row, spectrograph, slitname=slitname)
         if spec2d is None:
             missing.append(
                 strip_raw_extension(str(row['filename']).strip(), spectrograph.allowed_extensions)

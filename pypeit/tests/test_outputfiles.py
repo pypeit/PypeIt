@@ -47,29 +47,41 @@ def test_strip_raw_extension_unrecognized_extension():
     assert outputfiles.strip_raw_extension('b27.dat', ['.fits']) == 'b27.dat'
 
 def test_construct_basename_fits():
-    basename = outputfiles.construct_basename('b27.fits', _TARGET, _CAMERA, _MJD, ['.fits'])
+    basename = outputfiles.construct_basename('b27.fits', _CAMERA, ['.fits'], target=_TARGET,
+                                               mjd=_MJD)
     assert basename == f'b27-{_ROOT}'
 
 def test_construct_basename_fits_gz():
-    basename = outputfiles.construct_basename('b27.fits.gz', _TARGET, _CAMERA, _MJD,
-                                               ['.fits', '.fits.gz'])
+    basename = outputfiles.construct_basename('b27.fits.gz', _CAMERA, ['.fits', '.fits.gz'],
+                                               target=_TARGET, mjd=_MJD)
     assert basename == f'b27-{_ROOT}'
 
 def test_construct_basename_non_fits_extension():
     # SOAR Goodman-style raw file extension that does not contain '.fits'
-    basename = outputfiles.construct_basename('b27.fz', _TARGET, _CAMERA, _MJD, ['.fz'])
+    basename = outputfiles.construct_basename('b27.fz', _CAMERA, ['.fz'], target=_TARGET,
+                                               mjd=_MJD)
     assert basename == f'b27-{_ROOT}'
 
 def test_construct_basename_path_input():
-    basename = outputfiles.construct_basename(Path('/some/dir/b27.fits.gz'), _TARGET, _CAMERA,
-                                               _MJD, ['.fits', '.fits.gz'])
+    basename = outputfiles.construct_basename(Path('/some/dir/b27.fits.gz'), _CAMERA,
+                                               ['.fits', '.fits.gz'], target=_TARGET, mjd=_MJD)
     assert basename == f'b27-{_ROOT}'
 
 def test_construct_basename_unrecognized_extension():
     # No extension in allowed_extensions matches; the full name is kept and a
     # warning is issued, but the function should not raise an exception.
-    basename = outputfiles.construct_basename('b27.dat', _TARGET, _CAMERA, _MJD, ['.fits'])
+    basename = outputfiles.construct_basename('b27.dat', _CAMERA, ['.fits'], target=_TARGET,
+                                               mjd=_MJD)
     assert basename == f'b27.dat-{_ROOT}'
+
+
+def test_parse_basename_slit():
+    basename = outputfiles.construct_basename('b27.fits', _CAMERA, ['.fits'], target=_TARGET,
+                                               mjd=_MJD, slit='S200 A2')
+    assert outputfiles.parse_basename_slit(f'spec2d_{basename}.fits') == 'S200A2'
+    assert outputfiles.parse_basename_slit(f'spec1d_{basename}.txt') == 'S200A2'
+    assert outputfiles.parse_basename_slit(f'spec2d_b27-{_ROOT}.fits') is None
+    assert outputfiles.parse_basename_slit('spec2d_b27-my_slitless_KAST.fits') is None
 
 
 def test_spec2d_target_prefers_target_over_targname_and_object(tmp_path):
@@ -107,7 +119,8 @@ def test_find_reduced_spec2d_exact_match_primary_path(tmp_path):
         {'filename': ['kr260610_00054.fits.gz'], 'target': ['J0750+6927'], 'mjd': [59742.123456]}
     )[0]
     expected_basename = outputfiles.construct_basename(
-        row['filename'], row['target'], spec.camera, row['mjd'], spec.allowed_extensions
+        row['filename'], spec.camera, spec.allowed_extensions, target=row['target'],
+        mjd=row['mjd']
     )
     spec2d_path = tmp_path / f'spec2d_{expected_basename}.fits'
     _write_spec2d(spec2d_path, target='not-the-requested-target')
@@ -149,6 +162,26 @@ def test_find_reduced_spec2d_missing_returns_none(tmp_path):
         'should return None when no candidate spec2d file exists on disk'
 
 
+def test_find_reduced_spec2d_slitname(tmp_path):
+    # JWST/NIRSpec writes one spec2d file per slit, with the slit name at the end
+    # of the file name and the detector tag (_nrs1) removed.
+    spec = load_spectrograph('jwst_nirspec')
+    row = Table({'filename': ['jw01967012001_03102_00001_nrs1_cal.fits'],
+                 'target': ['J2255+0251'], 'mjd': [59880.26487402199]})[0]
+    spec2d_paths = {}
+    for slit in ['S200A1', 'S200A2']:
+        basename = spec.rawfile_basename(row['filename'], targname=row['target'],
+                                         slitname=slit, mjd=row['mjd'])
+        spec2d_paths[slit] = tmp_path / f'spec2d_{basename}.fits'
+        _write_spec2d(spec2d_paths[slit], target='J2255+0251')
+
+    assert outputfiles.find_reduced_spec2d(tmp_path, row, spec, slitname='S200A2') \
+            == spec2d_paths['S200A2'], 'exact match should select the file for the requested slit'
+
+    assert outputfiles.find_reduced_spec2d(tmp_path, row, spec, slitname='S1600A1') is None, \
+            'should return None when no spec2d file exists for the requested slit'
+
+
 def test_existing_spec2d_files_found_and_missing(tmp_path):
     pypeit_file = inputfiles.PypeItFile(
         config={'rdx': {'spectrograph': 'keck_kcrm'}},
@@ -166,7 +199,8 @@ def test_existing_spec2d_files_found_and_missing(tmp_path):
 
     # Only the first exposure has been reduced so far.
     expected_basename = outputfiles.construct_basename(
-        'kr260610_00054.fits.gz', 'J0750+6927', spec.camera, 59742.123456, spec.allowed_extensions
+        'kr260610_00054.fits.gz', spec.camera, spec.allowed_extensions, target='J0750+6927',
+        mjd=59742.123456
     )
     spec2d_path = tmp_path / f'spec2d_{expected_basename}.fits'
     _write_spec2d(spec2d_path, target='J0750+6927')

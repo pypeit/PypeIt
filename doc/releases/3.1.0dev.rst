@@ -5,53 +5,188 @@ Version 3.1.0dev
 Breaking Changes
 ----------------
 
-- placeholder
+- The :class:`~pypeit.wavecalib.WaveCalib` and
+  :class:`~pypeit.wavetilts.WaveTilts` datamodels are updated (see
+  `Under-the-hood Improvements`_); calibration files made with previous
+  versions must be recreated.
+- The call signature of :func:`~pypeit.outputfiles.construct_basename` has
+  changed to ``construct_basename(filename, camera, allowed_extensions,
+  target=None, mjd=None, slit=None)``.
 
 
 Documentation Updates
 ---------------------
 
-- placeholder
+- Added a :ref:`spectrograph page <jwst_nirspec>` for JWST/NIRSpec, describing
+  the preprocessing with the JWST pipeline and the reduction workflow,
+  including the :ref:`units of the reduced spectra <jwst_nirspec_units>`.
 
 
 Dependency Changes
 ------------------
 
-- placeholder
+- New ``jwst`` optional dependencies (``pip install "pypeit[jwst]"``), also
+  included in the ``dev`` dependencies: ``jwst>=3.0.0,<3.1.0``, needed to run
+  ``pypeit_preprocess_jwst``, and ``stdatamodels>=6.0.0,<6.1.0``, needed to
+  compute the platescale of each JWST/NIRSpec slit and the position of the
+  source in the slit from the GWCS in the JWST ``_cal.fits`` files.  Without
+  ``stdatamodels``, PypeIt falls back to the nominal NIRSpec platescale and to
+  the dither offsets from the ``YOFFSET`` header keyword.
 
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
 
-- placeholder
+- New ``fnu_to_flam`` parameter of the extraction (see :ref:`extractionpar`;
+  true by default for JWST/NIRSpec): when the processed science image is
+  already flux calibrated as a flux density per unit frequency, the
+  ``_FLAM`` columns of the extracted spectra are filled by converting the
+  extracted spectra to :math:`f_\lambda` in the PypeIt flux units, without a
+  sensitivity function (see :func:`~pypeit.specobj.SpecObj.apply_fnu_calib`
+  and :func:`~pypeit.core.flux_calib.fnu_to_flam`).  This also applies to the
+  spectra extracted by ``pypeit_coadd_2dspec``.
+- The units of the processed science image are recorded in the ``BUNIT``
+  keyword of the primary header of the spec2d and spec1d files (previously,
+  ``BUNIT`` was only written, as ``electron``, when the gain correction was
+  applied), and
+  ``pypeit_coadd_2dspec`` uses them as the units of the coadded image (all
+  input spec2d files must have the same units).
+
+- ``pypeit_coadd_2dspec`` now supports exposures with different spatial
+  platescales (e.g., JWST/NIRSpec slits).  The offsets of each exposure are
+  computed in pixels of that exposure: the dither offsets recorded in the
+  headers (``offsets = header``) are converted to pixels using the platescale
+  of each exposure, instead of that of the first exposure, and the offsets
+  from the brightest object (``offsets = auto``) and from the slitmask design
+  (``offsets = maskdef_offsets``) account for the platescale ratios.  The
+  spatial positions of each exposure are rescaled to pixels of the first
+  exposure when building the coadded image (see the new ``spat_scale``
+  argument of :func:`~pypeit.core.coadd.compute_coadd2d`), and the offsets
+  summary reports the arcsec offsets using the platescale of each exposure.
+  Nothing changes when all the exposures have the same platescale.
 
 
 Instrument-specific Updates
 ---------------------------
 
-- placeholder
+- JWST/NIRSpec: new ``NIRSpecSlit`` pypeline to reduce fixed-slit and MSA
+  spectroscopy, starting from the products of the first two stages of the JWST
+  pipeline (see ``pypeit_preprocess_jwst`` in `Script Changes`_).  Each slit
+  (or MSA slitlet) is reduced independently, using the cutout of that slit
+  produced by the JWST pipeline to define the region of the full-frame detector
+  image(s) to reduce, including the mosaic of the NRS1 and NRS2 detectors.  The
+  output files of each slit include the slit name in their names.  See
+  :ref:`jwst_nirspec`.
+- JWST/NIRSpec: the along-slit platescale of each slit is now computed from
+  the slit GWCS stored in the JWST ``_cal.fits`` files and used for that slit,
+  both in the calibration and in the science products (e.g., by object finding
+  and by ``pypeit_coadd_2dspec`` when using the header dither offsets).  This
+  requires the ``stdatamodels`` package; if it is not installed, PypeIt issues
+  a warning and uses the nominal platescale.  See :ref:`jwst_nirspec`.
+- JWST/NIRSpec: the nominal platescale is updated from 0.1 to 0.105
+  arcsec/pixel (along the slit; Jakobsen et al. 2022) and the gap between the
+  NRS1 and NRS2 detectors from 180 to 146 pixels (CRDS FPA reference file).
+- JWST/NIRSpec: the sign of the dither offset (``dithoff``) read from the
+  ``YOFFSET`` header keyword is flipped to match the PypeIt convention, so that
+  ``pypeit_coadd_2dspec`` with ``offsets = header`` shifts the frames in the
+  correct direction.  In addition, the dither offset written to the spec2d and
+  spec1d files is now measured, for each slit, from the position of the source
+  relative to the center of the slit (using the slit GWCS), instead of from the
+  reference point of the aperture.  This allows to coadd with ``offsets =
+  header`` MSA exposures taken in different visits.  Spec2d files reduced
+  before this change must be re-reduced.  See :ref:`jwst_nirspec`.
+- JWST/NIRSpec: all slits are now processed in MJy per pixel.  The slits of
+  extended sources, which are in MJy/sr in the JWST ``_cal.fits`` files, are
+  multiplied by the pixel solid angle (``PIXAR_SR``), so that the extracted 1D
+  spectra are flux densities in MJy for both point and extended sources; their
+  ``_FLAM`` columns are now filled.  Flat-field calibration files of extended
+  sources made before this change must be recreated.  See the :ref:`units of
+  the reduced spectra <jwst_nirspec_units>`.
+- JWST/NIRSpec: The shot noise is now computed from the image counts, 
+- as for all other instruments, instead of being taken
+  from the JWST ``VAR_POISSON`` extension (which includes the shot noise of the
+  subtracted dark current), and it accounts for the detector gain and for the
+  ramp time over which the JWST count rates are measured (shorter than the
+  effective exposure time).  In addition, the ``empirical_rn`` parameter is
+  now true by default for the science frames: the detector noise missing from
+  the JWST ``VAR_RNOISE`` extension is added to the readnoise variance.  It is
+  measured in the pixels without signal, on the differences of the exposures
+  with the same configuration listed in the PypeIt file or, if there are none,
+  on the science image itself.  This increases the errors of the reduced
+  spectra, which were previously underestimated.  See the :ref:`NIRSpec noise
+  model <jwst_nirspec_noise>`.
 
 
 Script Changes
 --------------
 
-- placeholder
+- New ``pypeit_preprocess_jwst`` script, which runs the JWST
+  ``Detector1Pipeline`` (Stage 1) and ``Spec2Pipeline`` (Stage 2) on the raw
+  JWST/NIRSpec files (``*_uncal.fits``) to produce the files ingested by
+  PypeIt.  It requires the ``jwst`` optional dependencies.  See
+  :ref:`jwst_nirspec`.
+- New ``--slitname`` option of ``pypeit_setup_coadd2d`` to select the spec2d
+  files of one or more slits (e.g., for JWST/NIRSpec, which writes one spec2d
+  file per slit).
 
 
 Testing
 -------
 
-- placeholder
+- Added a unit test for the variance propagation in
+  :class:`~pypeit.images.combineimage.CombineImage`.
+- Added unit tests for :func:`~pypeit.core.procimg.excess_variance`,
+  :func:`~pypeit.core.procimg.signal_free_pixels`, the measurement of the
+  JWST/NIRSpec excess readnoise, and the JWST/NIRSpec conversion between image
+  counts and electrons.
+- Added unit tests for ``pypeit_preprocess_jwst`` (with a mocked JWST
+  pipeline), the JWST/NIRSpec slit platescale and dither offsets, the
+  ``pypeit_coadd_2dspec`` offsets of exposures with different platescales and
+  the exposure-time rescaling, the conversion of the extracted spectra from
+  :math:`f_\nu` to :math:`f_\lambda`, the units of the spec2d files, and the
+  slit names in the output file names.
 
 
 Under-the-hood Improvements
 ---------------------------
 
-- placeholder
+- New ``waveimg`` and ``tiltsimg`` datamodel attributes of
+  :class:`~pypeit.wavecalib.WaveCalib` (version 1.1.3) and
+  :class:`~pypeit.wavetilts.WaveTilts` (version 1.2.1), which hold the 2D
+  wavelength and tilts images provided directly by the calibrations (e.g., for
+  JWST/NIRSpec).  WaveCalib and WaveTilts calibration files made with previous
+  versions must be recreated.
+
+- The ``units`` of a :class:`~pypeit.images.pypeitimage.PypeItImage` are now
+  the units of the processed image (also recorded in the ``BUNIT`` header
+  keyword); e.g., the flux-calibrated JWST/NIRSpec images are in ``MJy``
+  (per pixel).
+  :class:`~pypeit.images.combineimage.CombineImage` takes the units of the
+  combined image from the input images (instead of setting them from the
+  ``apply_gain`` parameter), and the default saturation and minimum-counts
+  thresholds, tabulated in detector counts, are only applied to images in
+  detector counts (``e-`` or ``ADU``).
+- :func:`~pypeit.outputfiles.construct_basename` takes a new ``slit``
+  argument, which appends the slit name to the root name of the output files
+  of spectrographs reduced one slit at a time, and the target name and MJD are
+  now optional.  The new
+  :func:`~pypeit.spectrographs.spectrograph.Spectrograph.rawfile_basename`
+  method allows spectrographs to customize the root name.
 
 
 Bug Fixes
 ---------
 
-- placeholder
+- Fixed a bug in the combination of multiple frames (e.g., with ``combine =
+  mean`` or ``median``) where the base-level variance of each frame, which
+  already includes the count scaling (e.g., the flat-field correction), was
+  multiplied by the count scaling a second time.  This mis-estimated the noise
+  model of combined frames wherever the flat-field correction differs from
+  unity.  For JWST/NIRSpec, the readnoise variance image is kept in
+  detector units (as for all other instruments), so that it is also not scaled
+  twice when frames are combined.
+- ``pypeit_coadd_2dspec`` no longer rescales the input images to a common
+  exposure time when they are flux calibrated (e.g., JWST/NIRSpec images in
+  MJy), because they do not depend on the exposure time.  Images in detector
+  counts are still rescaled when their exposure times differ.
 

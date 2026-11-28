@@ -102,6 +102,24 @@ def test_construct_calib_key():
     assert key == 'A_1+2_DET01', 'Key changed'
     key = CalibFrame.construct_calib_key('A', 'all', 'DET01')
     assert key == 'A_all_DET01', 'Key changed'
+    key = CalibFrame.construct_calib_key('A', '1', 'DET01', slit_name='S200 A2')
+    assert key == 'A_1_DET01_slitS200A2', 'Key changed'
+
+
+def test_parse_calib_key():
+    assert CalibFrame.parse_calib_key('A_1+2_DET01') == ('A', '1,2', 'DET01', None)
+    assert CalibFrame.parse_calib_key('A_1_DET01_slitS200A2') == ('A', '1', 'DET01', 'S200A2')
+
+
+def test_glob_slit(tmp_path):
+    keys = ['A_1_DET01', 'A_1_DET01_slitS200A2', 'A_1_DET01_slitS1600A1']
+    for key in keys:
+        Path(MinimalCalibFrame.construct_file_name(key, calib_dir=tmp_path)).touch()
+    files = MinimalCalibFrame.glob(tmp_path, 'A', 1, detname='DET01')
+    assert [f.name for f in files] == [MinimalCalibFrame.construct_file_name(keys[0])]
+    files = MinimalCalibFrame.glob(tmp_path, 'A', 1, detname='DET01', slit_name='S200A2')
+    assert [f.name for f in files] == [MinimalCalibFrame.construct_file_name(keys[1])]
+    assert MinimalCalibFrame.glob(tmp_path, 'A', 1, detname='DET01', slit_name='S200A1') is None
 
 
 def test_ingest_calib_id():

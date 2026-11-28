@@ -39,6 +39,7 @@ instrument-specific details for running PypeIt.
    gemini_gmos
    gemini_gnirs
    gtc_osiris
+   jwst_nirspec
    deimos
    keck_hires
    keck_kcwi

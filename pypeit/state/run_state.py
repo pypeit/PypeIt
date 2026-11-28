@@ -20,7 +20,7 @@ import json
 from pathlib import Path
 
 from pydantic import BaseModel, Field, ValidationError
-from typing import List, Optional, Dict, Literal
+from typing import List, Optional, Dict, Literal, Tuple
 
 import numpy as np
 from astropy import table
@@ -302,7 +302,8 @@ class RunPypeItState(BaseModel):
     Attributes:
         pypeit_file (str): The ``.pypeit`` file this state belongs to.
         current_step (str): The step most recently updated.
-        current_det (int): The detector most recently updated.
+        current_det (int, list): The detector (or detector mosaic) most
+            recently updated.
         current_calibID (int): The calibration group most recently updated.
         previous_step (str): The step updated before ``current_step``.
         path (str): Optional explicit path for the state JSON file; if
@@ -312,7 +313,10 @@ class RunPypeItState(BaseModel):
     # Required
     pypeit_file: str
     current_step: str
-    current_det: int
+    # Detector number or mosaic.  Tuple is included because the mosaic is
+    # assigned directly (see Calibrations.run_the_steps), which pydantic does not
+    # validate/convert; it is loaded back from JSON as a list.
+    current_det: int | List[int] | Tuple[int, ...]
     current_calibID: int
 
     # Optional

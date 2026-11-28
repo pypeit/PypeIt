@@ -413,7 +413,7 @@ class SlitTraceSet(calibframe.CalibFrame):
             `numpy.ndarray`_:
 
         """
-        if self.pypeline in ['MultiSlit', 'SlicerIFU', 'Fiber']:
+        if self.pypeline in ['MultiSlit', 'SlicerIFU', 'Fiber', 'NIRSpecSlit']:
             return self.spat_id
         if self.pypeline == 'Echelle':
             return self.ech_order
@@ -429,7 +429,7 @@ class SlitTraceSet(calibframe.CalibFrame):
             str: Either 'slit' or 'order'
 
         """
-        if self.pypeline in ['MultiSlit', 'SlicerIFU', 'Fiber']:
+        if self.pypeline in ['MultiSlit', 'SlicerIFU', 'Fiber', 'NIRSpecSlit']:
             return 'slit'
         if self.pypeline == 'Echelle':
             return 'order'
@@ -459,7 +459,7 @@ class SlitTraceSet(calibframe.CalibFrame):
             int: zero-based index of the input spat_id
 
         """
-        if self.pypeline in ['MultiSlit', 'SlicerIFU', 'Fiber']:
+        if self.pypeline in ['MultiSlit', 'SlicerIFU', 'Fiber', 'NIRSpecSlit']:
             return np.where(self.spat_id == slitord)[0][0]
         if self.pypeline == 'Echelle':
             return np.where(self.ech_order == slitord)[0][0]

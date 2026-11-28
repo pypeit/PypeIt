@@ -107,8 +107,8 @@ class SkySubRegions(scriptbase.ScriptBase):
 
         if msskyreg is not None:
             outfil = skyreg.get_outname()
-            setup, calib_id, detname = msskyreg.parse_calib_key(calib_key)
-            msskyreg.set_paths(calib_dir, setup, calib_id, detname)
+            setup, calib_id, detname, slit_name = msskyreg.parse_calib_key(calib_key)
+            msskyreg.set_paths(calib_dir, setup, calib_id, detname, slit_name=slit_name)
             msskyreg.to_file(file_path=outfil)
 
         # Reset the defaults

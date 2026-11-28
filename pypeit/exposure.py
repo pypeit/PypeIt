@@ -1,3 +1,4 @@
+import copy
 import numpy as np
 
 from astropy.io import fits
@@ -44,9 +45,7 @@ def adjust_for_slitmask(sciImg_dict:dict, spectrograph, fitstbl, par,
             The parameter set for the reduction process, 
             including slitmask and object finding parameters.
         frame0 (:obj:`int`): The index of the current frame in the FITS table.
-        binning (:obj:`str`): The binning string (e.g., '2,2') specifying the 
-            spectral and spatial binning.
-        all_specobjs_objfind (:obj:`list`): A list of SpecObj objects representing 
+        all_specobjs_objfind (:obj:`list`): A list of SpecObj objects representing
             detected objects for all detectors.
         calib_slits (:obj:`list`): A list of SlitTraceSet objects containing 
             slitmask calibration data for all detectors.
@@ -85,17 +84,16 @@ def adjust_for_slitmask(sciImg_dict:dict, spectrograph, fitstbl, par,
                             
 
 def process_exposure(spectrograph, fitstbl, par, frames:list, 
-                     calib_ID:str, detectors:list, calibrations_path:str, 
-                     bg_frames:list=None): 
+                     calib_ID:str, detectors:list, calibrations_path:str,
+                     bg_frames:list=None, slitname:str=None):
     """
     Process all detectors for a given exposure.
 
     Calls :func:`~pypeit.pypeit_steps.process_one_det` for each detector.
-    
 
-    This function processes exposure data for a list of detectors by performing
-    the necessary reduction steps and generating science images and background
-    reduced science images.
+    Works for both the standard pipeline and the JWST NIRSpec slit-by-slit
+    pipeline.  When ``slitname`` is provided, the NIRSpec image-building
+    path is used within :func:`~pypeit.pypeit_steps.process_one_det`.
 
     Args:
         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
@@ -110,6 +108,9 @@ def process_exposure(spectrograph, fitstbl, par, frames:list,
         detectors (:obj:`list`): A list of detector indices to process.
         calibrations_path (:obj:`str`): The path to the calibration files.
         bg_frames (:obj:`list`, optional): A list of background frame indices. Defaults to None.
+        slitname (:obj:`str`, optional):
+            NIRSpec slit name.  When provided, the NIRSpec image-building
+            path is used.  Default is None (standard pipeline).
 
     Returns:
         tuple: A tuple containing:
@@ -124,7 +125,7 @@ def process_exposure(spectrograph, fitstbl, par, frames:list,
         pypeit_steps.process_one_det_bydet, detectors,
         ncpu=par['rdx']['ncpu'],
         args=(spectrograph, fitstbl, par, frames, calib_ID, calibrations_path),
-        kwargs=dict(bg_frames=bg_frames),
+        kwargs=dict(bg_frames=bg_frames, slitname=slitname),
         label='detector')
 
     # List em up, in the fixed `detectors` order rather than the order the
@@ -138,9 +139,10 @@ def process_exposure(spectrograph, fitstbl, par, frames:list,
 def findobj_on_exposure(sciImg_dict:dict, bkg_redux_sciimg_dict:dict,
                         spectrograph, fitstbl, par,
                         frames:list, detectors:list, calib_ID:str, 
-                        calibrations_path:str, 
+                        calibrations_path:str,
                         std_outfile:str=None, bkg_redux=False, 
-                        find_negative=False, show=False):
+                        find_negative=False, show=False,
+                        slitname:str=None):
     """
     Identifies objects on a set of exposures for the specified detectors.
     This function loops over the provided detectors, 
@@ -148,8 +150,14 @@ def findobj_on_exposure(sciImg_dict:dict, bkg_redux_sciimg_dict:dict,
     It returns the initial sky model for each detector and a collection of
     identified spectral objects.
 
-    Calls :func:`~pypeit.pypeit_steps.process_one_det` for each detector.
-    
+    Works for both the standard pipeline and the JWST NIRSpec slit-by-slit
+    pipeline.  When ``caliBrate_dict`` is provided, the pre-loaded
+    calibrations are passed to :func:`~pypeit.pypeit_steps.findobj_on_det`
+    (avoiding a reload from disk).  When ``slitname`` is provided, it is
+    passed through for per-slit output file naming.
+
+    Calls :func:`~pypeit.pypeit_steps.findobj_on_det` for each detector.
+
     Args:
         sciImg_dict (:obj:`dict`): A dict of science image objects, one for each 
             detector, containing information such as spatial flexure and 
@@ -171,6 +179,9 @@ def findobj_on_exposure(sciImg_dict:dict, bkg_redux_sciimg_dict:dict,
         bkg_redux (bool, optional): If True, perform A-B background subtraction. Defaults to False.
         find_negative (bool, optional): If True, search for negative objects. Defaults to False.
         show (bool, optional): If True, display intermediate results. Defaults to False.
+        slitname (:obj:`str`, optional):
+            NIRSpec slit name for per-slit output file naming.
+            Default is None (standard pipeline).
 
     Returns:
         tuple:
@@ -178,7 +189,7 @@ def findobj_on_exposure(sciImg_dict:dict, bkg_redux_sciimg_dict:dict,
             - bkg_redux_final_sky_dict (dict): Dictionary containing the final bkg_redux sky model;
               keys are each detector.
             - all_specobjs_objfind (SpecObjs): Collection of all identified spectral objects.
-            - all_silts (list): List of Slits objects, detector by detector
+            - all_slits (list): List of Slits objects, detector by detector
             - sciImg_dict (dict): Dictionary containing updated sciImg objects with global spectral
               flexure and scaleimg information.
     """
@@ -204,6 +215,8 @@ def findobj_on_exposure(sciImg_dict:dict, bkg_redux_sciimg_dict:dict,
     # fan-out/barrier/fan-out structure is deferred to v2 of the detector
     # parallelism; see pypeitdev/speed_up/Reports/speed_up_design.md §8.
     for det in detectors:
+        add_to_lstr = f' -- Slit/SRC {slitname}' if slitname is not None else ''
+        log.info(f'Object finding on detector {det}{add_to_lstr}')
         # Grab the science image
         sciImg = sciImg_dict[det]
 
@@ -211,9 +224,10 @@ def findobj_on_exposure(sciImg_dict:dict, bkg_redux_sciimg_dict:dict,
         initial_sky, sobjs_obj, objFind = \
             pypeit_steps.findobj_on_det(
                 sciImg, spectrograph, fitstbl, par, frames, calib_ID, det, 
-                calibrations_path, 
+                calibrations_path,
                 bkg_redux=bkg_redux, find_negative=find_negative, show=show, 
-                std_outfile=std_outfile)
+                std_outfile=std_outfile,
+                slit_name=slitname)
 
         # Slits
         all_slits.append(objFind.slits)
@@ -226,8 +240,8 @@ def findobj_on_exposure(sciImg_dict:dict, bkg_redux_sciimg_dict:dict,
             all_specobjs_objfind.add_sobj(sobjs_obj)
 
     # #####################################
-    # slitmask stuff
-    if par['reduce']['slitmask']['assign_obj']:
+    # slitmask stuff (not applicable to NIRSpec)
+    if par['reduce']['slitmask']['assign_obj'] and slitname is None:
         frame0 = frames[0]
         all_slits, all_specobjs_objfind = adjust_for_slitmask(
             sciImg_dict, spectrograph, fitstbl,
@@ -237,6 +251,8 @@ def findobj_on_exposure(sciImg_dict:dict, bkg_redux_sciimg_dict:dict,
     # #####################################
     # final sky subtraction
     for i,det in enumerate(detectors):
+        add_to_lstr = f' -- Slit/SRC {slitname}' if slitname is not None else ''
+        log.info(f'Final sky subtraction on detector {det}{add_to_lstr}')
         # Load some useful objects
         this_objfind = all_objfinds[i]
         bkg_redux_sciimg = bkg_redux_sciimg_dict[det]
@@ -247,7 +263,7 @@ def findobj_on_exposure(sciImg_dict:dict, bkg_redux_sciimg_dict:dict,
         final_global_sky, bkg_redux_global_sky, this_objfind = \
             pypeit_steps.finalize_sky_det(spectrograph, fitstbl, par, frames[0],
                      det, this_objfind, initial_sky, all_specobjs_objfind,
-                     bkg_redux_sciimg=bkg_redux_sciimg, bkg_redux=bkg_redux, show=show)
+                     bkg_redux_sciimg=bkg_redux_sciimg, bkg_redux=bkg_redux, show=show, slit_name=slitname)
 
         # store the final skies
         final_sky_dict[det] = final_global_sky
@@ -268,13 +284,19 @@ def findobj_on_exposure(sciImg_dict:dict, bkg_redux_sciimg_dict:dict,
     return final_sky_dict, bkg_redux_final_sky_dict, all_specobjs_objfind, all_slits, sciImg_dict
 
 def extract_exposure(sciImg_dict:dict, spectrograph, fitstbl, par, frames:list, detectors,
-                     calib_ID:str, calibrations_path:str, all_specobjs_objfind, 
+                     calib_ID:str, calibrations_path:str, all_specobjs_objfind,
                      final_sky_dict:dict, bkg_redux_final_sky_dict:dict,
-                     calib_slits, bkg_redux:bool=False, find_negative:bool=False):
+                     calib_slits, bkg_redux:bool=False, find_negative:bool=False,
+                     slitname:str=None):
 
     """
     Extracts spectral data from a set of science images and performs background subtraction, 
     sky subtraction, and object extraction.
+
+    Works for both the standard pipeline and the JWST NIRSpec slit-by-slit
+    pipeline.  When ``caliBrate_dict`` is provided, the pre-loaded
+    calibrations are passed to :func:`~pypeit.pypeit_steps.extract_det`
+    (avoiding a reload from disk).
 
     Calls :func:`~pypeit.pypeit_steps.extract_det` for each detector.
 
@@ -299,6 +321,9 @@ def extract_exposure(sciImg_dict:dict, spectrograph, fitstbl, par, frames:list, 
         after slitmask adjustment and findobj+sky subtraction.
         bkg_redux (bool, optional): If True, perform background reduction. Default is False.
         find_negative (bool, optional): If True, search for negative objects. Default is False.
+        slitname (:obj:`str`, optional):
+            NIRSpec slit name for per-slit output file naming.
+            Default is None (standard pipeline).
 
     Returns:
         tuple: A tuple containing:
@@ -340,7 +365,8 @@ def extract_exposure(sciImg_dict:dict, spectrograph, fitstbl, par, frames:list, 
         pypeit_steps.extract_det_bydet, detectors,
         ncpu=par['rdx']['ncpu'],
         args=(spectrograph, fitstbl, par, frames, calib_ID, calibrations_path),
-        kwargs=dict(bkg_redux=bkg_redux, find_negative=find_negative),
+        kwargs=dict(bkg_redux=bkg_redux, find_negative=find_negative,
+                    slit_name=slitname),
         payload=payload, label='detector')
 
     # Assemble in the fixed `detectors` order rather than the order the workers
@@ -367,15 +393,20 @@ def extract_exposure(sciImg_dict:dict, spectrograph, fitstbl, par, frames:list, 
     return all_spec2d, all_specobjs_extract
 
 def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID, 
-                    calibrations_path: str, bg_frames=None, 
+                    calibrations_path: str, bg_frames=None,
                     reuse_calibs: bool = True,
                     run_state: dict = None, std_outfile=None,
-                    show: bool = False):
+                    show: bool = False,
+                    slitname: str = None, detnum=None):
     """
     Reduce a set of exposures for a given spectrograph and calibration setup.
 
     This function performs the full reduction process for a set of science frames,
     including background subtraction, object finding, sky subtraction, and extraction.
+
+    Works for both the standard pipeline (MultiSlit, Echelle, SlicerIFU) and
+    the JWST NIRSpec slit-by-slit pipeline.  When ``slitname`` is provided,
+    the NIRSpec-specific calibration and image-building paths are used.
 
     Args:
         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
@@ -393,6 +424,13 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
         run_state (dict, optional): Dictionary to track the state of the reduction process. Defaults to None.
         std_outfile (str, optional): Path to the standard star output file. Defaults to None.
         show (bool, optional): Whether to display intermediate results (e.g., using Ginga). Defaults to False.
+        slitname (:obj:`str`, optional):
+            NIRSpec slit name.  When provided, the NIRSpec slit-by-slit
+            reduction path is used.  Default is None (standard pipeline).
+        detnum (:obj:`int` or :obj:`tuple`, optional):
+            Detector number(s) to reduce.  Used only for NIRSpec to
+            restrict the reduction to the detector hosting the
+            requested slit.  Default is None.
 
     Returns:
         tuple:
@@ -403,7 +441,7 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
         - The function handles background subtraction and finding negative traces if applicable.
         - Calibrations are performed for each detector, and unsuccessful calibrations are skipped.
         - Object finding, sky subtraction, and extraction are performed for the specified frames.
-        - Slitmask adjustments are applied if enabled in the parameters.
+        - Slitmask adjustments are applied if enabled in the parameters (standard pipeline only).
     """
 
     # if show is set, clear the ginga channels at the start of each new sci_ID
@@ -416,10 +454,9 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
         fitstbl, par, bg_frames)
 
     # Print status message
-    lstr = f'Reducing target {fitstbl["target"][frames[0]]}\n'
-    # TODO: Print these when the frames are actually combined,
-    # backgrounds are used, etc?
-    lstr += 'Combining frames:\n'
+    add_to_lstr = f' -- Slit/SRC {slitname}' if slitname is not None else ''
+    lstr = f'Reducing target {fitstbl["target"][frames[0]]}{add_to_lstr}\n'
+    lstr += 'Combining frames:\n' if len(frames) > 1 else 'Processing frame:\n'
     for iframe in frames:
         lstr += f'{fitstbl["filename"][iframe]}\n'
     log.info(lstr)
@@ -431,8 +468,12 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
         log.info(bg_lstr)
 
     # Find the detectors to reduce
-    detectors = spectrograph.select_detectors(subset=par['rdx']['detnum'] if par['rdx']['slitspatnum'] is None 
-                                              else par['rdx']['slitspatnum'])
+    if detnum is not None:
+        detectors = spectrograph.select_detectors(subset=detnum)
+    else:
+        detectors = spectrograph.select_detectors(
+            subset=par['rdx']['detnum'] if par['rdx']['slitspatnum'] is None
+            else par['rdx']['slitspatnum'])
     log.info(f'Detectors to work on: {detectors}')
 
     # #####################################
@@ -446,7 +487,8 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
         pypeit_steps.calib_status_one, detectors,
         ncpu=par['rdx']['ncpu'],
         args=(spectrograph, fitstbl, par, calib_ID, calibrations_path),
-        kwargs=dict(show=show, run_state=run_state, reuse_calibs=reuse_calibs),
+        kwargs=dict(slitname=slitname, show=show, run_state=run_state,
+                    reuse_calibs=reuse_calibs),
         label='detector')
 
     # Rebuild the surviving-detector list *after* the loop.  The previous
@@ -472,7 +514,7 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
     sciImg_dict, bkg_redux_sciimg_dict = process_exposure(
             spectrograph, fitstbl, par, frames, calib_ID,
                 detectors, calibrations_path,
-                bg_frames=bg_frames)
+                bg_frames=bg_frames, slitname=slitname)
 
     # Record the science 'process' state (never let it crash the run)
     if run_state is not None:
@@ -494,7 +536,8 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
                             std_outfile=std_outfile,
                             bkg_redux=bkg_redux,
                             find_negative=find_negative,
-                            show=show)
+                            show=show,
+                            slitname=slitname)
 
     # Record the science 'findobj' + 'skysub' state (recorded together, as
     # findobj_on_exposure runs object finding and final sky modeling)
@@ -515,7 +558,8 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
         calibrations_path, all_specobjs_find,
         final_sky_dict, bkg_redux_final_sky_dict,
         calib_slits, bkg_redux=bkg_redux,
-        find_negative=find_negative)
+        find_negative=find_negative,
+        slitname=slitname)
 
     # Record the science 'extract' state + product paths
     if run_state is not None:
@@ -538,10 +582,11 @@ def reduce_exposure(spectrograph, fitstbl, par, frames, calib_ID,
     # Return
     return all_spec2d, all_specobjs_extract
 
-def save_exposure(spectrograph, fitstbl, par, 
+def save_exposure(spectrograph, fitstbl, par,
                   frame:int, all_spec2d:spec2dobj.AllSpec2DObj,
                   all_specobjs:specobjs.SpecObjs, 
                   calibrations_path:str,
+                  slitname:str=None,
                   history:History=None,
                   in_update_det:int=None,
                   skip_write_2d:bool=False):
@@ -563,7 +608,11 @@ def save_exposure(spectrograph, fitstbl, par,
             The 2D reduced spectrum objects.
         all_specobjs (:class:`~pypeit.specobjs.SpecObjs`):
             The 1D spectral extraction objects.
-        calibrations_path (:obj:`str`): The path to the calibration files.
+        calibrations_path (:obj:`str`):
+            The path to the calibration files.
+        slitname (:obj:`str`, optional):
+            Name of the slit, if applicable.  Default is None, which means
+            the slit name is not included in the output file name.
         history (:class:`~pypeit.history.History`, optional):
             History entries to be added to fits header
         in_update_det (:obj:`int`, optional):
@@ -582,6 +631,9 @@ def save_exposure(spectrograph, fitstbl, par,
     # Need raw file header information
     rawfile = fitstbl.frame_paths(frame)
     head2d = fits.getheader(rawfile, ext=spectrograph.primary_hdrext)
+
+    add_to_lstr = f' -- Slit/SRC {slitname}' if slitname is not None else ''
+    log.info(f'Saving reduced data for target {fitstbl["target"][frame]}{add_to_lstr} to disk')
 
 
     # NOTE: There are some gymnastics here to keep from altering
@@ -611,7 +663,7 @@ def save_exposure(spectrograph, fitstbl, par,
     # 1D spectra
     if all_specobjs.nobj > 0 and not par['reduce']['extraction']['skip_extraction']:
         # Spectra
-        outfile1d = outputfiles.spec_output_file(fitstbl, par, frame)
+        outfile1d = outputfiles.spec_output_file(fitstbl, par, frame, slitname=slitname)
         # TODO
         #embed(header='deal with the following for maskIDs;  713 of pypeit')
         all_specobjs.write_to_fits(subheader, outfile1d,
@@ -619,8 +671,7 @@ def save_exposure(spectrograph, fitstbl, par,
                                     slitspatnum=par['rdx']['slitspatnum'],
                                     history=history)
         # Info
-        outfiletxt = outputfiles.spec_output_file(fitstbl, par,
-                                            frame, ext='.txt')
+        outfiletxt = outputfiles.spec_output_file(fitstbl, par, frame, slitname=slitname, ext='.txt')
         # TODO: Note we re-read in the specobjs from disk to deal with situations where
         # only a single detector is run in a second pass but in the same reduction directory.
         # This was to address Issue #1116 in PR #1154. Slightly inefficient, but only other
@@ -632,7 +683,7 @@ def save_exposure(spectrograph, fitstbl, par,
         return
 
     # 2D spectra
-    outfile2d = outputfiles.spec_output_file(fitstbl, par, frame, twod=True)
+    outfile2d = outputfiles.spec_output_file(fitstbl, par, frame, slitname=slitname, twod=True)
 
     all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr,
                                 update_det=update_det,

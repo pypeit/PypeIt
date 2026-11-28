@@ -304,7 +304,7 @@ class SpecObj(datamodel.DataContainer):
         """
         Validate the object.
         """
-        pypelines = ['MultiSlit', 'SlicerIFU', 'Echelle', 'Fiber']
+        pypelines = ['MultiSlit', 'SlicerIFU', 'Echelle', 'Fiber', 'NIRSpecSlit']
         if self.PYPELINE not in pypelines:
             raise PypeItError(f'{self.PYPELINE} is not a known pipeline procedure.  Options are: '
                        f"{', '.join(pypelines)}")
@@ -349,6 +349,8 @@ class SpecObj(datamodel.DataContainer):
             return self.ECH_ORDER
         elif self.PYPELINE in ['MultiSlit', 'SlicerIFU', 'Fiber']:
             return self.SLITID
+        elif self.PYPELINE == 'NIRSpecSlit':
+            return self.SLITID
         else:
             raise PypeItError("Bad PYPELINE")
 
@@ -358,6 +360,8 @@ class SpecObj(datamodel.DataContainer):
         if self.PYPELINE == 'Echelle':
             return self.ECH_ORDERINDX
         elif self.PYPELINE in ['MultiSlit', 'SlicerIFU', 'Fiber']:
+            return self.SLITID
+        elif self.PYPELINE == 'NIRSpecSlit':
             return self.SLITID
         else:
             raise PypeItError("Bad PYPELINE")
@@ -496,7 +500,7 @@ class SpecObj(datamodel.DataContainer):
             name += '{:04d}'.format(self.ECH_ORDER)
             self.ECH_NAME = ech_name
             self.NAME = name
-        elif self.PYPELINE in ['MultiSlit', 'SlicerIFU', 'Fiber']:
+        elif self.PYPELINE in ['MultiSlit', 'SlicerIFU', 'Fiber', 'NIRSpecSlit']:
             # Spat
             name = naming_model['spat']
             if self['SPAT_PIXPOS_ID'] is None:
@@ -642,6 +646,33 @@ class SpecObj(datamodel.DataContainer):
             self[attr+'_FLAM'] = flam
             self[attr+'_FLAM_SIG'] = flam_sig
             self[attr+'_FLAM_IVAR'] = flam_ivar
+
+    def apply_fnu_calib(self, fnu_unit):
+        r"""
+        Convert extracted spectra that are already flux calibrated, as flux
+        densities per unit frequency (:math:`f_\nu`; e.g., ``MJy``), to the
+        PypeIt flux units.
+
+        This is used instead of :func:`apply_flux_calib` when the processed
+        image is flux calibrated, such that the ``_COUNTS`` arrays are
+        :math:`f_\nu` in ``fnu_unit``.  FLAM, FLAM_SIG, and FLAM_IVAR are
+        generated for each extraction (see
+        :func:`~pypeit.core.flux_calib.fnu_to_flam`); they are 0 where the
+        wavelength is not positive or the inverse variance is 0.
+
+        Args:
+            fnu_unit (:obj:`str`):
+                Unit of the ``_COUNTS`` arrays (e.g., ``MJy``).
+        """
+        for attr in ['BOX', 'OPT']:
+            if self[attr+'_WAVE'] is None or self[attr+'_COUNTS'] is None:
+                continue
+            factor = flux_calib.fnu_to_flam(self[attr+'_WAVE'], fnu_unit)
+            ivar = self[attr+'_COUNTS_IVAR']
+            gpm = (factor > 0) & (ivar > 0)
+            self[attr+'_FLAM'] = np.where(gpm, self[attr+'_COUNTS'] * factor, 0.)
+            self[attr+'_FLAM_SIG'] = np.where(gpm, factor * np.sqrt(utils.inverse(ivar)), 0.)
+            self[attr+'_FLAM_IVAR'] = np.where(gpm, ivar * utils.inverse(factor**2), 0.)
 
 
     def apply_helio(self, vel_corr, refframe):

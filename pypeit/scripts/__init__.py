@@ -42,6 +42,7 @@ __all__ = [
     'multislit_flexure',
     'obslog',
     'parse_slits',
+    'preprocess_jwst',
     'print_bpm',
     'qa_html',
     'ql',

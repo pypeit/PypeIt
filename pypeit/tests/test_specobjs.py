@@ -132,3 +132,18 @@ def test_io(sobj1, sobj2, sobj3, sobj4):
 
 
 
+
+
+def test_apply_fnu_calib():
+    # The extracted spectra are converted to the PypeIt flux units only if
+    # they are flux densities per unit frequency
+    sobj = specobj.SpecObj('MultiSlit', 'DET01', SLITID=0)
+    sobj.OPT_WAVE = np.array([5000., 6000.])
+    sobj.OPT_COUNTS = np.array([1., 2.])
+    sobj.OPT_COUNTS_IVAR = np.array([1., 1.])
+    sobjs = specobjs.SpecObjs([sobj])
+    sobjs.apply_fnu_calib('e-')
+    assert sobjs[0].OPT_FLAM is None, 'Spectra in e- should not be converted.'
+    sobjs.apply_fnu_calib('MJy')
+    assert sobjs[0].OPT_FLAM is not None and np.all(sobjs[0].OPT_FLAM > 0), \
+        'Spectra in MJy should be converted to the PypeIt flux units.'

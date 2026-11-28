@@ -10,8 +10,10 @@ import copy
 import datetime
 import os
 from pathlib import Path
+from astropy.io import fits
 
 import numpy as np
+import matplotlib.pyplot as plt
 import yaml
 
 from pypeit import __version__
@@ -27,10 +29,14 @@ from pypeit import wavecalib
 from pypeit import wavetilts
 from pypeit.calibframe import CalibFrame
 from pypeit.images import buildimage
+from pypeit.images import pypeitimage
 from pypeit.metadata import PypeItMetaData
 from pypeit.core import framematch
 from pypeit.core import parse
 from pypeit.core import scattlight as core_scattlight
+from pypeit.core import fitting
+from pypeit.core.mosaic import build_image_mosaic
+from pypeit.core.mosaic import build_image_mosaic_transform
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit import utils
@@ -161,8 +167,19 @@ class Calibrations:
         :class:`type`
             The relevant subclass of :class:`Calibrations`.
         """
-        return MultiSlitCalibrations if spectrograph.pypeline in ['MultiSlit', 'Echelle'] \
-                    else IFUCalibrations
+        match spectrograph.pypeline:
+            case 'MultiSlit':
+                return MultiSlitCalibrations
+            case 'Echelle':
+                return MultiSlitCalibrations
+            case 'NIRSpecSlit':
+                return NIRSpecSlitCalibrations
+            case 'SlicerIFU':
+                return IFUCalibrations
+            case 'Fiber':
+                return IFUCalibrations
+            case _:
+                raise PypeItError(f'Spectrograph pipeline {spectrograph.pypeline} not recognized!')
 
     @staticmethod
     def get_instance(fitstbl, par, spectrograph, caldir, calib_ID:str,
@@ -207,12 +224,12 @@ class Calibrations:
 
         # QA
         self.qa_path = None if qadir is None else Path(qadir).absolute()
-        if self.qa_path is not None:
+        self.write_qa = self.qa_path is not None
+        if self.write_qa:
             # TODO: This should only be defined in one place!  Where?...
             qa_png_path = self.qa_path / 'PNGs'
-        self.write_qa = self.qa_path is not None
-        if self.write_qa and not qa_png_path.exists():
-            qa_png_path.mkdir(parents=True)
+            if not qa_png_path.exists():
+                qa_png_path.mkdir(parents=True)
 
         # Debugging
         self.show = show
@@ -247,6 +264,11 @@ class Calibrations:
         self.steps = self.__class__.default_steps()
         self.success = False
         self.failed_step = None
+
+        # spectrograph-specific
+        self.slit_slices = None
+        self.slit_platescale = None
+        self.slit_units = None
 
     def check_calibrations(self, file_list, check_lamps=True):
         """
@@ -288,7 +310,7 @@ class Calibrations:
                           + strout.format(os.path.split(file)[1], " ".join(lampstat[ff].split("_"))))
                 print('        ' + '-' * maxlen + "  " + '-' * maxlmp)
 
-    def find_calibrations(self, frametype, frameclass):
+    def find_calibrations(self, frametype, frameclass, slit_name=None):
         """
         Find calibration files and identifiers.
 
@@ -299,6 +321,11 @@ class Calibrations:
             :func:`~pypeit.core.framematch.valid_frametype`.
         frameclass : :class:`~pypeit.calibframe.CalibFrame`
             The subclass used to store the processed calibration data.
+        slit_name : :obj:`str`, optional
+            Name of the slit for calibrations produced one slit at a time
+            (e.g., JWST/NIRSpec).  If provided, it is included in the
+            calibration key; see
+            :func:`~pypeit.calibframe.CalibFrame.construct_calib_key`.
 
         Returns
         -------
@@ -330,7 +357,8 @@ class Calibrations:
             # relevant calibration frame based on the setup/configuration and
             # calibration group of the (science) frame to be calibrated.
             setup = self.fitstbl['setup'][self.frame]
-            cal_file = frameclass.glob(self.calib_dir, setup, self.calib_ID, detname=detname)
+            cal_file = frameclass.glob(self.calib_dir, setup, self.calib_ID, detname=detname,
+                                       slit_name=slit_name)
             if cal_file is None or len(cal_file) > 1:
                 return [], None, None, setup, None, detname
 
@@ -343,7 +371,8 @@ class Calibrations:
         # the processed calibration frame.
         setup = self.fitstbl['setup'][rows[0]]
         calib_id = self.fitstbl['calib'][rows[0]]
-        calib_key = frameclass.construct_calib_key(setup, calib_id, detname)
+        # Embed the slit name in the key (for per-slit outputs)
+        calib_key = frameclass.construct_calib_key(setup, calib_id, detname, slit_name=slit_name)
         # Construct the expected calibration frame file name
         cal_file = Path(frameclass.construct_file_name(calib_key, calib_dir=self.calib_dir))
 
@@ -717,8 +746,10 @@ class Calibrations:
         Args:
             force (:obj:`str`, optional):
                 Currently ignored
-            frame (:obj:`int`, optional):
-                The row index in :attr:`fitstbl`
+            frame (:obj:`str`, optional):
+                The file to use for generating the BPM. If None,
+                the raw file associated to the index `self.frame`
+                is used instead.
 
         Returns:
             `numpy.ndarray`_: The bad pixel mask, which should match the shape
@@ -1405,8 +1436,9 @@ class Calibrations:
                 status = 'success'
             self.state.update_calib('wv_calib', self.calib_ID, self.det, 
                                 'status', status, slit=slit_ID)
-            # Metrics
-            if status == 'success':
+            # Metrics.  Some wavelength calibrations (e.g., JWST/NIRSpec, which
+            # only provide a wavelength image) have no per-slit fits.
+            if status == 'success' and self.wv_calib.wv_fits is not None:
                 self.state.update_calib('wv_calib', self.calib_ID, self.det, 
                                 'rms', self.wv_calib.wv_fits[islit].rms,
                                 slit=slit_ID)
@@ -2355,6 +2387,870 @@ class IFUCalibrations(Calibrations):
                 chk_version=self.chk_version)
 
         return self.flatimages
+
+
+class NIRSpecSlitCalibrations(Calibrations):
+    """
+    Calibration class for JWST NIRSpec slit-by-slit reductions.
+
+    Instead of the standard calibration workflow (bias, dark, arc, tilts…),
+    this class retrieves wavelength, slit-trace, flat-field, pathloss, and
+    barshadow information directly from the JWST pre-processed calibration
+    products (``_cal.fits`` and ``_interpolatedflat.fits`` files).  One
+    instance is created *per slit*; the slit identity is carried in
+    :attr:`user_slits` (key ``'slit_info'``).
+
+    See :class:`Calibrations` for constructor arguments.
+    """
+
+    @staticmethod
+    def flux_per_pixel_scale(hdr):
+        """
+        Return the factor that converts the units of a slit in the JWST
+        ``_cal.fits`` file into a flux density per pixel (MJy).
+
+        The ``SCI`` extension of a slit is in MJy for point sources and in
+        MJy/sr (a surface brightness) for extended sources, depending on the
+        source type set by the JWST ``srctype`` step.  PypeIt processes all
+        slits in MJy per pixel: surface brightnesses are multiplied by the
+        solid angle of a pixel, given by the ``PIXAR_SR`` keyword.
+
+        Args:
+            hdr (:class:`astropy.io.fits.Header`):
+                Header of the ``SCI`` extension of the slit.
+
+        Returns:
+            :obj:`float`: The factor that multiplies the data of the slit to
+            get MJy per pixel.
+        """
+        bunit = hdr.get('BUNIT')
+        if bunit == 'MJy':
+            return 1.
+        if bunit == 'MJy/sr':
+            if hdr.get('PIXAR_SR') is None:
+                raise PypeItError('The slit is in MJy/sr, but the PIXAR_SR keyword, needed to '
+                                  'convert it to MJy per pixel, is missing.')
+            return float(hdr['PIXAR_SR'])
+        raise PypeItError(f'Unexpected units of the slit in the JWST _cal.fits file: {bunit}.  '
+                          'Expected MJy or MJy/sr.')
+
+    def _build_calibimage(self, cal_files, extname, slit_info, cval=0.):
+        """
+        Build a :class:`~pypeit.images.pypeitimage.PypeItImage` from a
+        named FITS extension of one or more JWST calibration files, for
+        a single slit.
+
+        This helper is used by :func:`get_bpm`, :func:`get_wv_calib`,
+        :func:`get_slits`, and :func:`get_flats` to load per-slit image
+        data (e.g. ``'SCI'``, ``'WAVELENGTH'``, ``'PATHLOSS_PS'``, …)
+        from the JWST pipeline output.  The processing steps are:
+
+        1. Each per-detector image is oriented to the PypeIt
+           ``(nspec, nspat)`` frame via
+           :func:`~pypeit.spectrographs.Spectrograph.orient_image`.
+        2. For mosaic reductions (NRS1 + NRS2), the mosaic geometry
+           is computed from :attr:`~NIRSpecSlitCalibrations.slit_slices`
+           and the images are assembled into a single mosaic canvas using
+           :func:`~pypeit.core.mosaic.build_image_mosaic`.
+
+        If the requested ``(extname, extver)`` HDU combination is absent
+        from a calibration file (e.g. ``BARSHADOW`` for some observing
+        modes), the method logs a warning and returns ``None`` rather than
+        raising an error, allowing callers to substitute a default value.
+
+        Args:
+            cal_files (:obj:`str` or :obj:`list` of :obj:`str`):
+                Path(s) to the JWST calibration FITS file(s).  A
+                single string is promoted to a list.
+            extname (:obj:`str`):
+                Name of the FITS extension to read (e.g. ``'SCI'``,
+                ``'WAVELENGTH'``, ``'PATHLOSS_PS'``, ``'BARSHADOW'``).
+            slit_info (:obj:`str`):
+                JWST slit name (the value of the ``SLTNAME`` header
+                keyword) used to identify the correct ``EXTVER``.
+            cval (:obj:`float`, optional):
+                Fill value used for empty (unmapped) pixels when assembling
+                the two-detector mosaic.  Ignored for single-detector
+                reductions.  Should be set to ``0.0`` for additive quantities
+                (fluxes, variance images) and to ``1.0`` for multiplicative
+                correction arrays (flat, pathloss, barshadow), so that
+                unmapped pixels do not bias downstream calibration steps.
+                Default is ``0.0``.
+
+        Returns:
+            :class:`~pypeit.images.pypeitimage.PypeItImage` or ``None``:
+                The calibration image for the requested slit, oriented to
+                the PypeIt ``(nspec, nspat)`` frame (and mosaiced when
+                processing two detectors), or ``None`` if the requested
+                ``(extname, extver)`` combination is not present in any of
+                the calibration files.
+        """
+
+        steps = []
+
+        if isinstance(cal_files, str):
+            cal_files = [cal_files]
+
+        extver = []
+        for file in cal_files:
+            with fits.open(file) as ff:
+                # get FITS EXTVER associated with this slit.
+                _extver = [h.ver for h in ff if h.header.get('SLTNAME') == slit_info]
+                if len(_extver) == 0:
+                    raise PypeItError(f'User slit {slit_info} not found in cal file {file}')
+                extver.append(_extver[0])
+                # Check that the requested (extname, extver) combination exists
+                # before attempting to read it.  Optional extensions (e.g.
+                # BARSHADOW) may be absent for some observing modes.
+                if not any(h.name == extname and h.ver == extver[-1] for h in ff):
+                    log.warning(f'Extension ({extname}, ver={extver[-1]}) not found in {file}.')
+                    return None
+        _keys = [(extname, _ver) for _ver in extver]
+        # get image data, header, and exptime for this slit
+        _detector, image, hdu, exptime, _, _ = self.spectrograph.get_rawimage(cal_files, self.det, keys=_keys)
+        nimg = 1 if image.ndim == 2 else image.shape[0]
+        _mosaic = None if nimg == 1 else _detector
+        _detectors = _detector if nimg == 1 else _mosaic.detectors
+
+        # orient image
+        image = [self.spectrograph.orient_image(d, i) for d, i in zip(_detectors, image)] if nimg > 1 else \
+                self.spectrograph.orient_image(_detector, image)
+        steps.append('orient')
+
+        det_img = None
+
+        if nimg > 1:
+            # make mosaic
+            # get info about the slit slices
+            ss = self.slit_slices
+            spat_offset = ss[1][2] - ss[0][2]
+            detector_gap = int(_detectors[0]['xgap'])
+
+            # update mosaic transformation now that we have more info
+            rotation = [0., 0.]
+            shape = (image[0].shape[0] + image[1].shape[0] + detector_gap,
+                     np.max([image[0].shape[1], image[1].shape[1]]) + np.abs(spat_offset))
+            if spat_offset >= 0:
+                # Detector nrs2 starts at a larger spatial value than detector nrs1
+                shift = [(float(spat_offset), 0.), (0, float(image[0].shape[0] + detector_gap))]
+            else:
+                # Detector nrs1 starts at larger spatial value than detector nrs2
+                shift = [(0., 0.), (float(np.abs(spat_offset)), float(image[0].shape[0] + detector_gap))]
+
+            msc_sft = [None] * nimg
+            msc_rot = [None] * nimg
+            msc_tfm = [None] * nimg
+            for i in range(nimg):
+                msc_sft[i] = shift[i]
+                msc_rot[i] = rotation[i]
+                msc_tfm[i] = build_image_mosaic_transform(shape, msc_sft[i], msc_rot[i], (1, 1))
+
+            # update
+            if _mosaic is not None:
+                _mosaic.shape = shape
+                _mosaic.shift = np.array(msc_sft)
+                _mosaic.tform = np.array(msc_tfm)
+
+            # Create images that will track which detector contributes to each pixel in the mosaic.
+            det_img = [np.full(img.shape, d.det, dtype=int) for img, d in zip(image, _detectors)]
+
+            # Transform the image data to the mosaic frame.
+            image, _, _img_npix, _tforms = build_image_mosaic(image, _mosaic.tform,
+                                                              mosaic_shape=_mosaic.shape, order=_mosaic.msc_ord, cval=cval)
+            det_img = build_image_mosaic([_det_img.astype(float) for _det_img in det_img], _tforms,
+                                         mosaic_shape=_mosaic.shape, order=_mosaic.msc_ord)[0]
+            det_img = np.round(det_img).astype(int)
+
+            steps.append('build_mosaic')
+
+        pypeitImage = pypeitimage.PypeItImage(image,det_img=det_img,detector=_detector,
+                                              PYP_SPEC=self.spectrograph.name,
+                                              exptime=exptime,
+                                              bpm=self.msbpm.astype(bool) if self.msbpm is not None else None,
+                                              filename=','.join(cal_files))
+        pypeitImage.rawheadlist = self.spectrograph.get_headarr([hdu[_keys[0]]])
+        pypeitImage.process_steps = steps
+
+        return pypeitImage
+
+    def get_wv_calib(self, force:str=None):
+        """
+        Load the wavelength image calibration frame from the JWST calibration
+        data product.
+
+        The ``WAVELENGTH`` extension of the ``_cal.fits`` file contains a
+        per-pixel wavelength map in microns.  This method converts it to
+        Angstroms and stores it in a :class:`~pypeit.wavecalib.WaveCalib`
+        object.
+
+        Args:
+            force (:obj:`str`, optional):
+                ``'remake'`` forces rebuilding, ``'reload'`` only reloads an
+                existing product, and ``None`` follows ``reuse_calibs``.
+
+        Returns:
+            :class:`~pypeit.wavecalib.WaveCalib`:
+                The wavelength calibration object, containing the wavelength
+                image for the current slit (in Angstroms).
+        """
+
+        # Check for existing data
+        if not self._chk_objs(['slit_slices', 'msbpm']):
+            raise PypeItError('slit_slices and msbpm must be loaded before getting wv_calib')
+
+        # Check internals
+        self._chk_set(['det', 'calib_ID', 'par', 'user_slits'])
+
+        # Find the calibrations
+        frame = {'type': 'arc', 'class': wavecalib.WaveCalib}
+        wave_files, cal_file, calib_key, setup, calib_id, detname \
+                = self.find_calibrations(frame['type'], frame['class'], slit_name=self.user_slits['slit_info'])
+        # Record the raw files for the state (see wv_calib_state)
+        self.raw_files = wave_files
+
+        # If a processed calibration frame exists and
+        # we want to reuse it, do so (or just load it):
+        self.wv_calib = self.process_load_selection(frame, cal_file, force)
+        if not self.success:
+            return None
+        elif self.wv_calib is not None:
+            # self.wv_calib.chk_synced(self.slits)
+            # self.slits.mask_wvcalib(self.wv_calib)
+
+            # Return
+            if self.par['wavelengths']['redo_slits'] is None:
+                return self.wv_calib
+
+        log.info(f'Preparing a {wavecalib.WaveCalib.calib_type} calibration frame.')
+
+        wave_files = self.spectrograph.group_rawfiles(wave_files, self.det)[0]
+        waveimg = self._build_calibimage(wave_files, 'WAVELENGTH', self.user_slits['slit_info'], cval=0.)
+        waveimg.image[self.msbpm == 1] = 0.
+        waveimg.image *= 1e4  # Convert microns to Angstroms
+
+        self.wv_calib = wavecalib.WaveCalib(nslits=self.slits.nslits,
+                                            spat_ids=self.slits.spat_id,
+                                            PYP_SPEC=self.spectrograph.name,
+                                            waveimg=waveimg.image)
+
+        # Save calibration frame
+        self.wv_calib.set_paths(self.calib_dir, setup, calib_id, detname)
+        self.wv_calib.calib_key = calib_key
+        self.wv_calib.to_file()
+
+        return self.wv_calib
+
+    def get_tilts(self, force:str=None):
+        """
+        Create a "fake" wavelength tilts calibration frame by normalizing the
+        wavelength image to [0, 1].
+
+        The normalized image is stored in a :class:`~pypeit.wavetilts.WaveTilts`
+        object so that it can be consumed by the rest of the PypeIt pipeline
+        in the same way as a regular tilts frame.
+
+        Args:
+            force (:obj:`str`, optional):
+                ``'remake'`` forces rebuilding, ``'reload'`` only reloads an
+                existing product, and ``None`` follows ``reuse_calibs``.
+
+        Returns:
+            :class:`~pypeit.wavetilts.WaveTilts`:
+                The wavelength tilts object containing the normalized
+                wavelength image for the current slit.
+        """
+        # Check for existing data
+        if not self._chk_objs(['slit_slices', 'wv_calib', 'slits']):
+            raise PypeItError('slit_slices, wv_calib and slits must be loaded before getting the tilts')
+
+        # Check internals
+        self._chk_set(['det', 'calib_ID', 'par',  'user_slits'])
+
+        # Find the calibrations
+        frame = {'type': 'tilt', 'class': wavetilts.WaveTilts}
+        tilt_files, cal_file, calib_key, setup, calib_id, detname \
+                = self.find_calibrations(frame['type'], frame['class'], slit_name=self.user_slits['slit_info'])
+        # Record the raw files for the state (see tilts_state)
+        self.raw_files = tilt_files
+
+        # If a processed calibration frame exists and we want to reuse it, do
+        # so:
+        self.wavetilts = self.process_load_selection(frame, cal_file, force)
+        if not self.success:
+            return None
+        elif self.wavetilts is not None:
+            # self.wavetilts.is_synced(self.slits)
+            # self.slits.mask_wavetilts(self.wavetilts)
+            return self.wavetilts
+
+        log.info(f'Preparing a {wavetilts.WaveTilts.calib_type} calibration frame.')
+        # get gpm
+        gpm = self.wv_calib.waveimg != 0
+        wave_min = np.min(self.wv_calib.waveimg[gpm])
+        wave_max = np.max(self.wv_calib.waveimg[gpm])
+
+        tiltsimg = np.zeros_like(self.wv_calib.waveimg)
+        tiltsimg[gpm] = (self.wv_calib.waveimg[gpm] - wave_min) / (wave_max - wave_min)
+
+        self.wavetilts = wavetilts.WaveTilts(None, self.slits.nslits, self.slits.spat_id, None,
+                          None, None, PYP_SPEC=self.spectrograph.name,
+                          tiltsimg=tiltsimg)
+        self.wavetilts.set_paths(self.calib_dir, setup, calib_id, detname)
+        self.wavetilts.calib_key = calib_key
+        self.wavetilts.to_file()
+
+        return self.wavetilts
+
+    def get_bpm(self, frame_file=None, force:str=None):
+        """
+        Load or generate the bad pixel mask.
+
+        This is primarily a wrapper for
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.bpm`.
+
+        Args:
+            force (:obj:`str`, optional):
+                Currently ignored
+            frame_file (:obj:`str`, optional):
+                The file to use for generating the BPM. This is always
+                None for NIRSpecSlitCalibrations.
+
+        Returns:
+            `numpy.ndarray`_: The bad pixel mask, which should match the shape
+            and orientation of a *trimmed* and PypeIt-oriented science image!
+        """
+
+        # Check for existing data
+        if not self._chk_objs(['slit_slices']):
+            raise PypeItError('slit_slices must be loaded before getting the msbpm')
+
+        # Check internals
+        self._chk_set(['det', 'calib_ID', 'user_slits'])
+
+        log.info(f'Loading bad pixel mask image.')
+
+        # Set the frame to use for the BPM
+        cal_file = self.spectrograph.group_rawfiles(self.fitstbl.find_frame_files('arc', calib_ID=self.calib_ID), self.det)[0]
+        # Build it
+        calImg = self._build_calibimage(cal_file, 'WAVELENGTH', self.user_slits['slit_info'], cval=0.)
+
+        flat_file = self.spectrograph.group_rawfiles(self.fitstbl.find_frame_files('pixelflat', calib_ID=self.calib_ID), self.det)[0]
+        flatImg = self._build_calibimage(flat_file, 'SCI', self.user_slits['slit_info'], cval=1.)
+
+        _msbpm = (calImg.image == 0.) | (flatImg.image == 1.)
+        self.msbpm = _msbpm.astype(int)
+        # Return
+        return self.msbpm
+
+    def get_slits(self, force: str = None):
+        """
+        Generate slit traces for the JWST NIRSpec slit being reduced.
+
+        Slit edges are found by detecting the left (0→1) and right (1→0)
+        transitions in the BPM-derived slit mask, fitting each edge with a
+        low-order Legendre polynomial, and storing the result in an
+        :class:`~pypeit.edgetrace.EdgeTraceSet` /
+        :class:`~pypeit.slittrace.SlitTraceSet` pair.
+
+        Prerequisites (checked internally):
+            * ``slit_slices`` must already have been populated (see
+              :func:`get_slit_slices`).
+            * ``msbpm`` must already have been set (see :func:`get_bpm`).
+
+        Args:
+            force (:obj:`str`, optional):
+                If set, force regeneration even if a cached calibration
+                already exists on disk.  Uses the same ``force`` semantics
+                as the base-class :func:`~Calibrations.get_slits`.
+
+        Returns:
+            :class:`~pypeit.slittrace.SlitTraceSet`: The slit traces object.
+        """
+        # Check for existing data
+        if not self._chk_objs(['slit_slices', 'msbpm']):
+            raise PypeItError('slit_slices and msbpm must be loaded before getting the slits')
+
+        # Check internals
+        self._chk_set(['det', 'calib_ID', 'par', 'user_slits'])
+
+        # Prep
+        frame = {'type': 'trace', 'class': slittrace.SlitTraceSet}
+        trace_files, cal_file, calib_key, setup, calib_id, detname \
+                = self.find_calibrations(frame['type'], frame['class'], slit_name=self.user_slits['slit_info'])
+        # Record the raw files for the state (see slits_state)
+        self.raw_files = trace_files
+
+        # If a processed calibration frame exists and we want to reuse it, do
+        # so:
+        self.slits = self.process_load_selection(frame, cal_file, force)
+        if not self.success:
+            return None
+        elif self.slits is not None:
+            # self.slits.mask = self.slits.mask_init.copy()
+            # if self.user_slits is not None:
+            #     self.slits.user_mask(detname, self.user_slits)
+            return self.slits
+
+        log.info(f'Preparing {edgetrace.EdgeTraceSet.calib_type} and {slittrace.SlitTraceSet.calib_type} calibration frames.')
+
+        trace_files = self.spectrograph.group_rawfiles(trace_files, self.det)[0]
+        _traceImage = self._build_calibimage(trace_files, 'SCI', self.user_slits['slit_info'], cval=0.)
+        traceImage = buildimage.TraceImage.from_pypeitimage(_traceImage)
+        traceImage.set_paths(self.calib_dir, setup, calib_id, detname)
+        traceImage.calib_key = calib_key
+
+        edges = edgetrace.EdgeTraceSet(traceImage, self.spectrograph, self.par['slitedges'], qa_path=self.qa_path, auto=False)
+
+        log.info('-'*50)
+        log.info(f'{"Edge Tracing specific for JWST NIRSpec":^50}')
+        log.info('-'*50)
+
+        edges._reinit_trace_data()
+        # Get the slit mask
+        thismask = np.logical_not(self.msbpm)
+        slit_width = np.sum(thismask, axis=1)
+        med_slit_width = np.median(slit_width[slit_width > 0])
+        nspec, nspat = thismask.shape
+        spec_vec = np.arange(nspec, dtype=float)
+        # Initialize arrays
+        edges.edge_fit = np.zeros((nspec, 2), dtype=float)
+        edges.edge_cen = np.zeros((nspec, 2), dtype=float)
+        edges.edge_err = np.zeros((nspec, 2), dtype=float)
+        edges.edge_msk = np.zeros((nspec, 2), dtype=edges.bitmask.minimum_dtype())
+        edges.edge_img = np.zeros((nspec, 2), dtype=int)
+        edges.traceid = np.zeros(2, dtype=int)
+
+        fitfunc = 'legendre'
+        fit_order = 2
+
+        _trace_id_img = np.diff(thismask.astype(int), axis=1)
+        # invert so that left edge is -1 and right edge is +1, like for general reductions
+        trace_id_img = _trace_id_img.copy()
+        trace_id_img[_trace_id_img == 1] = -1
+        trace_id_img[_trace_id_img == -1] = 1
+
+        for i, side in enumerate(['left', 'right']):
+            _edge = np.full(trace_id_img.shape[0], -1, dtype=float)
+            # left side: 0→1 transition in thismask, i.e., trace_id_img == -1
+            # right side: 1→0 transition in thismask, i.e., trace_id_img == 1
+            this_side = trace_id_img == -1 if side == 'left' else trace_id_img == 1
+            side_mask = this_side.any(axis=1)
+            # first (for left) or last (for right) occurrence per row of the side_mask
+            occur = np.argmax(this_side[side_mask], axis=1) + 1 if side == 'left' else \
+                this_side.shape[1] - np.argmax(this_side[side_mask, ::-1], axis=1) - 1
+            _edge[side_mask] = occur
+            good_for_fit = side_mask & (_edge > 1) & (_edge < nspat - 1)
+            bad_for_fit = np.logical_not(good_for_fit)
+
+            pypeitFit = fitting.robust_fit(
+                spec_vec[good_for_fit], _edge[good_for_fit], fit_order,
+                function=fitfunc, maxiter=25, lower=3.0, upper=3.0,
+                maxrej=1, sticky=True, verbose=False,
+                minx=0.0, maxx=float(nspec - 1))
+            slit = pypeitFit.eval(spec_vec)
+
+            if self.show:
+                plt.title(f'{side} slit trace')
+                plt.plot(spec_vec[good_for_fit], _edge[good_for_fit], 'k.')
+                plt.plot(spec_vec[bad_for_fit], _edge[bad_for_fit], 'r.')
+                plt.plot(spec_vec, slit, 'b')
+                plt.show()
+
+            edges.traceid[i] = -1 if side == 'left' else 1
+            edges.edge_cen[:, i] = _edge
+            edges.edge_fit[:, i] = slit
+            edges.edge_msk[bad_for_fit, i] = edges.bitmask.turn_on(edges.edge_msk[bad_for_fit, i], 'NOEDGE')
+
+        edges.edge_img = np.round(edges.edge_fit).astype(int)
+        edges.fittype = f'{fitfunc} : order={fit_order}'
+
+        # save edges to disk
+        edges.set_paths(self.calib_dir, setup, calib_id, detname)
+        edges.calib_key = calib_key
+        edges.to_file()
+
+        # Show the result if requested
+        if self.show:
+            edges.show(in_ginga=True)
+
+        # get spec_min and spec_max for the slit trace set
+        specmin = np.asarray([-np.inf])
+        specmax = np.asarray([np.inf])
+        if self.par['slitedges']['trim_spec'] is not None:
+            trim_low, trim_high = self.par['slitedges']['trim_spec']
+            specmin = np.asarray([trim_low],dtype=np.float64)
+            specmax = np.asarray([nspec-trim_high],dtype=np.float64)
+        # TODO: Not sure if we can use self.spectrograph.spec_min_max here
+        #  since it is currently defined in the context of echelle reduction.
+        elif self.spectrograph.spec_min_max is not None:
+            specmin = np.asarray([self.spectrograph.spec_min_max[0]])
+            specmax = np.asarray([self.spectrograph.spec_min_max[1]])
+
+        self.slits = slittrace.SlitTraceSet(
+            edges.edge_fit[:,edges.is_left], edges.edge_fit[:,edges.is_right], self.spectrograph.pypeline,
+            detname=self.spectrograph.get_det_name(self.det),
+            nspat=int(thismask.shape[1]), PYP_SPEC=self.spectrograph.name,
+            specmin=specmin, specmax=specmax,
+            pad=np.asarray(self.par['slitedges']['pad'], dtype=float))
+
+        self.slits.set_paths(self.calib_dir, setup, calib_id, detname)
+        self.slits.calib_key = calib_key
+        self.slits.to_file()
+
+        return self.slits
+
+    def get_flats(self, force: str = None):
+        """
+        Build the flat-field image from JWST calibration and flat-field data,
+        including pathloss and barshadow corrections.
+
+        Returns:
+            :class:`~pypeit.flatfield.FlatImages`: The flat-field images.
+        """
+        # Check for existing data
+        if not self._chk_objs(['slit_slices', 'msbpm', 'slits', 'wv_calib']):
+            raise PypeItError('slit_slices, msbpm, slits, and wv_calib must be loaded before getting the flats')
+
+        # Check internals
+        self._chk_set(['det', 'calib_ID', 'par', 'user_slits'])
+
+        # get pixel flat frames info
+        pixel_frame = {'type': 'pixelflat', 'class': flatfield.FlatImages}
+        pixel_files, cal_file, calib_key, setup, calib_id, detname \
+            = self.find_calibrations(pixel_frame['type'], pixel_frame['class'], slit_name=self.user_slits['slit_info'])
+        # Record the raw files for the state (see _flats_state_files)
+        self._flat_input_files = {'pixelflat': list(pixel_files)}
+
+        # If a processed calibration frame exists and we want to reuse it, do
+        # so:
+        self.flatimages = self.process_load_selection(pixel_frame, cal_file, force)
+        if not self.success:
+            return None
+        elif self.flatimages is not None:
+            # self.flatimages.is_synced(self.slits)
+            # # update slits
+            # self.slits.mask_flats(self.flatimages)
+            return self.flatimages
+
+        log.info(f'Preparing a {flatfield.FlatImages.calib_type} calibration frame.')
+
+        pixel_files = self.spectrograph.group_rawfiles(pixel_files, self.det)[0]
+        flatImg = self._build_calibimage(pixel_files, 'SCI', self.user_slits['slit_info'], cval=1.)
+        if flatImg is None or flatImg.image is None or flatImg.shape == (0, 0):
+            raise PypeItError(f'No flat-field image found for slit {self.user_slits["slit_info"]} in {self.calib_ID}')
+
+        # get pathloss and barshadow frames info
+        cal_files = self.spectrograph.group_rawfiles(self.fitstbl.find_frame_files('arc', calib_ID=self.calib_ID), self.det)[0]
+        calImg = self._build_calibimage(cal_files, 'SCI', self.user_slits['slit_info'])
+        if calImg.rawheadlist[0].get('SRCTYPE') == 'EXTENDED':
+            pathloss_img = self._build_calibimage(cal_files, 'PATHLOSS_UN', self.user_slits['slit_info'], cval=1.)
+        else:
+             pathloss_img = self._build_calibimage(cal_files, 'PATHLOSS_PS', self.user_slits['slit_info'], cval=1.)
+
+
+        barshadow_img = self._build_calibimage(cal_files, 'BARSHADOW', self.user_slits['slit_info'], cval=1.)
+
+        # check that the pathloss and barshadow images actually exist
+        if pathloss_img is None or pathloss_img.image is None or pathloss_img.shape == (0, 0):
+            if pathloss_img is not None:
+                log.warning(f'No pathloss image found for slit {self.user_slits["slit_info"]}, setting to 1.0')
+            pathloss_data = np.ones_like(flatImg.image)
+        else:
+            pathloss_data = pathloss_img.image
+        if barshadow_img is None or barshadow_img.image is None or barshadow_img.shape == (0, 0):
+            if barshadow_img is not None:
+                log.warning(f'No barshadow image found for slit {self.user_slits["slit_info"]}, setting to 1.0')
+            barshadow_data = np.ones_like(flatImg.image)
+        else:
+            barshadow_data = barshadow_img.image
+
+        # conversion from DN/s to MJy/sr (or to MJy, for  point sources)
+        conversion_megajanskys = calImg.rawheadlist[0].get('PHOTMJSR')
+        # conversion from the units of the slit (MJy/sr or MJy) to MJy per
+        # pixel, the units of the flat-fielded image for all slits
+        flux_per_pixel = self.flux_per_pixel_scale(calImg.rawheadlist[0])
+        # apply conversion factor to the pixels that are not masked, i.e., flatImg.image !=1.
+        flat_data = flatImg.image.copy()
+        flat_data[flat_data != 1] /= conversion_megajanskys * flux_per_pixel
+
+        # combine the flat images
+        combined_flat_data = calImg.exptime * flat_data * pathloss_data * barshadow_data
+        combined_flat_data[np.isnan(combined_flat_data)] = 1.0
+        flatImg.image[np.isnan(flatImg.image)] = 1.0
+
+        self.flatimages = flatfield.FlatImages(
+            PYP_SPEC=self.spectrograph.name,
+            pixelflat_raw=flatImg.image,
+            pixelflat_norm=combined_flat_data,
+            pixelflat_waveimg=self.wv_calib.waveimg,
+            pixelflat_bpm=np.zeros_like(self.slits.mask, dtype=self.slits.bitmask.minimum_dtype()),
+            spat_id=self.slits.spat_id)
+
+        self.flatimages.set_paths(self.calib_dir, setup, calib_id, detname)
+        self.flatimages.calib_key = calib_key
+        # Save flat images
+        self.flatimages.to_file()
+
+        # State
+        if self.state is not None:
+            self.state.update_calib('flats', self.calib_ID, self.det,
+                                'output_file', self.flatimages.get_path())
+
+        return self.flatimages
+
+    def slit_slices_state(self):
+        # Not tracked by the run state (no calibration file is written); see
+        # :data:`~pypeit.state.run_state.calib_classes`.
+        pass
+
+    def get_slit_slices(self, force:str=None):
+        """
+        Extract the pixel-level bounding box of the current slit from the
+        JWST calibration file headers.
+
+        The ``SLTSTRT1``, ``SLTSIZE1``, ``SLTSTRT2``, and ``SLTSIZE2``
+        keywords in the ``SCI`` extension header give the 1-indexed start
+        position and size of the slit cutout within the full detector array.
+        These are converted to 0-indexed Python slices and stored in
+        :attr:`slit_slices`.  When multiple calibration files are provided
+        (e.g. one per detector in a mosaic), one tuple is appended per file.
+
+        The along-slit platescale of the slit is also computed from the slit
+        GWCS stored in the calibration files (see
+        :func:`~pypeit.spectrographs.jwst_nirspec.JWSTNIRSpecSpectrograph.get_slit_platescale`)
+        and stored in :attr:`slit_platescale`.  This is passed to the
+        processing of the science (and background) frames, which are full-frame
+        images and do not carry the slit information (see
+        :func:`~pypeit.images.rawimage.NIRSpecRawImage.process`); the
+        calibration images of the slit get the same platescale directly
+        when they are read (see
+        :func:`~pypeit.spectrographs.jwst_nirspec.JWSTNIRSpecSpectrograph.get_rawimage`).
+        :attr:`slit_platescale` is None if the platescale could not be
+        computed (e.g., because ``stdatamodels`` is not installed), in which
+        case the nominal detector platescale is used.
+
+        The units of the flat-fielded science image are stored in
+        :attr:`slit_units` and passed to the processing of the science (and
+        background) frames.  The flat field includes the photometric
+        conversion and converts the units of the slit in the calibration files
+        (the ``BUNIT`` keyword of the ``SCI`` extension: ``MJy`` for point
+        sources and ``MJy/sr`` for extended sources) to MJy per pixel (see
+        :func:`get_flats` and :func:`flux_per_pixel_scale`), so
+        :attr:`slit_units` is ``MJy``.
+
+        Args:
+            force (:obj:`str`, optional):
+                Currently ignored; reserved for future use.
+
+        Returns:
+            :obj:`list`:
+                A list of ``(spat_start, spat_end, spec_start, spec_end)``
+                tuples (0-indexed, exclusive end) giving the bounding box of
+                the slit in the full detector pixel frame, one entry per
+                calibration file.
+        """
+
+        # Check internals
+        self._chk_set(['det', 'calib_ID', 'user_slits'])
+
+        log.info(f'Loading slit slices info from JWST calibration files.')
+
+        cal_files = self.spectrograph.group_rawfiles(self.fitstbl.find_frame_files('arc', calib_ID=self.calib_ID), self.det)[0]
+
+        if isinstance(cal_files, str):
+            cal_files = [cal_files]
+
+        self.slit_slices = []
+        units = []
+        for file in cal_files:
+            with fits.open(file) as ff:
+                # get FITS EXTVER associated with this slit.
+                extver = [h.ver for h in ff if h.header.get('SLTNAME') == self.user_slits['slit_info']]
+                if len(extver) == 0:
+                    raise PypeItError(f'User slit {self.user_slits['slit_info']} not found in cal file {file}')
+                hdr = ff[('SCI', extver[0])].header
+                slit_xstart = int(hdr['SLTSTRT1'])
+                slit_xsize = int(hdr['SLTSIZE1'])
+                slit_ystart = int(hdr['SLTSTRT2'])
+                slit_ysize = int(hdr['SLTSIZE2'])
+
+                spat_start = slit_xstart -1
+                spat_end = spat_start + slit_xsize
+                spec_start = slit_ystart -1
+                spec_end = spec_start + slit_ysize
+                self.slit_slices.append((spat_start, spat_end, spec_start, spec_end))
+                units.append(hdr.get('BUNIT'))
+
+        # Units of the slit, which must be the same in all the files.  The flat
+        # field converts them to MJy per pixel (see get_flats), and this checks
+        # that the conversion is possible.
+        if any(u != units[0] for u in units):
+            raise PypeItError(f'Slit {self.user_slits["slit_info"]} has different units in the '
+                              f'calibration files: {units}.')
+        self.flux_per_pixel_scale(hdr)
+        self.slit_units = 'MJy'
+
+        # Along-slit platescale from the slit GWCS
+        self.slit_platescale = self.spectrograph.get_slit_platescale(
+            cal_files, self.user_slits['slit_info'])
+
+        return self.slit_slices
+
+# NOTE: the method below currently not used, but we might in the future. It uses a method
+# `jwst_flatfield.create_interpolated_flat` which is located in PypeIt-development-suite/pypeitdev/jwst/jwst_flatfield.py
+    # def get_flats_from_crds(self, force: str = None):
+    #     """
+    #     Build flat-field calibration images using CRDS reference files
+    #     (fflat/sflat/dflat) instead of a precomputed
+    #     ``_interpolatedflat.fits`` image.
+    #
+    #     This is kept separate from :func:`get_flats` so the default JWST
+    #     behavior remains unchanged.
+    #
+    #     Args:
+    #         force (:obj:`str`, optional):
+    #             ``'remake'`` forces rebuilding, ``'reload'`` only reloads an
+    #             existing product, and ``None`` follows ``reuse_calibs``.
+    #
+    #     Returns:
+    #         :class:`~pypeit.flatfield.FlatImages`: The CRDS-based flat-field
+    #         images.
+    #     """
+    #     # Check for existing data
+    #     if not self._chk_objs(['msbpm', 'slits', 'wv_calib']):
+    #         raise PypeItError('msbpm, slits, and wv_calib must be loaded before getting the flats')
+    #
+    #     # Check internals
+    #     self._chk_set(['det', 'calib_ID', 'par', 'user_slits'])
+    #
+    #     # Use pixelflat naming for output calibration product
+    #     pixel_frame = {'type': 'pixelflat', 'class': flatfield.FlatImages}
+    #     _, cal_file, calib_key, setup, calib_id, detname \
+    #         = self.find_calibrations(pixel_frame['type'], pixel_frame['class'],
+    #                                  slit_name=self.user_slits['slit_info'])
+    #
+    #     # Reuse if requested and possible
+    #     if cal_file is not None:
+    #         self.flatimages = self.process_load_selection(pixel_frame, cal_file, force)
+    #         if not self.success:
+    #             return None
+    #         if self.flatimages is not None:
+    #             return self.flatimages
+    #
+    #     # Load _cal metadata
+    #     cal_files = self.spectrograph.group_rawfiles(
+    #         self.fitstbl.find_frame_files('arc', calib_ID=self.calib_ID),
+    #         self.det)[0]
+    #     calImg = self._build_calibimage(cal_files, 'SCI', self.user_slits['slit_info'])
+    #
+    #     # Derive output naming from arc files if no pixelflat calibration exists
+    #     if cal_file is None:
+    #         arc_frame = {'type': 'arc', 'class': flatfield.FlatImages}
+    #         _, cal_file, calib_key, setup, calib_id, detname \
+    #             = self.find_calibrations(arc_frame['type'], arc_frame['class'],
+    #                                      slit_name=self.user_slits['slit_info'])
+    #
+    #     # Slit geometry from SCI extension header
+    #     hdr = calImg.rawheadlist[0]
+    #     slit_xstart = int(hdr.get('SLTSTRT1', 1))
+    #     slit_ystart = int(hdr.get('SLTSTRT2', 1))
+    #     slit_xsize = int(hdr.get('SLTSIZE1', calImg.image.shape[0]))
+    #     slit_ysize = int(hdr.get('SLTSIZE2', calImg.image.shape[1]))
+    #     slit_name = str(self.user_slits['slit_info'])
+    #     quadrant = hdr.get('QUADRANT', None)
+    #     if quadrant is not None:
+    #         quadrant = int(quadrant) - 1
+    #     msa_x = hdr.get('XCEN', None)
+    #     msa_y = hdr.get('YCEN', None)
+    #     dispaxis = int(hdr.get('DISPAXIS', 1))
+    #
+    #     # EXP_TYPE is in primary header
+    #     _cal_file0 = cal_files[0] if isinstance(cal_files, (list, tuple)) else cal_files
+    #     with fits.open(_cal_file0) as ff:
+    #         exposure_type = str(ff[0].header.get('EXP_TYPE', 'NRS_MSASPEC')).upper()
+    #
+    #     # CRDS reference files must be set on the instance by the caller
+    #     fflat_file = getattr(self, 'crds_fflat', None)
+    #     sflat_file = getattr(self, 'crds_sflat', None)
+    #     dflat_file = getattr(self, 'crds_dflat', None)
+    #     if fflat_file is None and sflat_file is None and dflat_file is None:
+    #         log.warning('No CRDS flat reference files set (crds_fflat, crds_sflat, '
+    #                     'crds_dflat).  Flat will be unity.')
+    #
+    #     # PypeIt waveimg is (nspec, nspat) in Angstroms; CRDS expects (ny, nx) in microns
+    #     waveimg_microns = self.wv_calib.waveimg.T / 1e4
+    #
+    #     flat_2d, flat_dq, flat_err, _ = jwst_flatfield.create_interpolated_flat(
+    #         waveimg=waveimg_microns,
+    #         slit_xstart=slit_xstart,
+    #         slit_xsize=slit_xsize,
+    #         slit_ystart=slit_ystart,
+    #         slit_ysize=slit_ysize,
+    #         fflat_file=fflat_file,
+    #         sflat_file=sflat_file,
+    #         dflat_file=dflat_file,
+    #         exposure_type=exposure_type,
+    #         slit_name=slit_name,
+    #         quadrant=quadrant,
+    #         msa_x=msa_x,
+    #         msa_y=msa_y,
+    #         dispaxis=dispaxis,
+    #     )
+    #
+    #     # Back to PypeIt orientation (nspec, nspat)
+    #     flat_2d = flat_2d.T
+    #
+    #     # Pathloss and barshadow come from the _cal products
+    #     if calImg.rawheadlist[0].get('SRCTYPE') == 'EXTENDED':
+    #         pathloss_img = self._build_calibimage(cal_files, 'PATHLOSS_UN', self.user_slits['slit_info'])
+    #     else:
+    #         pathloss_img = self._build_calibimage(cal_files, 'PATHLOSS_PS', self.user_slits['slit_info'])
+    #     barshadow_img = self._build_calibimage(cal_files, 'BARSHADOW', self.user_slits['slit_info'])
+    #
+    #     if pathloss_img.image is None or pathloss_img.shape == (0, 0):
+    #         log.warning(f'No pathloss image found for slit {slit_name}, setting to 1.0')
+    #         pathloss_img.image = np.ones_like(flat_2d)
+    #     if barshadow_img.image is None or barshadow_img.shape == (0, 0):
+    #         log.warning(f'No barshadow image found for slit {slit_name}, setting to 1.0')
+    #         barshadow_img.image = np.ones_like(flat_2d)
+    #
+    #     conversion = calImg.rawheadlist[0].get('PHOTMJSR')
+    #     mask = flat_2d != 1.0
+    #     flat_norm = np.ones_like(flat_2d)
+    #     if conversion is not None:
+    #         flat_norm[mask] = flat_2d[mask] / conversion
+    #     else:
+    #         flat_norm[mask] = flat_2d[mask]
+    #
+    #     combined_flat_data = calImg.exptime * flat_norm * pathloss_img.image * barshadow_img.image
+    #     combined_flat_data[np.isnan(combined_flat_data)] = 1.0
+    #
+    #     self.flatimages = flatfield.FlatImages(
+    #         PYP_SPEC=self.spectrograph.name,
+    #         pixelflat_norm=combined_flat_data,
+    #         pixelflat_waveimg=self.wv_calib.waveimg,
+    #         pixelflat_bpm=np.zeros_like(self.slits.mask, dtype=self.slits.bitmask.minimum_dtype()),
+    #         spat_id=self.slits.spat_id)
+    #
+    #     self.flatimages.set_paths(self.calib_dir, setup, calib_id, detname)
+    #     self.flatimages.calib_key = calib_key
+    #     self.flatimages.to_file()
+    #
+    #     if self.state is not None:
+    #         self.state.update_calib('flats', self.calib_ID, self.det,
+    #                                 'output_file', self.flatimages.get_path())
+    #
+    #     return self.flatimages
+
+    @staticmethod
+    def default_steps():
+        """
+        This defines the calibration steps and their order for NIRSpec.
+
+        Returns:
+            :obj:`list`: Calibration steps, in order of execution.
+        """
+        return ['slit_slices', 'bpm', 'slits','wv_calib', 'tilts', 'flats']
 
 
 def check_for_calibs(par, fitstbl, raise_error=True, cut_cfg=None):

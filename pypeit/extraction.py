@@ -177,10 +177,6 @@ class Extract:
                                 and_not=self.slits.bitmask.exclude_for_reducing)
         self.extract_bpm_init = self.extract_bpm.copy()
 
-        # These may be None (i.e. COADD2D)
-        #self.waveTilts = caliBrate.wavetilts
-        #self.wv_calib = caliBrate.wv_calib
-
         # Load up other input items
         self.bkg_redux = bkg_redux
         self.return_negative=return_negative
@@ -259,7 +255,7 @@ class Extract:
             log.warning("No flat image was found. A spectrum of the flatfield will not be extracted!")
 
         # Now apply a global flexure correction to each slit provided it's not a standard star
-        if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
+        if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux and self.wv_calib is not None:
             # Update slitshift values
             self.spec_flexure_correct(mode='global')
             # Apply?
@@ -464,7 +460,7 @@ class Extract:
                 self.sobjs.make_neg_pos() if self.return_negative else self.sobjs.purge_neg()
 
             # Correct for local spectral flexure
-            if self.par['flexure']['spec_method'] not in ['skip', 'slitcen'] and not self.std_redux:
+            if self.par['flexure']['spec_method'] not in ['skip', 'slitcen'] and not self.std_redux and self.wv_calib is not None:
                 # Apply a refined estimate of the flexure to objects
                 self.spec_flexure_correct(mode='local', sobjs=self.sobjs)
 
@@ -1271,3 +1267,14 @@ class FiberExtract(Extract):
         ws = weights.ravel()[mask_flat]
         prof[rs, cs] = ws
         return prof
+
+
+class NIRSpecSlitExtract(MultiSlitExtract):
+    """
+    Child of Extract for NIRSpec slit reductions
+
+    See parent doc string for Args and Attributes
+
+    """
+    def __init__(self, sciImg, slits, sobjs_obj, spectrograph, par, objtype, **kwargs):
+        super().__init__(sciImg, slits, sobjs_obj, spectrograph, par, objtype, **kwargs)

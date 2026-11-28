@@ -108,3 +108,21 @@ def test_from_arrays():
     assert sobj.OPT_WAVE[0] == 5000.
 
 
+
+
+def test_apply_fnu_calib():
+    # The extracted f_nu (in the _COUNTS arrays) is converted to f_lambda
+    sobj = specobj.SpecObj('MultiSlit', 'DET01', SLITID=0)
+    wave = np.array([0., 5000., 20000.])
+    sobj.OPT_WAVE = wave
+    sobj.OPT_COUNTS = np.array([1., 2., 3.])
+    sobj.OPT_COUNTS_IVAR = np.array([1., 4., 0.])
+    sobj.OPT_COUNTS_SIG = np.array([1., 0.5, 0.])
+    sobj.apply_fnu_calib('Jy')
+    factor = 1e-23 * 2.99792458e18 / wave[1]**2 / 1e-17
+    assert np.isclose(sobj.OPT_FLAM[1], 2. * factor), 'Wrong f_lambda.'
+    assert np.isclose(sobj.OPT_FLAM_SIG[1], 0.5 * factor), 'Wrong f_lambda error.'
+    assert np.isclose(sobj.OPT_FLAM_IVAR[1], 4. / factor**2), 'Wrong f_lambda inverse variance.'
+    assert sobj.OPT_FLAM[0] == 0. and sobj.OPT_FLAM[2] == 0., \
+        'Pixels without a valid wavelength or inverse variance should be 0.'
+    assert sobj.BOX_FLAM is None, 'A missing extraction should not be converted.'

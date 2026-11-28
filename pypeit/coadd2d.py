@@ -84,7 +84,8 @@ class CoAdd2dStack:
         median input exposure time, using the higher of the two middle values
         for even-length stacks. If the individual exposure times differ by more
         than the allowed tolerance, the science, sky, and inverse-variance
-        images are rescaled to this effective exposure time before coaddition.
+        images in detector counts are rescaled to this effective exposure time
+        before coaddition; flux-calibrated images (see :attr:`units`) are not.
     redux_path : :obj:`~pathlib.Path`
         Reduction path associated with the current coaddition context. At
         present this is set to the current working directory when the stack is
@@ -107,6 +108,10 @@ class CoAdd2dStack:
         List of spatial-flexure corrections, one per exposure, used when
         constructing slit masks and when relating slit geometry in the input
         frames to the coadded frame.
+    units : str
+        Units of the input science images (the same for all exposures), read
+        from the ``BUNIT`` keyword of the input ``spec2d`` files (see
+        :attr:`~pypeit.spec2dobj.Spec2DObj.units`); None if not recorded.
     """
     specobjs_list:list
     slits_list:list
@@ -124,6 +129,7 @@ class CoAdd2dStack:
     pypeline:str
     maskdef_designtab_list:list
     spat_flexure_list:list
+    units:str = None
 
 
 #TODO We should decide which parameters go in through the parset 
@@ -213,7 +219,7 @@ class CoAdd2D:
             Instance of the subclass appropriate for the requested reduction mode.
         """
 
-        return next(c for c in cls.__subclasses__()
+        return next(c for c in utils.all_subclasses(CoAdd2D)
                     if c.__name__ == (spectrograph.pypeline + 'CoAdd2D'))(
                         spec2dfiles, spectrograph, par, det=det, 
                         only_slits=only_slits, exclude_slits=exclude_slits,
@@ -363,6 +369,8 @@ class CoAdd2D:
 
         # effective exposure time
         self.exptime_coadd = self.coadd2d_stack.exptime_coadd
+        # units of the coadded images (the same as the input images)
+        self.units = self.coadd2d_stack.units
         
         # define the wavelength grid for the 2d coadd
         self.wave_grid, self.wave_grid_mid, self.dsamp = self.get_wave_grid()
@@ -457,7 +465,10 @@ class CoAdd2D:
         Returns
         -------
         str
-            Basename used when writing the coadded output products.
+            Basename used when writing the coadded output products.  If all the
+            ``spec2d`` files are per-slit outputs for the same slit (see
+            :func:`~pypeit.outputfiles.construct_basename`), the slit name is
+            appended as ``_slit{slit}``.
         """
         # Get the output basename
         frsthdr = fits.getheader(spec2d_files[0])
@@ -485,7 +496,11 @@ class CoAdd2D:
         spec = load_spectrograph(frsthdr['PYP_SPEC'])
         first = outputfiles.strip_raw_extension(frsthdr['FILENAME'], spec.allowed_extensions)
         last = outputfiles.strip_raw_extension(lasthdr['FILENAME'], spec.allowed_extensions)
-        return f"{first}-{last}-{frsthdr['TARGET'].replace(' ', '')}"
+        basename = f"{first}-{last}-{frsthdr['TARGET'].replace(' ', '')}"
+        slits = {outputfiles.parse_basename_slit(f) for f in spec2d_files}
+        if len(slits) == 1 and None not in slits:
+            basename += f'_slit{slits.pop()}'
+        return basename
 
     @staticmethod
     def output_paths(spec2d_files, par, coadd_dir=None):
@@ -742,7 +757,8 @@ class CoAdd2D:
                                                self.coadd2d_stack.waveimg_stack,
                                                self.wave_grid, self.par['coadd2d']['spat_samp_fact'],
                                                maskdef_dict=self.get_maskdef_dict(slit_idx, ref_trace_stack),
-                                               weights=self._get_weights(indx=slit_idx), interp_dspat=interp_dspat)
+                                               weights=self._get_weights(indx=slit_idx), interp_dspat=interp_dspat,
+                                               spat_scale=self.pixscale_ratios)
             coadd_list.append(coadd_dict)
 
         if len(coadd_list) == 0:
@@ -959,8 +975,12 @@ class CoAdd2D:
         show = self.show if show is None else show
         show_peaks = self.show_peaks if show_peaks is None else show_peaks
         # NOTE: inmask is a gpm
+        # The pseudo-image has the units of the input images
         sciImage = pypeitimage.PypeItImage(pseudo_dict['imgminsky'], ivar=pseudo_dict['sciivar'],
-                                           bpm=np.logical_not(pseudo_dict['inmask']))
+                                           bpm=np.logical_not(pseudo_dict['inmask']),
+                                           units=self.units)
+        # The spatial grid of the coadd is in pixels of the first exposure (see
+        # `pixscale_ratios`), so the coadd inherits its detector (and platescale).
         sciImage.detector = self.coadd2d_stack.detectors[0].copy()
         # update platescale in the detector object to reflect the resampling done in coadd2d.
         # This is done to be able to propagate the correct spatial sampling to FindObjects and Extract
@@ -1023,6 +1043,12 @@ class CoAdd2D:
         skymodel_pseudo, _, objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, _, _, _ = exTract.run(
             model_noise=False, spat_pix=pseudo_dict['spat_img'])
 
+        # If requested, convert the extracted spectra, when the coadded image
+        # is already flux calibrated as a flux density per unit frequency
+        # (e.g., JWST/NIRSpec images in MJy), to the PypeIt flux units
+        if parcopy['reduce']['extraction']['fnu_to_flam'] and sobjs is not None:
+            sobjs.apply_fnu_calib(sciImage.units)
+
         # Add the rest to the pseudo_dict
         pseudo_dict['skymodel'] = skymodel_pseudo
         pseudo_dict['objmodel'] = objmodel_pseudo
@@ -1035,6 +1061,69 @@ class CoAdd2D:
                objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, sciImage.detector, slits, \
                pseudo_dict['tilts'], pseudo_dict['waveimg']
 
+    @property
+    def pixscales(self):
+        """
+        Binned spatial pixel scale (arcsec/pixel) of each exposure.
+
+        For most spectrographs this is the same for all exposures, but it can
+        differ among them, e.g., for JWST/NIRSpec, where the platescale is
+        specific to the slit and the slit may land on a different part of the
+        detector in different exposures.
+
+        Returns
+        -------
+        `numpy.ndarray`_
+            Array with shape ``(nexp,)``.
+        """
+        return np.array([parse.parse_binning(d.binning)[1]*d.platescale
+                         for d in self.coadd2d_stack.detectors])
+
+    @property
+    def pixscale_ratios(self):
+        """
+        Ratio between the spatial pixel scale of each exposure and that of the
+        first (reference) exposure.
+
+        The coadded image is constructed on a spatial grid in pixels of the
+        reference exposure; these ratios are used to convert pixel distances
+        in each exposure to that grid.  They are exactly 1 when all the
+        exposures have the same pixel scale.
+
+        Returns
+        -------
+        `numpy.ndarray`_
+            Array with shape ``(nexp,)``.
+        """
+        pixscales = self.pixscales
+        return pixscales / pixscales[0]
+
+    def offsets_from_positions(self, positions):
+        """
+        Compute the exposure offsets from the position of the same reference
+        point (e.g., an object) in each exposure.
+
+        The offset of each exposure is the shift, in pixels of *that* exposure,
+        to apply to its slit-center trace so that the reference point lands at
+        the same location of the coadded spatial grid (which is in pixels of
+        the first exposure; see :attr:`pixscale_ratios`).  For exposures with
+        equal pixel scales this reduces to ``positions[0] - positions``.
+
+        Parameters
+        ----------
+        positions : array-like
+            Position of the reference point relative to the slit center (or
+            any point fixed with respect to the slit), in pixels of each
+            exposure.  Shape is ``(nexp,)``.
+
+        Returns
+        -------
+        `numpy.ndarray`_
+            Offsets, in pixels of each exposure, with shape ``(nexp,)``.
+        """
+        positions = np.asarray(positions, dtype=float)
+        return positions[0] / self.pixscale_ratios - positions
+
     @staticmethod
     def offsets_report(offsets, pixscale, offsets_method):
         """
@@ -1043,9 +1132,11 @@ class CoAdd2D:
         Parameters
         ----------
         offsets : array-like
-            Offsets, in pixels, applied to the input exposures.
-        pixscale : float
+            Offsets, in pixels of each exposure, applied to the input exposures.
+        pixscale : float, array-like
             Pixel scale used to convert the offsets to arcseconds for reporting.
+            Either a single value for all exposures or one value per exposure
+            (see :attr:`pixscales`).
         offsets_method : str
             Description of how the offsets were determined.
         """
@@ -1055,8 +1146,9 @@ class CoAdd2D:
             msg_string += f' Summary of offsets from {offsets_method}     \n'
             msg_string += '---------------------------------------------------------------------------------\n'
             msg_string += '          file#      offset (pixels)    offset (arcsec)\n'
-            for iexp, off in enumerate(offsets):
-                msg_string += f'            {iexp:2d}            {off:6.2f}              {off*pixscale:6.3f}\n'
+            _pixscale = np.broadcast_to(pixscale, np.shape(offsets))
+            for iexp, (off, ps) in enumerate(zip(offsets, _pixscale)):
+                msg_string += f'            {iexp:2d}            {off:6.2f}              {off*ps:6.3f}\n'
             msg_string += '---------------------------------------------------------------------------------'
             log.info(msg_string)
 
@@ -1168,7 +1260,11 @@ class CoAdd2D:
         -----
         If the exposure times differ among the inputs beyond the allowed tolerance,
         the science, sky, and inverse-variance images are rescaled to a common
-        effective exposure time before being stored in the returned stack.
+        effective exposure time before being stored in the returned stack.  This
+        applies only to images in detector counts (``e-`` or ``ADU``, or with
+        units not recorded in the ``spec2d`` files); flux-calibrated images
+        (e.g., JWST/NIRSpec images in MJy) do not depend on the exposure time
+        and are not rescaled.
         """
         # Grab the files
         #head2d_list = []
@@ -1189,6 +1285,7 @@ class CoAdd2D:
         detectors_list = []
         maskdef_designtab_list = []
         spat_flexure_list = []
+        units_list = []
         for f in spec2d:
             if isinstance(f, Spec2DObj):
                 # If spec2d is a list of objects
@@ -1206,6 +1303,7 @@ class CoAdd2D:
             detectors_list.append(s2dobj.detector)
             maskdef_designtab_list.append(s2dobj.maskdef_designtab)
             spat_flexure_list.append(s2dobj.sci_spat_flexure)
+            units_list.append(s2dobj.units)
 
             sciimg_stack.append(s2dobj.sciimg)
             exptime_stack.append(s2dobj.head0['EXPTIME'])
@@ -1215,10 +1313,22 @@ class CoAdd2D:
             mask_stack.append(s2dobj.bpmmask.mask)
             slitmask_stack.append(s2dobj.slits.slit_img(flexure=s2dobj.sci_spat_flexure))
 
+        # check that the units are the same for all images
+        if any(u != units_list[0] for u in units_list):
+            raise PypeItError(f'The spec2d files to coadd have different units: {units_list}.')
+
         # check if exptime is consistent for all images
         exptime_coadd = np.percentile(exptime_stack, 50., method='higher')
         isclose_exptime = np.isclose(exptime_stack, exptime_coadd, atol=1.)
-        if not np.all(isclose_exptime):
+        # Images in detector counts (or with unknown units, e.g., from spec2d
+        # files that do not record them) scale with the exposure time, while
+        # flux-calibrated images (e.g., JWST/NIRSpec images in MJy) do not
+        counts = units_list[0] in [None, 'e-', 'ADU']
+        if not np.all(isclose_exptime) and not counts:
+            log.info(f'Exposure time is not consistent for all frames being coadded, but the '
+                     f'images are in {units_list[0]}, which do not depend on the exposure time; '
+                     'the images are not rescaled.')
+        elif not np.all(isclose_exptime):
             log.warning('Exposure time is not consistent (within 1 sec) for all frames being coadded! '
                       f'Scaling each image by the median exposure time ({exptime_coadd} s) before coadding.')
             exp_scale = exptime_coadd / exptime_stack
@@ -1243,7 +1353,8 @@ class CoAdd2D:
                     spectrograph=self.spectrograph.name,
                     pypeline=self.spectrograph.pypeline,
                     maskdef_designtab_list=maskdef_designtab_list,
-                    spat_flexure_list=spat_flexure_list)
+                    spat_flexure_list=spat_flexure_list,
+                    units=units_list[0])
     #                    tilts_stack=tilts_stack, waveimg_stack=waveimg_stack,
 
     def check_input(self, input, type):
@@ -1289,8 +1400,8 @@ class CoAdd2D:
         how offsets are determined for specific reduction modes.
         """
         log.info('Get Offsets')
-        # binned pixel scale of the frames to be coadded
-        pixscale = parse.parse_binning(self.coadd2d_stack.detectors[0].binning)[1]*self.coadd2d_stack.detectors[0].platescale
+        # binned pixel scale of each of the frames to be coadded
+        pixscales = self.pixscales
         # 1) offsets are provided in the header of the spec2d files
         if self.par['coadd2d']['offsets'] == 'header':
             log.info('Using offsets from header')
@@ -1298,9 +1409,13 @@ class CoAdd2D:
             if None in dithoffs:
                 raise PypeItError('Dither offsets keyword not found for one or more spec2d files. '
                            'Choose another option for `offsets`')
-            dithoffs_pix = - np.array(dithoffs) / pixscale
-            self.offsets = dithoffs_pix[0] - dithoffs_pix
-            self.offsets_report(self.offsets, pixscale, 'header keyword')
+            # Convert the offsets of each exposure to pixels using the
+            # (binned) platescale of that exposure, which can differ among
+            # exposures (e.g., for JWST/NIRSpec, where the platescale is
+            # specific to the slit).
+            dithoffs_pix = - np.array(dithoffs) / pixscales
+            self.offsets = self.offsets_from_positions(dithoffs_pix)
+            self.offsets_report(self.offsets, pixscales, 'header keyword')
 
         elif self.obj_id_bri is None and self.par['coadd2d']['offsets'] == 'auto':
             raise PypeItError('Offsets cannot be computed because no unique reference object '
@@ -1311,7 +1426,7 @@ class CoAdd2D:
             log.info('Using user input offsets')
             # use them
             self.offsets = self.check_input(self.par['coadd2d']['offsets'], 'offsets')
-            self.offsets_report(self.offsets, pixscale, 'user input')
+            self.offsets_report(self.offsets, pixscales, 'user input')
 
         # 3) parset `offsets` is = 'maskdef_offsets' (no matter if we have a bright object or not)
         elif self.par['coadd2d']['offsets'] == 'maskdef_offsets':
@@ -1324,8 +1439,8 @@ class CoAdd2D:
                 )
             # the offsets computed during the main reduction (`run_pypeit`) are used
             log.info('Determining offsets using maskdef_offset recoded in SlitTraceSet')
-            self.offsets = self.maskdef_offset[0] - self.maskdef_offset
-            self.offsets_report(self.offsets, pixscale, 'maskdef_offset')
+            self.offsets = self.offsets_from_positions(self.maskdef_offset.astype(float))
+            self.offsets_report(self.offsets, pixscales, 'maskdef_offset')
 
         # 4) parset `offsets` = 'auto' but we have a bright object
         elif self.par['coadd2d']['offsets'] == 'auto' and self.obj_id_bri is not None:
@@ -1831,7 +1946,11 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
         # Now deterimine the offsets. Arbitrarily set the zeroth trace to the reference
         med_traces_rect = np.median(traces_rect,axis=0)
-        self.offsets = med_traces_rect[0] - med_traces_rect
+        # Positions of the object relative to the slit center, in pixels of
+        # each exposure (the rebinned images above are not rescaled by the
+        # pixel-scale ratios, and dspat_bins[0] is the position of the first
+        # spatial pixel relative to the slit center).
+        self.offsets = self.offsets_from_positions(med_traces_rect + dspat_bins[0])
         # TODO create a QA with this
         if self.debug_offsets:
             for iexp in range(self.nexp):
@@ -1840,9 +1959,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
                 plt.legend()
             plt.show()
 
-        # Binned pixel scale of the frames to be coadded
-        pixscale = parse.parse_binning(self.coadd2d_stack.detectors[0].binning)[1]*self.coadd2d_stack.detectors[0].platescale
-        self.offsets_report(self.offsets, pixscale, offsets_method)
+        self.offsets_report(self.offsets, self.pixscales, offsets_method)
 
 
     def compute_weights(self):
@@ -2047,6 +2164,9 @@ class MultiSlitCoAdd2D(CoAdd2D):
             slit_cen_dspat_vec = np.zeros(self.nexp)
             # These are the binned maskdef_objpos positions w.r.t. the center of the slit in ref_trace_stack
             objpos_dspat_vec = np.zeros(self.nexp)
+            # positions are converted to pixels of the first exposure, which
+            # define the spatial grid of the coadd (see compute_coadd2d)
+            pixscale_ratios = self.pixscale_ratios
             for iexp in range(self.nexp):
                 # get maskdef_slitcen
                 mslitcen_pixpos = self.coadd2d_stack.slits_list[iexp].maskdef_slitcen
@@ -2066,9 +2186,11 @@ class MultiSlitCoAdd2D(CoAdd2D):
                 # change reference system
                 ref_trace = ref_trace_stack[iexp]
                 nspec_this = ref_trace.shape[0]
-                slit_cen_dspat_vec[iexp] = (maskdef_slitcen_pixpos - ref_trace[nspec_this // 2]) / self.par['coadd2d']['spat_samp_fact']
+                slit_cen_dspat_vec[iexp] = (maskdef_slitcen_pixpos - ref_trace[nspec_this // 2]) \
+                                           * pixscale_ratios[iexp] / self.par['coadd2d']['spat_samp_fact']
 
-                objpos_dspat_vec[iexp] = (maskdef_obj_pixpos - ref_trace[nspec_this // 2]) / self.par['coadd2d']['spat_samp_fact']
+                objpos_dspat_vec[iexp] = (maskdef_obj_pixpos - ref_trace[nspec_this // 2]) \
+                                         * pixscale_ratios[iexp] / self.par['coadd2d']['spat_samp_fact']
 
             imaskdef_slitcen_dspat = np.mean(slit_cen_dspat_vec)
             imaskdef_objpos_dspat = np.mean(objpos_dspat_vec)
@@ -2420,3 +2542,23 @@ class EchelleCoAdd2D(CoAdd2D):
             Name of the wavelength-grid method.
         """
         return 'log10' if self.par['coadd2d']['wave_method'] is None else self.par['coadd2d']['wave_method']
+
+
+class NIRSpecSlitCoAdd2D(MultiSlitCoAdd2D):
+    """
+    Child of CoAdd2D for NIRSpec Slit reductions. For documentation see CoAdd2D parent class above.
+
+    NIRSpec Slit can coadd with:
+        - input offsets or if offsets is None, it will find the brightest trace and compute them
+        - specified weights, or if weights is None and auto_weights=True, it will compute weights using the brightest object
+    """
+
+    def __init__(self, spec2d_files, spectrograph, par, det=1,
+                 only_slits=None, exclude_slits=None, sn_smooth_npix=None,
+                 bkg_redux=False, find_negative=False, show=False, show_peaks=False, debug_offsets=False,
+                 debug=False):
+        super().__init__(spec2d_files, spectrograph, det=det,
+                         only_slits=only_slits, exclude_slits=exclude_slits,
+                         sn_smooth_npix=sn_smooth_npix, bkg_redux=bkg_redux, find_negative=find_negative, par=par,
+                         show=show, show_peaks=show_peaks, debug_offsets=debug_offsets,
+                         debug=debug)

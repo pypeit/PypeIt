@@ -150,7 +150,10 @@ estimated by the variance in the overscan regions of the image being processed;
 see :func:`~pypeit.images.rawimage.RawImage.estimate_readnoise`.  Use of the
 readnoise estimate regardless of the value provided by the
 :class:`~pypeit.images.detector_container.DetectorContainer` object can also be
-explicitly requested by setting the ``empirical_rn`` parameter to true.
+explicitly requested by setting the ``empirical_rn`` parameter to true.  For
+JWST/NIRSpec, which has no overscan regions, this parameter instead adds the
+noise missing from the JWST readnoise variance, measured on the pixels without
+signal; see :ref:`jwst_nirspec`.
 
 By default, the readnoise variance image does *not* include digitization noise.
 Digitization noise is driven by the conversion from counts to ADU via the gain

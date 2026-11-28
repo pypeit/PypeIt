@@ -161,7 +161,8 @@ All of these **must** subclass from
 
 def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=None, dark=None,
                         scattlight=None, flatimages=None, maxiters=5, ignore_saturation=True,
-                        slits=None, mosaic=None, calib_dir=None, setup=None, calib_id=None):
+                        slits=None, mosaic=None, slit_slices=None, slit_platescale=None,
+                        slit_units=None, calib_dir=None, setup=None, calib_id=None):
     """
     Perform basic image processing on a list of images and combine the results. All
     core processing steps for each image are handled by :class:`~pypeit.images.rawimage.RawImage` and
@@ -223,6 +224,19 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
             Flag processed image will be a mosaic of multiple detectors.  By
             default, this is determined by the format of ``det`` and whether or
             not this is a bias or dark frame.  *Only used for testing purposes.*
+        slit_slices (:obj:`list`, optional):
+            List of ``(spat_start, spat_end, spec_start, spec_end)`` tuples
+            giving the bounding box of the slit in the full detector pixel
+            frame, one entry per detector.  Only used by
+            :class:`~pypeit.images.rawimage.NIRSpecRawImage`.
+        slit_platescale (:obj:`float`, optional):
+            Along-slit platescale (arcsec/pixel) of the slit being processed,
+            which replaces the nominal platescale of the detector(s).  Only
+            used by :class:`~pypeit.images.rawimage.NIRSpecRawImage`.
+        slit_units (:obj:`str`, optional):
+            Units of the flat-fielded image of the slit being processed (e.g.,
+            ``MJy``).  Only used by
+            :class:`~pypeit.images.rawimage.NIRSpecRawImage`.
         calib_dir (:obj:`str`, `Path`_, optional):
             The directory for processed calibration files.  Required for
             elements of :attr:`frame_image_classes`, ignored otherwise.
@@ -257,11 +271,12 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
     # Loop on the files
     for ifile in file_list:
         # Load raw image
-        rawImage = rawimage.RawImage(ifile, spectrograph, det)
+        rawImage = rawimage.RawImage.get_instance(ifile, spectrograph, det)
         # Process
         rawImage_list.append(rawImage.process(
             frame_par['process'], scattlight=scattlight, bias=bias,
-            bpm=bpm, dark=dark, flatimages=flatimages, slits=slits, mosaic=mosaic))
+            bpm=bpm, dark=dark, flatimages=flatimages, slits=slits, mosaic=mosaic,
+            slit_slices=slit_slices, slit_platescale=slit_platescale, slit_units=slit_units))
 
     # Do it
     combineImage = combineimage.CombineImage(rawImage_list, frame_par['process'])
@@ -277,4 +292,3 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
     return pypeitImage if cls is None \
             else cls.from_pypeitimage(pypeitImage, calib_dir=calib_dir, setup=setup,
                                       calib_id=calib_id, detname=spectrograph.get_det_name(det))
-

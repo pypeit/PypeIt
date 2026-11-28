@@ -181,3 +181,46 @@ def test_lacosmic_spatial_median_residual_disabled():
     assert not np.any(crmask)
     assert crmask.shape == image.shape
 
+
+
+def test_excess_variance():
+    rng = np.random.default_rng(seed=7)
+    npix = 200000
+    # Model variance that varies across the pixels, with a constant excess
+    var = rng.uniform(low=4., high=16., size=npix)
+    true_excess = 6.
+    data = rng.normal(scale=np.sqrt(var + true_excess))
+    excess = procimg.excess_variance(data, var)
+    assert np.isclose(excess, true_excess, rtol=0.05), \
+        'The measured excess variance should match the variance missing from the model.'
+
+    # Outliers (e.g., cosmic rays) should not affect the robust measurement
+    _data = data.copy()
+    _data[:500] = 1e4
+    assert np.isclose(procimg.excess_variance(_data, var), true_excess, rtol=0.05), \
+        'A small fraction of outliers should not change the excess variance.'
+
+
+def test_excess_variance_none():
+    rng = np.random.default_rng(seed=8)
+    var = np.full(100000, 9., dtype=float)
+    # Model variance larger than the true variance: the model is not reduced
+    data = rng.normal(scale=2., size=var.size)
+    assert procimg.excess_variance(data, var) == 0., \
+        'If the model variance is already large enough, no excess should be added.'
+
+
+def test_signal_free_pixels():
+    rng = np.random.default_rng(seed=9)
+    image = rng.normal(scale=0.1, size=(200, 200))
+    # A bright "slit" and a masked column
+    image[:, 90:110] += 10.
+    gpm = np.ones(image.shape, dtype=bool)
+    gpm[:, 50] = False
+    free = procimg.signal_free_pixels(image, gpm, 0.5, box=15, edge=16)
+    assert not np.any(free[:, 83:117]), \
+        'Pixels on or near the illuminated region should not be selected.'
+    assert not np.any(free[:, 50]), 'Masked pixels should not be selected.'
+    assert not np.any(free[:16]) and not np.any(free[:, -16:]), \
+        'Pixels near the image edges should not be selected.'
+    assert np.all(free[16:-16, 20:50]), 'Pixels far from the signal should be selected.'

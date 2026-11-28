@@ -210,3 +210,24 @@ def test_all2dobj_update_image(init_dict):
 
     os.remove(ofile)
 
+
+
+def test_spec2dobj_units(init_dict, tmp_path):
+    # The units of the processed image are recorded in the BUNIT keyword of
+    # the primary header and read back
+    for units, bunit in [('MJy', 'MJy'), ('e-', 'electron')]:
+        spec2DObj = spec2dobj.Spec2DObj(**init_dict, detector=tstutils.get_kastb_detector())
+        spec2DObj.units = units
+        ofile = tmp_path / f'tst_spec2d_{bunit}.fits'
+        spec2DObj.to_file(str(ofile))
+        assert fits.getheader(ofile)['BUNIT'] == bunit, 'Wrong BUNIT in the primary header.'
+        _spec2DObj = spec2dobj.Spec2DObj.from_file(str(ofile), spec2DObj.detname)
+        assert _spec2DObj.units == units, 'The units should be read from the BUNIT keyword.'
+
+        # Primary header of a spec2d file with all its detectors
+        allspec2D = spec2dobj.AllSpec2DObj()
+        allspec2D['meta']['bkg_redux'] = False
+        allspec2D['meta']['find_negative'] = False
+        allspec2D[spec2DObj.detname] = spec2DObj
+        hdr = allspec2D.build_primary_hdr(fits.Header(), load_spectrograph('shane_kast_blue'))
+        assert hdr['BUNIT'] == bunit, 'Wrong BUNIT in the primary header of the spec2d file.'

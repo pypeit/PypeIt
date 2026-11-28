@@ -432,6 +432,36 @@ class Spectrograph:
         # Return
         return spec_dict
 
+    def rawfile_basename(self, filename, targname=None, slitname=None, mjd=None):
+        """
+        Return the basename of a raw file, which is used for naming output
+        files by the function :func:`~pypeit.metadata.construct_basename`.
+        This can be spectrograph-dependent if specific changes need to be made.
+
+        Args:
+            filename (:obj:`str`):
+                Input raw fits filename.
+            targname (:obj:`str`, optional):
+                Target name to be added in the basename.
+                If None, no target name will be added.
+            slitname (:obj:`str`, optional):
+                Slit name to be added in the basename for per-slit outputs.
+                If None, no slit name will be added.
+            mjd : float
+                The MJD of the observation.
+
+        Returns:
+            :obj:`str`:
+            The basename of the input file.
+
+        """
+        # Imported here to avoid a circular import:
+        # outputfiles -> inputfiles -> spectrographs.util -> spectrograph
+        from pypeit import outputfiles
+        return outputfiles.construct_basename(
+            filename, self.camera, self.allowed_extensions, target=targname, mjd=mjd, slit=slitname
+        )
+
     def subheader_for_spec(self, row_fitstbl, raw_header, extra_header_cards=None,
                            allow_missing=False):
         """
@@ -1350,10 +1380,35 @@ class Spectrograph:
         """
         pass
 
-    def get_mosaic_par(self):
+    def get_mosaic_par(self, mosaic, hdu=None, msc_ord=5):
         """
-        Return the hard-coded parameters needed to construct detector mosaics.
+        Return the hard-coded parameters needed to construct detector mosaics
+        from unbinned images. This is instrument-specific.
+
+        The parameters expect the images to be trimmed and oriented to follow
+        the PypeIt shape convention of ``(nspec,nspat)``.  For returned
+        lists, the length of the list is the same as the number of detectors in
+        the mosaic, and they are ordered by the detector number.
+
+        Args:
+            mosaic (:obj:`tuple`):
+                Tuple of detector numbers used to construct the mosaic.  Must be
+                one among the list of possible mosaics as hard-coded by the
+                :func:`allowed_mosaics` function.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent detector parameters are set to a
+                default.  BEWARE: If ``hdu`` is not provided, the binning is
+                assumed to be `1,1`, which will cause faults if applied to
+                binned images!
+            msc_ord (:obj:`int`, optional):
+                Order of the interpolation used to construct the mosaic.
+
+        Returns:
+            :class:`~pypeit.images.mosaic.Mosaic`: Object with the mosaic *and*
+            detector parameters.
         """
+
         pass
 
     @property
@@ -1586,7 +1641,7 @@ class Spectrograph:
         xsec, ysec = section.strip().strip('[]').split(',')
         return f'[{ysec.strip()},{xsec.strip()}]'
 
-    def get_rawimage(self, raw_file, det, sec_includes_binning=False):
+    def get_rawimage(self, raw_file, det, sec_includes_binning=False, keys=None):
         """
         Read raw spectrograph image files and return data and relevant metadata
         needed for image processing.
@@ -1612,6 +1667,11 @@ class Spectrograph:
             *include* the on-chip binning automatically when the image is
             written, this flag should be set to true so that this reader returns
             the correct image sections.
+        keys : :obj:`list` of or single int, :obj:`str` or :obj:`tuple` of (string, int)
+            A list of keys or a single key identifying the HDU to read.  If a key is a tuple, it is of the
+            form `(name, ver)` where `ver` is an `EXTVER`` value that must
+            match the HDU being searched for. If keys is a list, it has to be of the same length as the number of
+            raw files. This parameter is currently only used for the JWST NIRSpec reduction.
 
         Returns
         -------
@@ -1643,6 +1703,11 @@ class Spectrograph:
 
         # Validate the entered (list of) detector(s)
         nimg, _det = self.validate_det(det)
+
+        # add warning about the `keys` parameter
+        if keys is not None:
+            log.warning(f'The `keys` parameter is not used for this spectrograph: {self.name}. Ignoring it.')
+
 
         # Grab the detector or mosaic parameters
         mosaic = None if nimg == 1 else self.get_mosaic_par(det, hdu=hdu)
@@ -1728,6 +1793,26 @@ class Spectrograph:
         # Return all images for mosaic
         return mosaic, np.array(raw_img), hdu, exptime, np.array(rawdatasec_img), \
                 np.array(oscansec_img)
+
+    def group_rawfiles(self, raw_files, det=1):
+        """
+        Group raw files. This can be useful for mosaic reductions, when
+        the detectors that need to be mosaiced are in different files.
+        This is spectrograph-specific, and it is not defined for all
+        spectrographs. The use of this method is not restricted to
+        mosaics, but it is expected to be most useful for that.
+
+        Args:
+            raw_files (:obj:`list`):
+                List of raw files to group.
+            det (:obj:`int`, :obj:`tuple`):
+                The single detector or set of detectors in a mosaic to process.
+        Returns:
+            :obj:`list`: List or List of lists of raw files.
+
+        """
+
+        return raw_files
 
     def get_lamps_status(self, headarr):
         """

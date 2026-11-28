@@ -123,7 +123,8 @@ class PypeItImage(datamodel.DataContainer):
                                   descr='The detector (see :class:`~pypeit.images.detector_container.DetectorContainer`) '
                                         'or mosaic (see :class:`~pypeit.images.mosaic.Mosaic`) '
                                         'parameters'),
-                 'units': dict(otype=str, descr='(Unscaled) Pixel units (e- or ADU)'),
+                 'units': dict(otype=str, descr='Units of the processed image (e.g., e-, ADU, '
+                                                'or MJy/sr)'),
                  # TODO: Consider forcing exptime to be a float.
                  'exptime': dict(otype=(int, float), descr='Effective exposure time (s)'),
                  'noise_floor': dict(otype=float, descr='Noise floor included in variance'),
@@ -541,7 +542,10 @@ class PypeItImage(datamodel.DataContainer):
                 value used for the saturation includes the detector
                 non-linearity threshold; see
                 :func:`~pypeit.images.detector_container.DetectorContainer.nonlinear_counts`.
-                If None, pixels are not flagged for saturation.
+                If :attr:`units` is neither `'e-'` nor `'ADU'` (e.g., for
+                flux-calibrated images), the image is not in detector counts,
+                and the default saturation limit is not applied.  If None,
+                pixels are not flagged for saturation.
             mincounts (:obj:`float`, :obj:`str`, `numpy.ndarray`_, optional):
                 The minimum valid value; units must match the image.  Any value
                 below this is flagged with the MINCOUNTS bit.  Can be a single
@@ -551,8 +555,10 @@ class PypeItImage(datamodel.DataContainer):
                 string, but, if so, the string must be ``'default'``, and that
                 means the minimum count threshold is set by :attr:`detector`.
                 The tabulated minimum counts is assumed to be in e-, which will
-                be converted to ADU/DN if :attr:`units` is `'ADU'`.  If None,
-                pixels are not flagged for a minimum value.
+                be converted to ADU/DN if :attr:`units` is `'ADU'`.  As for the
+                saturation, the default minimum counts is not applied if
+                :attr:`units` is neither `'e-'` nor `'ADU'`.  If None, pixels
+                are not flagged for a minimum value.
             slitmask (`numpy.ndarray`_, optional):
                 Slit mask image.  Pixels not in a slit are flagged with the
                 OFFSLITS bit; see :func:`update_mask_slitmask`.
@@ -568,24 +574,38 @@ class PypeItImage(datamodel.DataContainer):
                 and mincounts.shape != self.shape:
             raise PypeItError('Minimum counts array must have the same shape as the image.')
 
-        # Setup the saturation level 
+        # The default saturation and minimum counts are tabulated in detector
+        # counts, so they can only be applied to images in detector counts
+        detector_units = self.units in ['e-', 'ADU']
+
+        # Setup the saturation level
         if isinstance(saturation, str):
             if saturation != 'default':
                 raise PypeItError(f'Unknown saturation string: {saturation}')
-            _saturation = self.map_detector_value('saturation') \
-                            * self.map_detector_value('nonlinear')
-            if self.units == 'e-':
-                _saturation *= self.map_detector_value('gain')
+            if detector_units:
+                _saturation = self.map_detector_value('saturation') \
+                                * self.map_detector_value('nonlinear')
+                if self.units == 'e-':
+                    _saturation *= self.map_detector_value('gain')
+            else:
+                log.info(f'The image is in {self.units}, not in detector counts; the default '
+                         'saturation limit is not applied.')
+                _saturation = None
         else:
             _saturation = saturation
 
-        # Setup the minimum counts level 
+        # Setup the minimum counts level
         if isinstance(mincounts, str):
             if mincounts != 'default':
                 raise PypeItError(f'Unknown mincounts string: {mincounts}')
-            _mincounts = self.map_detector_value('mincounts')
-            if self.units == 'ADU':
-                _mincounts /= self.map_detector_value('gain')
+            if detector_units:
+                _mincounts = self.map_detector_value('mincounts')
+                if self.units == 'ADU':
+                    _mincounts /= self.map_detector_value('gain')
+            else:
+                log.info(f'The image is in {self.units}, not in detector counts; the default '
+                         'minimum counts is not applied.')
+                _mincounts = None
         else:
             _mincounts = mincounts
 
