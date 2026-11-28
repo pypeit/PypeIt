@@ -198,6 +198,11 @@ class Spectrograph:
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = cls.name
+        if cls.pypeline == 'SlicerIFU':
+            # Place the slit edges at the steepest flux gradient, so that the
+            # spatial flexure (measured with the edge-based methods) is relative
+            # to the steepest gradient (the slits are not tweaked)
+            par['calibrations']['slitedges']['refine_edges'] = True
         return par
 
     def config_specific_par(
@@ -2011,6 +2016,47 @@ class Spectrograph:
         """
         log.warning("2D detector response is not implemented for spectrograph: {0:s}".format(self.name))
         return np.ones_like(det_resp)
+
+    def spatial_flexure(self, spat_flexure, polyord=0, slit_cen=None, gpm=None):
+        """
+        Post-process the spatial flexure of the slit edges.
+
+        By default, the spatial flexure of the left and right edges is fit
+        separately with a polynomial, as a function of the spatial position of
+        the slits, with iterative rejection of outliers; see
+        :func:`~pypeit.core.flexure.fit_spat_flexure`.  Spectrographs can
+        override this method to post-process the spatial flexure in their own
+        way.
+
+        Parameters
+        ----------
+        spat_flexure (`numpy.ndarray`_):
+            The spatial flexure in pixels.  This is a 2D array with the
+            shape (number of slits, 2). spat_flexure[:,0] have the raw
+            spatial flexure values of the left edges, and spat_flexure[:,1]
+            have the raw spatial flexure values of the right edges.
+        polyord (:obj:`int`, optional):
+            The order of the polynomial to fit to the spatial flexure.
+            Must be >= 0.
+        slit_cen (`numpy.ndarray`_, optional):
+            The spatial position of each slit, with shape (number of
+            slits,).  If None, the slit index is used.
+        gpm (`numpy.ndarray`_, optional):
+            Boolean array with the same shape as ``spat_flexure``, which is
+            True for the slit edges with a measured spatial flexure.  Only
+            these edges are used in the fit.  If None, all edges are used.
+
+        Returns
+        -------
+        `numpy.ndarray`_: The spatial flexure in pixels.  This is a 2D array
+            with the shape (number of slits, 2). spat_flexure[:,0] have the
+            spatial flexure values of the left edges, and spat_flexure[:,1]
+            have the spatial flexure values of the right edges.
+        """
+        # NOTE: Imported here to avoid circular imports
+        from pypeit.core.flexure import fit_spat_flexure
+        _slit_cen = np.arange(spat_flexure.shape[0], dtype=float) if slit_cen is None else slit_cen
+        return fit_spat_flexure(spat_flexure, _slit_cen, polyord, gpm=gpm)
 
     def validate_metadata(self):
         """

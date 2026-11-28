@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import textwrap
 
-from astropy.table import Table
+from astropy.table import Table, column
 from IPython import embed
 import pytest
 from pypeit import PypeItError
@@ -790,3 +790,21 @@ def test_get_pypeitpar_require_rawfile_false_falls_back_to_defaults(tmp_path):
     assert isinstance(par, PypeItPar), \
         'get_pypeitpar should still return a fully populated PypeItPar, via the default_pypeit_par fallback'
 
+
+
+def test_read_data_table_fills_blank_cells():
+    # Blank cells in the data block (e.g., in the user-added manual and shift
+    # columns) are read as empty strings, not masked values.  A blank is the
+    # "not set" sentinel for these columns (Issue #2180).
+    lines = ['path /tmp',
+             'filename | frametype | manual | shift',
+             'b1.fits | arc,tilt | |',
+             'b27.fits | science | | 2.5']
+    paths, tbl = inputfiles.InputFile._read_data_file_table(lines, False)
+    assert paths == ['/tmp'], 'Path not parsed correctly'
+    for key in tbl.keys():
+        assert not isinstance(tbl[key], column.MaskedColumn), \
+            f'Column {key} should not be masked'
+    assert tbl['manual'][0] == '' and tbl['manual'][1] == '', 'Blank manual entries should be empty strings'
+    assert tbl['shift'][0] == '', 'Blank shift entry should be an empty string'
+    assert float(tbl['shift'][1]) == 2.5, 'Shift entry not read correctly'

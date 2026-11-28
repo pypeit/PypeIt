@@ -116,7 +116,7 @@ class ShaneHamspecSpectrograph(spectrograph.Spectrograph):
         # identification: building synthetic line-arcs and continuum
         # subtracting the CCF (the defaults) is prohibitively slow on the
         # ~100-order x 4k Hamspec format.
-        par['calibrations']['wavelengths']['ech_direct_cc'] = True
+        par['calibrations']['wavelengths']['cc_synth_arc'] = False
         # NOTE (Q36a): lowering cc_thresh to 0.5 and enabling reid_cont_sub were
         # tried to pick up the bluer orders but did not help (no extra orders,
         # higher RMS), so keep the original values.  The blue-order coverage

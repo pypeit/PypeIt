@@ -128,7 +128,8 @@ If a spatial flexure correction was performed, the result of the correction
 is shown in a plot like the one below.  The plot shows a few snippets of the
 science/standard spectral image with overlaid the slit edges as traced in the
 ``trace`` image (dashed lines) and after applying the spatial flexure correction
-(solid lines). The value of the shift is also reported on the top of the plot.
+(solid lines). The value of the shift of the left and right edges (L/R) of each slit is
+also reported on the top of each panel.
 
 .. figure:: figures/r230417_01033_DET01_spat_flex_corr.png
    :align: center

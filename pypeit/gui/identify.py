@@ -706,7 +706,8 @@ class Identify:
                     bdisp, verbose=False, n_first=self._fitdict["polyorder"],
                     match_toler=self.par['match_toler'], func=self.par['func'],
                     n_final=self._fitdict["polyorder"], input_only=True,
-                    sigrej_first=self.par['sigrej_first'], sigrej_final=self.par['sigrej_final']
+                    sigrej_first=self.par['sigrej_first'], sigrej_final=self.par['sigrej_final'],
+                    min_dof=0  # The user chooses the lines and the order
                 )
             except TypeError:
                 wvcalib = None
@@ -1355,7 +1356,8 @@ class Identify:
                     n_first=min(2, self._fitdict["polyorder"]),
                     match_toler=self.par['match_toler'], func=self.par['func'], input_only=True,
                     n_final=self._fitdict["polyorder"], sigrej_first=self.par['sigrej_first'],
-                    sigrej_final=self.par['sigrej_final']
+                    sigrej_final=self.par['sigrej_final'],
+                    min_dof=0  # The user chooses the lines and the order
                 )
                 final_fit.spat_id = int(self._spatid)
 
