@@ -624,7 +624,10 @@ This will launch the :ref:`pypeit_identify` gui and the user will follow the
 procedure outlined in :ref:`identify_walkthrough` to construct the wavelength
 solution for every order in the arc lamp spectrum. Plots showing the spectra of
 arc lamps and OH lines can be accessed at the `NIRSPEC instrument page
-<https://www2.keck.hawaii.edu/inst/nirspec/cals.html>`__,
+<https://www2.keck.hawaii.edu/inst/nirspec/cals.html>`__.
+See :ref:`pypeit_identify-echelle` for the general echelle workflow, including
+the expected behavior when an order is skipped because it has too few useful
+lines to fit.
 
 Once the selected orders are corrected, the user will be guided through a dialog
 for saving the wavelength solution. The dialog will also give an instruction for
@@ -809,7 +812,10 @@ reduction is being done (in the case of the tutorial, that is
 
 The walkthrough will give instructions for the basic procedure of identifying
 lines, correcting mis-identified lines, and selecting the polynomial order of
-the fit. For more advanced usage, see the help page for :ref:`pypeit_identify`.
+the fit. See :ref:`pypeit_identify-echelle` for the general echelle workflow,
+including the expected behavior when an order is skipped because it has too few
+useful lines to fit. For more advanced usage, see the help page for
+:ref:`pypeit_identify`.
 
 Opening the User Interface
 --------------------------
@@ -981,4 +987,3 @@ the changes to the WaveCalib file.
 The user will then be prompted about "cleaning up" the Calibrations directory,
 which will delete all files that might have data that was flagged by the
 automatic wavelength calibration in any orders for which the calibration failed.
-
